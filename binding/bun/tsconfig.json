@@ -5,7 +5,7 @@
     "example"
   ],
   "include": [
-    "src/**/*.ts",
+    "src/**/*.ts"
   ],
   "compilerOptions": {
     // Environment setup & latest features

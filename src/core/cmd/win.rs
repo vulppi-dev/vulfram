@@ -5,12 +5,11 @@ use serde::{Deserialize, Serialize};
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize, Position},
     event_loop::ActiveEventLoop,
-    platform::windows::WindowExtWindows,
-    window::{Fullscreen, Window, WindowAttributes},
+    window::Window,
 };
 
 use super::super::units::{IVector2, Size};
-use crate::core::{EngineResult, EngineState, WindowState};
+use crate::core::state::{EngineState, WindowState};
 
 #[repr(u32)]
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -49,15 +48,16 @@ pub struct CmdWindowCreateArgs {
 #[derive(Debug, Default, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowCreate {
-    id: u32,
     success: bool,
+    message: String,
+    content: u32,
 }
 
 pub fn engine_cmd_window_create(
     engine: &mut EngineState,
     event_loop: &ActiveEventLoop,
     args: &CmdWindowCreateArgs,
-) -> EngineResult {
+) -> CmdResultWindowCreate {
     let win_attrs = Window::default_attributes()
         .with_title(args.title.as_str())
         .with_decorations(!args.borderless)
@@ -73,7 +73,11 @@ pub fn engine_cmd_window_create(
         Ok(window) => Arc::new(window),
         Err(e) => {
             println!("Failed to create window: {}", e);
-            return EngineResult::WinitCreateWindowError;
+            return CmdResultWindowCreate {
+                success: false,
+                message: format!("Winit create window error: {}", e),
+                content: 0,
+            };
         }
     };
 
@@ -84,8 +88,11 @@ pub fn engine_cmd_window_create(
     let surface = match engine.wgpu.create_surface(window.clone()) {
         Ok(surface) => surface,
         Err(e) => {
-            println!("Failed to create surface: {}", e);
-            return EngineResult::WinitCreateWindowError;
+            return CmdResultWindowCreate {
+                success: false,
+                message: format!("WGPU create surface error: {}", e),
+                content: 0,
+            };
         }
     };
 
@@ -97,7 +104,13 @@ pub fn engine_cmd_window_create(
                 force_fallback_adapter: false,
             })) {
                 Ok(adapter) => adapter,
-                Err(_) => return EngineResult::WgpuInstanceError,
+                Err(_) => {
+                    return CmdResultWindowCreate {
+                        success: false,
+                        message: "WGPU adapter request error".to_string(),
+                        content: 0,
+                    };
+                }
             };
 
         let (device, queue) = match adapter
@@ -112,8 +125,11 @@ pub fn engine_cmd_window_create(
         {
             Ok((device, queue)) => (device, queue),
             Err(e) => {
-                println!("Failed to create device: {}", e);
-                return EngineResult::WgpuInstanceError;
+                return CmdResultWindowCreate {
+                    success: false,
+                    message: format!("WGPU device request error: {}", e),
+                    content: 0,
+                };
             }
         };
 
@@ -154,5 +170,9 @@ pub fn engine_cmd_window_create(
         },
     );
 
-    EngineResult::Success
+    CmdResultWindowCreate {
+        success: true,
+        message: "Window created successfully".to_string(),
+        content: win_id,
+    }
 }

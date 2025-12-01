@@ -531,70 +531,6 @@ export type GamepadEvent =
   | GamepadButtonEvent
   | GamepadAxisEvent;
 
-// MARK: Joystick Events
-
-/** Joystick hat position */
-export type JoystickHatPosition =
-  | 'centered'
-  | 'up'
-  | 'right-up'
-  | 'right'
-  | 'right-down'
-  | 'down'
-  | 'left-down'
-  | 'left'
-  | 'left-up';
-
-export interface JoystickConnectedEvent {
-  event: 'on-connect';
-  data: {
-    joystickId: number;
-    name: string;
-    axesCount: number;
-    buttonsCount: number;
-    hatsCount: number;
-  };
-}
-
-export interface JoystickDisconnectedEvent {
-  event: 'on-disconnect';
-  data: { joystickId: number };
-}
-
-export interface JoystickButtonEvent {
-  event: 'on-button';
-  data: {
-    joystickId: number;
-    buttonIndex: number;
-    state: ElementState;
-  };
-}
-
-export interface JoystickAxisEvent {
-  event: 'on-axis';
-  data: {
-    joystickId: number;
-    axisIndex: number;
-    value: number; // -1.0 to 1.0
-  };
-}
-
-export interface JoystickHatEvent {
-  event: 'on-hat';
-  data: {
-    joystickId: number;
-    hatIndex: number;
-    position: JoystickHatPosition;
-  };
-}
-
-export type JoystickEvent =
-  | JoystickConnectedEvent
-  | JoystickDisconnectedEvent
-  | JoystickButtonEvent
-  | JoystickAxisEvent
-  | JoystickHatEvent;
-
 // MARK: System Events
 
 export interface SystemResumedEvent {
@@ -626,7 +562,6 @@ export type EngineEvent =
   | { type: 'pointer'; content: PointerEvent }
   | { type: 'keyboard'; content: KeyboardEvent }
   | { type: 'gamepad'; content: GamepadEvent }
-  | { type: 'joystick'; content: JoystickEvent }
   | { type: 'system'; content: SystemEvent };
 
 /** Batch of engine events received from native */
@@ -656,12 +591,6 @@ export function isGamepadEvent(
   event: EngineEvent,
 ): event is { type: 'gamepad'; content: GamepadEvent } {
   return event.type === 'gamepad';
-}
-
-export function isJoystickEvent(
-  event: EngineEvent,
-): event is { type: 'joystick'; content: JoystickEvent } {
-  return event.type === 'joystick';
 }
 
 export function isSystemEvent(

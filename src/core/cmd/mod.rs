@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use winit::event_loop::ActiveEventLoop;
 
-use crate::core::{EngineResult, EngineState};
+use crate::core::result::EngineResult;
+use crate::core::state::EngineState;
 
 pub mod events;
 pub mod win;
@@ -20,7 +21,6 @@ pub enum EngineEvent {
     Pointer(events::PointerEvent),
     Keyboard(events::KeyboardEvent),
     Gamepad(events::GamepadEvent),
-    Joystick(events::JoystickEvent),
     System(events::SystemEvent),
     // MARK: Command answers
     WindowCreate(win::CmdResultWindowCreate),
@@ -49,5 +49,17 @@ pub fn engine_process_batch(
     event_loop: &ActiveEventLoop,
     batch: EngineBatchCmds,
 ) -> EngineResult {
+    for pack in batch {
+        match pack.cmd {
+            EngineCmd::CmdWindowCreate(args) => {
+                let result = win::engine_cmd_window_create(engine, event_loop, &args);
+                engine.event_queue.push(EngineEventEnvelope {
+                    id: pack.id,
+                    event: EngineEvent::WindowCreate(result),
+                });
+            }
+        }
+    }
+
     EngineResult::Success
 }

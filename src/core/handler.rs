@@ -50,6 +50,17 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
 
         match event {
             WinitWindowEvent::Resized(size) => {
+                // Update surface configuration with new size
+                if let Some(window_state) = self.windows.get_mut(&window_id) {
+                    if size.width > 0 && size.height > 0 {
+                        window_state.config.width = size.width;
+                        window_state.config.height = size.height;
+                        window_state
+                            .surface
+                            .configure(self.device.as_ref().unwrap(), &window_state.config);
+                    }
+                }
+
                 self.event_queue.push(EngineEventEnvelope {
                     id: 0,
                     event: EngineEvent::Window(WindowEvent::OnResize {

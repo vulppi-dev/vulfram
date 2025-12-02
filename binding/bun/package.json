@@ -31,7 +31,9 @@
     "pub": "npm publish --access=public --tag=latest",
     "format": "prettier --write ."
   },
-  "dependencies": {},
+  "dependencies": {
+    "cbor2": "^2.0.1"
+  },
   "devDependencies": {
     "@types/bun": "^1.3.3",
     "prettier": "^3.7.3",

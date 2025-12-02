@@ -2,10 +2,13 @@ import { decode, encode } from 'cbor2';
 import { dlopen, ptr } from 'bun:ffi';
 import { VULFRAM_CORE_PATH } from './paths';
 import type { VulframResult } from './enums';
-import type { VulframCmdBatch, VulframEventsBatch } from './cmds';
+import type { EngineBatchCmds, EngineBatchEvents } from './cmds';
 
-export * from './events';
+export * from './cmds';
+export * from './dev';
 export * from './enums';
+export * from './events';
+export * from './paths';
 
 if (!VULFRAM_CORE_PATH) {
   throw new Error(
@@ -71,7 +74,7 @@ export function vulframDispose(): VulframResult {
   return VULFRAM_CORE.engine_dispose();
 }
 
-export function vulframSendQueue(batch: VulframCmdBatch): VulframResult {
+export function vulframSendQueue(batch: EngineBatchCmds): VulframResult {
   const buffer = encode(batch);
   const bufferPtr = ptr(buffer);
   const length = buffer.byteLength;
@@ -79,7 +82,7 @@ export function vulframSendQueue(batch: VulframCmdBatch): VulframResult {
   return VULFRAM_CORE.engine_send_queue(bufferPtr, length);
 }
 
-export function vulframReceiveQueue(): [VulframEventsBatch, VulframResult] {
+export function vulframReceiveQueue(): [EngineBatchEvents, VulframResult] {
   const lengthHolder = new BigUint64Array(1);
   const lengthHolderPtr = ptr(lengthHolder);
 
@@ -93,6 +96,6 @@ export function vulframReceiveQueue(): [VulframEventsBatch, VulframResult] {
   if (result !== 0) {
     return [[], result];
   }
-  const events = decode(buffer) as VulframEventsBatch;
+  const events = decode(buffer) as EngineBatchEvents;
   return [events, result];
 }

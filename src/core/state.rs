@@ -2,8 +2,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use winit::window::{Window, WindowId};
 
-use crate::core::cmd::EngineBatchEvents;
+use crate::core::buffers::Buffer;
 use crate::core::cmd::events::ModifiersState;
+use crate::core::cmd::EngineBatchEvents;
 
 /// Represents a window with its associated WGPU resources
 pub struct WindowState {
@@ -26,7 +27,7 @@ pub struct EngineState {
     pub queue: Option<wgpu::Queue>,
 
     // Buffer management
-    pub buffers: HashMap<u64, Vec<u8>>,
+    pub buffers: HashMap<u64, Buffer>,
 
     // Event system
     pub event_queue: EngineBatchEvents,

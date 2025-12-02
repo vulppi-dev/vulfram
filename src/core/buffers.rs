@@ -1,12 +1,40 @@
+use super::image::{ImageBuffer, ImageDecoder};
 use super::result::EngineResult;
 use super::singleton::with_engine;
 
+/// Buffer data types - either raw bytes or decoded image
+#[derive(Debug, Clone)]
+pub enum BufferData {
+    Raw(Vec<u8>),
+    Image(ImageBuffer),
+}
+
+/// Buffer wrapper with typed data
+#[derive(Debug, Clone)]
+pub struct Buffer {
+    pub data: BufferData,
+}
+
 /// Upload data to a buffer identified by ID
+/// Automatically detects and decodes images (PNG, JPEG, WebP, AVIF)
 pub fn engine_upload_buffer(bfr_id: u64, bfr_ptr: *const u8, bfr_length: usize) -> EngineResult {
     let data = unsafe { std::slice::from_raw_parts(bfr_ptr, bfr_length).to_vec() };
 
     match with_engine(|engine| {
-        engine.buffers.insert(bfr_id, data);
+        // Try to decode as image
+        let buffer = if let Some(image_buffer) = ImageDecoder::try_decode(&data) {
+            // Successfully decoded as image
+            Buffer {
+                data: BufferData::Image(image_buffer),
+            }
+        } else {
+            // Not an image or failed to decode - store as raw
+            Buffer {
+                data: BufferData::Raw(data),
+            }
+        };
+
+        engine.buffers.insert(bfr_id, buffer);
     }) {
         Err(e) => e,
         Ok(_) => EngineResult::Success,
@@ -25,7 +53,13 @@ pub fn engine_download_buffer(
             None => return EngineResult::UnknownError,
         };
 
-        let required_length = buffer.len();
+        // Get raw bytes from buffer
+        let bytes = match &buffer.data {
+            BufferData::Raw(data) => data.as_slice(),
+            BufferData::Image(img) => img.data.as_slice(),
+        };
+
+        let required_length = bytes.len();
 
         unsafe {
             if bfr_ptr.is_null() {
@@ -36,7 +70,7 @@ pub fn engine_download_buffer(
             let available_length = *bfr_length;
 
             if required_length <= available_length {
-                std::ptr::copy_nonoverlapping(buffer.as_ptr(), bfr_ptr, required_length);
+                std::ptr::copy_nonoverlapping(bytes.as_ptr(), bfr_ptr, required_length);
                 *bfr_length = required_length;
                 return EngineResult::Success;
             } else {

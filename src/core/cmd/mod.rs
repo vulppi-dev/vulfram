@@ -21,6 +21,7 @@ pub enum EngineCmd {
     CmdWindowGetSurfaceSize(win::CmdWindowGetSurfaceSizeArgs),
     CmdWindowSetState(win::CmdWindowSetStateArgs),
     CmdWindowGetState(win::CmdWindowGetStateArgs),
+    CmdWindowSetIcon(win::CmdWindowSetIconArgs),
 }
 
 /// Engine event types sent from native to JavaScript
@@ -44,6 +45,7 @@ pub enum EngineEvent {
     WindowGetSurfaceSize(win::CmdResultWindowGetSurfaceSize),
     WindowSetState(win::CmdResultWindowSetState),
     WindowGetState(win::CmdResultWindowGetState),
+    WindowSetIcon(win::CmdResultWindowSetIcon),
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -146,6 +148,13 @@ pub fn engine_process_batch(
                 engine.event_queue.push(EngineEventEnvelope {
                     id: pack.id,
                     event: EngineEvent::WindowGetState(result),
+                });
+            }
+            EngineCmd::CmdWindowSetIcon(args) => {
+                let result = win::engine_cmd_window_set_icon(engine, &args);
+                engine.event_queue.push(EngineEventEnvelope {
+                    id: pack.id,
+                    event: EngineEvent::WindowSetIcon(result),
                 });
             }
         }

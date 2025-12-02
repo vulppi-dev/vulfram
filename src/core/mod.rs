@@ -10,6 +10,7 @@ mod tick;
 
 // Public modules
 pub mod cmd;
+pub mod image;
 pub mod units;
 
 // Re-exports for public API

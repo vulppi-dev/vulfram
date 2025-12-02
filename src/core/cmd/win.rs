@@ -9,6 +9,7 @@ use winit::{
 };
 
 use super::super::units::{IVector2, Size};
+use crate::core::buffers::BufferData;
 use crate::core::state::{EngineState, WindowState};
 
 #[repr(u32)]
@@ -603,6 +604,82 @@ pub fn engine_cmd_window_get_state(
             message: format!("Window with id {} not found", args.window_id),
             content: EngineWindowState::default(),
         },
+    }
+}
+
+// MARK: - Set Icon
+
+#[derive(Debug, Default, Deserialize, Clone)]
+#[serde(default, rename_all = "camelCase")]
+pub struct CmdWindowSetIconArgs {
+    pub window_id: u32,
+    pub buffer_id: u64,
+}
+
+#[derive(Debug, Default, Serialize, Clone)]
+#[serde(default, rename_all = "camelCase")]
+pub struct CmdResultWindowSetIcon {
+    success: bool,
+    message: String,
+}
+
+pub fn engine_cmd_window_set_icon(
+    engine: &mut EngineState,
+    args: &CmdWindowSetIconArgs,
+) -> CmdResultWindowSetIcon {
+    // Check if window exists
+    if !engine.windows.contains_key(&args.window_id) {
+        return CmdResultWindowSetIcon {
+            success: false,
+            message: format!("Window with id {} not found", args.window_id),
+        };
+    }
+
+    // Get buffer
+    let buffer = match engine.buffers.get(&args.buffer_id) {
+        Some(b) => b,
+        None => {
+            return CmdResultWindowSetIcon {
+                success: false,
+                message: format!("Buffer with id {} not found", args.buffer_id),
+            };
+        }
+    };
+
+    // Check if buffer is an image
+    let image_buffer = match &buffer.data {
+        BufferData::Image(img) => img,
+        BufferData::Raw(_) => {
+            return CmdResultWindowSetIcon {
+                success: false,
+                message: "Buffer is not a valid image. Supported formats: PNG, JPEG, WebP, AVIF"
+                    .to_string(),
+            };
+        }
+    };
+
+    // Create winit icon (requires RGBA8 format)
+    let icon = match winit::window::Icon::from_rgba(
+        image_buffer.data.clone(),
+        image_buffer.width,
+        image_buffer.height,
+    ) {
+        Ok(icon) => icon,
+        Err(e) => {
+            return CmdResultWindowSetIcon {
+                success: false,
+                message: format!("Failed to create icon: {}", e),
+            };
+        }
+    };
+
+    // Apply icon to window
+    let window_state = engine.windows.get(&args.window_id).unwrap();
+    window_state.window.set_window_icon(Some(icon));
+
+    CmdResultWindowSetIcon {
+        success: true,
+        message: "Icon set successfully".to_string(),
     }
 }
 

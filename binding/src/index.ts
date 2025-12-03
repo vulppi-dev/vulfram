@@ -1,4 +1,4 @@
-import * as VULFRAM_CORE from '../napi';
+import * as VULFRAM_CORE from './napi';
 import { decode, encode } from 'cbor2';
 import type { VulframResult } from './enums';
 import type { EngineBatchCmds, EngineBatchEvents } from './cmds';

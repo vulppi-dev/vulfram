@@ -6,8 +6,8 @@
   ],
   "include": [
     "src/**/*.ts",
-    "napi/**/*.ts",
-    "napi/**/*.node",
+    "src/napi/**/*.ts",
+    "src/napi/**/*.node",
   ],
   "compilerOptions": {
     // Environment setup & latest features

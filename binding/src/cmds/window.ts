@@ -8,6 +8,24 @@ import type {
 
 // MARK: Window Lifecycle Commands
 
+/**
+ * Command to create a new window.
+ *
+ * @example
+ * ```typescript
+ * const cmd: CmdWindowCreate = {
+ *   type: 'cmd-window-create',
+ *   content: {
+ *     title: 'My Game Window',
+ *     size: { width: 1920, height: 1080 },
+ *     position: { x: 0, y: 0 },
+ *     borderless: false,
+ *     resizable: true,
+ *     initialState: 'maximized'
+ *   }
+ * };
+ * ```
+ */
 export interface CmdWindowCreate {
   type: 'cmd-window-create';
   content: {
@@ -20,6 +38,17 @@ export interface CmdWindowCreate {
   };
 }
 
+/**
+ * Command to close an existing window.
+ *
+ * @example
+ * ```typescript
+ * const cmd: CmdWindowClose = {
+ *   type: 'cmd-window-close',
+ *   content: { windowId: 1 }
+ * };
+ * ```
+ */
 export interface CmdWindowClose {
   type: 'cmd-window-close';
   content: {
@@ -29,6 +58,20 @@ export interface CmdWindowClose {
 
 // MARK: Window Property Commands
 
+/**
+ * Command to change the window title.
+ *
+ * @example
+ * ```typescript
+ * const cmd: CmdWindowSetTitle = {
+ *   type: 'cmd-window-set-title',
+ *   content: {
+ *     windowId: 1,
+ *     title: 'New Window Title'
+ *   }
+ * };
+ * ```
+ */
 export interface CmdWindowSetTitle {
   type: 'cmd-window-set-title';
   content: {
@@ -37,6 +80,20 @@ export interface CmdWindowSetTitle {
   };
 }
 
+/**
+ * Command to set the window position on screen.
+ *
+ * @example
+ * ```typescript
+ * const cmd: CmdWindowSetPosition = {
+ *   type: 'cmd-window-set-position',
+ *   content: {
+ *     windowId: 1,
+ *     position: { x: 100, y: 100 }
+ *   }
+ * };
+ * ```
+ */
 export interface CmdWindowSetPosition {
   type: 'cmd-window-set-position';
   content: {
@@ -45,6 +102,17 @@ export interface CmdWindowSetPosition {
   };
 }
 
+/**
+ * Command to retrieve the current window position.
+ *
+ * @example
+ * ```typescript
+ * const cmd: CmdWindowGetPosition = {
+ *   type: 'cmd-window-get-position',
+ *   content: { windowId: 1 }
+ * };
+ * ```
+ */
 export interface CmdWindowGetPosition {
   type: 'cmd-window-get-position';
   content: {
@@ -52,6 +120,20 @@ export interface CmdWindowGetPosition {
   };
 }
 
+/**
+ * Command to change the window size (inner client area).
+ *
+ * @example
+ * ```typescript
+ * const cmd: CmdWindowSetSize = {
+ *   type: 'cmd-window-set-size',
+ *   content: {
+ *     windowId: 1,
+ *     size: { width: 1280, height: 720 }
+ *   }
+ * };
+ * ```
+ */
 export interface CmdWindowSetSize {
   type: 'cmd-window-set-size';
   content: {
@@ -173,6 +255,20 @@ export interface CmdWindowSetCursorGrab {
   };
 }
 
+/**
+ * Command to change the cursor icon appearance.
+ *
+ * @example
+ * ```typescript
+ * const cmd: CmdWindowSetCursorIcon = {
+ *   type: 'cmd-window-set-cursor-icon',
+ *   content: {
+ *     windowId: 1,
+ *     icon: 'pointer'
+ *   }
+ * };
+ * ```
+ */
 export interface CmdWindowSetCursorIcon {
   type: 'cmd-window-set-cursor-icon';
   content: {

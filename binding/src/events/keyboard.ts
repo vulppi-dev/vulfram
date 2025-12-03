@@ -168,6 +168,25 @@ export type KeyCode =
   // Unknown
   | 'unidentified';
 
+/**
+ * Event fired when a keyboard key is pressed or released.
+ *
+ * @example
+ * ```typescript
+ * const event: KeyboardInputEvent = {
+ *   event: 'on-input',
+ *   data: {
+ *     windowId: 1,
+ *     keyCode: 'key-w',
+ *     state: 'pressed',
+ *     location: 'standard',
+ *     repeat: false,
+ *     text: 'w',
+ *     modifiers: { shift: false, ctrl: false, alt: false, meta: false }
+ *   }
+ * };
+ * ```
+ */
 export interface KeyboardInputEvent {
   event: 'on-input';
   data: {

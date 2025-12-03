@@ -19,6 +19,22 @@ export type ScrollDelta =
   | { type: 'line'; value: Vector2 }
   | { type: 'pixel'; value: Vector2 };
 
+/**
+ * Event fired when the pointer (mouse, touch, or pen) moves.
+ *
+ * @example
+ * ```typescript
+ * const event: PointerMovedEvent = {
+ *   event: 'on-move',
+ *   data: {
+ *     windowId: 1,
+ *     pointerType: 'mouse',
+ *     pointerId: 0,
+ *     position: { x: 640, y: 360 }
+ *   }
+ * };
+ * ```
+ */
 export interface PointerMovedEvent {
   event: 'on-move';
   data: {
@@ -47,6 +63,24 @@ export interface PointerLeftEvent {
   };
 }
 
+/**
+ * Event fired when a pointer button (mouse button) is pressed or released.
+ *
+ * @example
+ * ```typescript
+ * const event: PointerButtonEvent = {
+ *   event: 'on-button',
+ *   data: {
+ *     windowId: 1,
+ *     pointerType: 'mouse',
+ *     pointerId: 0,
+ *     button: 'left',
+ *     state: 'pressed',
+ *     position: { x: 100, y: 200 }
+ *   }
+ * };
+ * ```
+ */
 export interface PointerButtonEvent {
   event: 'on-button';
   data: {

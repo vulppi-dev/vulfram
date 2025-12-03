@@ -39,6 +39,20 @@ export type GamepadAxis =
   | 'right-trigger'
   | { other: number };
 
+/**
+ * Event fired when a gamepad is connected to the system.
+ *
+ * @example
+ * ```typescript
+ * const event: GamepadConnectedEvent = {
+ *   event: 'on-connect',
+ *   data: {
+ *     gamepadId: 0,
+ *     name: 'Xbox Controller'
+ *   }
+ * };
+ * ```
+ */
 export interface GamepadConnectedEvent {
   event: 'on-connect';
   data: {
@@ -52,6 +66,22 @@ export interface GamepadDisconnectedEvent {
   data: { gamepadId: number };
 }
 
+/**
+ * Event fired when a gamepad button is pressed or released.
+ *
+ * @example
+ * ```typescript
+ * const event: GamepadButtonEvent = {
+ *   event: 'on-button',
+ *   data: {
+ *     gamepadId: 0,
+ *     button: 'south',
+ *     state: 'pressed',
+ *     value: 1.0
+ *   }
+ * };
+ * ```
+ */
 export interface GamepadButtonEvent {
   event: 'on-button';
   data: {

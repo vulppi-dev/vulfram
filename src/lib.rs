@@ -65,6 +65,12 @@ mod napi_exports {
     use napi::bindgen_prelude::*;
     use napi_derive::napi;
 
+    #[napi(object)]
+    pub struct BufferResult {
+        pub buffer: Buffer,
+        pub result: u32,
+    }
+
     #[napi]
     pub fn engine_init() -> u32 {
         core::engine_init() as u32
@@ -83,14 +89,17 @@ mod napi_exports {
     }
 
     #[napi]
-    pub fn engine_receive_queue() -> Result<Buffer> {
+    pub fn engine_receive_queue() -> Result<BufferResult> {
         let mut length: usize = 0;
         let length_ptr = &mut length as *mut usize;
 
         // First call to get size
         let result = core::engine_receive_queue(std::ptr::null_mut(), length_ptr) as u32;
         if result != 0 || length == 0 {
-            return Ok(Buffer::from(vec![]));
+            return Ok(BufferResult {
+                buffer: Buffer::from(vec![]),
+                result,
+            });
         }
 
         // Second call to get data
@@ -99,10 +108,16 @@ mod napi_exports {
         let result = core::engine_receive_queue(buffer_ptr, length_ptr) as u32;
 
         if result != 0 {
-            return Ok(Buffer::from(vec![]));
+            return Ok(BufferResult {
+                buffer: Buffer::from(vec![]),
+                result,
+            });
         }
 
-        Ok(Buffer::from(buffer))
+        Ok(BufferResult {
+            buffer: Buffer::from(buffer),
+            result,
+        })
     }
 
     #[napi]
@@ -113,7 +128,7 @@ mod napi_exports {
     }
 
     #[napi]
-    pub fn engine_download_buffer(id: i64) -> Result<Buffer> {
+    pub fn engine_download_buffer(id: i64) -> Result<BufferResult> {
         let mut length: usize = 0;
         let length_ptr = &mut length as *mut usize;
 
@@ -121,7 +136,10 @@ mod napi_exports {
         let result =
             core::engine_download_buffer(id as u64, std::ptr::null_mut(), length_ptr) as u32;
         if result != 0 || length == 0 {
-            return Ok(Buffer::from(vec![]));
+            return Ok(BufferResult {
+                buffer: Buffer::from(vec![]),
+                result,
+            });
         }
 
         // Second call to get data
@@ -130,10 +148,16 @@ mod napi_exports {
         let result = core::engine_download_buffer(id as u64, buffer_ptr, length_ptr) as u32;
 
         if result != 0 {
-            return Ok(Buffer::from(vec![]));
+            return Ok(BufferResult {
+                buffer: Buffer::from(vec![]),
+                result,
+            });
         }
 
-        Ok(Buffer::from(buffer))
+        Ok(BufferResult {
+            buffer: Buffer::from(buffer),
+            result,
+        })
     }
 
     #[napi]

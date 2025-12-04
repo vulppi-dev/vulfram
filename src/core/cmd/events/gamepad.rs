@@ -4,7 +4,7 @@ use super::common::ElementState;
 
 /// Gamepad button types following standard gamepad mapping
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum GamepadButton {
     // Face buttons
@@ -40,7 +40,7 @@ pub enum GamepadButton {
 
 /// Gamepad axis types
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum GamepadAxis {
     LeftStickX = 0,

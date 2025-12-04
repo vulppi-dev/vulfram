@@ -175,6 +175,18 @@ bun run dev
 - Process events in bulk each frame
 - MessagePack serialization for speed and compact binary format
 
+### Event Optimization
+
+- **Cache system**: Events are filtered to avoid dispatching duplicates
+- **Window events**: Cache position, size, scale factor, focus, occluded, theme
+- **Pointer events**: 1px threshold for position changes
+- **Gamepad events**:
+  - Dead zone: 0.1 for analog sticks/triggers
+  - Change threshold: 0.01 for axes, 0.05 for button values
+  - Button state changes cached per gamepad
+- **Keyboard events**: Modifier state cached to avoid duplicate events
+- **Cache structure**: `src/core/cache/` with managers for window, input, and gamepad state
+
 ### Type Safety
 
 - Full TypeScript types for all commands/events

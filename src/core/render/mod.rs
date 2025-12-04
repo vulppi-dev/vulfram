@@ -1,7 +1,28 @@
-use crate::core::state::EngineState;
-use winit::window::WindowId;
+pub mod state;
 
-pub fn render_frames(_wid: WindowId, engine_state: &mut EngineState) {
+use crate::core::state::EngineState;
+use std::collections::HashMap;
+use std::sync::{OnceLock, RwLock};
+
+use self::state::RenderState;
+
+/// Render states for all windows (window_id -> RenderState)
+static RENDER_STATES: OnceLock<RwLock<HashMap<u32, RenderState>>> = OnceLock::new();
+
+fn ensure_render_state(window_id: u32) {
+    let states = RENDER_STATES.get_or_init(|| RwLock::new(HashMap::new()));
+    let read_guard = states.read().unwrap();
+
+    if !read_guard.contains_key(&window_id) {
+        drop(read_guard);
+        let mut write_guard = states.write().unwrap();
+        write_guard
+            .entry(window_id)
+            .or_insert_with(RenderState::new);
+    }
+}
+
+pub fn render_frames(engine_state: &mut EngineState) {
     // Get device and queue
     let device = match &engine_state.device {
         Some(device) => device,
@@ -14,7 +35,15 @@ pub fn render_frames(_wid: WindowId, engine_state: &mut EngineState) {
     };
 
     // Render all windows
-    for (_window_id, window_state) in engine_state.windows.iter() {
+    for (window_id, window_state) in engine_state.windows.iter() {
+        // Ensure render state exists for this window
+        ensure_render_state(*window_id);
+
+        // Get render states lock once for reading
+        let states = RENDER_STATES.get().unwrap();
+        let read_guard = states.read().unwrap();
+        let render_state = read_guard.get(window_id).unwrap();
+
         // Get the surface texture
         let surface_texture = match window_state.surface.get_current_texture() {
             Ok(texture) => texture,
@@ -34,7 +63,7 @@ pub fn render_frames(_wid: WindowId, engine_state: &mut EngineState) {
             label: Some("Render Encoder"),
         });
 
-        // Create a render pass with purple clear color
+        // Create a render pass with cached clear color
         {
             let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
@@ -42,12 +71,7 @@ pub fn render_frames(_wid: WindowId, engine_state: &mut EngineState) {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.5, // Red component
-                            g: 0.0, // Green component
-                            b: 0.5, // Blue component
-                            a: 1.0, // Alpha component
-                        }),
+                        load: wgpu::LoadOp::Clear(render_state.clear_color),
                         store: wgpu::StoreOp::Store,
                     },
                     depth_slice: None,
@@ -63,5 +87,13 @@ pub fn render_frames(_wid: WindowId, engine_state: &mut EngineState) {
 
         // Present the frame
         surface_texture.present();
+    }
+}
+
+/// Clean up render state for a closed window
+pub fn cleanup_window_render_state(window_id: u32) {
+    if let Some(states) = RENDER_STATES.get() {
+        let mut write_guard = states.write().unwrap();
+        write_guard.remove(&window_id);
     }
 }

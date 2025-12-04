@@ -51,12 +51,20 @@ fn process_gilrs_event(engine_state: &mut EngineState, event: GilrsEvent) {
                 "Unknown".to_string()
             };
 
+            // Add to cache
+            engine_state
+                .gamepad_cache
+                .add_gamepad(gamepad_id, name.clone());
+
             engine_state.event_queue.push(EngineEventEnvelope {
                 id: 0,
                 event: EngineEvent::Gamepad(GamepadEvent::OnConnect { gamepad_id, name }),
             });
         }
         GilrsEventType::Disconnected => {
+            // Remove from cache
+            engine_state.gamepad_cache.remove_gamepad(gamepad_id);
+
             engine_state.event_queue.push(EngineEventEnvelope {
                 id: 0,
                 event: EngineEvent::Gamepad(GamepadEvent::OnDisconnect { gamepad_id }),
@@ -64,25 +72,47 @@ fn process_gilrs_event(engine_state: &mut EngineState, event: GilrsEvent) {
         }
         GilrsEventType::ButtonPressed(button, _code) => {
             let button_mapped = super::cmd::events::convert_gilrs_button(button);
+            let value = 1.0;
+            let state = ElementState::Pressed;
+
+            // Check if button state actually changed
+            if let Some(cache) = engine_state.gamepad_cache.get_mut(gamepad_id) {
+                if !cache.button_changed(button_mapped, state, value) {
+                    return;
+                }
+                cache.update_button(button_mapped, state, value);
+            }
+
             engine_state.event_queue.push(EngineEventEnvelope {
                 id: 0,
                 event: EngineEvent::Gamepad(GamepadEvent::OnButton {
                     gamepad_id,
                     button: button_mapped,
-                    state: ElementState::Pressed,
-                    value: 1.0,
+                    state,
+                    value,
                 }),
             });
         }
         GilrsEventType::ButtonReleased(button, _code) => {
             let button_mapped = super::cmd::events::convert_gilrs_button(button);
+            let value = 0.0;
+            let state = ElementState::Released;
+
+            // Check if button state actually changed
+            if let Some(cache) = engine_state.gamepad_cache.get_mut(gamepad_id) {
+                if !cache.button_changed(button_mapped, state, value) {
+                    return;
+                }
+                cache.update_button(button_mapped, state, value);
+            }
+
             engine_state.event_queue.push(EngineEventEnvelope {
                 id: 0,
                 event: EngineEvent::Gamepad(GamepadEvent::OnButton {
                     gamepad_id,
                     button: button_mapped,
-                    state: ElementState::Released,
-                    value: 0.0,
+                    state,
+                    value,
                 }),
             });
         }
@@ -93,6 +123,15 @@ fn process_gilrs_event(engine_state: &mut EngineState, event: GilrsEvent) {
             } else {
                 ElementState::Released
             };
+
+            // Check if button state or value actually changed significantly
+            if let Some(cache) = engine_state.gamepad_cache.get_mut(gamepad_id) {
+                if !cache.button_changed(button_mapped, state, value) {
+                    return;
+                }
+                cache.update_button(button_mapped, state, value);
+            }
+
             engine_state.event_queue.push(EngineEventEnvelope {
                 id: 0,
                 event: EngineEvent::Gamepad(GamepadEvent::OnButton {
@@ -105,14 +144,26 @@ fn process_gilrs_event(engine_state: &mut EngineState, event: GilrsEvent) {
         }
         GilrsEventType::AxisChanged(axis, value, _code) => {
             let axis_mapped = super::cmd::events::convert_gilrs_axis(axis);
-            engine_state.event_queue.push(EngineEventEnvelope {
-                id: 0,
-                event: EngineEvent::Gamepad(GamepadEvent::OnAxis {
-                    gamepad_id,
-                    axis: axis_mapped,
-                    value,
-                }),
-            });
+
+            // Check if axis value actually changed significantly (with dead zone)
+            if let Some(cache) = engine_state.gamepad_cache.get_mut(gamepad_id) {
+                if !cache.axis_changed(axis_mapped, value) {
+                    return;
+                }
+                
+                // Get the adjusted value with dead zone applied
+                let adjusted_value = cache.get_axis_value(axis_mapped);
+                cache.update_axis(axis_mapped, value);
+
+                engine_state.event_queue.push(EngineEventEnvelope {
+                    id: 0,
+                    event: EngineEvent::Gamepad(GamepadEvent::OnAxis {
+                        gamepad_id,
+                        axis: axis_mapped,
+                        value: adjusted_value,
+                    }),
+                });
+            }
         }
         _ => {}
     }

@@ -52,6 +52,17 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
 
         match event {
             WinitWindowEvent::Resized(size) => {
+                let new_size = [size.width, size.height];
+                let cache = self.window_cache.get_or_create(window_id);
+                
+                // Only dispatch event if size actually changed
+                if !cache.size_changed(new_size) {
+                    return;
+                }
+
+                // Update cache
+                cache.inner_size = new_size;
+
                 // Update surface configuration with new size
                 if let Some(window_state) = self.windows.get_mut(&window_id) {
                     if size.width > 0 && size.height > 0 {
@@ -62,9 +73,10 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
                             .configure(self.device.as_ref().unwrap(), &window_state.config);
 
                         // Update size state
-                        window_state.inner_size = [size.width, size.height];
+                        window_state.inner_size = new_size;
                         let outer_size = window_state.window.outer_size();
                         window_state.outer_size = [outer_size.width, outer_size.height];
+                        cache.outer_size = [outer_size.width, outer_size.height];
 
                         // Mark window as dirty to trigger redraw
                         window_state.is_dirty = true;
@@ -82,13 +94,23 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
             }
 
             WinitWindowEvent::Moved(position) => {
+                let new_pos = [position.x, position.y];
+                let cache = self.window_cache.get_or_create(window_id);
+                
+                // Only dispatch event if position actually changed
+                if !cache.position_changed(new_pos) {
+                    return;
+                }
+
+                // Update cache
+                cache.inner_position = new_pos;
+
                 // Update window state
                 if let Some(window_state) = self.windows.get_mut(&window_id) {
-                    if let Ok(inner_pos) = window_state.window.inner_position() {
-                        window_state.inner_position = [inner_pos.x, inner_pos.y];
-                    }
+                    window_state.inner_position = new_pos;
                     if let Ok(outer_pos) = window_state.window.outer_position() {
                         window_state.outer_position = [outer_pos.x, outer_pos.y];
+                        cache.outer_position = [outer_pos.x, outer_pos.y];
                     }
                 }
 
@@ -96,7 +118,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
                     id: 0,
                     event: EngineEvent::Window(WindowEvent::OnMove {
                         window_id,
-                        position: [position.x, position.y],
+                        position: new_pos,
                     }),
                 });
             }
@@ -143,6 +165,16 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
             }
 
             WinitWindowEvent::Focused(focused) => {
+                let cache = self.window_cache.get_or_create(window_id);
+                
+                // Only dispatch event if focus state actually changed
+                if cache.focused == focused {
+                    return;
+                }
+
+                // Update cache
+                cache.focused = focused;
+
                 self.event_queue.push(EngineEventEnvelope {
                     id: 0,
                     event: EngineEvent::Window(WindowEvent::OnFocus { window_id, focused }),
@@ -181,18 +213,27 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
             }
 
             WinitWindowEvent::ModifiersChanged(modifiers) => {
-                self.modifiers_state = ModifiersState {
+                let new_modifiers = ModifiersState {
                     shift: modifiers.state().shift_key(),
                     ctrl: modifiers.state().control_key(),
                     alt: modifiers.state().alt_key(),
                     meta: modifiers.state().super_key(),
                 };
 
+                // Only dispatch event if modifiers actually changed
+                if self.input_cache.keyboard.modifiers == new_modifiers {
+                    return;
+                }
+
+                // Update cache and state
+                self.input_cache.keyboard.modifiers = new_modifiers;
+                self.modifiers_state = new_modifiers;
+
                 self.event_queue.push(EngineEventEnvelope {
                     id: 0,
                     event: EngineEvent::Keyboard(KeyboardEvent::OnModifiersChange {
                         window_id,
-                        modifiers: self.modifiers_state,
+                        modifiers: new_modifiers,
                     }),
                 });
             }
@@ -217,8 +258,16 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
             }
 
             WinitWindowEvent::CursorMoved { position, .. } => {
-                // Save cursor position for this window
                 let cursor_pos = [position.x as f32, position.y as f32];
+                let pointer_cache = self.input_cache.get_or_create_pointer(window_id);
+                
+                // Only dispatch event if position changed more than 1px
+                if !pointer_cache.position_changed(cursor_pos) {
+                    return;
+                }
+
+                // Update cache and state
+                pointer_cache.position = cursor_pos;
                 self.cursor_positions.insert(window_id, cursor_pos);
 
                 self.event_queue.push(EngineEventEnvelope {
@@ -361,6 +410,16 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
                 scale_factor,
                 inner_size_writer: _,
             } => {
+                let cache = self.window_cache.get_or_create(window_id);
+                
+                // Only dispatch event if scale factor actually changed
+                if !cache.scale_factor_changed(scale_factor) {
+                    return;
+                }
+
+                // Update cache
+                cache.scale_factor = scale_factor;
+
                 // Get the current window inner size for the event
                 let (new_width, new_height) = self
                     .windows
@@ -384,6 +443,16 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
 
             WinitWindowEvent::ThemeChanged(theme) => {
                 let dark_mode = matches!(theme, winit::window::Theme::Dark);
+                let cache = self.window_cache.get_or_create(window_id);
+                
+                // Only dispatch event if theme actually changed
+                if cache.dark_mode == dark_mode {
+                    return;
+                }
+
+                // Update cache
+                cache.dark_mode = dark_mode;
+
                 self.event_queue.push(EngineEventEnvelope {
                     id: 0,
                     event: EngineEvent::Window(WindowEvent::OnThemeChange {
@@ -394,6 +463,16 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
             }
 
             WinitWindowEvent::Occluded(occluded) => {
+                let cache = self.window_cache.get_or_create(window_id);
+                
+                // Only dispatch event if occluded state actually changed
+                if cache.occluded == occluded {
+                    return;
+                }
+
+                // Update cache
+                cache.occluded = occluded;
+
                 self.event_queue.push(EngineEventEnvelope {
                     id: 0,
                     event: EngineEvent::Window(WindowEvent::OnOcclude {
@@ -409,7 +488,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
                     event: EngineEvent::Window(WindowEvent::OnRedrawRequest { window_id }),
                 });
 
-                render_frames(winit_window_id, self);
+                render_frames(self);
             }
 
             // Events we don't need to handle

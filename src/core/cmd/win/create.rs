@@ -10,6 +10,7 @@ use winit::{
 
 use crate::core::state::{EngineState, WindowState};
 use crate::core::units::{IVector2, Size};
+use crate::core::render::cleanup_window_render_state;
 
 use super::{EngineWindowState, window_size_default};
 
@@ -211,6 +212,17 @@ pub fn engine_cmd_window_create(
         },
     );
 
+    // Initialize window cache
+    let cache = engine.window_cache.get_or_create(win_id);
+    cache.inner_position = [inner_position.x, inner_position.y];
+    cache.outer_position = [outer_position.x, outer_position.y];
+    cache.inner_size = [inner_size.width, inner_size.height];
+    cache.outer_size = [outer_size.width, outer_size.height];
+    cache.scale_factor = 1.0; // Will be updated on first scale factor change event
+    cache.focused = false;
+    cache.occluded = false;
+    cache.dark_mode = false;
+
     CmdResultWindowCreate {
         success: true,
         message: "Window created successfully".to_string(),
@@ -249,6 +261,13 @@ pub fn engine_cmd_window_close(
     if let Some(window_state) = engine.windows.remove(&args.window_id) {
         // Remove from window_id_map
         engine.window_id_map.remove(&window_state.window.id());
+
+        // Clean up caches
+        engine.window_cache.remove(args.window_id);
+        engine.input_cache.remove_pointer(args.window_id);
+
+        // Clean up render state
+        cleanup_window_render_state(args.window_id);
 
         // Window and surface will be dropped automatically
         CmdResultWindowClose {

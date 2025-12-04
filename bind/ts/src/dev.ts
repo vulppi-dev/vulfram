@@ -215,7 +215,7 @@ const loopInterval = setInterval(() => {
 
   // Process events
   processEvents();
-}, 16); // ~60 FPS
+}, 4); // ~244 FPS
 
 // Handle process termination
 process.on('SIGINT', () => {

@@ -3,6 +3,7 @@ use std::sync::Arc;
 use winit::window::{Window, WindowId};
 
 use crate::core::buffers::Buffer;
+use crate::core::cache::{GamepadCacheManager, InputCacheManager, WindowCacheManager};
 use crate::core::cmd::EngineBatchEvents;
 use crate::core::cmd::events::ModifiersState;
 use crate::core::units::{IVector2, Size, Vector2};
@@ -49,6 +50,11 @@ pub struct EngineState {
     pub(crate) modifiers_state: ModifiersState,
     pub(crate) cursor_positions: HashMap<u32, Vector2>,
     pub(crate) gilrs: Option<gilrs::Gilrs>,
+
+    // Event caching for optimization
+    pub(crate) window_cache: WindowCacheManager,
+    pub(crate) input_cache: InputCacheManager,
+    pub(crate) gamepad_cache: GamepadCacheManager,
 }
 
 impl EngineState {
@@ -93,6 +99,10 @@ impl EngineState {
             modifiers_state: ModifiersState::default(),
             cursor_positions: HashMap::new(),
             gilrs,
+
+            window_cache: WindowCacheManager::new(),
+            input_cache: InputCacheManager::new(),
+            gamepad_cache: GamepadCacheManager::new(),
         }
     }
 

@@ -5,7 +5,7 @@ use crate::core::units::Vector2;
 
 /// Mouse button types
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum MouseButton {
     Left = 0,

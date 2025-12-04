@@ -1,5 +1,6 @@
 // Submodules
 mod buffers;
+mod cache;
 mod handler;
 mod lifecycle;
 mod queue;

@@ -1,5 +1,5 @@
 import * as VULFRAM_CORE from './napi';
-import { decode, encode } from 'cbor2';
+import { pack, unpack } from 'msgpackr';
 import type { VulframResult } from './enums';
 import type { EngineBatchCmds, EngineBatchEvents } from './cmds';
 
@@ -61,7 +61,7 @@ export function vulframDispose(): VulframResult {
  * ```
  */
 export function vulframSendQueue(batch: EngineBatchCmds): VulframResult {
-  const buffer = encode(batch);
+  const buffer = pack(batch);
   return VULFRAM_CORE.engineSendQueue(Buffer.from(buffer));
 }
 
@@ -83,7 +83,7 @@ export function vulframSendQueue(batch: EngineBatchCmds): VulframResult {
  */
 export function vulframReceiveQueue(): [EngineBatchEvents, VulframResult] {
   const { buffer, result } = VULFRAM_CORE.engineReceiveQueue();
-  const events = decode(buffer) as EngineBatchEvents;
+  const events = unpack(buffer) as EngineBatchEvents;
   return [events, result];
 }
 

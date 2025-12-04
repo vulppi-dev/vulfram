@@ -5,5 +5,5 @@ export enum VulframResult {
   AlreadyInitialized,
   WrongThread,
   BufferOverflow,
-  CmdInvalidCborError,
+  CmdInvalidMessagePackError,
 }

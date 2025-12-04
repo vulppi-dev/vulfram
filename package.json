@@ -10,7 +10,8 @@
     "prepublishOnly": "napi prepublish -t npm"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^3.5.0"
+    "@napi-rs/cli": "^3.5.0",
+    "@types/bun": "^1.3.3"
   },
   "napi": {
     "binaryName": "vulfram-core"

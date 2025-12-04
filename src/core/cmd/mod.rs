@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use winit::event_loop::ActiveEventLoop;
 
-use crate::core::result::EngineResult;
+use crate::core::result::VulframResult;
 use crate::core::state::EngineState;
 
 pub mod events;
@@ -88,7 +88,7 @@ pub fn engine_process_batch(
     engine: &mut EngineState,
     event_loop: &ActiveEventLoop,
     batch: EngineBatchCmds,
-) -> EngineResult {
+) -> VulframResult {
     for pack in batch {
         match pack.cmd {
             EngineCmd::CmdWindowCreate(args) => {
@@ -241,5 +241,5 @@ pub fn engine_process_batch(
         }
     }
 
-    EngineResult::Success
+    VulframResult::Success
 }

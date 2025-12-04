@@ -39,7 +39,7 @@ This file contains instructions for you to help it generate code that is consist
 - **Windowing**: Winit
 - **Input**: Gilrs (gamepad support)
 - **Binding**: N-API for Node.js/Bun compatibility
-- **Serialization**: CBOR for efficient command/event communication
+- **Serialization**: MessagePack for efficient command/event communication
 - **Language bindings**: TypeScript/JavaScript
 
 ## Architecture Patterns
@@ -48,7 +48,7 @@ This file contains instructions for you to help it generate code that is consist
 
 - **Commands**: Sent from JS/TS → Rust via `vulframSendQueue()`
 - **Events**: Received from Rust → JS/TS via `vulframReceiveQueue()`
-- **Serialization**: CBOR format for performance
+- **Serialization**: MessagePack format for performance
 - **Pattern**: Queue-based architecture for async communication
 
 ### Type Organization
@@ -102,9 +102,12 @@ bun run dev
 
 ### Serialization Format
 
-- **Choice**: CBOR (Concise Binary Object Representation)
-- **Reason**: More efficient than JSON for binary data transfer
+- **Choice**: MessagePack (efficient binary serialization)
+- **Reason**: Compact binary format with excellent performance and wide language support
 - **Usage**: Command/Event communication between JS/TS and Rust
+- **Libraries**:
+  - Rust: `rmp-serde` (MessagePack with Serde support)
+  - TypeScript: `msgpackr` (fast MessagePack implementation)
 
 ### Event Loop Architecture
 
@@ -142,11 +145,12 @@ bun run dev
 - `winit`: Cross-platform windowing
 - `gilrs`: Gamepad input
 - `napi`: Node.js N-API bindings
-- `serde`: Serialization framework (with CBOR support via ciborium)
+- `serde`: Serialization framework
+- `rmp-serde`: MessagePack serialization with Serde support
 
 ### TypeScript/JavaScript
 
-- `cbor2`: CBOR encoding/decoding
+- `msgpackr`: MessagePack encoding/decoding
 - `bun`: Primary runtime (but Node.js compatible)
 
 ## Best Practices
@@ -169,7 +173,7 @@ bun run dev
 - Batch commands when possible
 - Use buffer upload/download efficiently
 - Process events in bulk each frame
-- CBOR serialization for speed
+- MessagePack serialization for speed and compact binary format
 
 ### Type Safety
 

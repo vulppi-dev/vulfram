@@ -1,14 +1,14 @@
 use super::cmd::EngineBatchCmds;
-use super::result::EngineResult;
+use super::result::VulframResult;
 use super::singleton::{EngineCustomEvents, with_engine, with_engine_singleton};
 
 /// Send a batch of commands to the engine
-pub fn engine_send_queue(ptr: *const u8, length: usize) -> EngineResult {
+pub fn engine_send_queue(ptr: *const u8, length: usize) -> VulframResult {
     let data = unsafe { std::slice::from_raw_parts(ptr, length).to_vec() };
 
-    let batch = match serde_cbor::from_slice::<EngineBatchCmds>(&data) {
+    let batch = match rmp_serde::from_slice::<EngineBatchCmds>(&data) {
         Err(_e) => {
-            return EngineResult::CmdInvalidCborError;
+            return VulframResult::CmdInvalidMessagePackError;
         }
         Ok(batch) => batch,
     };
@@ -19,16 +19,16 @@ pub fn engine_send_queue(ptr: *const u8, length: usize) -> EngineResult {
         }
     }) {
         Err(e) => return e,
-        Ok(_) => EngineResult::Success,
+        Ok(_) => VulframResult::Success,
     }
 }
 
 /// Receive a batch of events from the engine
-pub fn engine_receive_queue(out_ptr: *mut u8, out_length: *mut usize) -> EngineResult {
+pub fn engine_receive_queue(out_ptr: *mut u8, out_length: *mut usize) -> VulframResult {
     match with_engine(|engine| {
-        let serialized = match serde_cbor::to_vec(&engine.event_queue) {
+        let serialized = match rmp_serde::to_vec(&engine.event_queue) {
             Ok(data) => data,
-            Err(_) => return EngineResult::UnknownError,
+            Err(_) => return VulframResult::UnknownError,
         };
 
         let required_length = serialized.len();
@@ -36,7 +36,7 @@ pub fn engine_receive_queue(out_ptr: *mut u8, out_length: *mut usize) -> EngineR
         unsafe {
             if out_ptr.is_null() {
                 *out_length = required_length;
-                return EngineResult::Success;
+                return VulframResult::Success;
             }
 
             let available_length = *out_length;
@@ -45,10 +45,10 @@ pub fn engine_receive_queue(out_ptr: *mut u8, out_length: *mut usize) -> EngineR
                 std::ptr::copy_nonoverlapping(serialized.as_ptr(), out_ptr, required_length);
                 *out_length = required_length;
                 engine.event_queue.clear();
-                return EngineResult::Success;
+                return VulframResult::Success;
             } else {
                 *out_length = required_length;
-                return EngineResult::BufferOverflow;
+                return VulframResult::BufferOverflow;
             }
         }
     }) {

@@ -24,7 +24,7 @@ mod ffi_exports {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn engine_receive_queue(out_ptr: *mut u8, out_length: *mut usize) -> u32 {
+    pub extern "C" fn engine_receive_queue(out_ptr: *mut *const u8, out_length: *mut usize) -> u32 {
         core::engine_receive_queue(out_ptr, out_length) as u32
     }
 
@@ -93,10 +93,12 @@ mod napi_exports {
     #[napi]
     pub fn engine_receive_queue() -> Result<BufferResult> {
         let mut length: usize = 0;
+        let mut ptr: *const u8 = std::ptr::null();
         let length_ptr = &mut length as *mut usize;
+        let ptr_ptr = &mut ptr as *mut *const u8;
 
-        // First call to get size
-        let result = core::engine_receive_queue(std::ptr::null_mut(), length_ptr) as u32;
+        let result = core::engine_receive_queue(ptr_ptr, length_ptr) as u32;
+
         if result != 0 || length == 0 {
             return Ok(BufferResult {
                 buffer: Buffer::from(vec![]),
@@ -104,20 +106,11 @@ mod napi_exports {
             });
         }
 
-        // Second call to get data
-        let mut buffer = vec![0u8; length];
-        let buffer_ptr = buffer.as_mut_ptr();
-        let result = core::engine_receive_queue(buffer_ptr, length_ptr) as u32;
-
-        if result != 0 {
-            return Ok(BufferResult {
-                buffer: Buffer::from(vec![]),
-                result,
-            });
-        }
+        // Copy data from internal buffer
+        let data = unsafe { std::slice::from_raw_parts(ptr, length) };
 
         Ok(BufferResult {
-            buffer: Buffer::from(buffer),
+            buffer: Buffer::from(data.to_vec()),
             result,
         })
     }

@@ -24,33 +24,29 @@ pub fn engine_send_queue(ptr: *const u8, length: usize) -> VulframResult {
 }
 
 /// Receive a batch of events from the engine
-pub fn engine_receive_queue(out_ptr: *mut u8, out_length: *mut usize) -> VulframResult {
+pub fn engine_receive_queue(out_ptr: *mut *const u8, out_length: *mut usize) -> VulframResult {
     match with_engine(|engine| {
-        let serialized = match rmp_serde::to_vec_named(&engine.event_queue) {
+        if engine.event_queue.is_empty() {
+            unsafe {
+                *out_length = 0;
+                *out_ptr = std::ptr::null();
+            }
+            return VulframResult::Success;
+        }
+
+        // Serialize once and store in buffer
+        engine.serialized_events_buffer = match rmp_serde::to_vec_named(&engine.event_queue) {
             Ok(data) => data,
             Err(_) => return VulframResult::UnknownError,
         };
 
-        let required_length = serialized.len();
-
         unsafe {
-            if out_ptr.is_null() {
-                *out_length = required_length;
-                return VulframResult::Success;
-            }
-
-            let available_length = *out_length;
-
-            if required_length <= available_length {
-                std::ptr::copy_nonoverlapping(serialized.as_ptr(), out_ptr, required_length);
-                *out_length = required_length;
-                engine.event_queue.clear();
-                return VulframResult::Success;
-            } else {
-                *out_length = required_length;
-                return VulframResult::BufferOverflow;
-            }
+            *out_ptr = engine.serialized_events_buffer.as_ptr();
+            *out_length = engine.serialized_events_buffer.len();
         }
+
+        engine.event_queue.clear();
+        VulframResult::Success
     }) {
         Err(e) => e,
         Ok(result) => result,

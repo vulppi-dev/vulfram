@@ -39,6 +39,7 @@ pub struct EngineState {
 
     // Event system
     pub event_queue: EngineBatchEvents,
+    pub(crate) serialized_events_buffer: Vec<u8>,
 
     // Time tracking
     pub(crate) time: u64,
@@ -78,6 +79,7 @@ impl EngineState {
             window_id_map: HashMap::new(),
             buffers: HashMap::new(),
             event_queue: Vec::new(),
+            serialized_events_buffer: Vec::new(),
 
             window_id_counter: 0,
 

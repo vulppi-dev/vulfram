@@ -8,9 +8,9 @@ use winit::{
     window::Window,
 };
 
+use crate::core::render::cleanup_window_render_state;
 use crate::core::state::{EngineState, WindowState};
 use crate::core::units::{IVector2, Size};
-use crate::core::render::cleanup_window_render_state;
 
 use super::{EngineWindowState, window_size_default};
 
@@ -208,7 +208,7 @@ pub fn engine_cmd_window_create(
             outer_position: [outer_position.x, outer_position.y],
             inner_size: [inner_size.width, inner_size.height],
             outer_size: [outer_size.width, outer_size.height],
-            is_dirty: false,
+            is_dirty: true, // New window needs initial render
         },
     );
 

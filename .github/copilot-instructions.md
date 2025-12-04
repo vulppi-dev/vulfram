@@ -187,6 +187,14 @@ bun run dev
 - **Keyboard events**: Modifier state cached to avoid duplicate events
 - **Cache structure**: `src/core/cache/` with managers for window, input, and gamepad state
 
+### Redraw Optimization
+
+- **Dirty flag system**: Windows only request redraw when marked as dirty
+- **Selective rendering**: Only visible windows are rendered
+- **Needs redraw flag**: Global flag to skip redraw request if nothing changed
+- **Automatic marking**: Window resize and surface reconfiguration automatically mark dirty
+- **Manual marking**: `mark_window_dirty()` and `mark_all_windows_dirty()` for explicit control
+
 ### Type Safety
 
 - Full TypeScript types for all commands/events

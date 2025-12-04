@@ -54,7 +54,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
             WinitWindowEvent::Resized(size) => {
                 let new_size = [size.width, size.height];
                 let cache = self.window_cache.get_or_create(window_id);
-                
+
                 // Only dispatch event if size actually changed
                 if !cache.size_changed(new_size) {
                     self.profiling.total_events_cached += 1;
@@ -97,7 +97,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
             WinitWindowEvent::Moved(position) => {
                 let new_pos = [position.x, position.y];
                 let cache = self.window_cache.get_or_create(window_id);
-                
+
                 // Only dispatch event if position actually changed
                 if !cache.position_changed(new_pos) {
                     self.profiling.total_events_cached += 1;
@@ -168,7 +168,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
 
             WinitWindowEvent::Focused(focused) => {
                 let cache = self.window_cache.get_or_create(window_id);
-                
+
                 // Only dispatch event if focus state actually changed
                 if cache.focused == focused {
                     self.profiling.total_events_cached += 1;
@@ -264,7 +264,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
             WinitWindowEvent::CursorMoved { position, .. } => {
                 let cursor_pos = [position.x as f32, position.y as f32];
                 let pointer_cache = self.input_cache.get_or_create_pointer(window_id);
-                
+
                 // Only dispatch event if position changed more than 1px
                 if !pointer_cache.position_changed(cursor_pos) {
                     return;
@@ -415,7 +415,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
                 inner_size_writer: _,
             } => {
                 let cache = self.window_cache.get_or_create(window_id);
-                
+
                 // Only dispatch event if scale factor actually changed
                 if !cache.scale_factor_changed(scale_factor) {
                     return;
@@ -448,7 +448,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
             WinitWindowEvent::ThemeChanged(theme) => {
                 let dark_mode = matches!(theme, winit::window::Theme::Dark);
                 let cache = self.window_cache.get_or_create(window_id);
-                
+
                 // Only dispatch event if theme actually changed
                 if cache.dark_mode == dark_mode {
                     return;
@@ -468,7 +468,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
 
             WinitWindowEvent::Occluded(occluded) => {
                 let cache = self.window_cache.get_or_create(window_id);
-                
+
                 // Only dispatch event if occluded state actually changed
                 if cache.occluded == occluded {
                     return;
@@ -487,12 +487,19 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
             }
 
             WinitWindowEvent::RedrawRequested => {
-                self.event_queue.push(EngineEventEnvelope {
-                    id: 0,
-                    event: EngineEvent::Window(WindowEvent::OnRedrawRequest { window_id }),
-                });
+                // Only dispatch event and render if window is dirty
+                if let Some(window_state) = self.windows.get_mut(&window_id) {
+                    if window_state.is_dirty && window_state.window.is_visible().unwrap_or(true) {
+                        window_state.is_dirty = false;
 
-                render_frames(self);
+                        self.event_queue.push(EngineEventEnvelope {
+                            id: 0,
+                            event: EngineEvent::Window(WindowEvent::OnRedrawRequest { window_id }),
+                        });
+
+                        render_frames(self);
+                    }
+                }
             }
 
             // Events we don't need to handle

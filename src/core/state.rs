@@ -19,7 +19,7 @@ pub struct WindowState {
     pub outer_position: IVector2,
     pub inner_size: Size,
     pub outer_size: Size,
-    pub is_dirty: bool,
+    pub(crate) is_dirty: bool,
 }
 
 /// Main engine state holding all runtime data
@@ -120,17 +120,6 @@ impl EngineState {
 
             profiling: TickProfiling::default(),
         }
-    }
-
-    pub fn request_redraw(&mut self) {
-        let start = std::time::Instant::now();
-        for window_state in self.windows.values_mut() {
-            // if window_state.is_dirty {
-            window_state.window.request_redraw();
-            window_state.is_dirty = false;
-            // }
-        }
-        self.profiling.request_redraw_ns = start.elapsed().as_nanos() as u64;
     }
 
     /// Mark a specific window as dirty to trigger redraw on next tick

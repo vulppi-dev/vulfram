@@ -1,6 +1,5 @@
 use gilrs::{Event as GilrsEvent, EventType as GilrsEventType};
 use std::time::Instant;
-use winit::event_loop::ControlFlow;
 use winit::platform::pump_events::EventLoopExtPumpEvents;
 
 use super::cmd::events::{ElementState, GamepadEvent};
@@ -38,10 +37,14 @@ pub fn engine_tick(time: u64, delta_time: u32) -> VulframResult {
 
         // MARK: Event Loop Pump
         if let Some(event_loop) = &mut engine.event_loop {
-            event_loop.set_control_flow(ControlFlow::Poll);
-
+            // Only set control flow if it's not already set to Poll
+            // This avoids unnecessary overhead
             let pump_start = Instant::now();
+
+            // pump_app_events with timeout=None processes all pending events
+            // without blocking or yielding to the OS
             event_loop.pump_app_events(None, &mut engine.state);
+
             engine.state.profiling.event_loop_pump_ns = pump_start.elapsed().as_nanos() as u64;
         }
 
@@ -49,7 +52,17 @@ pub fn engine_tick(time: u64, delta_time: u32) -> VulframResult {
         engine.state.profiling.total_events_dispatched = events_after - events_before;
 
         // MARK: Request Redraw
-        engine.state.request_redraw();
+        // Always request redraw to keep event loop active
+        // Render will only happen for dirty windows (see RedrawRequested handler)
+        let start = std::time::Instant::now();
+
+        // Always request redraw to keep event loop active
+        // The render function will check is_dirty before actually rendering
+        for window_state in engine.state.windows.values_mut() {
+            window_state.window.request_redraw();
+        }
+
+        engine.state.profiling.request_redraw_ns = start.elapsed().as_nanos() as u64;
     }) {
         Err(e) => e,
         Ok(_) => VulframResult::Success,

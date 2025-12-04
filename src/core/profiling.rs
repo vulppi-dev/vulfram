@@ -1,8 +1,11 @@
+use serde::{Deserialize, Serialize};
+
 use super::result::VulframResult;
 use super::singleton::with_engine;
 
 /// Profiling data structure for export
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProfilingData {
     pub gamepad_processing_us: f64,
     pub event_loop_pump_us: f64,

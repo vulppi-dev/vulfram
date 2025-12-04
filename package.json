@@ -6,8 +6,12 @@
   "scripts": {
     "build:ffi": "cargo build --release --features ffi --no-default-features",
     "build:napi": "napi build --release -o bind/ts/src/napi",
+    "build:lua": "cargo build --release --features mlua --no-default-features",
+    "build:python": "maturin build --release --features pyo3",
     "debug:ffi": "cargo build --features ffi --no-default-features",
-    "debug:napi": "napi build -o bind/ts/src/napi"
+    "debug:napi": "napi build -o bind/ts/src/napi",
+    "debug:lua": "cargo build --features mlua --no-default-features",
+    "debug:python": "maturin build --features pyo3"
   },
   "devDependencies": {
     "@napi-rs/cli": "^3.5.0",

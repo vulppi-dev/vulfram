@@ -342,25 +342,8 @@ export function vulframGetProfiling(): [ProfilingData, VulframResult] {
       ];
     }
 
-    const data = unpack(buffer) as {
-      gamepad_processing_us: number;
-      event_loop_pump_us: number;
-      request_redraw_us: number;
-      serialization_us: number;
-      total_events_dispatched: number;
-      total_events_cached: number;
-    };
+    const data = unpack(buffer) as ProfilingData;
 
-    return [
-      {
-        gamepadProcessingUs: data.gamepad_processing_us,
-        eventLoopPumpUs: data.event_loop_pump_us,
-        requestRedrawUs: data.request_redraw_us,
-        serializationUs: data.serialization_us,
-        totalEventsDispatched: data.total_events_dispatched,
-        totalEventsCached: data.total_events_cached,
-      },
-      result,
-    ];
+    return [data, result];
   });
 }

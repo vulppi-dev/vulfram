@@ -70,7 +70,7 @@ function processEvents() {
   for (const event of events) {
     // Handle command results
     if (event.type === 'window-create') {
-      const content = event.content as any;
+      const content = event.content;
       if (content.success) {
         windowIds.push(content.content);
         console.log(`✓ Window created with ID: ${content.content}`);
@@ -81,7 +81,7 @@ function processEvents() {
 
     // Handle window events
     if (event.type === 'window') {
-      const windowEvent = event.content as any;
+      const windowEvent = event.content;
 
       if (windowEvent.event === 'on-close-request') {
         console.log(`Window ${windowEvent.data.windowId} close requested`);
@@ -107,7 +107,7 @@ function processEvents() {
 
     // Handle keyboard events
     if (event.type === 'keyboard') {
-      const keyboardEvent = event.content as any;
+      const keyboardEvent = event.content;
 
       if (keyboardEvent.event === 'on-input') {
         const keyData = keyboardEvent.data;
@@ -140,7 +140,7 @@ function processEvents() {
 
     // Handle pointer events
     if (event.type === 'pointer') {
-      const pointerEvent = event.content as any;
+      const pointerEvent = event.content;
 
       if (pointerEvent.event === 'on-button') {
         const buttonData = pointerEvent.data;
@@ -154,7 +154,7 @@ function processEvents() {
 
     // Handle system events
     if (event.type === 'system') {
-      const systemEvent = event.content as any;
+      const systemEvent = event.content;
 
       if (systemEvent.event === 'on-exit') {
         console.log('System exit event received');

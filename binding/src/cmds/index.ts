@@ -35,10 +35,8 @@ export type EngineEventContent =
   | { type: 'system'; content: SystemEvent }
   | WindowCmdResult;
 
-export interface EngineEventEnvelope {
+export type EngineEventEnvelope = EngineEventContent & {
   id: number;
-  type: EngineEventContent['type'];
-  content: EngineEventContent['content'];
-}
+};
 
 export type EngineBatchEvents = EngineEventEnvelope[];

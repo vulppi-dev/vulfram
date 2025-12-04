@@ -26,7 +26,7 @@ pub fn engine_send_queue(ptr: *const u8, length: usize) -> VulframResult {
 /// Receive a batch of events from the engine
 pub fn engine_receive_queue(out_ptr: *mut u8, out_length: *mut usize) -> VulframResult {
     match with_engine(|engine| {
-        let serialized = match rmp_serde::to_vec(&engine.event_queue) {
+        let serialized = match rmp_serde::to_vec_named(&engine.event_queue) {
             Ok(data) => data,
             Err(_) => return VulframResult::UnknownError,
         };

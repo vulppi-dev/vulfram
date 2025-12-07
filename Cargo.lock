@@ -1030,6 +1030,7 @@ version = "0.30.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd47b05dddf0005d850e5644cae7f2b14ac3df487979dbfff3b56f20b1a6ae46"
 dependencies = [
+ "bytemuck",
  "serde_core",
 ]
 
@@ -3074,6 +3075,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 name = "vulfram-core"
 version = "0.0.1"
 dependencies = [
+ "bytemuck",
  "env_logger",
  "gilrs",
  "glam",

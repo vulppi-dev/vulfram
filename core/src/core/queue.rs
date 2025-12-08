@@ -7,7 +7,7 @@ use super::result::VulframResult;
 use super::singleton::{with_engine, with_engine_singleton};
 
 /// Send a batch of commands to the engine
-pub fn engine_send_queue(ptr: *const u8, length: usize) -> VulframResult {
+pub fn vulfram_send_queue(ptr: *const u8, length: usize) -> VulframResult {
     let data = unsafe { std::slice::from_raw_parts(ptr, length).to_vec() };
 
     let batch = match rmp_serde::from_slice::<EngineBatchCmds>(&data) {
@@ -26,7 +26,7 @@ pub fn engine_send_queue(ptr: *const u8, length: usize) -> VulframResult {
 }
 
 /// Receive a batch of command responses from the engine
-pub fn engine_receive_queue(out_ptr: *mut *const u8, out_length: *mut usize) -> VulframResult {
+pub fn vulfram_receive_queue(out_ptr: *mut *const u8, out_length: *mut usize) -> VulframResult {
     match with_engine(|engine| {
         if engine.response_queue.is_empty() {
             unsafe {
@@ -59,7 +59,7 @@ pub fn engine_receive_queue(out_ptr: *mut *const u8, out_length: *mut usize) -> 
 }
 
 /// Receive a batch of spontaneous events from the engine
-pub fn engine_receive_events(out_ptr: *mut *const u8, out_length: *mut usize) -> VulframResult {
+pub fn vulfram_receive_events(out_ptr: *mut *const u8, out_length: *mut usize) -> VulframResult {
     match with_engine(|engine| {
         if engine.event_queue.is_empty() {
             unsafe {

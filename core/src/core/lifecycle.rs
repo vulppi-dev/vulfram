@@ -6,7 +6,7 @@ use super::singleton::{ENGINE_INSTANCE, EngineCustomEvents, EngineSingleton, MAI
 use super::state::EngineState;
 
 /// Initialize the engine (must be called from the main thread)
-pub fn engine_init() -> VulframResult {
+pub fn vulfram_init() -> VulframResult {
     let _ = env_logger::try_init();
     let current_id = thread::current().id();
 
@@ -37,7 +37,7 @@ pub fn engine_init() -> VulframResult {
 }
 
 /// Dispose of the engine and clean up resources
-pub fn engine_dispose() -> VulframResult {
+pub fn vulfram_dispose() -> VulframResult {
     let current_id = thread::current().id();
 
     if let Some(main_id) = MAIN_THREAD_ID.get() {

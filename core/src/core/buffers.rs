@@ -17,7 +17,7 @@ pub struct Buffer {
 
 /// Upload data to a buffer identified by ID
 /// Automatically detects and decodes images (PNG, JPEG, WebP, AVIF)
-pub fn engine_upload_buffer(bfr_id: u64, bfr_ptr: *const u8, bfr_length: usize) -> VulframResult {
+pub fn vulfram_upload_buffer(bfr_id: u64, bfr_ptr: *const u8, bfr_length: usize) -> VulframResult {
     let data = unsafe { std::slice::from_raw_parts(bfr_ptr, bfr_length).to_vec() };
 
     match with_engine(|engine| {
@@ -42,7 +42,7 @@ pub fn engine_upload_buffer(bfr_id: u64, bfr_ptr: *const u8, bfr_length: usize) 
 }
 
 /// Download data from a buffer identified by ID
-pub fn engine_download_buffer(
+pub fn vulfram_download_buffer(
     bfr_id: u64,
     bfr_ptr: *mut u8,
     bfr_length: *mut usize,
@@ -81,15 +81,5 @@ pub fn engine_download_buffer(
     }) {
         Err(e) => e,
         Ok(result) => result,
-    }
-}
-
-/// Clear a buffer identified by ID
-pub fn engine_clear_buffer(bfr_id: u64) -> VulframResult {
-    match with_engine(|engine| {
-        engine.buffers.remove(&bfr_id);
-    }) {
-        Err(e) => return e,
-        Ok(_) => VulframResult::Success,
     }
 }

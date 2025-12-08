@@ -16,7 +16,7 @@ pub struct ProfilingData {
 }
 
 /// Get detailed profiling data from the last tick
-pub fn engine_get_profiling(out_ptr: *mut *const u8, out_length: *mut usize) -> VulframResult {
+pub fn vulfram_get_profiling(out_ptr: *mut *const u8, out_length: *mut usize) -> VulframResult {
     match with_engine(|engine| {
         let data = ProfilingData {
             gamepad_processing_us: engine.profiling.gamepad_processing_ns as f64 / 1000.0,

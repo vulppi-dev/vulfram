@@ -8,42 +8,42 @@ export interface BufferResult {
   result: number;
 }
 
-export function engineClearBuffer(id: number): number {
-  return VULFRAM_CORE.engineClearBuffer(id);
+export function vulframClearBuffer(id: number): number {
+  return VULFRAM_CORE.vulframClearBuffer(id);
 }
 
-export function engineDispose(): number {
-  return VULFRAM_CORE.engineDispose();
+export function vulframDispose(): number {
+  return VULFRAM_CORE.vulframDispose();
 }
 
-export function engineDownloadBuffer(id: number): BufferResult {
-  return VULFRAM_CORE.engineDownloadBuffer(id);
+export function vulframDownloadBuffer(id: number): BufferResult {
+  return VULFRAM_CORE.vulframDownloadBuffer(id);
 }
 
-export function engineInit(): number {
-  return VULFRAM_CORE.engineInit();
+export function vulframInit(): number {
+  return VULFRAM_CORE.vulframInit();
 }
 
-export function engineReceiveQueue(): BufferResult {
-  return VULFRAM_CORE.engineReceiveQueue();
+export function vulframReceiveQueue(): BufferResult {
+  return VULFRAM_CORE.vulframReceiveQueue();
 }
 
-export function engineReceiveEvents(): BufferResult {
-  return VULFRAM_CORE.engineReceiveEvents();
+export function vulframReceiveEvents(): BufferResult {
+  return VULFRAM_CORE.vulframReceiveEvents();
 }
 
-export function engineSendQueue(data: Buffer): number {
-  return VULFRAM_CORE.engineSendQueue(data);
+export function vulframSendQueue(data: Buffer): number {
+  return VULFRAM_CORE.vulframSendQueue(data);
 }
 
-export function engineTick(time: number, deltaTime: number): number {
-  return VULFRAM_CORE.engineTick(time, deltaTime);
+export function vulframTick(time: number, deltaTime: number): number {
+  return VULFRAM_CORE.vulframTick(time, deltaTime);
 }
 
-export function engineUploadBuffer(id: number, data: Buffer): number {
-  return VULFRAM_CORE.engineUploadBuffer(id, data);
+export function vulframUploadBuffer(id: number, data: Buffer): number {
+  return VULFRAM_CORE.vulframUploadBuffer(id, data);
 }
 
-export function engineGetProfiling(): BufferResult {
-  return VULFRAM_CORE.engineGetProfiling();
+export function vulframGetProfiling(): BufferResult {
+  return VULFRAM_CORE.vulframGetProfiling();
 }

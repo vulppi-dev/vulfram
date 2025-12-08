@@ -9,7 +9,7 @@ use super::singleton::with_engine_singleton;
 use super::state::EngineState;
 
 /// Main engine tick - processes events and updates state
-pub fn engine_tick(time: u64, delta_time: u32) -> VulframResult {
+pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
     match with_engine_singleton(|engine| {
         engine.state.time = time;
         engine.state.delta_time = delta_time;

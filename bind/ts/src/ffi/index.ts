@@ -1,16 +1,16 @@
 import { dlopen, ptr, read, type Pointer } from 'bun:ffi';
 
 const { symbols: VULFRAM_CORE, close } = dlopen('src/ffi/vulfram_core.dll', {
-  engine_clear_buffer: { args: ['u64'], returns: 'u32' },
-  engine_dispose: { args: [], returns: 'u32' },
-  engine_download_buffer: { args: ['u64', 'ptr', 'ptr'], returns: 'u32' },
-  engine_init: { args: [], returns: 'u32' },
-  engine_receive_queue: { args: ['ptr', 'ptr'], returns: 'u32' },
-  engine_receive_events: { args: ['ptr', 'ptr'], returns: 'u32' },
-  engine_send_queue: { args: ['ptr', 'usize'], returns: 'u32' },
-  engine_tick: { args: ['u64', 'u32'], returns: 'u32' },
-  engine_upload_buffer: { args: ['u64', 'ptr', 'usize'], returns: 'u32' },
-  engine_get_profiling: { args: ['ptr', 'ptr'], returns: 'u32' },
+  vulfram_clear_buffer: { args: ['u64'], returns: 'u32' },
+  vulfram_dispose: { args: [], returns: 'u32' },
+  vulfram_download_buffer: { args: ['u64', 'ptr', 'ptr'], returns: 'u32' },
+  vulfram_init: { args: [], returns: 'u32' },
+  vulfram_receive_queue: { args: ['ptr', 'ptr'], returns: 'u32' },
+  vulfram_receive_events: { args: ['ptr', 'ptr'], returns: 'u32' },
+  vulfram_send_queue: { args: ['ptr', 'usize'], returns: 'u32' },
+  vulfram_tick: { args: ['u64', 'u32'], returns: 'u32' },
+  vulfram_upload_buffer: { args: ['u64', 'ptr', 'usize'], returns: 'u32' },
+  vulfram_get_profiling: { args: ['ptr', 'ptr'], returns: 'u32' },
 });
 
 process.once('beforeExit', () => {
@@ -22,18 +22,18 @@ export interface BufferResult {
   result: number;
 }
 
-export function engineClearBuffer(id: number): number {
-  return VULFRAM_CORE.engine_clear_buffer(BigInt(id));
+export function vulframClearBuffer(id: number): number {
+  return VULFRAM_CORE.vulfram_clear_buffer(BigInt(id));
 }
 
-export function engineDispose(): number {
-  return VULFRAM_CORE.engine_dispose();
+export function vulframDispose(): number {
+  return VULFRAM_CORE.vulfram_dispose();
 }
 
-export function engineDownloadBuffer(id: number): BufferResult {
+export function vulframDownloadBuffer(id: number): BufferResult {
   const ptrHolder = new BigUint64Array(1);
   const sizeHolder = new BigUint64Array(1);
-  const result = VULFRAM_CORE.engine_download_buffer(
+  const result = VULFRAM_CORE.vulfram_download_buffer(
     BigInt(id),
     ptr(ptrHolder),
     ptr(sizeHolder),
@@ -53,14 +53,14 @@ export function engineDownloadBuffer(id: number): BufferResult {
   return { buffer, result };
 }
 
-export function engineInit(): number {
-  return VULFRAM_CORE.engine_init();
+export function vulframInit(): number {
+  return VULFRAM_CORE.vulfram_init();
 }
 
-export function engineReceiveQueue(): BufferResult {
+export function vulframReceiveQueue(): BufferResult {
   const ptrHolder = new BigUint64Array(1);
   const sizeHolder = new BigUint64Array(1);
-  const result = VULFRAM_CORE.engine_receive_queue(
+  const result = VULFRAM_CORE.vulfram_receive_queue(
     ptr(ptrHolder),
     ptr(sizeHolder),
   );
@@ -79,10 +79,10 @@ export function engineReceiveQueue(): BufferResult {
   return { buffer, result };
 }
 
-export function engineReceiveEvents(): BufferResult {
+export function vulframReceiveEvents(): BufferResult {
   const ptrHolder = new BigUint64Array(1);
   const sizeHolder = new BigUint64Array(1);
-  const result = VULFRAM_CORE.engine_receive_events(
+  const result = VULFRAM_CORE.vulfram_receive_events(
     ptr(ptrHolder),
     ptr(sizeHolder),
   );
@@ -101,22 +101,22 @@ export function engineReceiveEvents(): BufferResult {
   return { buffer, result };
 }
 
-export function engineSendQueue(data: Buffer): number {
-  return VULFRAM_CORE.engine_send_queue(ptr(data), data.length);
+export function vulframSendQueue(data: Buffer): number {
+  return VULFRAM_CORE.vulfram_send_queue(ptr(data), data.length);
 }
 
-export function engineTick(time: number, deltaTime: number): number {
-  return VULFRAM_CORE.engine_tick(time, deltaTime);
+export function vulframTick(time: number, deltaTime: number): number {
+  return VULFRAM_CORE.vulfram_tick(time, deltaTime);
 }
 
-export function engineUploadBuffer(id: number, data: Buffer): number {
-  return VULFRAM_CORE.engine_upload_buffer(BigInt(id), ptr(data), data.length);
+export function vulframUploadBuffer(id: number, data: Buffer): number {
+  return VULFRAM_CORE.vulfram_upload_buffer(BigInt(id), ptr(data), data.length);
 }
 
-export function engineGetProfiling(): BufferResult {
+export function vulframGetProfiling(): BufferResult {
   const ptrHolder = new BigUint64Array(1);
   const sizeHolder = new BigUint64Array(1);
-  const result = VULFRAM_CORE.engine_get_profiling(
+  const result = VULFRAM_CORE.vulfram_get_profiling(
     ptr(ptrHolder),
     ptr(sizeHolder),
   );

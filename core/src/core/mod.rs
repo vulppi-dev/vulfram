@@ -16,8 +16,8 @@ pub mod cmd;
 pub mod image;
 
 // Re-exports for public API
-pub use buffers::{engine_clear_buffer, engine_download_buffer, engine_upload_buffer};
-pub use lifecycle::{engine_dispose, engine_init};
-pub use profiling::engine_get_profiling;
-pub use queue::{engine_receive_events, engine_receive_queue, engine_send_queue};
-pub use tick::engine_tick;
+pub use buffers::{vulfram_download_buffer, vulfram_upload_buffer};
+pub use lifecycle::{vulfram_dispose, vulfram_init};
+pub use profiling::vulfram_get_profiling;
+pub use queue::{vulfram_receive_events, vulfram_receive_queue, vulfram_send_queue};
+pub use tick::vulfram_tick;

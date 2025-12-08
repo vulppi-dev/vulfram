@@ -1,5 +1,4 @@
-// import * as VULFRAM_CORE from './napi';
-import * as VULFRAM_CORE from './ffi';
+import * as VULFRAM_CORE from './napi';
 import { pack, unpack } from 'msgpackr';
 import type { VulframResult } from './enums';
 import type {
@@ -151,7 +150,7 @@ function trackBenchmark<T>(name: string, fn: () => T): T {
  * ```
  */
 export function vulframInit(): VulframResult {
-  return trackBenchmark('vulframInit', () => VULFRAM_CORE.engineInit());
+  return trackBenchmark('vulframInit', () => VULFRAM_CORE.vulframInit());
 }
 
 /**
@@ -165,7 +164,7 @@ export function vulframInit(): VulframResult {
  * ```
  */
 export function vulframDispose(): VulframResult {
-  return trackBenchmark('vulframDispose', () => VULFRAM_CORE.engineDispose());
+  return trackBenchmark('vulframDispose', () => VULFRAM_CORE.vulframDispose());
 }
 
 /**
@@ -193,7 +192,7 @@ export function vulframDispose(): VulframResult {
 export function vulframSendQueue(batch: EngineBatchCmds): VulframResult {
   return trackBenchmark('vulframSendQueue', () => {
     const buffer = pack(batch);
-    return VULFRAM_CORE.engineSendQueue(Buffer.from(buffer));
+    return VULFRAM_CORE.vulframSendQueue(Buffer.from(buffer));
   });
 }
 
@@ -215,7 +214,7 @@ export function vulframSendQueue(batch: EngineBatchCmds): VulframResult {
  */
 export function vulframReceiveQueue(): [EngineBatchResponses, VulframResult] {
   return trackBenchmark('vulframReceiveQueue', () => {
-    const { buffer, result } = VULFRAM_CORE.engineReceiveQueue();
+    const { buffer, result } = VULFRAM_CORE.vulframReceiveQueue();
 
     // If buffer is empty, return empty array
     if (buffer.length === 0) {
@@ -245,7 +244,7 @@ export function vulframReceiveQueue(): [EngineBatchResponses, VulframResult] {
  */
 export function vulframReceiveEvents(): [EngineBatchEvents, VulframResult] {
   return trackBenchmark('vulframReceiveEvents', () => {
-    const { buffer, result } = VULFRAM_CORE.engineReceiveEvents();
+    const { buffer, result } = VULFRAM_CORE.vulframReceiveEvents();
 
     // If buffer is empty, return empty array
     if (buffer.length === 0) {
@@ -277,7 +276,7 @@ export function vulframReceiveEvents(): [EngineBatchEvents, VulframResult] {
  */
 export function vulframTick(time: number, deltaTime: number): VulframResult {
   return trackBenchmark('vulframTick', () =>
-    VULFRAM_CORE.engineTick(time, deltaTime),
+    VULFRAM_CORE.vulframTick(time, deltaTime),
   );
 }
 
@@ -301,7 +300,7 @@ export function vulframUploadBuffer(
   buffer: Uint8Array,
 ): VulframResult {
   return trackBenchmark('vulframUploadBuffer', () =>
-    VULFRAM_CORE.engineUploadBuffer(id, Buffer.from(buffer)),
+    VULFRAM_CORE.vulframUploadBuffer(id, Buffer.from(buffer)),
   );
 }
 
@@ -321,7 +320,7 @@ export function vulframUploadBuffer(
  */
 export function vulframDownloadBuffer(id: number): [Uint8Array, VulframResult] {
   return trackBenchmark('vulframDownloadBuffer', () => {
-    const { buffer, result } = VULFRAM_CORE.engineDownloadBuffer(id);
+    const { buffer, result } = VULFRAM_CORE.vulframDownloadBuffer(id);
     return [buffer, result];
   });
 }
@@ -339,7 +338,7 @@ export function vulframDownloadBuffer(id: number): [Uint8Array, VulframResult] {
  */
 export function vulframClearBuffer(id: number): VulframResult {
   return trackBenchmark('vulframClearBuffer', () =>
-    VULFRAM_CORE.engineClearBuffer(id),
+    VULFRAM_CORE.vulframClearBuffer(id),
   );
 }
 
@@ -361,7 +360,7 @@ export function vulframClearBuffer(id: number): VulframResult {
  */
 export function vulframGetProfiling(): [ProfilingData, VulframResult] {
   return trackBenchmark('vulframGetProfiling', () => {
-    const { buffer, result } = VULFRAM_CORE.engineGetProfiling();
+    const { buffer, result } = VULFRAM_CORE.vulframGetProfiling();
 
     if (buffer.length === 0) {
       return [

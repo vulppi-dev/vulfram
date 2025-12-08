@@ -1,15 +1,17 @@
-import { dlopen, ptr, read, type Pointer } from 'bun:ffi';
+import { dlopen, ptr, toBuffer, type Pointer } from 'bun:ffi';
 
 const { symbols: VULFRAM_CORE, close } = dlopen('src/ffi/vulfram_core.dll', {
-  vulfram_clear_buffer: { args: ['u64'], returns: 'u32' },
-  vulfram_dispose: { args: [], returns: 'u32' },
-  vulfram_download_buffer: { args: ['u64', 'ptr', 'ptr'], returns: 'u32' },
   vulfram_init: { args: [], returns: 'u32' },
+  vulfram_dispose: { args: [], returns: 'u32' },
+  vulfram_send_queue: { args: ['ptr', 'usize'], returns: 'u32' },
   vulfram_receive_queue: { args: ['ptr', 'ptr'], returns: 'u32' },
   vulfram_receive_events: { args: ['ptr', 'ptr'], returns: 'u32' },
-  vulfram_send_queue: { args: ['ptr', 'usize'], returns: 'u32' },
+  vulfram_upload_buffer: {
+    args: ['u64', 'u32', 'ptr', 'usize'],
+    returns: 'u32',
+  },
+  vulfram_download_buffer: { args: ['u64', 'ptr', 'ptr'], returns: 'u32' },
   vulfram_tick: { args: ['u64', 'u32'], returns: 'u32' },
-  vulfram_upload_buffer: { args: ['u64', 'ptr', 'usize'], returns: 'u32' },
   vulfram_get_profiling: { args: ['ptr', 'ptr'], returns: 'u32' },
 });
 
@@ -20,10 +22,6 @@ process.once('beforeExit', () => {
 export interface BufferResult {
   buffer: Buffer;
   result: number;
-}
-
-export function vulframClearBuffer(id: number): number {
-  return VULFRAM_CORE.vulfram_clear_buffer(BigInt(id));
 }
 
 export function vulframDispose(): number {
@@ -45,10 +43,7 @@ export function vulframDownloadBuffer(id: number): BufferResult {
   if (!srcPtr) {
     return { buffer: Buffer.alloc(0), result };
   }
-  const buffer = Buffer.alloc(Number(sizeHolder[0]));
-  for (let i = 0; i < buffer.length; i++) {
-    buffer[i] = read.u8(srcPtr, i);
-  }
+  const buffer = toBuffer(srcPtr, 0, Number(sizeHolder[0]));
 
   return { buffer, result };
 }
@@ -71,10 +66,7 @@ export function vulframReceiveQueue(): BufferResult {
   if (!srcPtr) {
     return { buffer: Buffer.alloc(0), result };
   }
-  const buffer = Buffer.alloc(Number(sizeHolder[0]));
-  for (let i = 0; i < buffer.length; i++) {
-    buffer[i] = read.u8(srcPtr, i);
-  }
+  const buffer = toBuffer(srcPtr, 0, Number(sizeHolder[0]));
 
   return { buffer, result };
 }
@@ -93,10 +85,7 @@ export function vulframReceiveEvents(): BufferResult {
   if (!srcPtr) {
     return { buffer: Buffer.alloc(0), result };
   }
-  const buffer = Buffer.alloc(Number(sizeHolder[0]));
-  for (let i = 0; i < buffer.length; i++) {
-    buffer[i] = read.u8(srcPtr, i);
-  }
+  const buffer = toBuffer(srcPtr, 0, Number(sizeHolder[0]));
 
   return { buffer, result };
 }
@@ -109,8 +98,17 @@ export function vulframTick(time: number, deltaTime: number): number {
   return VULFRAM_CORE.vulfram_tick(time, deltaTime);
 }
 
-export function vulframUploadBuffer(id: number, data: Buffer): number {
-  return VULFRAM_CORE.vulfram_upload_buffer(BigInt(id), ptr(data), data.length);
+export function vulframUploadBuffer(
+  id: number,
+  uploadType: number,
+  data: Buffer,
+): number {
+  return VULFRAM_CORE.vulfram_upload_buffer(
+    BigInt(id),
+    uploadType,
+    ptr(data),
+    data.length,
+  );
 }
 
 export function vulframGetProfiling(): BufferResult {
@@ -127,10 +125,7 @@ export function vulframGetProfiling(): BufferResult {
   if (!srcPtr) {
     return { buffer: Buffer.alloc(0), result };
   }
-  const buffer = Buffer.alloc(Number(sizeHolder[0]));
-  for (let i = 0; i < buffer.length; i++) {
-    buffer[i] = read.u8(srcPtr, i);
-  }
+  const buffer = toBuffer(srcPtr, 0, Number(sizeHolder[0]));
 
   return { buffer, result };
 }

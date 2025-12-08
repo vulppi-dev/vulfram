@@ -28,14 +28,20 @@ pub fn vulfram_get_profiling(out_ptr: *mut *const u8, out_length: *mut usize) ->
         };
 
         // Serialize profiling data
-        engine.serialized_events_buffer = match rmp_serde::to_vec_named(&data) {
+        let serialized_data = match rmp_serde::to_vec_named(&data) {
             Ok(data) => data,
             Err(_) => return VulframResult::UnknownError,
         };
 
+        let data_length = serialized_data.len();
+
+        // Transfer ownership via Box::into_raw (zero-copy)
+        let boxed = serialized_data.into_boxed_slice();
+        let ptr = Box::into_raw(boxed) as *mut u8;
+
         unsafe {
-            *out_ptr = engine.serialized_events_buffer.as_ptr();
-            *out_length = engine.serialized_events_buffer.len();
+            *out_ptr = ptr;
+            *out_length = data_length;
         }
 
         VulframResult::Success

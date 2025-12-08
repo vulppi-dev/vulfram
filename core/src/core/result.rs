@@ -8,4 +8,7 @@ pub enum VulframResult {
     WrongThread,
     BufferOverflow,
     CmdInvalidMessagePackError,
+    BufferNotFound,
+    BufferIdCollision,
+    InvalidUploadType,
 }

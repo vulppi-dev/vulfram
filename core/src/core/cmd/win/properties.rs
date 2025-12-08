@@ -2,7 +2,7 @@ use glam::{IVec2, UVec2};
 use serde::{Deserialize, Serialize};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 
-use crate::core::buffers::BufferData;
+use crate::core::image::ImageDecoder;
 use crate::core::state::EngineState;
 
 use super::EngineWindowState;
@@ -417,8 +417,8 @@ pub fn engine_cmd_window_set_icon(
         };
     }
 
-    // Get buffer
-    let buffer = match engine.buffers.get(&args.buffer_id) {
+    // Get and remove buffer (one-shot consumption)
+    let buffer = match engine.buffers.remove(&args.buffer_id) {
         Some(b) => b,
         None => {
             return CmdResultWindowSetIcon {
@@ -428,13 +428,24 @@ pub fn engine_cmd_window_set_icon(
         }
     };
 
-    // Check if buffer is an image
-    let image_buffer = match &buffer.data {
-        BufferData::Image(img) => img,
-        BufferData::Raw(_) => {
+    // Validate buffer type
+    if buffer.upload_type != crate::core::buffers::UploadType::ImageData {
+        return CmdResultWindowSetIcon {
+            success: false,
+            message: format!(
+                "Invalid buffer type. Expected ImageData, got {:?}",
+                buffer.upload_type
+            ),
+        };
+    }
+
+    // Decode image from buffer data (happens when consumed)
+    let image_buffer = match ImageDecoder::try_decode(&buffer.data) {
+        Some(img) => img,
+        None => {
             return CmdResultWindowSetIcon {
                 success: false,
-                message: "Buffer is not a valid image. Supported formats: PNG, JPEG, WebP, AVIF"
+                message: "Failed to decode image. Supported formats: PNG, JPEG, WebP, AVIF"
                     .to_string(),
             };
         }

@@ -39,15 +39,21 @@ pub fn vulfram_receive_queue(out_ptr: *mut *const u8, out_length: *mut usize) ->
 
         // MARK: Serialization
         let serialization_start = Instant::now();
-        engine.serialized_responses_buffer = match rmp_serde::to_vec_named(&engine.response_queue) {
+        let serialized_data = match rmp_serde::to_vec_named(&engine.response_queue) {
             Ok(data) => data,
             Err(_) => return VulframResult::UnknownError,
         };
         engine.profiling.serialization_ns = serialization_start.elapsed().as_nanos() as u64;
 
+        let data_length = serialized_data.len();
+
+        // Transfer ownership via Box::into_raw (zero-copy)
+        let boxed = serialized_data.into_boxed_slice();
+        let ptr = Box::into_raw(boxed) as *mut u8;
+
         unsafe {
-            *out_ptr = engine.serialized_responses_buffer.as_ptr();
-            *out_length = engine.serialized_responses_buffer.len();
+            *out_ptr = ptr;
+            *out_length = data_length;
         }
 
         engine.response_queue.clear();
@@ -71,7 +77,7 @@ pub fn vulfram_receive_events(out_ptr: *mut *const u8, out_length: *mut usize) -
 
         // MARK: Serialization
         let serialization_start = Instant::now();
-        engine.serialized_events_buffer = match rmp_serde::to_vec_named(&engine.event_queue) {
+        let serialized_data = match rmp_serde::to_vec_named(&engine.event_queue) {
             Ok(data) => data,
             Err(_) => return VulframResult::UnknownError,
         };
@@ -85,9 +91,15 @@ pub fn vulfram_receive_events(out_ptr: *mut *const u8, out_length: *mut usize) -
             engine.profiling.serialization_ns += serialization_time;
         }
 
+        let data_length = serialized_data.len();
+
+        // Transfer ownership via Box::into_raw (zero-copy)
+        let boxed = serialized_data.into_boxed_slice();
+        let ptr = Box::into_raw(boxed) as *mut u8;
+
         unsafe {
-            *out_ptr = engine.serialized_events_buffer.as_ptr();
-            *out_length = engine.serialized_events_buffer.len();
+            *out_ptr = ptr;
+            *out_length = data_length;
         }
 
         engine.event_queue.clear();

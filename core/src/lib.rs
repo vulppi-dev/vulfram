@@ -49,13 +49,13 @@ mod napi_exports {
             });
         }
 
-        // Copy data from internal buffer
-        let data = unsafe { std::slice::from_raw_parts(ptr, length) };
+        // Reconstruct Box<[u8]> and convert to Vec (zero-copy)
+        let boxed =
+            unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
+        let vec = boxed.into_vec();
+        let buffer = Buffer::from(vec);
 
-        Ok(BufferResult {
-            buffer: Buffer::from(data.to_vec()),
-            result,
-        })
+        Ok(BufferResult { buffer, result })
     }
 
     #[napi]
@@ -74,30 +74,31 @@ mod napi_exports {
             });
         }
 
-        // Copy data from internal buffer
-        let data = unsafe { std::slice::from_raw_parts(ptr, length) };
+        // Reconstruct Box<[u8]> and convert to Vec (zero-copy)
+        let boxed =
+            unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
+        let vec = boxed.into_vec();
+        let buffer = Buffer::from(vec);
 
-        Ok(BufferResult {
-            buffer: Buffer::from(data.to_vec()),
-            result,
-        })
+        Ok(BufferResult { buffer, result })
     }
 
     #[napi]
-    pub fn vulfram_upload_buffer(id: i64, data: Buffer) -> u32 {
+    pub fn vulfram_upload_buffer(id: i64, upload_type: u32, data: Buffer) -> u32 {
         let ptr = data.as_ptr();
         let length = data.len();
-        core::vulfram_upload_buffer(id as u64, ptr, length) as u32
+        core::vulfram_upload_buffer(id as u64, upload_type, ptr, length) as u32
     }
 
     #[napi]
     pub fn vulfram_download_buffer(id: i64) -> Result<BufferResult> {
         let mut length: usize = 0;
+        let mut ptr: *const u8 = std::ptr::null();
         let length_ptr = &mut length as *mut usize;
+        let ptr_ptr = &mut ptr as *mut *const u8;
 
-        // First call to get size
-        let result =
-            core::vulfram_download_buffer(id as u64, std::ptr::null_mut(), length_ptr) as u32;
+        let result = core::vulfram_download_buffer(id as u64, ptr_ptr, length_ptr) as u32;
+
         if result != 0 || length == 0 {
             return Ok(BufferResult {
                 buffer: Buffer::from(vec![]),
@@ -105,22 +106,13 @@ mod napi_exports {
             });
         }
 
-        // Second call to get data
-        let mut buffer = vec![0u8; length];
-        let buffer_ptr = buffer.as_mut_ptr();
-        let result = core::vulfram_download_buffer(id as u64, buffer_ptr, length_ptr) as u32;
+        // Reconstruct Box<[u8]> and convert to Vec (zero-copy)
+        let boxed =
+            unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
+        let vec = boxed.into_vec();
+        let buffer = Buffer::from(vec);
 
-        if result != 0 {
-            return Ok(BufferResult {
-                buffer: Buffer::from(vec![]),
-                result,
-            });
-        }
-
-        Ok(BufferResult {
-            buffer: Buffer::from(buffer),
-            result,
-        })
+        Ok(BufferResult { buffer, result })
     }
 
     #[napi]
@@ -144,13 +136,13 @@ mod napi_exports {
             });
         }
 
-        // Copy data from internal buffer
-        let data = unsafe { std::slice::from_raw_parts(ptr, length) };
+        // Reconstruct Box<[u8]> and convert to Vec (zero-copy)
+        let boxed =
+            unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
+        let vec = boxed.into_vec();
+        let buffer = Buffer::from(vec);
 
-        Ok(BufferResult {
-            buffer: Buffer::from(data.to_vec()),
-            result,
-        })
+        Ok(BufferResult { buffer, result })
     }
 }
 
@@ -188,8 +180,12 @@ mod lua_exports {
             return Ok((lua.create_string(&[])?, result));
         }
 
-        let data = unsafe { std::slice::from_raw_parts(ptr, length) };
-        Ok((lua.create_string(data)?, result))
+        // Reconstruct Box<[u8]> and let Lua copy (unavoidable)
+        let boxed =
+            unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
+        let lua_string = lua.create_string(&boxed)?;
+
+        Ok((lua_string, result))
     }
 
     fn vulfram_receive_events(lua: &Lua, _: ()) -> LuaResult<(LuaString, u32)> {
@@ -204,36 +200,40 @@ mod lua_exports {
             return Ok((lua.create_string(&[])?, result));
         }
 
-        let data = unsafe { std::slice::from_raw_parts(ptr, length) };
-        Ok((lua.create_string(data)?, result))
+        // Reconstruct Box<[u8]> and let Lua copy (unavoidable)
+        let boxed =
+            unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
+        let lua_string = lua.create_string(&boxed)?;
+
+        Ok((lua_string, result))
     }
 
-    fn vulfram_upload_buffer(_: &Lua, (id, data): (i64, LuaString)) -> LuaResult<u32> {
+    fn vulfram_upload_buffer(
+        _: &Lua,
+        (id, upload_type, data): (i64, u32, LuaString),
+    ) -> LuaResult<u32> {
         let bytes = data.as_bytes();
-        Ok(core::vulfram_upload_buffer(id as u64, bytes.as_ptr(), bytes.len()) as u32)
+        Ok(core::vulfram_upload_buffer(id as u64, upload_type, bytes.as_ptr(), bytes.len()) as u32)
     }
 
     fn vulfram_download_buffer(lua: &Lua, id: i64) -> LuaResult<(LuaString, u32)> {
         let mut length: usize = 0;
+        let mut ptr: *const u8 = std::ptr::null();
         let length_ptr = &mut length as *mut usize;
+        let ptr_ptr = &mut ptr as *mut *const u8;
 
-        // First call to get size
-        let result =
-            core::vulfram_download_buffer(id as u64, std::ptr::null_mut(), length_ptr) as u32;
+        let result = core::vulfram_download_buffer(id as u64, ptr_ptr, length_ptr) as u32;
+
         if result != 0 || length == 0 {
             return Ok((lua.create_string(&[])?, result));
         }
 
-        // Second call to get data
-        let mut buffer = vec![0u8; length];
-        let buffer_ptr = buffer.as_mut_ptr();
-        let result = core::vulfram_download_buffer(id as u64, buffer_ptr, length_ptr) as u32;
+        // Reconstruct Box<[u8]> and let Lua copy (unavoidable)
+        let boxed =
+            unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
+        let lua_string = lua.create_string(&boxed)?;
 
-        if result != 0 {
-            return Ok((lua.create_string(&[])?, result));
-        }
-
-        Ok((lua.create_string(&buffer)?, result))
+        Ok((lua_string, result))
     }
 
     fn vulfram_tick(_: &Lua, (time, delta_time): (i64, u32)) -> LuaResult<u32> {
@@ -252,8 +252,12 @@ mod lua_exports {
             return Ok((lua.create_string(&[])?, result));
         }
 
-        let data = unsafe { std::slice::from_raw_parts(ptr, length) };
-        Ok((lua.create_string(data)?, result))
+        // Reconstruct Box<[u8]> and let Lua copy (unavoidable)
+        let boxed =
+            unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
+        let lua_string = lua.create_string(&boxed)?;
+
+        Ok((lua_string, result))
     }
 
     #[mlua::lua_module]
@@ -316,8 +320,12 @@ mod python_exports {
             return Ok((PyBytes::new(py, &[]).into(), result));
         }
 
-        let data = unsafe { std::slice::from_raw_parts(ptr, length) };
-        Ok((PyBytes::new(py, data).into(), result))
+        // Reconstruct Box<[u8]> and let Python copy (unavoidable)
+        let boxed =
+            unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
+        let py_bytes = PyBytes::new(py, &boxed).into();
+
+        Ok((py_bytes, result))
     }
 
     #[pyfunction]
@@ -333,37 +341,38 @@ mod python_exports {
             return Ok((PyBytes::new(py, &[]).into(), result));
         }
 
-        let data = unsafe { std::slice::from_raw_parts(ptr, length) };
-        Ok((PyBytes::new(py, data).into(), result))
+        // Reconstruct Box<[u8]> and let Python copy (unavoidable)
+        let boxed =
+            unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
+        let py_bytes = PyBytes::new(py, &boxed).into();
+
+        Ok((py_bytes, result))
     }
 
     #[pyfunction]
-    fn vulfram_upload_buffer(id: i64, data: &[u8]) -> u32 {
-        core::vulfram_upload_buffer(id as u64, data.as_ptr(), data.len()) as u32
+    fn vulfram_upload_buffer(id: i64, upload_type: u32, data: &[u8]) -> u32 {
+        core::vulfram_upload_buffer(id as u64, upload_type, data.as_ptr(), data.len()) as u32
     }
 
     #[pyfunction]
     fn vulfram_download_buffer(py: Python, id: i64) -> PyResult<(Py<PyBytes>, u32)> {
         let mut length: usize = 0;
+        let mut ptr: *const u8 = std::ptr::null();
         let length_ptr = &mut length as *mut usize;
+        let ptr_ptr = &mut ptr as *mut *const u8;
 
-        // First call to get size
-        let result =
-            core::vulfram_download_buffer(id as u64, std::ptr::null_mut(), length_ptr) as u32;
+        let result = core::vulfram_download_buffer(id as u64, ptr_ptr, length_ptr) as u32;
+
         if result != 0 || length == 0 {
             return Ok((PyBytes::new(py, &[]).into(), result));
         }
 
-        // Second call to get data
-        let mut buffer = vec![0u8; length];
-        let buffer_ptr = buffer.as_mut_ptr();
-        let result = core::vulfram_download_buffer(id as u64, buffer_ptr, length_ptr) as u32;
+        // Reconstruct Box<[u8]> and let Python copy (unavoidable)
+        let boxed =
+            unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
+        let py_bytes = PyBytes::new(py, &boxed).into();
 
-        if result != 0 {
-            return Ok((PyBytes::new(py, &[]).into(), result));
-        }
-
-        Ok((PyBytes::new(py, &buffer).into(), result))
+        Ok((py_bytes, result))
     }
 
     #[pyfunction]
@@ -384,8 +393,12 @@ mod python_exports {
             return Ok((PyBytes::new(py, &[]).into(), result));
         }
 
-        let data = unsafe { std::slice::from_raw_parts(ptr, length) };
-        Ok((PyBytes::new(py, data).into(), result))
+        // Reconstruct Box<[u8]> and let Python copy (unavoidable)
+        let boxed =
+            unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
+        let py_bytes = PyBytes::new(py, &boxed).into();
+
+        Ok((py_bytes, result))
     }
 
     #[pymodule]
@@ -445,16 +458,17 @@ mod ffi_exports {
     #[unsafe(no_mangle)]
     pub extern "C" fn vulfram_upload_buffer(
         bfr_id: u64,
+        upload_type: u32,
         bfr_ptr: *const u8,
         bfr_length: usize,
     ) -> u32 {
-        core::vulfram_upload_buffer(bfr_id, bfr_ptr, bfr_length) as u32
+        core::vulfram_upload_buffer(bfr_id, upload_type, bfr_ptr, bfr_length) as u32
     }
 
     #[unsafe(no_mangle)]
     pub extern "C" fn vulfram_download_buffer(
         bfr_id: u64,
-        bfr_ptr: *mut u8,
+        bfr_ptr: *mut *const u8,
         bfr_length: *mut usize,
     ) -> u32 {
         core::vulfram_download_buffer(bfr_id, bfr_ptr, bfr_length) as u32

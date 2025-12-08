@@ -7,12 +7,15 @@ use crate::core::buffers::UploadBuffer;
 use crate::core::cache::{GamepadCacheManager, InputCacheManager, WindowCacheManager};
 use crate::core::cmd::events::ModifiersState;
 use crate::core::cmd::{EngineBatchEvents, EngineBatchResponses};
+use crate::core::render::RenderState;
 
 /// Represents a window with its associated WGPU resources
 pub struct WindowState {
     pub window: Arc<Window>,
     pub surface: wgpu::Surface<'static>,
     pub config: wgpu::SurfaceConfiguration,
+
+    pub render_state: Option<RenderState>,
 
     // Window state tracking
     pub inner_position: IVec2,

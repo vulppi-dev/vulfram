@@ -18,6 +18,9 @@ pub fn vulfram_send_queue(ptr: *const u8, length: usize) -> VulframResult {
     };
 
     match with_engine_singleton(|engine| {
+        // Clear response queue before processing new commands to prevent unbounded growth
+        // Host should consume responses via vulfram_receive_queue before sending more commands
+        engine.state.response_queue.clear();
         engine_process_batch(&mut engine.state, engine.proxy.as_mut().unwrap(), batch)
     }) {
         Err(e) => return e,

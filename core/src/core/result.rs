@@ -6,7 +6,6 @@ pub enum VulframResult {
     NotInitialized,
     AlreadyInitialized,
     WrongThread,
-    BufferOverflow,
     CmdInvalidMessagePackError,
     BufferNotFound,
     BufferIdCollision,

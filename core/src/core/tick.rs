@@ -14,6 +14,10 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
         engine.state.time = time;
         engine.state.delta_time = delta_time;
 
+        // Clear event queue at start of tick to prevent unbounded growth
+        // Host should consume events via vulfram_receive_events before next tick
+        engine.state.event_queue.clear();
+
         // Reset profiling counters
         engine.state.profiling.gamepad_processing_ns = 0;
         engine.state.profiling.event_loop_pump_ns = 0;

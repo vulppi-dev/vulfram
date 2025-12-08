@@ -9,10 +9,8 @@ use winit::{
     window::Window,
 };
 
-use crate::core::render::cleanup_window_render_state;
-use crate::core::state::{EngineState, WindowState};
-
 use super::{EngineWindowState, window_size_default};
+use crate::core::state::{EngineState, WindowState};
 
 // MARK: - Create Window
 
@@ -208,6 +206,7 @@ pub fn engine_cmd_window_create(
             outer_position: IVec2::new(outer_position.x, outer_position.y),
             inner_size: UVec2::new(inner_size.width, inner_size.height),
             outer_size: UVec2::new(outer_size.width, outer_size.height),
+            render_state: None,
             is_dirty: true, // New window needs initial render
         },
     );
@@ -258,7 +257,7 @@ pub fn engine_cmd_window_close(
     }
 
     // Remove window from state
-    if let Some(window_state) = engine.windows.remove(&args.window_id) {
+    if let Some(mut window_state) = engine.windows.remove(&args.window_id) {
         // Remove from window_id_map
         engine.window_id_map.remove(&window_state.window.id());
 
@@ -266,8 +265,11 @@ pub fn engine_cmd_window_close(
         engine.window_cache.remove(args.window_id);
         engine.input_cache.remove_pointer(args.window_id);
 
-        // Clean up render state
-        cleanup_window_render_state(args.window_id);
+        // Explicitly drop render state to free GPU resources
+        if let Some(ref mut render_state) = window_state.render_state {
+            render_state.drop_all();
+        }
+        window_state.render_state = None;
 
         // Window and surface will be dropped automatically
         CmdResultWindowClose {

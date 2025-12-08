@@ -72,7 +72,7 @@ pub struct EngineState {
     event_queue: InternalEventQueue,    // events to host (input/window)
 
     // Uploads
-    uploads: UploadTable,               // BufferId -> UploadEntry
+    buffers: HashMap<u64, UploadBuffer>, // BufferId -> UploadBuffer
 
     // Profiling
     profiling_data: ProfilingData,
@@ -288,35 +288,37 @@ During `EngineState::tick` (called from `vulfram_tick`):
 
 ---
 
-## 6. Upload Handling (`UploadTable`)
+## 6. Upload Handling (`UploadBuffer`)
 
-`UploadTable` manages blobs uploaded via `vulfram_upload_buffer`:
+Upload buffers manage blobs uploaded via `vulfram_upload_buffer`:
 
 ```rust
-pub struct UploadEntry {
-    kind: UploadKind,   // ShaderSource, VertexData, IndexData, TextureImage, etc.
-    data: Vec<u8>,
-    used: bool,
+pub struct UploadBuffer {
+    pub upload_type: UploadType,
+    pub data: Vec<u8>,
 }
+```
 
-pub struct UploadTable {
-    entries: HashMap<BufferId, UploadEntry>,
-}
+Stored in `EngineState`:
+
+```rust
+buffers: HashMap<u64, UploadBuffer>  // BufferId -> UploadBuffer
 ```
 
 - `vulfram_upload_buffer`:
 
-  - Inserts or replaces an `UploadEntry` for a given `BufferId`.
+  - Inserts an `UploadBuffer` for a given `BufferId` (u64).
+  - Returns error if buffer ID already exists (one-shot semantics).
 
 - `Create*` commands:
 
-  - Look up the `UploadEntry` by `BufferId`.
+  - Look up the `UploadBuffer` by `BufferId`.
   - Use/consume its data to create WGPU resources.
-  - Mark `used = true` or remove entry immediately.
+  - Remove entry after consumption.
 
 - `DiscardUnusedUploads` command:
 
-  - Iterates and removes any entries with `used == false`.
+  - Iterates and removes any unconsumed upload buffers.
 
 ---
 

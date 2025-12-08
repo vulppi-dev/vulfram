@@ -8,10 +8,6 @@ export interface BufferResult {
   result: number;
 }
 
-export function vulframClearBuffer(id: number): number {
-  return VULFRAM_CORE.vulframClearBuffer(id);
-}
-
 export function vulframDispose(): number {
   return VULFRAM_CORE.vulframDispose();
 }
@@ -40,8 +36,12 @@ export function vulframTick(time: number, deltaTime: number): number {
   return VULFRAM_CORE.vulframTick(time, deltaTime);
 }
 
-export function vulframUploadBuffer(id: number, data: Buffer): number {
-  return VULFRAM_CORE.vulframUploadBuffer(id, data);
+export function vulframUploadBuffer(
+  id: number,
+  uploadType: number,
+  data: Buffer,
+): number {
+  return VULFRAM_CORE.vulframUploadBuffer(id, uploadType, data);
 }
 
 export function vulframGetProfiling(): BufferResult {

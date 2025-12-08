@@ -25,8 +25,6 @@ Game Engine Experimental • Marca: Vulfram
 
 ### 2.1 Paleta Principal (Análoga Quente)
 
-Color main gradient: `#300985` → `#880979` → `#c71467`
-
 **Primária:**
 
 - 1: `#180c16`

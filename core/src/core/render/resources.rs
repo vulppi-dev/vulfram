@@ -1,5 +1,8 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use wgpu;
+
+use super::enums::{IndexFormat, VertexFormat};
 
 // MARK: - Logical IDs
 
@@ -21,13 +24,32 @@ pub struct ShaderResource {
 pub struct GeometryBuffers {
     pub vertex_buffer_id: u32,
     pub index_buffer_id: Option<u32>,
-    pub vertex_attributes: Vec<VertexAttributeDesc>,
-    pub index_format: Option<wgpu::IndexFormat>,
+    pub vertex_attributes: Vec<VertexAttribute>,
+    pub index_format: Option<IndexFormat>,
 }
 
-/// VertexAttributeDesc describes a single vertex attribute
-#[derive(Debug, Clone)]
+/// VertexAttributeDesc describes a single vertex attribute (command interface)
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct VertexAttributeDesc {
+    pub format: VertexFormat,
+    pub offset: u64,
+    pub shader_location: u32,
+}
+
+impl Default for VertexAttributeDesc {
+    fn default() -> Self {
+        Self {
+            format: VertexFormat::Float32x3,
+            offset: 0,
+            shader_location: 0,
+        }
+    }
+}
+
+/// Internal vertex attribute with parsed format
+#[derive(Debug, Clone)]
+pub struct VertexAttribute {
     pub format: wgpu::VertexFormat,
     pub offset: u64,
     pub shader_location: u32,
@@ -40,8 +62,8 @@ pub struct GeometryResource {
     pub index_buffer: Option<wgpu::Buffer>,
     pub vertex_count: u32,
     pub index_count: Option<u32>,
-    pub vertex_attributes: Vec<VertexAttributeDesc>,
-    pub index_format: Option<wgpu::IndexFormat>,
+    pub vertex_attributes: Vec<VertexAttribute>,
+    pub index_format: Option<IndexFormat>,
 }
 
 /// TextureParams describes texture creation parameters

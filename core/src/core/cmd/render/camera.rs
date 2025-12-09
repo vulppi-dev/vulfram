@@ -14,7 +14,7 @@ pub struct CmdCameraCreateArgs {
     pub window_id: u32,
     pub proj_mat: Mat4,
     pub view_mat: Mat4,
-    pub viewport: ViewportDesc,
+    pub viewport: Viewport,
     #[serde(default = "default_layer_mask")]
     pub layer_mask: u32,
 }
@@ -26,41 +26,14 @@ impl Default for CmdCameraCreateArgs {
             window_id: 0,
             proj_mat: Mat4::IDENTITY,
             view_mat: Mat4::IDENTITY,
-            viewport: ViewportDesc::default(),
+            viewport: Viewport::default(),
             layer_mask: default_layer_mask(),
         }
     }
 }
 
-/// Viewport descriptor for camera creation
-#[derive(Debug, Deserialize, Clone)]
-#[serde(default, rename_all = "camelCase")]
-pub struct ViewportDesc {
-    pub mode: ViewportModeDesc,
-    pub x: f64,
-    pub y: f64,
-    pub width: f64,
-    pub height: f64,
-}
-
-impl Default for ViewportDesc {
-    fn default() -> Self {
-        Self {
-            mode: ViewportModeDesc::Relative,
-            x: 0.0,
-            y: 0.0,
-            width: 1.0,
-            height: 1.0,
-        }
-    }
-}
-
-/// Viewport mode descriptor for serialization
-#[derive(Debug, Deserialize, Clone)]
-#[serde(rename_all = "kebab-case")]
-pub enum ViewportModeDesc {
-    Relative,
-    Absolute,
+fn default_layer_mask() -> u32 {
+    0xFFFFFFFF
 }
 
 /// Result for camera creation command
@@ -126,21 +99,8 @@ pub fn engine_cmd_camera_create(
         }
     };
 
-    // Convert viewport descriptor to viewport
-    let viewport = match args.viewport.mode {
-        ViewportModeDesc::Relative => Viewport::Relative {
-            x: args.viewport.x as f32,
-            y: args.viewport.y as f32,
-            width: args.viewport.width as f32,
-            height: args.viewport.height as f32,
-        },
-        ViewportModeDesc::Absolute => Viewport::Absolute {
-            x: args.viewport.x as u32,
-            y: args.viewport.y as u32,
-            width: args.viewport.width as u32,
-            height: args.viewport.height as u32,
-        },
-    };
+    // Create viewport - use directly from args
+    let viewport = args.viewport.clone();
 
     // Create render target texture
     let texture_size = wgpu::Extent3d {
@@ -193,7 +153,7 @@ pub struct CmdCameraUpdateArgs {
     pub window_id: u32,
     pub proj_mat: Option<Mat4>,
     pub view_mat: Option<Mat4>,
-    pub viewport: Option<ViewportDesc>,
+    pub viewport: Option<Viewport>,
     pub layer_mask: Option<u32>,
 }
 
@@ -266,21 +226,8 @@ pub fn engine_cmd_camera_update(
     };
 
     // Update viewport if provided
-    if let Some(viewport_desc) = &args.viewport {
-        camera.viewport = match viewport_desc.mode {
-            ViewportModeDesc::Relative => Viewport::Relative {
-                x: viewport_desc.x as f32,
-                y: viewport_desc.y as f32,
-                width: viewport_desc.width as f32,
-                height: viewport_desc.height as f32,
-            },
-            ViewportModeDesc::Absolute => Viewport::Absolute {
-                x: viewport_desc.x as u32,
-                y: viewport_desc.y as u32,
-                width: viewport_desc.width as u32,
-                height: viewport_desc.height as u32,
-            },
-        };
+    if let Some(viewport) = &args.viewport {
+        camera.viewport = viewport.clone();
     }
 
     // Update layer mask if provided
@@ -371,10 +318,4 @@ pub fn engine_cmd_camera_dispose(
             message: format!("Entity {} has no camera component", args.entity_id),
         },
     }
-}
-
-// MARK: - Helpers
-
-fn default_layer_mask() -> u32 {
-    0xFF
 }

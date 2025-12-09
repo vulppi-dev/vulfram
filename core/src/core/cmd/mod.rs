@@ -33,6 +33,16 @@ pub enum EngineCmd {
     CmdWindowSetCursorVisible(win::CmdWindowSetCursorVisibleArgs),
     CmdWindowSetCursorGrab(win::CmdWindowSetCursorGrabArgs),
     CmdWindowSetCursorIcon(win::CmdWindowSetCursorIconArgs),
+    CmdShaderCreate(render::CmdShaderCreateArgs),
+    CmdShaderDispose(render::CmdShaderDisposeArgs),
+    CmdGeometryCreate(render::CmdGeometryCreateArgs),
+    CmdGeometryDispose(render::CmdGeometryDisposeArgs),
+    CmdMaterialCreate(render::CmdMaterialCreateArgs),
+    CmdMaterialUpdate(render::CmdMaterialUpdateArgs),
+    CmdMaterialDispose(render::CmdMaterialDisposeArgs),
+    CmdTextureCreate(render::CmdTextureCreateArgs),
+    CmdTextureUpdate(render::CmdTextureUpdateArgs),
+    CmdTextureDispose(render::CmdTextureDisposeArgs),
     CmdCameraCreate(render::CmdCameraCreateArgs),
     CmdCameraUpdate(render::CmdCameraUpdateArgs),
     CmdCameraDispose(render::CmdCameraDisposeArgs),
@@ -77,6 +87,16 @@ pub enum CommandResponse {
     WindowSetCursorVisible(win::CmdResultWindowSetCursorVisible),
     WindowSetCursorGrab(win::CmdResultWindowSetCursorGrab),
     WindowSetCursorIcon(win::CmdResultWindowSetCursorIcon),
+    ShaderCreate(render::CmdResultShaderCreate),
+    ShaderDispose(render::CmdResultShaderDispose),
+    GeometryCreate(render::CmdResultGeometryCreate),
+    GeometryDispose(render::CmdResultGeometryDispose),
+    MaterialCreate(render::CmdResultMaterialCreate),
+    MaterialUpdate(render::CmdResultMaterialUpdate),
+    MaterialDispose(render::CmdResultMaterialDispose),
+    TextureCreate(render::CmdResultTextureCreate),
+    TextureUpdate(render::CmdResultTextureUpdate),
+    TextureDispose(render::CmdResultTextureDispose),
     CameraCreate(render::CmdResultCameraCreate),
     CameraUpdate(render::CmdResultCameraUpdate),
     CameraDispose(render::CmdResultCameraDispose),
@@ -254,6 +274,76 @@ pub fn engine_process_batch(
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::WindowSetCursorIcon(result),
+                });
+            }
+            EngineCmd::CmdShaderCreate(args) => {
+                let result = render::engine_cmd_shader_create(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::ShaderCreate(result),
+                });
+            }
+            EngineCmd::CmdShaderDispose(args) => {
+                let result = render::engine_cmd_shader_dispose(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::ShaderDispose(result),
+                });
+            }
+            EngineCmd::CmdGeometryCreate(args) => {
+                let result = render::engine_cmd_geometry_create(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::GeometryCreate(result),
+                });
+            }
+            EngineCmd::CmdGeometryDispose(args) => {
+                let result = render::engine_cmd_geometry_dispose(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::GeometryDispose(result),
+                });
+            }
+            EngineCmd::CmdMaterialCreate(args) => {
+                let result = render::engine_cmd_material_create(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::MaterialCreate(result),
+                });
+            }
+            EngineCmd::CmdMaterialUpdate(args) => {
+                let result = render::engine_cmd_material_update(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::MaterialUpdate(result),
+                });
+            }
+            EngineCmd::CmdMaterialDispose(args) => {
+                let result = render::engine_cmd_material_dispose(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::MaterialDispose(result),
+                });
+            }
+            EngineCmd::CmdTextureCreate(args) => {
+                let result = render::engine_cmd_texture_create(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::TextureCreate(result),
+                });
+            }
+            EngineCmd::CmdTextureUpdate(args) => {
+                let result = render::engine_cmd_texture_update(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::TextureUpdate(result),
+                });
+            }
+            EngineCmd::CmdTextureDispose(args) => {
+                let result = render::engine_cmd_texture_dispose(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::TextureDispose(result),
                 });
             }
             EngineCmd::CmdCameraCreate(args) => {

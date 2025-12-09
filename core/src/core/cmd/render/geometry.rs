@@ -16,11 +16,11 @@ pub struct CmdGeometryCreateArgs {
     pub geometry_id: GeometryId,
     pub window_id: u32,
     pub vertex_buffer_id: u64,
-    pub index_buffer_id: Option<u64>,
+    pub index_buffer_id: u64,
     pub vertex_count: u32,
-    pub index_count: Option<u32>,
+    pub index_count: u32,
     pub vertex_attributes: Vec<VertexAttributeDesc>,
-    pub index_format: Option<IndexFormat>,
+    pub index_format: IndexFormat,
     pub label: Option<String>,
 }
 
@@ -30,11 +30,11 @@ impl Default for CmdGeometryCreateArgs {
             geometry_id: 0,
             window_id: 0,
             vertex_buffer_id: 0,
-            index_buffer_id: None,
+            index_buffer_id: 0,
             vertex_count: 0,
-            index_count: None,
+            index_count: 0,
             vertex_attributes: Vec::new(),
-            index_format: None,
+            index_format: IndexFormat::Uint16,
             label: None,
         }
     }
@@ -124,28 +124,26 @@ pub fn engine_cmd_geometry_create(
         usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
     });
 
-    // Create index buffer if provided
-    let index_buffer = if let Some(index_buffer_id) = args.index_buffer_id {
-        let index_data = match engine.buffers.get(&index_buffer_id) {
-            Some(buffer) => &buffer.data,
-            None => {
-                return CmdResultGeometryCreate {
-                    success: false,
-                    message: format!("Index upload buffer with id {} not found", index_buffer_id),
-                };
-            }
-        };
-
-        Some(
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: args.label.as_deref(),
-                contents: index_data,
-                usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
-            }),
-        )
-    } else {
-        None
+    // Get index data from upload buffer
+    let index_data = match engine.buffers.get(&args.index_buffer_id) {
+        Some(buffer) => &buffer.data,
+        None => {
+            return CmdResultGeometryCreate {
+                success: false,
+                message: format!(
+                    "Index upload buffer with id {} not found",
+                    args.index_buffer_id
+                ),
+            };
+        }
     };
+
+    // Create index buffer
+    let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: args.label.as_deref(),
+        contents: index_data,
+        usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+    });
 
     // Convert vertex attributes
     let vertex_attributes: Vec<VertexAttribute> = args
@@ -158,9 +156,6 @@ pub fn engine_cmd_geometry_create(
         })
         .collect();
 
-    // Convert index format
-    let index_format = args.index_format;
-
     // Create geometry resource
     let geometry_resource = GeometryResource {
         geometry_id: args.geometry_id,
@@ -169,7 +164,7 @@ pub fn engine_cmd_geometry_create(
         vertex_count: args.vertex_count,
         index_count: args.index_count,
         vertex_attributes,
-        index_format,
+        index_format: args.index_format,
     };
 
     // Insert geometry resource
@@ -180,9 +175,7 @@ pub fn engine_cmd_geometry_create(
 
     // Remove upload buffers after use
     engine.buffers.remove(&args.vertex_buffer_id);
-    if let Some(index_buffer_id) = args.index_buffer_id {
-        engine.buffers.remove(&index_buffer_id);
-    }
+    engine.buffers.remove(&args.index_buffer_id);
 
     CmdResultGeometryCreate {
         success: true,

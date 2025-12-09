@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use wgpu;
 
+use super::buffers::{UniformBufferLayout, UniformField};
 use super::enums::{IndexFormat, VertexFormat};
 
 // MARK: - Logical IDs
@@ -11,12 +12,92 @@ pub type GeometryId = u32;
 pub type MaterialId = u32;
 pub type TextureId = u32;
 
+// MARK: - Shader Bindings
+
+/// Texture binding specification in shader
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TextureBinding {
+    pub group: u32,
+    pub binding: u32,
+    pub sample_type: TextureSampleType,
+    pub view_dimension: TextureViewDimension,
+}
+
+/// Texture sample type
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TextureSampleType {
+    Float,
+    Depth,
+    Sint,
+    Uint,
+}
+
+/// Texture view dimension
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TextureViewDimension {
+    D1,
+    D2,
+    D2Array,
+    Cube,
+    CubeArray,
+    D3,
+}
+
+/// Storage buffer binding specification
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StorageBufferBinding {
+    pub group: u32,
+    pub binding: u32,
+    pub read_only: bool,
+}
+
+/// Uniform buffer binding specification (used in shader creation)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UniformBufferBinding {
+    pub group: u32,
+    pub binding: u32,
+    pub fields: Vec<UniformField>,
+}
+
+/// Vertex attribute specification for shader
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VertexAttributeSpec {
+    pub location: u32,
+    pub semantic: VertexSemantic,
+    pub format: VertexFormat,
+}
+
+/// Vertex semantic for attribute matching
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum VertexSemantic {
+    Position,
+    Normal,
+    Tangent,
+    UV0,
+    UV1,
+    UV2,
+    UV3,
+    Color0,
+    Color1,
+    JointIndices,
+    JointWeights,
+}
+
 // MARK: - Resources
 
-/// ShaderResource holds a compiled shader module
+/// ShaderResource holds a compiled shader module with metadata
 pub struct ShaderResource {
     pub shader_id: ShaderId,
     pub module: wgpu::ShaderModule,
+
+    // Interface metadata
+    pub uniform_layouts: Vec<UniformBufferLayout>,
+    pub texture_bindings: Vec<TextureBinding>,
+    pub storage_buffers: Vec<StorageBufferBinding>,
+    pub vertex_attributes: Vec<VertexAttributeSpec>,
 }
 
 /// GeometryBuffers describes the buffer IDs and layout for geometry data
@@ -59,11 +140,11 @@ pub struct VertexAttribute {
 pub struct GeometryResource {
     pub geometry_id: GeometryId,
     pub vertex_buffer: wgpu::Buffer,
-    pub index_buffer: Option<wgpu::Buffer>,
+    pub index_buffer: wgpu::Buffer,
     pub vertex_count: u32,
-    pub index_count: Option<u32>,
+    pub index_count: u32,
     pub vertex_attributes: Vec<VertexAttribute>,
-    pub index_format: Option<IndexFormat>,
+    pub index_format: IndexFormat,
 }
 
 /// TextureParams describes texture creation parameters

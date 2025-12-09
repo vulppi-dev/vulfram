@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use crate::core::render::resources::{ShaderId, ShaderResource};
+use crate::core::render::buffers::UniformBufferLayout;
+use crate::core::render::resources::{
+    ShaderId, ShaderResource, StorageBufferBinding, TextureBinding, UniformBufferBinding,
+    VertexAttributeSpec,
+};
 use crate::core::state::EngineState;
 
 // MARK: - Create Shader
@@ -13,6 +17,12 @@ pub struct CmdShaderCreateArgs {
     pub window_id: u32,
     pub buffer_id: u64,
     pub label: Option<String>,
+
+    // Shader interface metadata
+    pub uniform_buffers: Vec<UniformBufferBinding>,
+    pub texture_bindings: Vec<TextureBinding>,
+    pub storage_buffers: Vec<StorageBufferBinding>,
+    pub vertex_attributes: Vec<VertexAttributeSpec>,
 }
 
 impl Default for CmdShaderCreateArgs {
@@ -22,6 +32,10 @@ impl Default for CmdShaderCreateArgs {
             window_id: 0,
             buffer_id: 0,
             label: None,
+            uniform_buffers: Vec::new(),
+            texture_bindings: Vec::new(),
+            storage_buffers: Vec::new(),
+            vertex_attributes: Vec::new(),
         }
     }
 }
@@ -110,10 +124,23 @@ pub fn engine_cmd_shader_create(
         source: wgpu::ShaderSource::Wgsl(shader_source.into()),
     });
 
-    // Create shader resource
+    // Calculate uniform buffer layouts
+    let uniform_layouts: Vec<UniformBufferLayout> = args
+        .uniform_buffers
+        .iter()
+        .map(|binding| {
+            UniformBufferLayout::from_fields(binding.group, binding.binding, &binding.fields)
+        })
+        .collect();
+
+    // Create shader resource with metadata (move instead of clone)
     let shader_resource = ShaderResource {
         shader_id: args.shader_id,
         module,
+        uniform_layouts,
+        texture_bindings: args.texture_bindings.clone(),
+        storage_buffers: args.storage_buffers.clone(),
+        vertex_attributes: args.vertex_attributes.clone(),
     };
 
     // Insert shader resource

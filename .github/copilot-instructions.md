@@ -309,6 +309,11 @@ bun run dev
 - Discriminated unions for command/event types
 - Rust type safety with strong typing
 - Shared enums between Rust and TypeScript
+- **Numeric enums**: Always use `serde_repr` with `u32` representation for enums that can be numeric
+  - Add `use serde_repr::{Deserialize_repr, Serialize_repr};`
+  - Use `#[derive(Serialize_repr, Deserialize_repr)]`
+  - Add `#[repr(u32)]` attribute
+  - Assign explicit numeric values to variants
 
 ### Layer Masking and Visibility
 

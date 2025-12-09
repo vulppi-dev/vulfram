@@ -83,13 +83,13 @@ fn process_gilrs_event(engine_state: &mut EngineState, event: GilrsEvent) {
 
     match event.event {
         GilrsEventType::Connected => {
-            let name = if let Some(gilrs) = &engine_state.gilrs {
-                gilrs.gamepad(event.id).name().to_string()
+            let name: String = if let Some(gilrs) = &engine_state.gilrs {
+                gilrs.gamepad(event.id).name().into()
             } else {
-                "Unknown".to_string()
+                "Unknown".into()
             };
 
-            // Add to cache
+            // Add to cache first, then move String to event (avoids clone)
             engine_state
                 .gamepad_cache
                 .add_gamepad(gamepad_id, name.clone());

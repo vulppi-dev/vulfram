@@ -42,7 +42,7 @@ pub fn engine_cmd_window_request_attention(
             window_state.window.request_user_attention(attention_type);
             CmdResultWindowRequestAttention {
                 success: true,
-                message: "User attention requested successfully".to_string(),
+                message: "User attention requested successfully".into(),
             }
         }
         None => CmdResultWindowRequestAttention {
@@ -76,7 +76,7 @@ pub fn engine_cmd_window_focus(
             window_state.window.focus_window();
             CmdResultWindowFocus {
                 success: true,
-                message: "Window focused successfully".to_string(),
+                message: "Window focused successfully".into(),
             }
         }
         None => CmdResultWindowFocus {

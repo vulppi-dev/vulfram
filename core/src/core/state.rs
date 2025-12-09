@@ -141,4 +141,29 @@ impl EngineState {
             window_state.is_dirty = true;
         }
     }
+
+    /// Cleanup window resources (called on close or destroy)
+    /// Returns true if window was found and cleaned up
+    pub fn cleanup_window(&mut self, window_id: u32) -> bool {
+        if let Some(mut window_state) = self.windows.remove(&window_id) {
+            // Remove from window_id_map
+            self.window_id_map.remove(&window_state.window.id());
+
+            // Clean up caches
+            self.window_cache.remove(window_id);
+            self.input_cache.remove_pointer(window_id);
+            self.cursor_positions.remove(&window_id);
+
+            // Explicitly drop render state to free GPU resources
+            if let Some(ref mut render_state) = window_state.render_state {
+                render_state.drop_all();
+            }
+            window_state.render_state = None;
+
+            // Window and surface will be dropped automatically
+            true
+        } else {
+            false
+        }
+    }
 }

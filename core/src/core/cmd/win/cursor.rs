@@ -27,7 +27,7 @@ pub fn engine_cmd_window_set_cursor_visible(
             window_state.window.set_cursor_visible(args.visible);
             CmdResultWindowSetCursorVisible {
                 success: true,
-                message: "Cursor visibility set successfully".to_string(),
+                message: "Cursor visibility set successfully".into(),
             }
         }
         None => CmdResultWindowSetCursorVisible {
@@ -88,7 +88,7 @@ pub fn engine_cmd_window_set_cursor_grab(
                         Ok(_) => {
                             return CmdResultWindowSetCursorGrab {
                                 success: true,
-                                message: "Cursor grab released successfully".to_string(),
+                                message: "Cursor grab released successfully".into(),
                             };
                         }
                         Err(e) => {
@@ -106,7 +106,7 @@ pub fn engine_cmd_window_set_cursor_grab(
             match window_state.window.set_cursor_grab(grab_mode) {
                 Ok(_) => CmdResultWindowSetCursorGrab {
                     success: true,
-                    message: "Cursor grab mode set successfully".to_string(),
+                    message: "Cursor grab mode set successfully".into(),
                 },
                 Err(e) => CmdResultWindowSetCursorGrab {
                     success: false,
@@ -264,7 +264,7 @@ pub fn engine_cmd_window_set_cursor_icon(
             window_state.window.set_cursor(winit_icon);
             CmdResultWindowSetCursorIcon {
                 success: true,
-                message: "Cursor icon set successfully".to_string(),
+                message: "Cursor icon set successfully".into(),
             }
         }
         None => CmdResultWindowSetCursorIcon {

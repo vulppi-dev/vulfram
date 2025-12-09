@@ -63,9 +63,9 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
                     if size.width > 0 && size.height > 0 {
                         window_state.config.width = size.width;
                         window_state.config.height = size.height;
-                        window_state
-                            .surface
-                            .configure(self.device.as_ref().unwrap(), &window_state.config);
+                        // SAFETY: device is always Some after initialization
+                        let device = unsafe { self.device.as_ref().unwrap_unchecked() };
+                        window_state.surface.configure(device, &window_state.config);
 
                         // Update size state
                         window_state.inner_size = new_size;
@@ -123,6 +123,9 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
             }
 
             WinitWindowEvent::Destroyed => {
+                // Cleanup all window resources when destroyed by system
+                self.cleanup_window(window_id);
+
                 self.event_queue
                     .push(EngineEvent::Window(WindowEvent::OnDestroy { window_id }));
             }
@@ -131,7 +134,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
                 self.event_queue
                     .push(EngineEvent::Window(WindowEvent::OnFileDrop {
                         window_id,
-                        path: path.to_string_lossy().to_string(),
+                        path: path.to_string_lossy().into_owned(),
                     }));
             }
 
@@ -139,7 +142,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
                 self.event_queue
                     .push(EngineEvent::Window(WindowEvent::OnFileHover {
                         window_id,
-                        path: path.to_string_lossy().to_string(),
+                        path: path.to_string_lossy().into_owned(),
                     }));
             }
 
@@ -193,7 +196,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
                         state,
                         location,
                         repeat: event.repeat,
-                        text: event.text.map(|s| s.to_string()),
+                        text: event.text.map(|s| s.into()),
                         modifiers: self.modifiers_state,
                     }));
             }

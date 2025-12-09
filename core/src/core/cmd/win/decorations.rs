@@ -27,7 +27,7 @@ pub fn engine_cmd_window_set_decorations(
             window_state.window.set_decorations(args.decorations);
             CmdResultWindowSetDecorations {
                 success: true,
-                message: "Window decorations set successfully".to_string(),
+                message: "Window decorations set successfully".into(),
             }
         }
         None => CmdResultWindowSetDecorations {
@@ -62,7 +62,7 @@ pub fn engine_cmd_window_has_decorations(
             let has_decorations = window_state.window.is_decorated();
             CmdResultWindowHasDecorations {
                 success: true,
-                message: "Window decorations state retrieved successfully".to_string(),
+                message: "Window decorations state retrieved successfully".into(),
                 content: has_decorations,
             }
         }
@@ -99,7 +99,7 @@ pub fn engine_cmd_window_set_resizable(
             window_state.window.set_resizable(args.resizable);
             CmdResultWindowSetResizable {
                 success: true,
-                message: "Window resizable property set successfully".to_string(),
+                message: "Window resizable property set successfully".into(),
             }
         }
         None => CmdResultWindowSetResizable {
@@ -134,7 +134,7 @@ pub fn engine_cmd_window_is_resizable(
             let is_resizable = window_state.window.is_resizable();
             CmdResultWindowIsResizable {
                 success: true,
-                message: "Window resizable state retrieved successfully".to_string(),
+                message: "Window resizable state retrieved successfully".into(),
                 content: is_resizable,
             }
         }

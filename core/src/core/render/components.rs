@@ -2,7 +2,7 @@ use glam::Mat4;
 use std::collections::HashMap;
 use wgpu;
 
-use super::resources::{GeometryId, MaterialId, TextureId};
+use super::resources::{GeometryId, MaterialId};
 
 // MARK: - Logical IDs
 
@@ -56,23 +56,21 @@ pub struct CameraDesc {
 
 /// CameraInstance represents a camera component attached to an entity
 pub struct CameraInstance {
-    pub entity_id: EntityId,
     pub camera_uniform_offset: u32,
     pub viewport: Viewport,
     pub render_target: wgpu::Texture,
     pub render_target_view: wgpu::TextureView,
-    pub layer_mask_camera: u32,
+    pub layer_mask: u32,
 }
 
 // MARK: - Mesh/Model
 
 /// MeshInstance represents a mesh/model component attached to an entity
 pub struct MeshInstance {
-    pub entity_id: EntityId,
     pub geometry: GeometryId,
     pub material: MaterialId,
     pub model_uniform_offset: u32,
-    pub layer_mask_component: u32,
+    pub layer_mask: u32,
 }
 
 // MARK: - Components Manager
@@ -91,12 +89,8 @@ impl Components {
         }
     }
 
-    /// Explicitly drop all components and their GPU resources
-    /// Use this when closing a window or disposing the engine
     pub fn drop_all(&mut self) {
-        // Drop all camera instances (includes render targets)
         self.cameras.clear();
-        // Drop all model instances
         self.models.clear();
     }
 }

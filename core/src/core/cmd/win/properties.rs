@@ -32,7 +32,7 @@ pub fn engine_cmd_window_set_title(
             window_state.window.set_title(&args.title);
             CmdResultWindowSetTitle {
                 success: true,
-                message: "Title set successfully".to_string(),
+                message: "Title set successfully".into(),
             }
         }
         None => CmdResultWindowSetTitle {
@@ -68,7 +68,7 @@ pub fn engine_cmd_window_set_position(
             window_state.window.set_outer_position(position);
             CmdResultWindowSetPosition {
                 success: true,
-                message: "Position set successfully".to_string(),
+                message: "Position set successfully".into(),
             }
         }
         None => CmdResultWindowSetPosition {
@@ -102,7 +102,7 @@ pub fn engine_cmd_window_get_position(
         Some(window_state) => match window_state.window.outer_position() {
             Ok(position) => CmdResultWindowGetPosition {
                 success: true,
-                message: "Position retrieved successfully".to_string(),
+                message: "Position retrieved successfully".into(),
                 content: IVec2::new(position.x, position.y),
             },
             Err(e) => CmdResultWindowGetPosition {
@@ -156,7 +156,7 @@ pub fn engine_cmd_window_set_size(
 
             CmdResultWindowSetSize {
                 success: true,
-                message: "Size set successfully".to_string(),
+                message: "Size set successfully".into(),
             }
         }
         None => CmdResultWindowSetSize {
@@ -191,7 +191,7 @@ pub fn engine_cmd_window_get_size(
             let size = window_state.window.inner_size();
             CmdResultWindowGetSize {
                 success: true,
-                message: "Size retrieved successfully".to_string(),
+                message: "Size retrieved successfully".into(),
                 content: UVec2::new(size.width, size.height),
             }
         }
@@ -228,7 +228,7 @@ pub fn engine_cmd_window_get_outer_size(
             let size = window_state.window.outer_size();
             CmdResultWindowGetOuterSize {
                 success: true,
-                message: "Outer size retrieved successfully".to_string(),
+                message: "Outer size retrieved successfully".into(),
                 content: UVec2::new(size.width, size.height),
             }
         }
@@ -263,7 +263,7 @@ pub fn engine_cmd_window_get_surface_size(
     match engine.windows.get(&args.window_id) {
         Some(window_state) => CmdResultWindowGetSurfaceSize {
             success: true,
-            message: "Surface size retrieved successfully".to_string(),
+            message: "Surface size retrieved successfully".into(),
             content: UVec2::new(window_state.config.width, window_state.config.height),
         },
         None => CmdResultWindowGetSurfaceSize {
@@ -326,7 +326,7 @@ pub fn engine_cmd_window_set_state(
             }
             CmdResultWindowSetState {
                 success: true,
-                message: "Window state set successfully".to_string(),
+                message: "Window state set successfully".into(),
             }
         }
         None => CmdResultWindowSetState {
@@ -377,7 +377,7 @@ pub fn engine_cmd_window_get_state(
 
             CmdResultWindowGetState {
                 success: true,
-                message: "Window state retrieved successfully".to_string(),
+                message: "Window state retrieved successfully".into(),
                 content: state,
             }
         }
@@ -445,8 +445,7 @@ pub fn engine_cmd_window_set_icon(
         None => {
             return CmdResultWindowSetIcon {
                 success: false,
-                message: "Failed to decode image. Supported formats: PNG, JPEG, WebP, AVIF"
-                    .to_string(),
+                message: "Failed to decode image. Supported formats: PNG, JPEG, WebP, AVIF".into(),
             };
         }
     };
@@ -472,6 +471,6 @@ pub fn engine_cmd_window_set_icon(
 
     CmdResultWindowSetIcon {
         success: true,
-        message: "Icon set successfully".to_string(),
+        message: "Icon set successfully".into(),
     }
 }

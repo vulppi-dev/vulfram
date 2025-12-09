@@ -1,5 +1,5 @@
-mod components;
-mod resources;
+pub mod components;
+pub mod resources;
 mod state;
 
 use crate::core::state::EngineState;

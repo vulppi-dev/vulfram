@@ -6,6 +6,7 @@ use crate::core::singleton::EngineCustomEvents;
 use crate::core::state::EngineState;
 
 pub mod events;
+pub mod render;
 pub mod win;
 
 #[derive(Debug, Deserialize, Clone)]
@@ -32,6 +33,12 @@ pub enum EngineCmd {
     CmdWindowSetCursorVisible(win::CmdWindowSetCursorVisibleArgs),
     CmdWindowSetCursorGrab(win::CmdWindowSetCursorGrabArgs),
     CmdWindowSetCursorIcon(win::CmdWindowSetCursorIconArgs),
+    CmdCameraCreate(render::CmdCameraCreateArgs),
+    CmdCameraUpdate(render::CmdCameraUpdateArgs),
+    CmdCameraDispose(render::CmdCameraDisposeArgs),
+    CmdModelCreate(render::CmdModelCreateArgs),
+    CmdModelUpdate(render::CmdModelUpdateArgs),
+    CmdModelDispose(render::CmdModelDisposeArgs),
 }
 
 /// Spontaneous engine events (input, window changes, system events)
@@ -70,6 +77,12 @@ pub enum CommandResponse {
     WindowSetCursorVisible(win::CmdResultWindowSetCursorVisible),
     WindowSetCursorGrab(win::CmdResultWindowSetCursorGrab),
     WindowSetCursorIcon(win::CmdResultWindowSetCursorIcon),
+    CameraCreate(render::CmdResultCameraCreate),
+    CameraUpdate(render::CmdResultCameraUpdate),
+    CameraDispose(render::CmdResultCameraDispose),
+    ModelCreate(render::CmdResultModelCreate),
+    ModelUpdate(render::CmdResultModelUpdate),
+    ModelDispose(render::CmdResultModelDispose),
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -241,6 +254,48 @@ pub fn engine_process_batch(
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::WindowSetCursorIcon(result),
+                });
+            }
+            EngineCmd::CmdCameraCreate(args) => {
+                let result = render::engine_cmd_camera_create(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::CameraCreate(result),
+                });
+            }
+            EngineCmd::CmdCameraUpdate(args) => {
+                let result = render::engine_cmd_camera_update(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::CameraUpdate(result),
+                });
+            }
+            EngineCmd::CmdCameraDispose(args) => {
+                let result = render::engine_cmd_camera_dispose(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::CameraDispose(result),
+                });
+            }
+            EngineCmd::CmdModelCreate(args) => {
+                let result = render::engine_cmd_model_create(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::ModelCreate(result),
+                });
+            }
+            EngineCmd::CmdModelUpdate(args) => {
+                let result = render::engine_cmd_model_update(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::ModelUpdate(result),
+                });
+            }
+            EngineCmd::CmdModelDispose(args) => {
+                let result = render::engine_cmd_model_dispose(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::ModelDispose(result),
                 });
             }
         }

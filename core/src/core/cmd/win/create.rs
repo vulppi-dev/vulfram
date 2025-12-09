@@ -90,7 +90,7 @@ pub fn engine_cmd_window_create(
                 Err(_) => {
                     return CmdResultWindowCreate {
                         success: false,
-                        message: "WGPU adapter request error".to_string(),
+                        message: "WGPU adapter request error".into(),
                         content: 0,
                     };
                 }
@@ -133,7 +133,7 @@ pub fn engine_cmd_window_create(
             Err(_) => {
                 return CmdResultWindowCreate {
                         success: false,
-                        message: "Surface is not compatible with existing WGPU adapter. Cannot create window.".to_string(),
+                        message: "Surface is not compatible with existing WGPU adapter. Cannot create window.".into(),
                         content: 0,
                     };
             }
@@ -224,7 +224,7 @@ pub fn engine_cmd_window_create(
 
     CmdResultWindowCreate {
         success: true,
-        message: "Window created successfully".to_string(),
+        message: "Window created successfully".into(),
         content: win_id,
     }
 }
@@ -256,30 +256,16 @@ pub fn engine_cmd_window_close(
         };
     }
 
-    // Remove window from state
-    if let Some(mut window_state) = engine.windows.remove(&args.window_id) {
-        // Remove from window_id_map
-        engine.window_id_map.remove(&window_state.window.id());
-
-        // Clean up caches
-        engine.window_cache.remove(args.window_id);
-        engine.input_cache.remove_pointer(args.window_id);
-
-        // Explicitly drop render state to free GPU resources
-        if let Some(ref mut render_state) = window_state.render_state {
-            render_state.drop_all();
-        }
-        window_state.render_state = None;
-
-        // Window and surface will be dropped automatically
+    // Cleanup window and all associated resources
+    if engine.cleanup_window(args.window_id) {
         CmdResultWindowClose {
             success: true,
-            message: "Window closed successfully".to_string(),
+            message: "Window closed successfully".into(),
         }
     } else {
         CmdResultWindowClose {
             success: false,
-            message: "Failed to close window".to_string(),
+            message: "Failed to close window".into(),
         }
     }
 }

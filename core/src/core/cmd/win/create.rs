@@ -43,10 +43,10 @@ pub fn engine_cmd_window_create(
         .with_title(args.title.as_str())
         .with_decorations(!args.borderless)
         .with_resizable(args.resizable)
-        .with_inner_size(PhysicalSize::new(args.size[0], args.size[1]))
+        .with_inner_size(PhysicalSize::new(args.size.x, args.size.y))
         .with_position(Position::Physical(PhysicalPosition::new(
-            args.position[0],
-            args.position[1],
+            args.position.x,
+            args.position.y,
         )))
         .with_transparent(true);
 

@@ -1,4 +1,4 @@
-import * as VULFRAM_CORE from './napi';
+import * as VULFRAM_CORE from './ffi';
 import { pack, unpack } from 'msgpackr';
 import type { VulframResult } from './enums';
 import type {
@@ -297,10 +297,11 @@ export function vulframTick(time: number, deltaTime: number): VulframResult {
  */
 export function vulframUploadBuffer(
   id: number,
+  uploadType: number,
   buffer: Uint8Array,
 ): VulframResult {
   return trackBenchmark('vulframUploadBuffer', () =>
-    VULFRAM_CORE.vulframUploadBuffer(id, Buffer.from(buffer)),
+    VULFRAM_CORE.vulframUploadBuffer(id, uploadType, Buffer.from(buffer)),
   );
 }
 
@@ -323,23 +324,6 @@ export function vulframDownloadBuffer(id: number): [Uint8Array, VulframResult] {
     const { buffer, result } = VULFRAM_CORE.vulframDownloadBuffer(id);
     return [buffer, result];
   });
-}
-
-/**
- * Clears a buffer from the engine, freeing its GPU memory.
- * Should be called when a buffer is no longer needed.
- *
- * @example
- * ```typescript
- * const bufferId = 1;
- * vulframClearBuffer(bufferId);
- * console.log('Buffer cleared');
- * ```
- */
-export function vulframClearBuffer(id: number): VulframResult {
-  return trackBenchmark('vulframClearBuffer', () =>
-    VULFRAM_CORE.vulframClearBuffer(id),
-  );
 }
 
 /**

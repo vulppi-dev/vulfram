@@ -1,6 +1,7 @@
-import { dlopen, ptr, toBuffer, type Pointer } from 'bun:ffi';
+import dll from './vulfram_core.dll' with { type: 'file' };
+import { dlopen, ptr, toBuffer, toArrayBuffer, type Pointer } from 'bun:ffi';
 
-const { symbols: VULFRAM_CORE, close } = dlopen('src/ffi/vulfram_core.dll', {
+const { symbols: VULFRAM_CORE, close } = dlopen(dll, {
   vulfram_init: { args: [], returns: 'u32' },
   vulfram_dispose: { args: [], returns: 'u32' },
   vulfram_send_queue: { args: ['ptr', 'usize'], returns: 'u32' },
@@ -43,7 +44,7 @@ export function vulframDownloadBuffer(id: number): BufferResult {
   if (!srcPtr) {
     return { buffer: Buffer.alloc(0), result };
   }
-  const buffer = toBuffer(srcPtr, 0, Number(sizeHolder[0]));
+  const buffer = Buffer.from(toArrayBuffer(srcPtr, 0, Number(sizeHolder[0])));
 
   return { buffer, result };
 }
@@ -66,7 +67,7 @@ export function vulframReceiveQueue(): BufferResult {
   if (!srcPtr) {
     return { buffer: Buffer.alloc(0), result };
   }
-  const buffer = toBuffer(srcPtr, 0, Number(sizeHolder[0]));
+  const buffer = Buffer.from(toArrayBuffer(srcPtr, 0, Number(sizeHolder[0])));
 
   return { buffer, result };
 }
@@ -85,7 +86,7 @@ export function vulframReceiveEvents(): BufferResult {
   if (!srcPtr) {
     return { buffer: Buffer.alloc(0), result };
   }
-  const buffer = toBuffer(srcPtr, 0, Number(sizeHolder[0]));
+  const buffer = Buffer.from(toArrayBuffer(srcPtr, 0, Number(sizeHolder[0])));
 
   return { buffer, result };
 }
@@ -125,7 +126,7 @@ export function vulframGetProfiling(): BufferResult {
   if (!srcPtr) {
     return { buffer: Buffer.alloc(0), result };
   }
-  const buffer = toBuffer(srcPtr, 0, Number(sizeHolder[0]));
+  const buffer = Buffer.from(toArrayBuffer(srcPtr, 0, Number(sizeHolder[0])));
 
   return { buffer, result };
 }

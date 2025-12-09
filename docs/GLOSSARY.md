@@ -57,7 +57,7 @@ higher-level, language-friendly APIs.
 ### Component
 
 A **component** is a high-level structure describing some behavior or
-participation in the scene, usually attached to an `EntityId`.
+participation in the scene, usually attached to an `ComponentId`.
 
 Examples:
 
@@ -121,7 +121,7 @@ Example:
 
 Integers defined and managed by the host. Common logical IDs:
 
-- `EntityId`
+- `ComponentId`
 - `ShaderId`
 - `GeometryId`
 - `MaterialId`

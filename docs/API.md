@@ -148,12 +148,12 @@ Represents everything needed to draw with a given material:
 
 ## 4. Components and Instances
 
-The `Components` struct maps `EntityId` to internal instances:
+The `Components` struct maps `ComponentId` to internal instances:
 
 ```rust
 pub struct Components {
-    cameras: HashMap<EntityId, CameraInstance>,
-    models:  HashMap<EntityId, MeshInstance>,
+    cameras: HashMap<ComponentId, CameraInstance>,
+    models:  HashMap<ComponentId, MeshInstance>,
     // future: lights, environments...
 }
 ```
@@ -243,13 +243,13 @@ enum EngineCommand {
 
     // Component creation
     CreateCameraComponent {
-        entity_id: EntityId,
+        entity_id: ComponentId,
         desc: CameraDesc,
         viewport: ViewportDesc,
         layer_mask: u32,
     },
     CreateModelComponent {
-        entity_id: EntityId,
+        entity_id: ComponentId,
         geometry_id: GeometryId,
         material_id: MaterialId,
         layer_mask: u32,
@@ -257,12 +257,12 @@ enum EngineCommand {
 
     // Component updates
     UpdateCameraComponent {
-        entity_id: EntityId,
+        entity_id: ComponentId,
         camera_pw: glam::Mat4,
         viewport: Option<ViewportDesc>,
     },
     UpdateModelTransform {
-        entity_id: EntityId,
+        entity_id: ComponentId,
         model: glam::Mat4,
     },
 

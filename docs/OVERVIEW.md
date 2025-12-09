@@ -58,7 +58,7 @@ Typical hosts:
 The host is responsible for:
 
 - Generating **logical IDs**:
-  - `EntityId`
+  - `ComponentId`
   - `ShaderId`
   - `GeometryId`
   - `MaterialId`
@@ -89,7 +89,7 @@ The core is implemented in Rust and uses:
 The core is responsible for:
 
 - Tracking **resources** (shaders, materials, textures, geometries…)
-- Tracking **component instances** (cameras, models, etc.) per `EntityId`
+- Tracking **component instances** (cameras, models, etc.) per `ComponentId`
 - Managing GPU buffers and pipelines
 - Collecting input and window events
 - Executing the render pipeline in `vulfram_tick`
@@ -118,7 +118,7 @@ Vulfram uses two key concepts for scene description:
 ### 3.1 Components
 
 Components represent “what exists in the scene” and how it behaves.
-They are always associated with an `EntityId` chosen by the host.
+They are always associated with an `ComponentId` chosen by the host.
 
 Examples of components:
 
@@ -178,7 +178,7 @@ They are split into two categories:
 
 The host generates and owns:
 
-- `EntityId` — identifies a logical entity
+- `ComponentId` — identifies a logical entity
 - `ShaderId` — shader program
 - `GeometryId` — mesh/geometry asset
 - `MaterialId` — material asset

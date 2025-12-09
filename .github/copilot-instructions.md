@@ -98,7 +98,7 @@ This file contains instructions for you to help it generate code that is consist
 
 - **Components**: High-level structures attached to entities
   - Examples: `CameraComponent`, `ModelComponent`, `LightComponent` (future)
-  - Always associated with host-generated `EntityId`
+  - Always associated with host-generated `ComponentId`
   - Contain static data (colors, matrices) and/or references to resources
   - Created/updated via commands in `send_queue`
 - **Resources**: Reusable data assets
@@ -127,7 +127,7 @@ This file contains instructions for you to help it generate code that is consist
 - **Commands**: Descriptive names in MessagePack (e.g., `CreateShader`, `UpdateCamera`)
 - **Events**: Descriptive names for input/window notifications
 - **Logical IDs**: Host-managed opaque integers
-  - `EntityId`, `ShaderId`, `GeometryId`, `MaterialId`, `TextureId`, `BufferId`
+  - `ComponentId`, `ShaderId`, `GeometryId`, `MaterialId`, `TextureId`, `BufferId`
 - **Internal handles**: Core-only references (never exposed to host)
   - `ShaderModuleHandle`, `RenderPipelineHandle`, `BufferHandle`, `TextureHandle`
   - `CameraInstanceHandle`, `MeshInstanceHandle`

@@ -82,18 +82,18 @@ Vulfram uses a queue-based architecture that enables efficient communication bet
 │  • Game Logic                       │
 │  • Entity Management                │
 │  • ID Generation                    │
-└──────────┬────────────┬─────────────┘
-           │            │
-           │ Commands   │ Events
-           │ (MsgPack)  │ (MsgPack)
-           ▼            ▲
-    ┌──────────────────────────┐
-    │   vulfram_send_queue()   │
-    │   vulfram_receive_queue()│
-    │   vulfram_receive_events()│
-    │   vulfram_upload_buffer()│
-    │   vulfram_tick()         │
-    └──────────┬───────────────┘
+└────────┬────────────┬───────────────┘
+         │            │
+         │ Commands   │ Events
+         │ (MsgPack)  │ (MsgPack)
+         ▼            ▲
+    ┌────────────────────────────┐
+    │  vulfram_send_queue()      │
+    │  vulfram_receive_queue()   │
+    │  vulfram_receive_events()  │
+    │  vulfram_upload_buffer()   │
+    │  vulfram_tick()            │
+    └──────────┬─────────────────┘
                │
 ┌──────────────▼───────────────────────┐
 │        Vulfram Core (Rust)           │
@@ -138,7 +138,7 @@ Vulfram distinguishes between two fundamental types:
 
 **Components** - High-level structures describing scene participation:
 
-- Always attached to an `EntityId`
+- Always attached to an `ComponentId`
 - Examples: `CameraComponent`, `ModelComponent`, `LightComponent`
 - Can contain static data (local colors, matrices)
 - Reference sharable resources by logical ID
@@ -155,7 +155,7 @@ Vulfram distinguishes between two fundamental types:
 
 The host manages all logical identifiers:
 
-- `EntityId` - Identifies scene entities
+- `ComponentId` - Identifies scene entities
 - `ShaderId` - Shader programs
 - `GeometryId` - Mesh/geometry assets
 - `MaterialId` - Material configurations

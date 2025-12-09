@@ -1,7 +1,7 @@
 use glam::Mat4;
 use serde::{Deserialize, Serialize};
 
-use crate::core::render::components::{EntityId, MeshInstance};
+use crate::core::render::components::{ComponentId, MeshInstance};
 use crate::core::render::resources::{GeometryId, MaterialId};
 use crate::core::state::EngineState;
 
@@ -11,7 +11,7 @@ use crate::core::state::EngineState;
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdModelCreateArgs {
-    pub entity_id: EntityId,
+    pub entity_id: ComponentId,
     pub window_id: u32,
     pub geometry_id: GeometryId,
     pub material_id: MaterialId,
@@ -131,7 +131,7 @@ pub fn engine_cmd_model_create(
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdModelUpdateArgs {
-    pub entity_id: EntityId,
+    pub entity_id: ComponentId,
     pub window_id: u32,
     pub geometry_id: Option<GeometryId>,
     pub material_id: Option<MaterialId>,
@@ -251,7 +251,7 @@ pub fn engine_cmd_model_update(
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdModelDisposeArgs {
-    pub entity_id: EntityId,
+    pub entity_id: ComponentId,
     pub window_id: u32,
 }
 

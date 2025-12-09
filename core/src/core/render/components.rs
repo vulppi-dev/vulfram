@@ -6,7 +6,7 @@ use super::resources::{GeometryId, MaterialId};
 
 // MARK: - Logical IDs
 
-pub type EntityId = u32;
+pub type ComponentId = u32;
 
 // MARK: - Viewport
 
@@ -75,10 +75,10 @@ pub struct MeshInstance {
 
 // MARK: - Components Manager
 
-/// Components holds all component instances indexed by EntityId
+/// Components holds all component instances indexed by ComponentId
 pub struct Components {
-    pub cameras: HashMap<EntityId, CameraInstance>,
-    pub models: HashMap<EntityId, MeshInstance>,
+    pub cameras: HashMap<ComponentId, CameraInstance>,
+    pub models: HashMap<ComponentId, MeshInstance>,
 }
 
 impl Components {

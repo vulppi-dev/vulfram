@@ -50,7 +50,7 @@ Core responsibilities:
 
 - Keep track of **resources**:
   - Shaders, geometries, materials, textures, samplers…
-- Keep track of **instances** (components) per `EntityId`:
+- Keep track of **instances** (components) per `ComponentId`:
   - Cameras, models, etc.
 - Manage GPU buffers, textures, pipelines, and render passes.
 - Collect and expose input/window events.
@@ -70,7 +70,7 @@ Components represent high-level logic and are attached to entities:
 - (future) `EnvironmentComponent`
 
 They are created and updated via commands in `send_queue`.
-Each component is associated with an `EntityId` chosen by the host.
+Each component is associated with an `ComponentId` chosen by the host.
 
 ### 2.2 Resources
 
@@ -105,8 +105,8 @@ Internally, the core maintains per-entity instances like:
   - A slot in `ModelUniformBuffer`
   - `layerMaskComponent`
 
-These internal instances are indexed by `EntityId` and are not visible to the host.
-The host always refers to entities by `EntityId`, and the core resolves that to
+These internal instances are indexed by `ComponentId` and are not visible to the host.
+The host always refers to entities by `ComponentId`, and the core resolves that to
 its internal instance structures.
 
 ---

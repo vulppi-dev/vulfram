@@ -1,7 +1,7 @@
 use glam::Mat4;
 use serde::{Deserialize, Serialize};
 
-use crate::core::render::components::{CameraInstance, EntityId, Viewport};
+use crate::core::render::components::{CameraInstance, ComponentId, Viewport};
 use crate::core::state::EngineState;
 
 // MARK: - Create Camera
@@ -10,7 +10,7 @@ use crate::core::state::EngineState;
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdCameraCreateArgs {
-    pub entity_id: EntityId,
+    pub entity_id: ComponentId,
     pub window_id: u32,
     pub proj_mat: Mat4,
     pub view_mat: Mat4,
@@ -189,7 +189,7 @@ pub fn engine_cmd_camera_create(
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdCameraUpdateArgs {
-    pub entity_id: EntityId,
+    pub entity_id: ComponentId,
     pub window_id: u32,
     pub proj_mat: Option<Mat4>,
     pub view_mat: Option<Mat4>,
@@ -303,7 +303,7 @@ pub fn engine_cmd_camera_update(
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdCameraDisposeArgs {
-    pub entity_id: EntityId,
+    pub entity_id: ComponentId,
     pub window_id: u32,
 }
 

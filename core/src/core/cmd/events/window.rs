@@ -1,4 +1,4 @@
-use glam::IVec2;
+use glam::{IVec2, Vec2};
 use serde::{Deserialize, Serialize};
 
 /// Window-related events
@@ -52,11 +52,19 @@ pub enum WindowEvent {
 
     /// File was dropped into window
     #[serde(rename_all = "camelCase")]
-    OnFileDrop { window_id: u32, path: String },
+    OnFileDrop {
+        window_id: u32,
+        path: String,
+        position: Vec2,
+    },
 
     /// File is being hovered over window
     #[serde(rename_all = "camelCase")]
-    OnFileHover { window_id: u32, path: String },
+    OnFileHover {
+        window_id: u32,
+        path: String,
+        position: Vec2,
+    },
 
     /// Hovered file left the window
     #[serde(rename_all = "camelCase")]

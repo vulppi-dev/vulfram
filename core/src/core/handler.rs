@@ -131,18 +131,34 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
             }
 
             WinitWindowEvent::DroppedFile(path) => {
+                // Get the last known cursor position for this window
+                let position = self
+                    .cursor_positions
+                    .get(&window_id)
+                    .copied()
+                    .unwrap_or(Vec2::new(0.0, 0.0));
+
                 self.event_queue
                     .push(EngineEvent::Window(WindowEvent::OnFileDrop {
                         window_id,
                         path: path.to_string_lossy().into_owned(),
+                        position,
                     }));
             }
 
             WinitWindowEvent::HoveredFile(path) => {
+                // Get the last known cursor position for this window
+                let position = self
+                    .cursor_positions
+                    .get(&window_id)
+                    .copied()
+                    .unwrap_or(Vec2::new(0.0, 0.0));
+
                 self.event_queue
                     .push(EngineEvent::Window(WindowEvent::OnFileHover {
                         window_id,
                         path: path.to_string_lossy().into_owned(),
+                        position,
                     }));
             }
 

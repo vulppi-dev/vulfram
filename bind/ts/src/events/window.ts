@@ -100,12 +100,12 @@ export interface WindowRedrawRequestedEvent {
 
 export interface WindowFileDroppedEvent {
   event: 'on-file-drop';
-  data: { windowId: number; path: string };
+  data: { windowId: number; path: string; position: IVector2 };
 }
 
 export interface WindowFileHoveredEvent {
   event: 'on-file-hover';
-  data: { windowId: number; path: string };
+  data: { windowId: number; path: string; position: IVector2 };
 }
 
 export interface WindowFileHoveredCancelledEvent {

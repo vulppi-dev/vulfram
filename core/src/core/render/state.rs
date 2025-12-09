@@ -1,9 +1,11 @@
+use super::buffers::UniformBufferManager;
 use super::components::Components;
 use super::resources::Resources;
 
 pub struct RenderState {
     pub components: Components,
     pub resources: Resources,
+    pub uniform_buffer_manager: UniformBufferManager,
     pub clear_color: wgpu::Color,
 }
 
@@ -12,6 +14,9 @@ impl Default for RenderState {
         Self {
             components: Components::new(),
             resources: Resources::new(),
+            // Use common GPU alignment (256 bytes)
+            // Will be updated with actual device limits when available
+            uniform_buffer_manager: UniformBufferManager::new(256),
             clear_color: wgpu::Color {
                 r: 0.0,
                 g: 0.0,

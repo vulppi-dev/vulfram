@@ -108,8 +108,16 @@ pub struct MaterialParams {
 pub struct MaterialResource {
     pub material_id: MaterialId,
     pub pipeline_spec: PipelineSpec,
+    /// Render pipeline (created lazily on first draw)
+    /// Pipeline is built from shader + pipeline_spec + geometry vertex layout
     pub pipeline: Option<wgpu::RenderPipeline>,
+    /// Offset in bytes within the shared material uniform buffer
+    /// Used for per-material data (colors, parameters, etc.)
+    /// Allocated by uniform buffer manager if material needs uniforms
     pub uniform_offset: u32,
+    /// Optional offset in bytes within a storage buffer
+    /// Used for large or dynamic per-material data arrays
+    /// Allocated by storage buffer manager if needed
     pub storage_offset: Option<u32>,
     pub textures: Vec<TextureId>,
 }

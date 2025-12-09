@@ -1,4 +1,4 @@
-use glam::Vec2;
+use glam::{Mat4, Vec2};
 use std::collections::HashMap;
 use wgpu;
 
@@ -174,8 +174,15 @@ impl Viewport {
 
 /// CameraInstance represents a camera component attached to an entity
 pub struct CameraInstance {
+    /// Offset in bytes within the shared camera uniform buffer
+    /// Used to bind camera data (view/proj matrices) during rendering
+    /// Allocated by uniform buffer manager on camera creation
     pub camera_uniform_offset: u32,
     pub viewport: Viewport,
+    /// Projection matrix (perspective or orthographic)
+    pub proj_mat: Mat4,
+    /// View matrix (camera transform inverse)
+    pub view_mat: Mat4,
     pub render_target: wgpu::Texture,
     pub render_target_view: wgpu::TextureView,
     pub layer_mask: u32,
@@ -187,7 +194,12 @@ pub struct CameraInstance {
 pub struct MeshInstance {
     pub geometry: GeometryId,
     pub material: MaterialId,
+    /// Offset in bytes within the shared model uniform buffer
+    /// Used to bind model matrix during rendering
+    /// Allocated by uniform buffer manager on model creation
     pub model_uniform_offset: u32,
+    /// Model transformation matrix (position, rotation, scale)
+    pub model_mat: Mat4,
     pub layer_mask: u32,
 }
 
@@ -207,8 +219,15 @@ impl Components {
         }
     }
 
+    /// Explicitly drop all components and their GPU resources
+    /// This ensures proper cleanup of render targets and other GPU resources
     pub fn drop_all(&mut self) {
-        self.cameras.clear();
+        // Drop camera render targets explicitly before clearing
+        // This prevents GPU memory leaks from render target textures
+        for (_, camera) in self.cameras.drain() {
+            drop(camera.render_target_view);
+            drop(camera.render_target);
+        }
         self.models.clear();
     }
 }

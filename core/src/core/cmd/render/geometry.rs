@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use wgpu::util::DeviceExt;
 
-use crate::core::render::enums::{IndexFormat, VertexFormat};
+use crate::core::render::enums::IndexFormat;
 use crate::core::render::resources::{
     GeometryId, GeometryResource, VertexAttribute, VertexAttributeDesc,
 };

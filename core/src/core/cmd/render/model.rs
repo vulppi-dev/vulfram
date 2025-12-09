@@ -105,11 +105,46 @@ pub fn engine_cmd_model_create(
         };
     }
 
+    // Get device and queue for uniform buffer allocation
+    let device = match &engine.device {
+        Some(d) => d,
+        None => {
+            return CmdResultModelCreate {
+                success: false,
+                message: "GPU device not initialized".into(),
+            };
+        }
+    };
+
+    let queue = match &engine.queue {
+        Some(q) => q,
+        None => {
+            return CmdResultModelCreate {
+                success: false,
+                message: "GPU queue not initialized".into(),
+            };
+        }
+    };
+
+    // Allocate uniform buffer space for model data
+    // Model uniforms: model_mat (64 bytes)
+    let model_uniform_offset = render_state
+        .uniform_buffer_manager
+        .allocate_model(device, 64);
+
+    // Write model matrix to GPU
+    render_state.uniform_buffer_manager.write_model_data(
+        queue,
+        model_uniform_offset,
+        bytemuck::bytes_of(&args.model_mat),
+    );
+
     // Create model instance
     let model_instance = MeshInstance {
         geometry: args.geometry_id,
         material: args.material_id,
-        model_uniform_offset: 0, // TODO: Allocate from uniform buffer manager
+        model_uniform_offset,
+        model_mat: args.model_mat,
         layer_mask: args.layer_mask,
     };
 
@@ -231,13 +266,32 @@ pub fn engine_cmd_model_update(
         model.material = material_id;
     }
 
+    // Update model matrix if provided
+    if let Some(model_mat) = args.model_mat {
+        model.model_mat = model_mat;
+
+        // Write updated model_mat to GPU uniform buffer
+        let queue = match &engine.queue {
+            Some(q) => q,
+            None => {
+                return CmdResultModelUpdate {
+                    success: false,
+                    message: "GPU queue not initialized".into(),
+                };
+            }
+        };
+
+        render_state.uniform_buffer_manager.write_model_data(
+            queue,
+            model.model_uniform_offset,
+            bytemuck::bytes_of(&model_mat),
+        );
+    }
+
     // Update layer mask if provided
     if let Some(layer_mask) = args.layer_mask {
         model.layer_mask = layer_mask;
     }
-
-    // TODO: Update model matrix in uniform buffer
-    // This will be implemented when uniform buffer manager is added
 
     CmdResultModelUpdate {
         success: true,

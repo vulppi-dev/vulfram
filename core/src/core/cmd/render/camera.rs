@@ -122,10 +122,40 @@ pub fn engine_cmd_camera_create(
 
     let render_target_view = render_target.create_view(&wgpu::TextureViewDescriptor::default());
 
+    // Allocate uniform buffer space for camera data
+    // Camera uniforms: view_mat (64 bytes) + proj_mat (64 bytes) = 128 bytes
+    let camera_uniform_offset = render_state
+        .uniform_buffer_manager
+        .allocate_camera(device, 128);
+
+    // Prepare camera uniform data (view and projection matrices)
+    // Pack matrices as raw bytes using bytemuck
+    let mut camera_data = Vec::with_capacity(128);
+    camera_data.extend_from_slice(bytemuck::bytes_of(&args.view_mat));
+    camera_data.extend_from_slice(bytemuck::bytes_of(&args.proj_mat));
+
+    // Write camera data to GPU
+    let queue = match &engine.queue {
+        Some(q) => q,
+        None => {
+            return CmdResultCameraCreate {
+                success: false,
+                message: "GPU queue not initialized".into(),
+            };
+        }
+    };
+    render_state.uniform_buffer_manager.write_camera_data(
+        queue,
+        camera_uniform_offset,
+        &camera_data,
+    );
+
     // Create camera instance
     let camera_instance = CameraInstance {
-        camera_uniform_offset: 0, // TODO: Allocate from uniform buffer manager
+        camera_uniform_offset,
         viewport,
+        proj_mat: args.proj_mat,
+        view_mat: args.view_mat,
         render_target,
         render_target_view,
         layer_mask: args.layer_mask,
@@ -230,13 +260,57 @@ pub fn engine_cmd_camera_update(
         camera.viewport = viewport.clone();
     }
 
+    // Update projection matrix if provided
+    if let Some(proj_mat) = args.proj_mat {
+        camera.proj_mat = proj_mat;
+
+        // Write updated proj_mat to GPU uniform buffer
+        let queue = match &engine.queue {
+            Some(q) => q,
+            None => {
+                return CmdResultCameraUpdate {
+                    success: false,
+                    message: "GPU queue not initialized".into(),
+                };
+            }
+        };
+
+        // Projection matrix is at offset 64 within camera uniform
+        let proj_offset = camera.camera_uniform_offset + 64;
+        render_state.uniform_buffer_manager.write_camera_data(
+            queue,
+            proj_offset,
+            bytemuck::bytes_of(&proj_mat),
+        );
+    }
+
+    // Update view matrix if provided
+    if let Some(view_mat) = args.view_mat {
+        camera.view_mat = view_mat;
+
+        // Write updated view_mat to GPU uniform buffer
+        let queue = match &engine.queue {
+            Some(q) => q,
+            None => {
+                return CmdResultCameraUpdate {
+                    success: false,
+                    message: "GPU queue not initialized".into(),
+                };
+            }
+        };
+
+        // View matrix is at offset 0 within camera uniform
+        render_state.uniform_buffer_manager.write_camera_data(
+            queue,
+            camera.camera_uniform_offset,
+            bytemuck::bytes_of(&view_mat),
+        );
+    }
+
     // Update layer mask if provided
     if let Some(layer_mask) = args.layer_mask {
         camera.layer_mask = layer_mask;
     }
-
-    // TODO: Update projection and view matrices in uniform buffer
-    // This will be implemented when uniform buffer manager is added
 
     CmdResultCameraUpdate {
         success: true,

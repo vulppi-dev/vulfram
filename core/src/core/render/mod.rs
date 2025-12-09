@@ -1,3 +1,4 @@
+pub mod buffers;
 pub mod components;
 pub mod enums;
 pub mod material_types;
@@ -6,7 +7,6 @@ mod state;
 
 use crate::core::state::EngineState;
 
-pub use self::enums::*;
 pub use self::state::RenderState;
 
 pub fn render_frames(engine_state: &mut EngineState) {

@@ -4,14 +4,14 @@ use crate::core::state::EngineState;
 
 // MARK: - Set Decorations (Borderless)
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowSetDecorationsArgs {
     pub window_id: u32,
     pub decorations: bool,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowSetDecorations {
     success: bool,
@@ -39,13 +39,13 @@ pub fn engine_cmd_window_set_decorations(
 
 // MARK: - Has Decorations
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowHasDecorationsArgs {
     pub window_id: u32,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowHasDecorations {
     success: bool,
@@ -76,14 +76,14 @@ pub fn engine_cmd_window_has_decorations(
 
 // MARK: - Set Resizable
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowSetResizableArgs {
     pub window_id: u32,
     pub resizable: bool,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowSetResizable {
     success: bool,
@@ -111,13 +111,13 @@ pub fn engine_cmd_window_set_resizable(
 
 // MARK: - Is Resizable
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowIsResizableArgs {
     pub window_id: u32,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowIsResizable {
     success: bool,

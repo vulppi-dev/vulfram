@@ -15,14 +15,14 @@ pub enum UserAttentionType {
     Informational = 1,
 }
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowRequestAttentionArgs {
     pub window_id: u32,
     pub attention_type: Option<UserAttentionType>,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowRequestAttention {
     success: bool,
@@ -54,13 +54,13 @@ pub fn engine_cmd_window_request_attention(
 
 // MARK: - Focus Window
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowFocusArgs {
     pub window_id: u32,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowFocus {
     success: bool,

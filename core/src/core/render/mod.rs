@@ -137,17 +137,8 @@ pub fn render_frames(engine_state: &mut EngineState) {
             forward_pass(&mut encoder, device, render_state, camera_id, &render_items);
         }
 
-        // Get surface size for compose pass
-        let surface_size = (window_state.config.width, window_state.config.height);
-
         // Compose pass: Blit camera render targets to surface
-        compose_pass(
-            &mut encoder,
-            &view,
-            &surface_texture.texture,
-            surface_size,
-            render_state,
-        );
+        compose_pass(&mut encoder, device, &view, render_state);
 
         // Submit the commands
         queue.submit(std::iter::once(encoder.finish()));

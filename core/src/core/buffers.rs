@@ -3,7 +3,7 @@ use super::singleton::with_engine;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 /// Upload type - defines the purpose of the buffer data
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize_repr, Serialize_repr)]
 #[repr(u32)]
 pub enum UploadType {
     /// Raw binary data (default)

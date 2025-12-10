@@ -1,4 +1,4 @@
-import * as VULFRAM_CORE from './ffi';
+import * as VULFRAM_CORE from './napi';
 import { pack, unpack } from 'msgpackr';
 import type { VulframResult } from './enums';
 import type {

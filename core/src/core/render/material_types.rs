@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use super::enums::{
     BlendFactor, BlendOperation, CompareFunction, CullMode, FrontFace, IndexFormat, PolygonMode,
@@ -8,7 +8,7 @@ use super::enums::{
 // MARK: - Blend State
 
 /// Blend state descriptor for command deserialization
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct BlendStateDesc {
     pub color: BlendComponentDesc,
@@ -25,7 +25,7 @@ impl Default for BlendStateDesc {
 }
 
 /// Blend component descriptor
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct BlendComponentDesc {
     pub src_factor: BlendFactor,
@@ -46,7 +46,7 @@ impl Default for BlendComponentDesc {
 // MARK: - Depth Stencil State
 
 /// Depth stencil state descriptor
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct DepthStencilStateDesc {
     pub format: TextureFormat,
@@ -69,7 +69,7 @@ impl Default for DepthStencilStateDesc {
 }
 
 /// Stencil state descriptor
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct StencilStateDesc {
     pub front: StencilFaceStateDesc,
@@ -90,7 +90,7 @@ impl Default for StencilStateDesc {
 }
 
 /// Stencil face state descriptor
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct StencilFaceStateDesc {
     pub compare: CompareFunction,
@@ -111,7 +111,7 @@ impl Default for StencilFaceStateDesc {
 }
 
 /// Depth bias state descriptor
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct DepthBiasStateDesc {
     pub constant: i32,
@@ -132,7 +132,7 @@ impl Default for DepthBiasStateDesc {
 // MARK: - Primitive State
 
 /// Primitive state descriptor
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct PrimitiveStateDesc {
     pub topology: PrimitiveTopology,

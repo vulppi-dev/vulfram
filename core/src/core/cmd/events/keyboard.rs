@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use super::common::{ElementState, ModifiersState};
 
 /// Keyboard input event
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "event", content = "data", rename_all = "kebab-case")]
 pub enum KeyboardEvent {
     /// Key was pressed or released

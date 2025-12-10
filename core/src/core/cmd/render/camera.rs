@@ -7,7 +7,7 @@ use crate::core::state::EngineState;
 // MARK: - Create Camera
 
 /// Arguments for creating a camera component
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdCameraCreateArgs {
     pub component_id: ComponentId,
@@ -37,7 +37,7 @@ fn default_layer_mask() -> u32 {
 }
 
 /// Result for camera creation command
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultCameraCreate {
     pub success: bool,
@@ -114,7 +114,7 @@ pub fn engine_cmd_camera_create(
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
         format: window_state.config.format,
-        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
         view_formats: &[],
     });
 
@@ -137,6 +137,9 @@ pub fn engine_cmd_camera_create(
         .cameras
         .insert(args.component_id, camera_instance);
 
+    // Mark window as dirty to trigger redraw
+    window_state.is_dirty = true;
+
     CmdResultCameraCreate {
         success: true,
         message: "Camera component created successfully".into(),
@@ -146,7 +149,7 @@ pub fn engine_cmd_camera_create(
 // MARK: - Update Camera
 
 /// Arguments for updating a camera component
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdCameraUpdateArgs {
     pub component_id: ComponentId,
@@ -171,7 +174,7 @@ impl Default for CmdCameraUpdateArgs {
 }
 
 /// Result for camera update command
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultCameraUpdate {
     pub success: bool,
@@ -240,6 +243,9 @@ pub fn engine_cmd_camera_update(
         camera.is_dirty = true;
     }
 
+    // Mark window as dirty to trigger redraw
+    window_state.is_dirty = true;
+
     CmdResultCameraUpdate {
         success: true,
         message: "Camera component updated successfully".into(),
@@ -249,7 +255,7 @@ pub fn engine_cmd_camera_update(
 // MARK: - Dispose Camera
 
 /// Arguments for disposing a camera component
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdCameraDisposeArgs {
     pub component_id: ComponentId,
@@ -266,7 +272,7 @@ impl Default for CmdCameraDisposeArgs {
 }
 
 /// Result for camera dispose command
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultCameraDispose {
     pub success: bool,

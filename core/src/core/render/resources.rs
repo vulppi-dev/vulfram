@@ -17,7 +17,7 @@ pub type SamplerId = u32;
 // MARK: - Shader Bindings
 
 /// Texture binding specification in shader
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TextureBinding {
     pub group: u32,
     pub binding: u32,
@@ -26,7 +26,7 @@ pub struct TextureBinding {
 }
 
 /// Texture sample type
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum TextureSampleType {
     Float,
@@ -36,7 +36,7 @@ pub enum TextureSampleType {
 }
 
 /// Texture view dimension
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum TextureViewDimension {
     D1,
@@ -48,7 +48,7 @@ pub enum TextureViewDimension {
 }
 
 /// Storage buffer binding specification
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct StorageBufferBinding {
     pub group: u32,
     pub binding: u32,
@@ -56,7 +56,7 @@ pub struct StorageBufferBinding {
 }
 
 /// Uniform buffer binding specification (used in shader creation)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct UniformBufferBinding {
     pub group: u32,
     pub binding: u32,
@@ -64,7 +64,7 @@ pub struct UniformBufferBinding {
 }
 
 /// Vertex attribute specification for shader
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct VertexAttributeSpec {
     pub location: u32,
     pub semantic: VertexSemantic,
@@ -72,7 +72,7 @@ pub struct VertexAttributeSpec {
 }
 
 /// Vertex semantic for attribute matching
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum VertexSemantic {
     Position,
@@ -100,13 +100,13 @@ pub struct ShaderResource {
     pub texture_bindings: Vec<TextureBinding>,
     pub storage_buffers: Vec<StorageBufferBinding>,
     pub vertex_attributes: Vec<VertexAttributeSpec>,
-    
+
     // 🆕 NEW: Vertex buffer layout (calculated from vertex_attributes)
     pub vertex_buffer_layout: wgpu::VertexBufferLayout<'static>,
-    
+
     // 🆕 NEW: Bind group layouts (one per group)
     pub bind_group_layouts: Vec<wgpu::BindGroupLayout>,
-    
+
     // 🆕 NEW: Shader-owned uniform buffers with allocators
     pub uniform_buffers: ShaderUniformBuffers,
 }

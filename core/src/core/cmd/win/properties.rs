@@ -9,14 +9,14 @@ use super::EngineWindowState;
 
 // MARK: - Set Title
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowSetTitleArgs {
     pub window_id: u32,
     pub title: String,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowSetTitle {
     success: bool,
@@ -44,14 +44,14 @@ pub fn engine_cmd_window_set_title(
 
 // MARK: - Set Position
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowSetPositionArgs {
     pub window_id: u32,
     pub position: IVec2,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowSetPosition {
     success: bool,
@@ -80,13 +80,13 @@ pub fn engine_cmd_window_set_position(
 
 // MARK: - Get Position
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowGetPositionArgs {
     pub window_id: u32,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowGetPosition {
     success: bool,
@@ -121,14 +121,14 @@ pub fn engine_cmd_window_get_position(
 
 // MARK: - Set Size
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowSetSizeArgs {
     pub window_id: u32,
     pub size: UVec2,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowSetSize {
     success: bool,
@@ -168,13 +168,13 @@ pub fn engine_cmd_window_set_size(
 
 // MARK: - Get Size
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowGetSizeArgs {
     pub window_id: u32,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowGetSize {
     success: bool,
@@ -205,13 +205,13 @@ pub fn engine_cmd_window_get_size(
 
 // MARK: - Get Outer Size
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowGetOuterSizeArgs {
     pub window_id: u32,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowGetOuterSize {
     success: bool,
@@ -242,13 +242,13 @@ pub fn engine_cmd_window_get_outer_size(
 
 // MARK: - Get Surface Size
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowGetSurfaceSizeArgs {
     pub window_id: u32,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowGetSurfaceSize {
     success: bool,
@@ -276,14 +276,14 @@ pub fn engine_cmd_window_get_surface_size(
 
 // MARK: - Set State
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowSetStateArgs {
     pub window_id: u32,
     pub state: EngineWindowState,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowSetState {
     success: bool,
@@ -338,13 +338,13 @@ pub fn engine_cmd_window_set_state(
 
 // MARK: - Get State
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowGetStateArgs {
     pub window_id: u32,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowGetState {
     success: bool,
@@ -391,14 +391,14 @@ pub fn engine_cmd_window_get_state(
 
 // MARK: - Set Icon
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowSetIconArgs {
     pub window_id: u32,
     pub buffer_id: u64,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowSetIcon {
     success: bool,

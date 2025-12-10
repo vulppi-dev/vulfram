@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use super::common::{ElementState, TouchPhase};
 
 /// Mouse scroll delta type
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "type", content = "value", rename_all = "kebab-case")]
 pub enum ScrollDelta {
     /// Line-based scrolling (traditional mouse wheel)
@@ -14,7 +14,7 @@ pub enum ScrollDelta {
 }
 
 /// Pointer (Mouse/Touch) events - unified for both input types
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "event", content = "data", rename_all = "kebab-case")]
 pub enum PointerEvent {
     /// Pointer moved

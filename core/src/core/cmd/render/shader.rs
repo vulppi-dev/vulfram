@@ -11,7 +11,7 @@ use crate::core::state::EngineState;
 // MARK: - Create Shader
 
 /// Arguments for creating a shader resource
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdShaderCreateArgs {
     pub shader_id: ShaderId,
@@ -42,7 +42,7 @@ impl Default for CmdShaderCreateArgs {
 }
 
 /// Result for shader creation command
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultShaderCreate {
     pub success: bool,
@@ -170,7 +170,7 @@ pub fn engine_cmd_shader_create(
 // MARK: - Dispose Shader
 
 /// Arguments for disposing a shader resource
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdShaderDisposeArgs {
     pub shader_id: ShaderId,
@@ -187,7 +187,7 @@ impl Default for CmdShaderDisposeArgs {
 }
 
 /// Result for shader dispose command
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultShaderDispose {
     pub success: bool,
@@ -301,18 +301,16 @@ fn build_vertex_buffer_layout(
     // Calculate stride (sum of all attribute sizes)
     let stride = attributes
         .iter()
-        .map(|attr| {
-            match attr.format {
-                crate::core::render::enums::VertexFormat::Float32 => 4,
-                crate::core::render::enums::VertexFormat::Float32x2 => 8,
-                crate::core::render::enums::VertexFormat::Float32x3 => 12,
-                crate::core::render::enums::VertexFormat::Float32x4 => 16,
-                crate::core::render::enums::VertexFormat::Uint32 => 4,
-                crate::core::render::enums::VertexFormat::Uint32x2 => 8,
-                crate::core::render::enums::VertexFormat::Uint32x3 => 12,
-                crate::core::render::enums::VertexFormat::Uint32x4 => 16,
-                _ => 0,
-            }
+        .map(|attr| match attr.format {
+            crate::core::render::enums::VertexFormat::Float32 => 4,
+            crate::core::render::enums::VertexFormat::Float32x2 => 8,
+            crate::core::render::enums::VertexFormat::Float32x3 => 12,
+            crate::core::render::enums::VertexFormat::Float32x4 => 16,
+            crate::core::render::enums::VertexFormat::Uint32 => 4,
+            crate::core::render::enums::VertexFormat::Uint32x2 => 8,
+            crate::core::render::enums::VertexFormat::Uint32x3 => 12,
+            crate::core::render::enums::VertexFormat::Uint32x4 => 16,
+            _ => 0,
         })
         .sum();
 

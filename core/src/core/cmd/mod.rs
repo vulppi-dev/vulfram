@@ -9,7 +9,7 @@ pub mod events;
 pub mod render;
 pub mod win;
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(tag = "type", content = "content", rename_all = "kebab-case")]
 pub enum EngineCmd {
     CmdWindowCreate(win::CmdWindowCreateArgs),
@@ -55,7 +55,7 @@ pub enum EngineCmd {
 }
 
 /// Spontaneous engine events (input, window changes, system events)
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "type", content = "content", rename_all = "kebab-case")]
 pub enum EngineEvent {
     Window(events::WindowEvent),
@@ -66,7 +66,7 @@ pub enum EngineEvent {
 }
 
 /// Command responses (answers to commands sent by user)
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "type", content = "content", rename_all = "kebab-case")]
 pub enum CommandResponse {
     WindowCreate(win::CmdResultWindowCreate),
@@ -111,14 +111,14 @@ pub enum CommandResponse {
     ModelDispose(render::CmdResultModelDispose),
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct EngineCmdEnvelope {
     pub id: u64,
     #[serde(flatten)]
     pub cmd: EngineCmd,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct CommandResponseEnvelope {
     pub id: u64,
     #[serde(flatten)]

@@ -1,12 +1,12 @@
 // Submodules
-mod buffers;
+pub mod buffers;
 mod cache;
 mod handler;
 mod lifecycle;
 mod profiling;
 mod queue;
-mod render;
-mod result;
+pub mod render;
+pub mod result;
 mod singleton;
 mod state;
 mod tick;

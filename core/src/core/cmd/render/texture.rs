@@ -9,7 +9,7 @@ use crate::core::state::EngineState;
 // MARK: - Create Texture
 
 /// Arguments for creating a texture resource
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdTextureCreateArgs {
     pub texture_id: TextureId,
@@ -40,7 +40,7 @@ impl Default for CmdTextureCreateArgs {
 }
 
 /// Result for texture creation command
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultTextureCreate {
     pub success: bool,
@@ -209,7 +209,7 @@ pub fn engine_cmd_texture_create(
 // MARK: - Update Texture
 
 /// Arguments for updating a texture resource
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdTextureUpdateArgs {
     pub texture_id: TextureId,
@@ -238,7 +238,7 @@ impl Default for CmdTextureUpdateArgs {
 }
 
 /// Result for texture update command
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultTextureUpdate {
     pub success: bool,
@@ -392,7 +392,7 @@ pub fn engine_cmd_texture_update(
 // MARK: - Dispose Texture
 
 /// Arguments for disposing a texture resource
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdTextureDisposeArgs {
     pub texture_id: TextureId,
@@ -409,7 +409,7 @@ impl Default for CmdTextureDisposeArgs {
 }
 
 /// Result for texture dispose command
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultTextureDispose {
     pub success: bool,

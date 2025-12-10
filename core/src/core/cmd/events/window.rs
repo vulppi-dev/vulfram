@@ -2,7 +2,7 @@ use glam::{IVec2, Vec2};
 use serde::{Deserialize, Serialize};
 
 /// Window-related events
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "event", content = "data", rename_all = "kebab-case")]
 pub enum WindowEvent {
     /// Window was created successfully

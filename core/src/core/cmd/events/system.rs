@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// System-level events
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "event", content = "data", rename_all = "kebab-case")]
 pub enum SystemEvent {
     /// Application was resumed (from suspended state)

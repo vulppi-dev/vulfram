@@ -4,7 +4,7 @@ use super::result::VulframResult;
 use super::singleton::with_engine;
 
 /// Profiling data structure for export
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProfilingData {
     pub gamepad_processing_us: f64,

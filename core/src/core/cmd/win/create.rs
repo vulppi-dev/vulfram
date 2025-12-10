@@ -14,7 +14,7 @@ use crate::core::state::{EngineState, WindowState};
 
 // MARK: - Create Window
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowCreateArgs {
     pub title: String,
@@ -26,12 +26,12 @@ pub struct CmdWindowCreateArgs {
     pub initial_state: EngineWindowState,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowCreate {
-    success: bool,
-    message: String,
-    content: u32,
+    pub success: bool,
+    pub message: String,
+    pub content: u32,
 }
 
 pub fn engine_cmd_window_create(
@@ -158,19 +158,9 @@ pub fn engine_cmd_window_create(
         .find(|f| f.is_srgb())
         .unwrap_or(caps.formats[0]);
 
-    // Select alpha mode with transparency support (PreMultiplied or PostMultiplied)
-    // Fallback to Opaque if transparency is not supported
-    let alpha_mode = caps
-        .alpha_modes
-        .iter()
-        .copied()
-        .find(|mode| {
-            matches!(
-                mode,
-                wgpu::CompositeAlphaMode::PreMultiplied | wgpu::CompositeAlphaMode::PostMultiplied
-            )
-        })
-        .unwrap_or(wgpu::CompositeAlphaMode::Opaque);
+    // Use Opaque alpha mode to prevent window transparency
+    // This ensures the clear color is rendered correctly
+    let alpha_mode = wgpu::CompositeAlphaMode::Auto;
 
     let config = wgpu::SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -196,6 +186,12 @@ pub fn engine_cmd_window_create(
     let inner_size = window.inner_size();
     let outer_size = window.outer_size();
 
+    // Create render state and initialize blit resources
+    let mut render_state = crate::core::render::RenderState::new(format);
+    if let Some(device) = &engine.device {
+        render_state.init_blit_resources(device);
+    }
+
     engine.windows.insert(
         win_id,
         WindowState {
@@ -206,7 +202,7 @@ pub fn engine_cmd_window_create(
             outer_position: IVec2::new(outer_position.x, outer_position.y),
             inner_size: UVec2::new(inner_size.width, inner_size.height),
             outer_size: UVec2::new(outer_size.width, outer_size.height),
-            render_state: crate::core::render::RenderState::new(format),
+            render_state,
             is_dirty: true, // New window needs initial render
         },
     );
@@ -231,13 +227,13 @@ pub fn engine_cmd_window_create(
 
 // MARK: - Close Window
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowCloseArgs {
     pub window_id: u32,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowClose {
     success: bool,

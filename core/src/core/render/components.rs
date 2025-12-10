@@ -1,4 +1,5 @@
 use glam::{Mat4, Vec2};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use wgpu;
 
@@ -18,7 +19,7 @@ pub type ComponentId = u32;
 /// - Absolute position + Relative size: Content area with pixel margin and scalable size
 /// - Relative + Relative: Fullscreen or percentage-based layouts
 /// - Absolute + Absolute: Fixed position and size (traditional pixel-based UI)
-#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ViewportMode {
     /// Relative (0.0 to 1.0 normalized coordinates)
@@ -59,7 +60,7 @@ pub enum ViewportMode {
 ///     anchor: Vec2::new(1.0, 1.0), // Anchor at bottom-right
 /// };
 /// ```
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Viewport {
     /// Position mode (relative or absolute)

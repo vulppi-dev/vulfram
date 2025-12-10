@@ -8,7 +8,7 @@ use crate::core::state::EngineState;
 // MARK: - Create Geometry
 
 /// Arguments for creating a geometry resource
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdGeometryCreateArgs {
     pub geometry_id: GeometryId,
@@ -39,7 +39,7 @@ impl Default for CmdGeometryCreateArgs {
 }
 
 /// Result for geometry creation command
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultGeometryCreate {
     pub success: bool,
@@ -188,7 +188,7 @@ pub fn engine_cmd_geometry_create(
 // MARK: - Dispose Geometry
 
 /// Arguments for disposing a geometry resource
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdGeometryDisposeArgs {
     pub geometry_id: GeometryId,
@@ -205,7 +205,7 @@ impl Default for CmdGeometryDisposeArgs {
 }
 
 /// Result for geometry dispose command
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultGeometryDispose {
     pub success: bool,

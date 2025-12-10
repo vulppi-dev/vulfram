@@ -9,7 +9,7 @@ use crate::core::state::EngineState;
 // MARK: - Create Sampler
 
 /// Arguments for creating a sampler resource
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdSamplerCreateArgs {
     pub sampler_id: SamplerId,
@@ -50,7 +50,7 @@ impl Default for CmdSamplerCreateArgs {
 }
 
 /// Result for sampler creation command
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultSamplerCreate {
     pub success: bool,
@@ -173,7 +173,7 @@ pub fn engine_cmd_sampler_create(
 // MARK: - Update Sampler
 
 /// Arguments for updating a sampler resource
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdSamplerUpdateArgs {
     pub sampler_id: SamplerId,
@@ -214,7 +214,7 @@ impl Default for CmdSamplerUpdateArgs {
 }
 
 /// Result for sampler update command
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultSamplerUpdate {
     pub success: bool,
@@ -336,7 +336,7 @@ pub fn engine_cmd_sampler_update(
 // MARK: - Dispose Sampler
 
 /// Arguments for disposing a sampler resource
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdSamplerDisposeArgs {
     pub sampler_id: SamplerId,
@@ -353,7 +353,7 @@ impl Default for CmdSamplerDisposeArgs {
 }
 
 /// Result for sampler disposal command
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultSamplerDispose {
     pub success: bool,

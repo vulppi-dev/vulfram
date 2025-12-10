@@ -8,7 +8,7 @@ use crate::core::state::EngineState;
 // MARK: - Create Model
 
 /// Arguments for creating a model component
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdModelCreateArgs {
     pub component_id: ComponentId,
@@ -34,7 +34,7 @@ impl Default for CmdModelCreateArgs {
 }
 
 /// Result for model creation command
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultModelCreate {
     pub success: bool,
@@ -119,6 +119,9 @@ pub fn engine_cmd_model_create(
         .models
         .insert(args.component_id, model_instance);
 
+    // Mark window as dirty to trigger redraw
+    window_state.is_dirty = true;
+
     CmdResultModelCreate {
         success: true,
         message: "Model component created successfully".into(),
@@ -128,7 +131,7 @@ pub fn engine_cmd_model_create(
 // MARK: - Update Model
 
 /// Arguments for updating a model component
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdModelUpdateArgs {
     pub component_id: ComponentId,
@@ -153,7 +156,7 @@ impl Default for CmdModelUpdateArgs {
 }
 
 /// Result for model update command
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultModelUpdate {
     pub success: bool,
@@ -236,6 +239,9 @@ pub fn engine_cmd_model_update(
         model.is_dirty = true;
     }
 
+    // Mark window as dirty to trigger redraw
+    window_state.is_dirty = true;
+
     CmdResultModelUpdate {
         success: true,
         message: "Model component updated successfully".into(),
@@ -245,7 +251,7 @@ pub fn engine_cmd_model_update(
 // MARK: - Dispose Model
 
 /// Arguments for disposing a model component
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdModelDisposeArgs {
     pub component_id: ComponentId,
@@ -262,7 +268,7 @@ impl Default for CmdModelDisposeArgs {
 }
 
 /// Result for model dispose command
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultModelDispose {
     pub success: bool,

@@ -9,7 +9,7 @@ use crate::core::state::EngineState;
 // MARK: - Create Material
 
 /// Arguments for creating a material resource
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdMaterialCreateArgs {
     pub material_id: MaterialId,
@@ -38,7 +38,7 @@ impl Default for CmdMaterialCreateArgs {
 }
 
 /// Result for material creation command
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultMaterialCreate {
     pub success: bool,
@@ -194,7 +194,7 @@ pub fn engine_cmd_material_create(
 // MARK: - Update Material
 
 /// Arguments for updating a material resource
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdMaterialUpdateArgs {
     pub material_id: MaterialId,
@@ -215,7 +215,7 @@ impl Default for CmdMaterialUpdateArgs {
 }
 
 /// Result for material update command
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultMaterialUpdate {
     pub success: bool,
@@ -303,7 +303,7 @@ pub fn engine_cmd_material_update(
 // MARK: - Dispose Material
 
 /// Arguments for disposing a material resource
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdMaterialDisposeArgs {
     pub material_id: MaterialId,
@@ -320,7 +320,7 @@ impl Default for CmdMaterialDisposeArgs {
 }
 
 /// Result for material dispose command
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultMaterialDispose {
     pub success: bool,

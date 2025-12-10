@@ -4,14 +4,14 @@ use crate::core::state::EngineState;
 
 // MARK: - Set Cursor Visible
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowSetCursorVisibleArgs {
     pub window_id: u32,
     pub visible: bool,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowSetCursorVisible {
     success: bool,
@@ -58,14 +58,14 @@ impl Default for CursorGrabMode {
     }
 }
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowSetCursorGrabArgs {
     pub window_id: u32,
     pub mode: CursorGrabMode,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowSetCursorGrab {
     success: bool,
@@ -204,14 +204,14 @@ impl Default for CursorIcon {
     }
 }
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowSetCursorIconArgs {
     pub window_id: u32,
     pub icon: CursorIcon,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdResultWindowSetCursorIcon {
     success: bool,

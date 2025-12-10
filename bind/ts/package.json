@@ -32,6 +32,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "gl-matrix": "^3.4.4",
     "msgpackr": "^1.11.5"
   },
   "devDependencies": {

@@ -6,7 +6,7 @@ use wgpu;
 // MARK: - Uniform Types
 
 /// All possible uniform types in WGSL
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize_repr, Serialize_repr)]
 #[repr(u32)]
 pub enum UniformType {
     // Scalars
@@ -82,7 +82,7 @@ impl UniformType {
 }
 
 /// Uniform values using glam types (with bytemuck support)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "type", content = "value")]
 pub enum UniformValue {
     // Scalars
@@ -174,7 +174,7 @@ impl UniformValue {
 // MARK: - Uniform Layout
 
 /// Field definition within a uniform buffer
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct UniformField {
     pub name: String,
     #[serde(rename = "type")]

@@ -3,7 +3,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 // MARK: - Texture Enums
 
 /// Texture format enum
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize_repr, Serialize_repr)]
 #[repr(u32)]
 pub enum TextureFormat {
     // 8-bit formats
@@ -99,7 +99,7 @@ impl TextureFormat {
 }
 
 /// Texture usage flags
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize_repr, Serialize_repr)]
 #[repr(u32)]
 pub enum TextureUsage {
     CopySrc = 1,
@@ -131,7 +131,7 @@ impl TextureUsage {
 // MARK: - Vertex Format Enum
 
 /// Vertex format enum
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize_repr, Serialize_repr)]
 #[repr(u32)]
 pub enum VertexFormat {
     Uint8x2 = 0,
@@ -212,7 +212,7 @@ impl VertexFormat {
 }
 
 /// Index format enum
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize_repr, Serialize_repr)]
 #[repr(u32)]
 pub enum IndexFormat {
     Uint16 = 0,
@@ -231,7 +231,7 @@ impl IndexFormat {
 // MARK: - Material Enums
 
 /// Blend factor enum for material blending
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize_repr, Serialize_repr)]
 #[repr(u32)]
 pub enum BlendFactor {
     Zero = 0,
@@ -270,7 +270,7 @@ impl BlendFactor {
 }
 
 /// Blend operation enum for material blending
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize_repr, Serialize_repr)]
 #[repr(u32)]
 pub enum BlendOperation {
     Add = 0,
@@ -293,7 +293,7 @@ impl BlendOperation {
 }
 
 /// Compare function enum for depth/stencil testing
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize_repr, Serialize_repr)]
 #[repr(u32)]
 pub enum CompareFunction {
     Never = 0,
@@ -322,7 +322,7 @@ impl CompareFunction {
 }
 
 /// Stencil operation enum
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize_repr, Serialize_repr)]
 #[repr(u32)]
 pub enum StencilOperation {
     Keep = 0,
@@ -351,7 +351,7 @@ impl StencilOperation {
 }
 
 /// Primitive topology enum
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize_repr, Serialize_repr)]
 #[repr(u32)]
 pub enum PrimitiveTopology {
     PointList = 0,
@@ -374,7 +374,7 @@ impl PrimitiveTopology {
 }
 
 /// Front face enum for triangle winding order
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize_repr, Serialize_repr)]
 #[repr(u32)]
 pub enum FrontFace {
     Ccw = 0,
@@ -391,7 +391,7 @@ impl FrontFace {
 }
 
 /// Cull mode enum for face culling
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize_repr, Serialize_repr)]
 #[repr(u32)]
 pub enum CullMode {
     Front = 0,
@@ -408,7 +408,7 @@ impl CullMode {
 }
 
 /// Polygon mode enum for rasterization
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize_repr, Serialize_repr)]
 #[repr(u32)]
 pub enum PolygonMode {
     Fill = 0,
@@ -429,7 +429,7 @@ impl PolygonMode {
 // MARK: - Sampler Enums
 
 /// Address mode for texture sampling (wrap, clamp, etc.)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize_repr, Serialize_repr)]
 #[repr(u32)]
 pub enum AddressMode {
     ClampToEdge = 0,
@@ -450,7 +450,7 @@ impl AddressMode {
 }
 
 /// Filter mode for texture sampling (nearest, linear)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize_repr, Serialize_repr)]
 #[repr(u32)]
 pub enum FilterMode {
     Nearest = 0,
@@ -467,7 +467,7 @@ impl FilterMode {
 }
 
 /// Mipmap filter mode
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize_repr, Serialize_repr)]
 #[repr(u32)]
 pub enum MipmapFilterMode {
     Nearest = 0,
@@ -484,7 +484,7 @@ impl MipmapFilterMode {
 }
 
 /// Border color for ClampToBorder address mode
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize_repr, Serialize_repr)]
 #[repr(u32)]
 pub enum BorderColor {
     TransparentBlack = 0,

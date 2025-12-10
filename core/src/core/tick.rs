@@ -59,6 +59,10 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
         let events_after = engine.state.event_queue.len();
         engine.state.profiling.total_events_dispatched = events_after - events_before;
 
+        // MARK: Flush Components
+        // Update GPU buffers for dirty components before rendering
+        crate::core::render::flush_components(&mut engine.state);
+
         // MARK: Request Redraw
         // Always request redraw to keep event loop active
         // Render will only happen for dirty windows (see RedrawRequested handler)

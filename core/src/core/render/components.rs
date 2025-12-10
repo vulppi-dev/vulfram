@@ -186,6 +186,8 @@ pub struct CameraInstance {
     pub render_target: wgpu::Texture,
     pub render_target_view: wgpu::TextureView,
     pub layer_mask: u32,
+    /// Dirty flag indicating component needs GPU buffer update
+    pub is_dirty: bool,
 }
 
 // MARK: - Mesh/Model
@@ -201,6 +203,8 @@ pub struct MeshInstance {
     /// Model transformation matrix (position, rotation, scale)
     pub model_mat: Mat4,
     pub layer_mask: u32,
+    /// Dirty flag indicating component needs GPU buffer update
+    pub is_dirty: bool,
 }
 
 // MARK: - Components Manager

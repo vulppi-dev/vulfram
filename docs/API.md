@@ -243,13 +243,13 @@ enum EngineCommand {
 
     // Component creation
     CreateCameraComponent {
-        entity_id: ComponentId,
+        component_id: ComponentId,
         desc: CameraDesc,
         viewport: ViewportDesc,
         layer_mask: u32,
     },
     CreateModelComponent {
-        entity_id: ComponentId,
+        component_id: ComponentId,
         geometry_id: GeometryId,
         material_id: MaterialId,
         layer_mask: u32,
@@ -257,12 +257,12 @@ enum EngineCommand {
 
     // Component updates
     UpdateCameraComponent {
-        entity_id: ComponentId,
+        component_id: ComponentId,
         camera_pw: glam::Mat4,
         viewport: Option<ViewportDesc>,
     },
     UpdateModelTransform {
-        entity_id: ComponentId,
+        component_id: ComponentId,
         model: glam::Mat4,
     },
 

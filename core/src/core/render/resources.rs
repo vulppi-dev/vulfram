@@ -11,6 +11,7 @@ pub type ShaderId = u32;
 pub type GeometryId = u32;
 pub type MaterialId = u32;
 pub type TextureId = u32;
+pub type SamplerId = u32;
 
 // MARK: - Shader Bindings
 
@@ -165,6 +166,29 @@ pub struct TextureResource {
     pub params: TextureParams,
 }
 
+/// SamplerParams describes sampler creation parameters
+#[derive(Debug, Clone)]
+pub struct SamplerParams {
+    pub address_mode_u: wgpu::AddressMode,
+    pub address_mode_v: wgpu::AddressMode,
+    pub address_mode_w: wgpu::AddressMode,
+    pub mag_filter: wgpu::FilterMode,
+    pub min_filter: wgpu::FilterMode,
+    pub mipmap_filter: wgpu::FilterMode,
+    pub lod_min_clamp: f32,
+    pub lod_max_clamp: f32,
+    pub compare: Option<wgpu::CompareFunction>,
+    pub anisotropy_clamp: u16,
+    pub border_color: Option<wgpu::SamplerBorderColor>,
+}
+
+/// SamplerResource wraps a WGPU sampler
+pub struct SamplerResource {
+    pub sampler_id: SamplerId,
+    pub sampler: wgpu::Sampler,
+    pub params: SamplerParams,
+}
+
 /// PipelineSpec is a logical description of a render pipeline
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct PipelineSpec {
@@ -211,6 +235,7 @@ pub struct Resources {
     pub geometries: HashMap<GeometryId, GeometryResource>,
     pub materials: HashMap<MaterialId, MaterialResource>,
     pub textures: HashMap<TextureId, TextureResource>,
+    pub samplers: HashMap<SamplerId, SamplerResource>,
 }
 
 impl Resources {
@@ -220,6 +245,7 @@ impl Resources {
             geometries: HashMap::new(),
             materials: HashMap::new(),
             textures: HashMap::new(),
+            samplers: HashMap::new(),
         }
     }
 
@@ -234,6 +260,8 @@ impl Resources {
         self.materials.clear();
         // Drop all textures (includes texture and view)
         self.textures.clear();
+        // Drop all samplers
+        self.samplers.clear();
     }
 }
 

@@ -470,8 +470,8 @@ impl DynamicUniformBuffer {
 /// Manages dynamic uniform buffers for shaders
 /// Buffers can be created with specific layouts or used generically
 pub struct UniformBufferManager {
-    /// Shared buffers indexed by a key (shader_id, material_id, etc.)
-    buffers: HashMap<String, DynamicUniformBuffer>,
+    /// Shared buffers indexed by component_id
+    buffers: HashMap<u32, DynamicUniformBuffer>,
     /// GPU device alignment requirement
     min_uniform_buffer_offset_alignment: u32,
 }
@@ -489,18 +489,19 @@ impl UniformBufferManager {
     pub fn get_or_create_buffer(
         &mut self,
         device: &wgpu::Device,
-        key: &str,
+        component_id: u32,
         initial_capacity: u32,
         layout: Option<UniformBufferLayout>,
     ) -> &mut DynamicUniformBuffer {
-        // Use entry API to avoid double lookup and unnecessary to_string
-        self.buffers.entry(key.to_owned()).or_insert_with(|| {
+        // Use entry API to avoid double lookup
+        self.buffers.entry(component_id).or_insert_with(|| {
+            let label = format!("uniform_buffer_{}", component_id);
             if let Some(layout) = layout {
                 DynamicUniformBuffer::with_layout(
                     device,
                     self.min_uniform_buffer_offset_alignment,
                     initial_capacity,
-                    key,
+                    &label,
                     layout,
                 )
             } else {
@@ -508,30 +509,35 @@ impl UniformBufferManager {
                     device,
                     self.min_uniform_buffer_offset_alignment,
                     initial_capacity,
-                    key,
+                    &label,
                 )
             }
         })
     }
 
     /// Get an existing buffer
-    pub fn get_buffer(&self, key: &str) -> Option<&DynamicUniformBuffer> {
-        self.buffers.get(key)
+    pub fn get_buffer(&self, component_id: u32) -> Option<&DynamicUniformBuffer> {
+        self.buffers.get(&component_id)
     }
 
     /// Get a mutable reference to an existing buffer
-    pub fn get_buffer_mut(&mut self, key: &str) -> Option<&mut DynamicUniformBuffer> {
-        self.buffers.get_mut(key)
+    pub fn get_buffer_mut(&mut self, component_id: u32) -> Option<&mut DynamicUniformBuffer> {
+        self.buffers.get_mut(&component_id)
     }
 
     /// Allocate space in a specific buffer
-    pub fn allocate(&mut self, device: &wgpu::Device, key: &str, size: u32) -> Result<u32, String> {
-        let buffer = self.get_or_create_buffer(device, key, size * 16, None);
+    pub fn allocate(
+        &mut self,
+        device: &wgpu::Device,
+        component_id: u32,
+        size: u32,
+    ) -> Result<u32, String> {
+        let buffer = self.get_or_create_buffer(device, component_id, size * 16, None);
 
         let offset = buffer.allocate(size);
 
         if buffer.needs_resize() {
-            log::warn!("Buffer '{}' needs resize - not yet implemented", key);
+            log::warn!("Buffer {} needs resize - not yet implemented", component_id);
         }
 
         Ok(offset)
@@ -541,14 +547,14 @@ impl UniformBufferManager {
     pub fn write_data(
         &self,
         queue: &wgpu::Queue,
-        key: &str,
+        component_id: u32,
         offset: u32,
         data: &[u8],
     ) -> Result<(), String> {
         let buffer = self
             .buffers
-            .get(key)
-            .ok_or_else(|| format!("Buffer '{}' not found", key))?;
+            .get(&component_id)
+            .ok_or_else(|| format!("Buffer {} not found", component_id))?;
 
         buffer.write_bytes(queue, offset, data);
         Ok(())
@@ -558,53 +564,25 @@ impl UniformBufferManager {
     pub fn write_uniforms(
         &self,
         queue: &wgpu::Queue,
-        key: &str,
+        component_id: u32,
         offset: u32,
         values: &HashMap<String, UniformValue>,
     ) -> Result<(), String> {
         let buffer = self
             .buffers
-            .get(key)
-            .ok_or_else(|| format!("Buffer '{}' not found", key))?;
+            .get(&component_id)
+            .ok_or_else(|| format!("Buffer {} not found", component_id))?;
 
         buffer.write_data(queue, offset, values)
     }
 
     /// Remove a buffer
-    pub fn remove_buffer(&mut self, key: &str) {
-        self.buffers.remove(key);
+    pub fn remove_buffer(&mut self, component_id: u32) {
+        self.buffers.remove(&component_id);
     }
 
     /// Clear all buffers
     pub fn clear(&mut self) {
         self.buffers.clear();
-    }
-}
-
-// MARK: - Legacy compatibility helpers (deprecated)
-
-impl UniformBufferManager {
-    /// Allocate space for camera uniforms (legacy)
-    #[deprecated(note = "Use get_or_create_buffer with proper layout instead")]
-    pub fn allocate_camera(&mut self, device: &wgpu::Device, size: u32) -> u32 {
-        self.allocate(device, "legacy_camera", size).unwrap_or(0)
-    }
-
-    /// Allocate space for model uniforms (legacy)
-    #[deprecated(note = "Use get_or_create_buffer with proper layout instead")]
-    pub fn allocate_model(&mut self, device: &wgpu::Device, size: u32) -> u32 {
-        self.allocate(device, "legacy_model", size).unwrap_or(0)
-    }
-
-    /// Write camera data to buffer at given offset (legacy)
-    #[deprecated(note = "Use write_data instead")]
-    pub fn write_camera_data(&self, queue: &wgpu::Queue, offset: u32, data: &[u8]) {
-        let _ = self.write_data(queue, "legacy_camera", offset, data);
-    }
-
-    /// Write model data to buffer at given offset (legacy)
-    #[deprecated(note = "Use write_data instead")]
-    pub fn write_model_data(&self, queue: &wgpu::Queue, offset: u32, data: &[u8]) {
-        let _ = self.write_data(queue, "legacy_model", offset, data);
     }
 }

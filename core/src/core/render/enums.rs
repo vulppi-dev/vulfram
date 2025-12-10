@@ -122,9 +122,9 @@ impl TextureUsage {
 
     /// Convert array of usage flags to combined wgpu::TextureUsages
     pub fn combine(usages: &[Self]) -> wgpu::TextureUsages {
-        usages.iter().fold(wgpu::TextureUsages::empty(), |acc, u| {
-            acc | u.to_wgpu()
-        })
+        usages
+            .iter()
+            .fold(wgpu::TextureUsages::empty(), |acc, u| acc | u.to_wgpu())
     }
 }
 
@@ -422,6 +422,82 @@ impl PolygonMode {
             Self::Fill => wgpu::PolygonMode::Fill,
             Self::Line => wgpu::PolygonMode::Line,
             Self::Point => wgpu::PolygonMode::Point,
+        }
+    }
+}
+
+// MARK: - Sampler Enums
+
+/// Address mode for texture sampling (wrap, clamp, etc.)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[repr(u32)]
+pub enum AddressMode {
+    ClampToEdge = 0,
+    Repeat = 1,
+    MirrorRepeat = 2,
+    ClampToBorder = 3,
+}
+
+impl AddressMode {
+    pub fn to_wgpu(self) -> wgpu::AddressMode {
+        match self {
+            Self::ClampToEdge => wgpu::AddressMode::ClampToEdge,
+            Self::Repeat => wgpu::AddressMode::Repeat,
+            Self::MirrorRepeat => wgpu::AddressMode::MirrorRepeat,
+            Self::ClampToBorder => wgpu::AddressMode::ClampToBorder,
+        }
+    }
+}
+
+/// Filter mode for texture sampling (nearest, linear)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[repr(u32)]
+pub enum FilterMode {
+    Nearest = 0,
+    Linear = 1,
+}
+
+impl FilterMode {
+    pub fn to_wgpu(self) -> wgpu::FilterMode {
+        match self {
+            Self::Nearest => wgpu::FilterMode::Nearest,
+            Self::Linear => wgpu::FilterMode::Linear,
+        }
+    }
+}
+
+/// Mipmap filter mode
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[repr(u32)]
+pub enum MipmapFilterMode {
+    Nearest = 0,
+    Linear = 1,
+}
+
+impl MipmapFilterMode {
+    pub fn to_wgpu(self) -> wgpu::FilterMode {
+        match self {
+            Self::Nearest => wgpu::FilterMode::Nearest,
+            Self::Linear => wgpu::FilterMode::Linear,
+        }
+    }
+}
+
+/// Border color for ClampToBorder address mode
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[repr(u32)]
+pub enum BorderColor {
+    TransparentBlack = 0,
+    OpaqueBlack = 1,
+    OpaqueWhite = 2,
+}
+
+impl BorderColor {
+    pub fn to_wgpu(self) -> Option<wgpu::SamplerBorderColor> {
+        match self {
+            Self::TransparentBlack => Some(wgpu::SamplerBorderColor::TransparentBlack),
+            Self::OpaqueBlack => Some(wgpu::SamplerBorderColor::OpaqueBlack),
+            Self::OpaqueWhite => Some(wgpu::SamplerBorderColor::OpaqueWhite),
         }
     }
 }

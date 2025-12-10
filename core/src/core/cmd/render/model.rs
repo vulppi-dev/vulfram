@@ -11,7 +11,7 @@ use crate::core::state::EngineState;
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdModelCreateArgs {
-    pub entity_id: ComponentId,
+    pub component_id: ComponentId,
     pub window_id: u32,
     pub geometry_id: GeometryId,
     pub material_id: MaterialId,
@@ -23,7 +23,7 @@ pub struct CmdModelCreateArgs {
 impl Default for CmdModelCreateArgs {
     fn default() -> Self {
         Self {
-            entity_id: 0,
+            component_id: 0,
             window_id: 0,
             geometry_id: 0,
             material_id: 0,
@@ -74,10 +74,14 @@ pub fn engine_cmd_model_create(
     let render_state = window_state.render_state.as_mut().unwrap();
 
     // Check if entity already has a model component
-    if render_state.components.models.contains_key(&args.entity_id) {
+    if render_state
+        .components
+        .models
+        .contains_key(&args.component_id)
+    {
         return CmdResultModelCreate {
             success: false,
-            message: format!("Entity {} already has a model component", args.entity_id),
+            message: format!("Entity {} already has a model component", args.component_id),
         };
     }
 
@@ -105,54 +109,21 @@ pub fn engine_cmd_model_create(
         };
     }
 
-    // Get device and queue for uniform buffer allocation
-    let device = match &engine.device {
-        Some(d) => d,
-        None => {
-            return CmdResultModelCreate {
-                success: false,
-                message: "GPU device not initialized".into(),
-            };
-        }
-    };
-
-    let queue = match &engine.queue {
-        Some(q) => q,
-        None => {
-            return CmdResultModelCreate {
-                success: false,
-                message: "GPU queue not initialized".into(),
-            };
-        }
-    };
-
-    // Allocate uniform buffer space for model data
-    // Model uniforms: model_mat (64 bytes)
-    let model_uniform_offset = render_state
-        .uniform_buffer_manager
-        .allocate_model(device, 64);
-
-    // Write model matrix to GPU
-    render_state.uniform_buffer_manager.write_model_data(
-        queue,
-        model_uniform_offset,
-        bytemuck::bytes_of(&args.model_mat),
-    );
-
     // Create model instance
     let model_instance = MeshInstance {
         geometry: args.geometry_id,
         material: args.material_id,
-        model_uniform_offset,
+        model_uniform_offset: 0, // Will be set by shader during rendering
         model_mat: args.model_mat,
         layer_mask: args.layer_mask,
+        is_dirty: true,
     };
 
     // Insert model component
     render_state
         .components
         .models
-        .insert(args.entity_id, model_instance);
+        .insert(args.component_id, model_instance);
 
     CmdResultModelCreate {
         success: true,
@@ -166,7 +137,7 @@ pub fn engine_cmd_model_create(
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdModelUpdateArgs {
-    pub entity_id: ComponentId,
+    pub component_id: ComponentId,
     pub window_id: u32,
     pub geometry_id: Option<GeometryId>,
     pub material_id: Option<MaterialId>,
@@ -177,7 +148,7 @@ pub struct CmdModelUpdateArgs {
 impl Default for CmdModelUpdateArgs {
     fn default() -> Self {
         Self {
-            entity_id: 0,
+            component_id: 0,
             window_id: 0,
             geometry_id: None,
             material_id: None,
@@ -232,12 +203,12 @@ pub fn engine_cmd_model_update(
     };
 
     // Get model component
-    let model = match render_state.components.models.get_mut(&args.entity_id) {
+    let model = match render_state.components.models.get_mut(&args.component_id) {
         Some(m) => m,
         None => {
             return CmdResultModelUpdate {
                 success: false,
-                message: format!("Entity {} has no model component", args.entity_id),
+                message: format!("Entity {} has no model component", args.component_id),
             };
         }
     };
@@ -252,6 +223,7 @@ pub fn engine_cmd_model_update(
             };
         }
         model.geometry = geometry_id;
+        model.is_dirty = true;
     }
 
     // Update material if provided
@@ -264,33 +236,19 @@ pub fn engine_cmd_model_update(
             };
         }
         model.material = material_id;
+        model.is_dirty = true;
     }
 
     // Update model matrix if provided
     if let Some(model_mat) = args.model_mat {
         model.model_mat = model_mat;
-
-        // Write updated model_mat to GPU uniform buffer
-        let queue = match &engine.queue {
-            Some(q) => q,
-            None => {
-                return CmdResultModelUpdate {
-                    success: false,
-                    message: "GPU queue not initialized".into(),
-                };
-            }
-        };
-
-        render_state.uniform_buffer_manager.write_model_data(
-            queue,
-            model.model_uniform_offset,
-            bytemuck::bytes_of(&model_mat),
-        );
+        model.is_dirty = true;
     }
 
     // Update layer mask if provided
     if let Some(layer_mask) = args.layer_mask {
         model.layer_mask = layer_mask;
+        model.is_dirty = true;
     }
 
     CmdResultModelUpdate {
@@ -305,14 +263,14 @@ pub fn engine_cmd_model_update(
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdModelDisposeArgs {
-    pub entity_id: ComponentId,
+    pub component_id: ComponentId,
     pub window_id: u32,
 }
 
 impl Default for CmdModelDisposeArgs {
     fn default() -> Self {
         Self {
-            entity_id: 0,
+            component_id: 0,
             window_id: 0,
         }
     }
@@ -363,14 +321,14 @@ pub fn engine_cmd_model_dispose(
     };
 
     // Remove model component
-    match render_state.components.models.remove(&args.entity_id) {
+    match render_state.components.models.remove(&args.component_id) {
         Some(_) => CmdResultModelDispose {
             success: true,
             message: "Model component disposed successfully".into(),
         },
         None => CmdResultModelDispose {
             success: false,
-            message: format!("Entity {} has no model component", args.entity_id),
+            message: format!("Entity {} has no model component", args.component_id),
         },
     }
 }

@@ -43,6 +43,9 @@ pub enum EngineCmd {
     CmdTextureCreate(render::CmdTextureCreateArgs),
     CmdTextureUpdate(render::CmdTextureUpdateArgs),
     CmdTextureDispose(render::CmdTextureDisposeArgs),
+    CmdSamplerCreate(render::CmdSamplerCreateArgs),
+    CmdSamplerUpdate(render::CmdSamplerUpdateArgs),
+    CmdSamplerDispose(render::CmdSamplerDisposeArgs),
     CmdCameraCreate(render::CmdCameraCreateArgs),
     CmdCameraUpdate(render::CmdCameraUpdateArgs),
     CmdCameraDispose(render::CmdCameraDisposeArgs),
@@ -97,6 +100,9 @@ pub enum CommandResponse {
     TextureCreate(render::CmdResultTextureCreate),
     TextureUpdate(render::CmdResultTextureUpdate),
     TextureDispose(render::CmdResultTextureDispose),
+    SamplerCreate(render::CmdResultSamplerCreate),
+    SamplerUpdate(render::CmdResultSamplerUpdate),
+    SamplerDispose(render::CmdResultSamplerDispose),
     CameraCreate(render::CmdResultCameraCreate),
     CameraUpdate(render::CmdResultCameraUpdate),
     CameraDispose(render::CmdResultCameraDispose),
@@ -344,6 +350,27 @@ pub fn engine_process_batch(
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::TextureDispose(result),
+                });
+            }
+            EngineCmd::CmdSamplerCreate(args) => {
+                let result = render::engine_cmd_sampler_create(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::SamplerCreate(result),
+                });
+            }
+            EngineCmd::CmdSamplerUpdate(args) => {
+                let result = render::engine_cmd_sampler_update(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::SamplerUpdate(result),
+                });
+            }
+            EngineCmd::CmdSamplerDispose(args) => {
+                let result = render::engine_cmd_sampler_dispose(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::SamplerDispose(result),
                 });
             }
             EngineCmd::CmdCameraCreate(args) => {

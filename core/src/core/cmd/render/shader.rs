@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::core::render::binding::ShaderUniformBuffers;
 use crate::core::render::buffers::UniformBufferLayout;
 use crate::core::render::resources::{
     ShaderId, ShaderResource, StorageBufferBinding, TextureBinding, UniformBufferBinding,
@@ -133,7 +134,17 @@ pub fn engine_cmd_shader_create(
         })
         .collect();
 
-    // Create shader resource with metadata (move instead of clone)
+    // Build vertex buffer layout from attributes
+    let vertex_buffer_layout = build_vertex_buffer_layout(&args.vertex_attributes);
+
+    // Create bind group layouts
+    let bind_group_layouts =
+        create_bind_group_layouts(device, &uniform_layouts, &args.texture_bindings);
+
+    // Create uniform buffers (initially empty, will grow as needed)
+    let uniform_buffers = ShaderUniformBuffers::new();
+
+    // Create shader resource with metadata
     let shader_resource = ShaderResource {
         shader_id: args.shader_id,
         module,
@@ -141,6 +152,9 @@ pub fn engine_cmd_shader_create(
         texture_bindings: args.texture_bindings.clone(),
         storage_buffers: args.storage_buffers.clone(),
         vertex_attributes: args.vertex_attributes.clone(),
+        vertex_buffer_layout,
+        bind_group_layouts,
+        uniform_buffers,
     };
 
     // Insert shader resource
@@ -221,24 +235,55 @@ pub fn engine_cmd_shader_dispose(
         }
     };
 
-    // Check if shader is in use by any materials
-    let in_use = render_state
+    // 🆕 CASCADING: Find all materials using this shader
+    let materials_to_dispose: Vec<_> = render_state
         .resources
         .materials
-        .values()
-        .any(|m| m.pipeline_spec.shader_id == args.shader_id);
+        .iter()
+        .filter(|(_, mat)| mat.pipeline_spec.shader_id == args.shader_id)
+        .map(|(id, _)| *id)
+        .collect();
 
-    if in_use {
-        return CmdResultShaderDispose {
-            success: false,
-            message: format!(
-                "Shader {} is still in use by one or more materials",
-                args.shader_id
-            ),
-        };
+    // 🆕 Check if any material is in use by models
+    for material_id in &materials_to_dispose {
+        let in_use = render_state
+            .components
+            .models
+            .values()
+            .any(|m| m.material == *material_id);
+
+        if in_use {
+            return CmdResultShaderDispose {
+                success: false,
+                message: format!(
+                    "Cannot dispose shader {}: Material {} is still in use by models",
+                    args.shader_id, material_id
+                ),
+            };
+        }
     }
 
-    // Remove shader resource
+    // 🆕 Dispose materials first (cascading)
+    for material_id in materials_to_dispose {
+        // Remove material bindings and pipelines
+        render_state
+            .binding_manager
+            .remove_material_bindings(material_id);
+        render_state
+            .pipeline_cache
+            .remove_material_pipelines(material_id);
+        render_state.resources.materials.remove(&material_id);
+    }
+
+    // 🆕 Remove all shader bindings
+    render_state
+        .binding_manager
+        .remove_shader_bindings(args.shader_id);
+    render_state
+        .pipeline_cache
+        .remove_shader_pipelines(args.shader_id);
+
+    // Remove shader resource (this will drop buffers and bind group layouts)
     match render_state.resources.shaders.remove(&args.shader_id) {
         Some(_) => CmdResultShaderDispose {
             success: true,
@@ -249,4 +294,140 @@ pub fn engine_cmd_shader_dispose(
             message: format!("Shader with id {} not found", args.shader_id),
         },
     }
+}
+
+// MARK: - Helper Functions
+
+/// Build vertex buffer layout from vertex attributes
+fn build_vertex_buffer_layout(
+    attributes: &[VertexAttributeSpec],
+) -> wgpu::VertexBufferLayout<'static> {
+    // Convert attributes to WGPU format
+    let wgpu_attributes: Vec<wgpu::VertexAttribute> = attributes
+        .iter()
+        .map(|attr| wgpu::VertexAttribute {
+            format: attr.format.to_wgpu(),
+            offset: 0, // Will be calculated based on semantic order
+            shader_location: attr.location,
+        })
+        .collect();
+
+    // Calculate stride (sum of all attribute sizes)
+    let stride = attributes
+        .iter()
+        .map(|attr| {
+            match attr.format {
+                crate::core::render::enums::VertexFormat::Float32 => 4,
+                crate::core::render::enums::VertexFormat::Float32x2 => 8,
+                crate::core::render::enums::VertexFormat::Float32x3 => 12,
+                crate::core::render::enums::VertexFormat::Float32x4 => 16,
+                crate::core::render::enums::VertexFormat::Uint32 => 4,
+                crate::core::render::enums::VertexFormat::Uint32x2 => 8,
+                crate::core::render::enums::VertexFormat::Uint32x3 => 12,
+                crate::core::render::enums::VertexFormat::Uint32x4 => 16,
+                _ => 0,
+            }
+        })
+        .sum();
+
+    // Leak the attributes to get 'static lifetime (safe because shaders live for the program duration)
+    let static_attributes = Box::leak(wgpu_attributes.into_boxed_slice());
+
+    wgpu::VertexBufferLayout {
+        array_stride: stride,
+        step_mode: wgpu::VertexStepMode::Vertex,
+        attributes: static_attributes,
+    }
+}
+
+/// Create bind group layouts from uniform layouts and texture bindings
+fn create_bind_group_layouts(
+    device: &wgpu::Device,
+    uniform_layouts: &[UniformBufferLayout],
+    texture_bindings: &[TextureBinding],
+) -> Vec<wgpu::BindGroupLayout> {
+    let mut layouts = Vec::new();
+
+    // Group bindings by group index
+    let max_group = uniform_layouts
+        .iter()
+        .map(|l| l.group)
+        .chain(texture_bindings.iter().map(|t| t.group))
+        .max()
+        .unwrap_or(0);
+
+    for group_idx in 0..=max_group {
+        let mut entries = Vec::new();
+
+        // Add uniform buffer entries for this group
+        for uniform in uniform_layouts.iter().filter(|l| l.group == group_idx) {
+            entries.push(wgpu::BindGroupLayoutEntry {
+                binding: uniform.binding,
+                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            });
+        }
+
+        // Add texture entries for this group
+        for texture in texture_bindings.iter().filter(|t| t.group == group_idx) {
+            entries.push(wgpu::BindGroupLayoutEntry {
+                binding: texture.binding,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    sample_type: match texture.sample_type {
+                        crate::core::render::resources::TextureSampleType::Float => {
+                            wgpu::TextureSampleType::Float { filterable: true }
+                        }
+                        crate::core::render::resources::TextureSampleType::Depth => {
+                            wgpu::TextureSampleType::Depth
+                        }
+                        crate::core::render::resources::TextureSampleType::Sint => {
+                            wgpu::TextureSampleType::Sint
+                        }
+                        crate::core::render::resources::TextureSampleType::Uint => {
+                            wgpu::TextureSampleType::Uint
+                        }
+                    },
+                    view_dimension: match texture.view_dimension {
+                        crate::core::render::resources::TextureViewDimension::D1 => {
+                            wgpu::TextureViewDimension::D1
+                        }
+                        crate::core::render::resources::TextureViewDimension::D2 => {
+                            wgpu::TextureViewDimension::D2
+                        }
+                        crate::core::render::resources::TextureViewDimension::D2Array => {
+                            wgpu::TextureViewDimension::D2Array
+                        }
+                        crate::core::render::resources::TextureViewDimension::Cube => {
+                            wgpu::TextureViewDimension::Cube
+                        }
+                        crate::core::render::resources::TextureViewDimension::CubeArray => {
+                            wgpu::TextureViewDimension::CubeArray
+                        }
+                        crate::core::render::resources::TextureViewDimension::D3 => {
+                            wgpu::TextureViewDimension::D3
+                        }
+                    },
+                    multisampled: false,
+                },
+                count: None,
+            });
+        }
+
+        // Only create layout if there are entries
+        if !entries.is_empty() {
+            let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some(&format!("Bind Group Layout {}", group_idx)),
+                entries: &entries,
+            });
+            layouts.push(layout);
+        }
+    }
+
+    layouts
 }

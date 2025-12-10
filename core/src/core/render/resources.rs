@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use wgpu;
 
+use super::binding::ShaderUniformBuffers;
 use super::buffers::{UniformBufferLayout, UniformField};
 use super::enums::{IndexFormat, VertexFormat};
 
@@ -99,6 +100,15 @@ pub struct ShaderResource {
     pub texture_bindings: Vec<TextureBinding>,
     pub storage_buffers: Vec<StorageBufferBinding>,
     pub vertex_attributes: Vec<VertexAttributeSpec>,
+    
+    // 🆕 NEW: Vertex buffer layout (calculated from vertex_attributes)
+    pub vertex_buffer_layout: wgpu::VertexBufferLayout<'static>,
+    
+    // 🆕 NEW: Bind group layouts (one per group)
+    pub bind_group_layouts: Vec<wgpu::BindGroupLayout>,
+    
+    // 🆕 NEW: Shader-owned uniform buffers with allocators
+    pub uniform_buffers: ShaderUniformBuffers,
 }
 
 /// GeometryBuffers describes the buffer IDs and layout for geometry data
@@ -144,7 +154,9 @@ pub struct GeometryResource {
     pub index_buffer: wgpu::Buffer,
     pub vertex_count: u32,
     pub index_count: u32,
-    pub vertex_attributes: Vec<VertexAttribute>,
+    /// 🆕 Vertex stride in bytes (replaces vertex_attributes)
+    /// Vertex layout comes from the shader, not the geometry
+    pub vertex_stride: u32,
     pub index_format: IndexFormat,
 }
 
@@ -214,16 +226,9 @@ pub struct MaterialResource {
     pub material_id: MaterialId,
     pub pipeline_spec: PipelineSpec,
     /// Render pipeline (created lazily on first draw)
-    /// Pipeline is built from shader + pipeline_spec + geometry vertex layout
+    /// Pipeline is built from shader + pipeline_spec
     pub pipeline: Option<wgpu::RenderPipeline>,
-    /// Offset in bytes within the shared material uniform buffer
-    /// Used for per-material data (colors, parameters, etc.)
-    /// Allocated by uniform buffer manager if material needs uniforms
-    pub uniform_offset: u32,
-    /// Optional offset in bytes within a storage buffer
-    /// Used for large or dynamic per-material data arrays
-    /// Allocated by storage buffer manager if needed
-    pub storage_offset: Option<u32>,
+    /// Textures used by this material
     pub textures: Vec<TextureId>,
 }
 

@@ -127,7 +127,6 @@ pub fn engine_cmd_camera_create(
 
     // Create camera instance
     let camera_instance = CameraInstance {
-        camera_uniform_offset: 0, // Will be set by shader during rendering
         viewport,
         proj_mat: args.proj_mat,
         view_mat: args.view_mat,
@@ -324,7 +323,24 @@ pub fn engine_cmd_camera_dispose(
         }
     };
 
-    // Remove camera component
+    // 🆕 Get all shaders that have bindings with this camera
+    let shader_ids = render_state
+        .binding_manager
+        .get_shaders_for_component(args.component_id);
+
+    // 🆕 Deallocate from each shader's buffer (group 0 = camera)
+    for shader_id in shader_ids {
+        if let Some(shader) = render_state.resources.shaders.get_mut(&shader_id) {
+            shader.uniform_buffers.deallocate(0, args.component_id);
+        }
+    }
+
+    // 🆕 Remove bindings
+    render_state
+        .binding_manager
+        .remove_component_bindings(args.component_id);
+
+    // Remove camera component (render_target dropped automatically)
     match render_state.components.cameras.remove(&args.component_id) {
         Some(_) => CmdResultCameraDispose {
             success: true,

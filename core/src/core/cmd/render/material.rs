@@ -181,8 +181,6 @@ pub fn engine_cmd_material_create(
         material_id: args.material_id,
         pipeline_spec,
         pipeline: None,
-        uniform_offset: 0,
-        storage_offset: None,
         textures: args.textures.clone(),
     };
 
@@ -395,6 +393,14 @@ pub fn engine_cmd_material_dispose(
             ),
         };
     }
+
+    // 🆕 Remove bindings and pipelines
+    render_state
+        .binding_manager
+        .remove_material_bindings(args.material_id);
+    render_state
+        .pipeline_cache
+        .remove_material_pipelines(args.material_id);
 
     // Remove material resource
     match render_state.resources.materials.remove(&args.material_id) {

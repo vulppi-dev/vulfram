@@ -2,9 +2,7 @@ use serde::{Deserialize, Serialize};
 use wgpu::util::DeviceExt;
 
 use crate::core::render::enums::IndexFormat;
-use crate::core::render::resources::{
-    GeometryId, GeometryResource, VertexAttribute, VertexAttributeDesc,
-};
+use crate::core::render::resources::{GeometryId, GeometryResource, VertexAttributeDesc};
 use crate::core::state::EngineState;
 
 // MARK: - Create Geometry
@@ -145,16 +143,25 @@ pub fn engine_cmd_geometry_create(
         usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
     });
 
-    // Convert vertex attributes
-    let vertex_attributes: Vec<VertexAttribute> = args
-        .vertex_attributes
-        .iter()
-        .map(|attr| VertexAttribute {
-            format: attr.format.to_wgpu(),
-            offset: attr.offset,
-            shader_location: attr.shader_location,
-        })
-        .collect();
+    // Calculate vertex stride from attributes
+    let vertex_stride = if args.vertex_attributes.is_empty() {
+        0
+    } else {
+        args.vertex_attributes
+            .iter()
+            .map(|attr| {
+                let size = match attr.format {
+                    crate::core::render::enums::VertexFormat::Float32 => 4,
+                    crate::core::render::enums::VertexFormat::Float32x2 => 8,
+                    crate::core::render::enums::VertexFormat::Float32x3 => 12,
+                    crate::core::render::enums::VertexFormat::Float32x4 => 16,
+                    _ => 0,
+                };
+                (attr.offset + size as u64) as u32
+            })
+            .max()
+            .unwrap_or(0)
+    };
 
     // Create geometry resource
     let geometry_resource = GeometryResource {
@@ -163,7 +170,7 @@ pub fn engine_cmd_geometry_create(
         index_buffer,
         vertex_count: args.vertex_count,
         index_count: args.index_count,
-        vertex_attributes,
+        vertex_stride,
         index_format: args.index_format,
     };
 
@@ -262,6 +269,11 @@ pub fn engine_cmd_geometry_dispose(
             ),
         };
     }
+
+    // 🆕 Remove bindings
+    render_state
+        .binding_manager
+        .remove_geometry_bindings(args.geometry_id);
 
     // Remove geometry resource
     match render_state.resources.geometries.remove(&args.geometry_id) {

@@ -113,7 +113,6 @@ pub fn engine_cmd_model_create(
     let model_instance = MeshInstance {
         geometry: args.geometry_id,
         material: args.material_id,
-        model_uniform_offset: 0, // Will be set by shader during rendering
         model_mat: args.model_mat,
         layer_mask: args.layer_mask,
         is_dirty: true,
@@ -320,16 +319,38 @@ pub fn engine_cmd_model_dispose(
         }
     };
 
-    // Remove model component
-    match render_state.components.models.remove(&args.component_id) {
-        Some(_) => CmdResultModelDispose {
-            success: true,
-            message: "Model component disposed successfully".into(),
-        },
-        None => CmdResultModelDispose {
+    // 🆕 Get model to find its material (and thus shader)
+    let shader_id = if let Some(model) = render_state.components.models.get(&args.component_id) {
+        if let Some(material) = render_state.resources.materials.get(&model.material) {
+            Some(material.pipeline_spec.shader_id)
+        } else {
+            None
+        }
+    } else {
+        return CmdResultModelDispose {
             success: false,
             message: format!("Entity {} has no model component", args.component_id),
-        },
+        };
+    };
+
+    // 🆕 Deallocate from shader's buffer (group 2 = model)
+    if let Some(shader_id) = shader_id {
+        if let Some(shader) = render_state.resources.shaders.get_mut(&shader_id) {
+            shader.uniform_buffers.deallocate(2, args.component_id);
+        }
+    }
+
+    // 🆕 Remove bindings
+    render_state
+        .binding_manager
+        .remove_component_bindings(args.component_id);
+
+    // Remove model component
+    render_state.components.models.remove(&args.component_id);
+
+    CmdResultModelDispose {
+        success: true,
+        message: "Model component disposed successfully".into(),
     }
 }
 

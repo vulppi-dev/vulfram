@@ -228,6 +228,7 @@ fn main() {
                 polygon_mode: PolygonMode::Fill,
                 conservative: false,
             },
+            uniform_values: None, // No custom material uniforms for this simple demo
             label: Some("Triangle Material".into()),
         }),
     });

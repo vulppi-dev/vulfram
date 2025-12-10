@@ -96,6 +96,7 @@ impl Default for Viewport {
 impl Viewport {
     /// Calculate actual pixel rectangle based on window size
     /// Returns UVec2 (position) and UVec2 (size) in pixels
+    #[allow(dead_code)]
     pub fn calculate_rect(
         &self,
         window_width: u32,
@@ -130,12 +131,14 @@ impl Viewport {
     }
 
     /// Create a fullscreen viewport (covers entire window)
+    #[allow(dead_code)]
     pub fn fullscreen() -> Self {
         Self::default()
     }
 
     /// Create a viewport with relative position and absolute size
     /// Useful for UI elements that need fixed pixel sizes but relative positioning
+    #[allow(dead_code)]
     pub fn relative_pos_absolute_size(x: f32, y: f32, width: u32, height: u32) -> Self {
         Self {
             position_mode: ViewportMode::Relative,
@@ -150,6 +153,7 @@ impl Viewport {
 
     /// Create a viewport with absolute position and relative size
     /// Useful for margins or offsets with scalable content
+    #[allow(dead_code)]
     pub fn absolute_pos_relative_size(x: u32, y: u32, width: f32, height: f32) -> Self {
         Self {
             position_mode: ViewportMode::Absolute,
@@ -163,6 +167,7 @@ impl Viewport {
     }
 
     /// Create a centered viewport with fixed size
+    #[allow(dead_code)]
     pub fn centered_absolute(width: u32, height: u32) -> Self {
         Self {
             position_mode: ViewportMode::Relative,

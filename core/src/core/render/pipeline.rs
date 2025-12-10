@@ -38,20 +38,7 @@ impl PipelineCache {
         }
     }
 
-    /// Get a cached pipeline
-    pub fn get(&self, key: &PipelineCacheKey) -> Option<&wgpu::RenderPipeline> {
-        self.pipelines.get(key)
-    }
-
-    /// Insert a pipeline into the cache
-    pub fn insert(&mut self, key: PipelineCacheKey, pipeline: wgpu::RenderPipeline) {
-        self.pipelines.insert(key, pipeline);
-    }
-
-    /// Check if a pipeline is cached
-    pub fn contains_key(&self, key: &PipelineCacheKey) -> bool {
-        self.pipelines.contains_key(key)
-    }
+    // Removed unused methods: get, insert, contains_key
 
     /// Remove all pipelines related to a shader
     pub fn remove_shader_pipelines(&mut self, shader_id: ShaderId) {
@@ -67,16 +54,6 @@ impl PipelineCache {
     /// Clear all pipelines
     pub fn clear(&mut self) {
         self.pipelines.clear();
-    }
-
-    /// Get number of cached pipelines
-    pub fn len(&self) -> usize {
-        self.pipelines.len()
-    }
-
-    /// Check if empty
-    pub fn is_empty(&self) -> bool {
-        self.pipelines.is_empty()
     }
 
     /// Get or create a render pipeline (lazy creation)

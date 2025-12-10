@@ -105,6 +105,13 @@ pub fn render_frames(engine_state: &mut EngineState) {
                 .unwrap();
             let model = render_state.components.models.get(&item.model_id).unwrap();
 
+            // Get material uniforms
+            let material_uniforms = render_state
+                .resources
+                .materials
+                .get(&item.material_id)
+                .map(|m| &m.uniform_values);
+
             // Get shader (mutable)
             let shader = match render_state.resources.shaders.get_mut(&item.shader_id) {
                 Some(s) => s,
@@ -119,6 +126,7 @@ pub fn render_frames(engine_state: &mut EngineState) {
                 shader,
                 Some(camera),
                 Some(model),
+                material_uniforms,
             ) {
                 log::error!("Failed to get/update bindings: {}", e);
             }

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
+use crate::core::render::buffers::UniformValue;
 use crate::core::render::material_types::*;
 use crate::core::render::resources::{
     MaterialId, MaterialResource, PipelineSpec, ShaderId, TextureId,
@@ -20,6 +22,8 @@ pub struct CmdMaterialCreateArgs {
     pub depth_stencil: Option<DepthStencilStateDesc>,
     pub primitive: PrimitiveStateDesc,
     pub label: Option<String>,
+    /// Custom uniform values for material-specific parameters
+    pub uniform_values: Option<HashMap<String, UniformValue>>,
 }
 
 impl Default for CmdMaterialCreateArgs {
@@ -33,6 +37,7 @@ impl Default for CmdMaterialCreateArgs {
             depth_stencil: None,
             primitive: PrimitiveStateDesc::default(),
             label: None,
+            uniform_values: None,
         }
     }
 }
@@ -177,6 +182,7 @@ pub fn engine_cmd_material_create(
         pipeline_spec,
         pipeline: None,
         textures: args.textures.clone(),
+        uniform_values: args.uniform_values.clone().unwrap_or_default(),
     };
 
     // Insert material resource

@@ -1,4 +1,3 @@
-use glam::Mat4;
 use std::collections::{HashMap, HashSet};
 use wgpu;
 
@@ -16,15 +15,7 @@ pub struct BindingKey {
     pub resource_ids: Vec<u32>,
 }
 
-impl BindingKey {
-    pub fn new(component_id: ComponentId, shader_id: ShaderId, resource_ids: Vec<u32>) -> Self {
-        Self {
-            component_id,
-            shader_id,
-            resource_ids,
-        }
-    }
-}
+// BindingKey is constructed inline where needed
 
 // MARK: - Binding Info
 
@@ -78,20 +69,7 @@ impl BindingManager {
         self.bindings.get(key)
     }
 
-    /// Get mutable binding info for a key
-    pub fn get_mut(&mut self, key: &BindingKey) -> Option<&mut BindingInfo> {
-        self.bindings.get_mut(key)
-    }
-
-    /// Insert binding info
-    pub fn insert(&mut self, key: BindingKey, info: BindingInfo) {
-        self.bindings.insert(key, info);
-    }
-
-    /// Check if a binding exists
-    pub fn contains_key(&self, key: &BindingKey) -> bool {
-        self.bindings.contains_key(key)
-    }
+    // Removed unused methods: get_mut, insert, contains_key
 
     /// Remove all bindings related to a shader
     pub fn remove_shader_bindings(&mut self, shader_id: ShaderId) {
@@ -132,25 +110,16 @@ impl BindingManager {
         self.bindings.clear();
     }
 
-    /// Get number of cached bindings
-    pub fn len(&self) -> usize {
-        self.bindings.len()
-    }
-
-    /// Check if empty
-    pub fn is_empty(&self) -> bool {
-        self.bindings.is_empty()
-    }
-
-    /// Get or update binding info (lazy creation/update)
+    /// Get or update binding info (lazy creation/update) - FLEXIBLE VERSION
     ///
     /// This is the core lazy update function that:
     /// 1. Checks if binding exists in cache
     /// 2. Checks if component is dirty
-    /// 3. Allocates buffer space if needed
-    /// 4. Creates bind groups if needed
-    /// 5. Writes data to GPU buffers
-    /// 6. Returns binding info
+    /// 3. Allocates buffer space based on shader's uniform_layouts
+    /// 4. Writes data using automatic uniform injection (camera_view, model_transform, etc.)
+    /// 5. Writes material custom uniforms
+    /// 6. Creates bind groups if needed
+    /// 7. Returns binding info
     pub fn get_or_update(
         &mut self,
         key: &BindingKey,
@@ -159,9 +128,8 @@ impl BindingManager {
         shader: &mut ShaderResource,
         camera_opt: Option<&CameraInstance>,
         model_opt: Option<&MeshInstance>,
+        material_uniforms: Option<&std::collections::HashMap<String, super::buffers::UniformValue>>,
     ) -> Result<&BindingInfo, String> {
-        use bytemuck;
-
         // Check if binding exists
         let exists = self.bindings.contains_key(key);
 
@@ -181,101 +149,111 @@ impl BindingManager {
             BindingInfo::new()
         };
 
-        // Group 0: Camera/Global uniforms
-        if let Some(camera) = camera_opt {
-            let needs_allocation = binding_info.group_0_offset.is_none();
+        // Process each uniform buffer layout defined in the shader
+        for layout in &shader.uniform_layouts {
+            let group = layout.group;
 
+            // Determine which offset/bind_group fields to use
+            let (offset_field, bind_group_field) = match group {
+                0 => (
+                    &mut binding_info.group_0_offset,
+                    &mut binding_info.bind_group_0,
+                ),
+                1 => (
+                    &mut binding_info.group_1_offset,
+                    &mut binding_info.bind_group_1,
+                ),
+                2 => (
+                    &mut binding_info.group_2_offset,
+                    &mut binding_info.bind_group_2,
+                ),
+                _ => continue, // Skip unsupported groups
+            };
+
+            let needs_allocation = offset_field.is_none();
+
+            // Allocate buffer space if needed
             if needs_allocation {
-                // Allocate
-                let size = std::mem::size_of::<Mat4>() * 2; // proj + view
                 let offset = shader.uniform_buffers.allocate(
                     device,
-                    0,
+                    group,
                     key.component_id,
-                    size as u64,
+                    layout.total_size as u64,
                     shader.shader_id,
                 )?;
-                binding_info.group_0_offset = Some(offset);
+                *offset_field = Some(offset);
             }
 
-            // Write data (always write if dirty)
-            if let Some(buffer) = shader.uniform_buffers.get_buffer(0) {
-                let offset = binding_info.group_0_offset.unwrap();
+            // Prepare buffer data with automatic uniform injection
+            let mut buffer_data = vec![0u8; layout.total_size as usize];
 
-                // Pack camera matrices
-                let data = [camera.proj_mat, camera.view_mat];
-                let bytes = bytemuck::cast_slice(&data);
+            // Inject automatic uniforms based on reserved names
+            if let Some(camera) = camera_opt {
+                // Calculate view_projection if needed
+                let view_proj = camera.proj_mat * camera.view_mat;
 
-                queue.write_buffer(buffer, offset, bytes);
+                layout.inject_automatic_uniforms(
+                    &mut buffer_data,
+                    Some(&camera.view_mat), // camera_view
+                    Some(&camera.proj_mat), // camera_projection
+                    Some(&view_proj),       // camera_view_projection
+                    None,                   // camera_position (TODO: add to CameraInstance)
+                    None,
+                    None,
+                );
             }
 
-            // Create bind group only if needed (first time or buffer recreated)
-            if binding_info.bind_group_0.is_none() && !shader.bind_group_layouts.is_empty() {
-                let offset = binding_info.group_0_offset.unwrap();
-                let size = (std::mem::size_of::<Mat4>() * 2) as u64;
+            if let Some(model) = model_opt {
+                // Calculate normal matrix if needed (inverse transpose of model matrix)
+                let normal_mat = glam::Mat3::from_mat4(model.model_mat).inverse().transpose();
 
-                if let Some(buffer) = shader.uniform_buffers.get_buffer(0) {
-                    binding_info.bind_group_0 =
-                        Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
-                            label: Some(&format!("Bind Group 0 - Camera {}", key.component_id)),
-                            layout: &shader.bind_group_layouts[0],
-                            entries: &[wgpu::BindGroupEntry {
-                                binding: 0,
-                                resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                                    buffer,
-                                    offset,
-                                    size: Some(std::num::NonZeroU64::new(size).unwrap()),
-                                }),
-                            }],
-                        }));
+                layout.inject_automatic_uniforms(
+                    &mut buffer_data,
+                    None,
+                    None,
+                    None,
+                    None,
+                    Some(&model.model_mat), // model_transform
+                    Some(&normal_mat),      // model_normal_matrix
+                );
+            }
+
+            // Pack material custom uniforms if provided (typically for group 1)
+            if let Some(uniforms) = material_uniforms {
+                if let Err(e) = pack_custom_uniforms(layout, &mut buffer_data, uniforms) {
+                    log::warn!(
+                        "Failed to pack material uniforms for group {}: {}",
+                        group,
+                        e
+                    );
                 }
             }
-        }
 
-        // Group 2: Model/Instance uniforms
-        if let Some(model) = model_opt {
-            let needs_allocation = binding_info.group_2_offset.is_none();
-
-            if needs_allocation {
-                // Allocate
-                let size = std::mem::size_of::<Mat4>(); // model matrix
-                let offset = shader.uniform_buffers.allocate(
-                    device,
-                    2,
-                    key.component_id,
-                    size as u64,
-                    shader.shader_id,
-                )?;
-                binding_info.group_2_offset = Some(offset);
+            // Write buffer data to GPU
+            if let Some(buffer) = shader.uniform_buffers.get_buffer(group) {
+                let offset = offset_field.unwrap();
+                queue.write_buffer(buffer, offset, &buffer_data);
             }
 
-            // Write data (always write if dirty)
-            if let Some(buffer) = shader.uniform_buffers.get_buffer(2) {
-                let offset = binding_info.group_2_offset.unwrap();
+            // Create bind group if needed (first time or buffer recreated)
+            if bind_group_field.is_none() && (group as usize) < shader.bind_group_layouts.len() {
+                let offset = offset_field.unwrap();
+                let size = layout.total_size as u64;
 
-                // Pack model matrix
-                let data = [model.model_mat];
-                let bytes = bytemuck::cast_slice(&data);
-
-                queue.write_buffer(buffer, offset, bytes);
-            }
-
-            // Create bind group only if needed (first time or buffer recreated)
-            if binding_info.bind_group_2.is_none() && shader.bind_group_layouts.len() > 2 {
-                let offset = binding_info.group_2_offset.unwrap();
-                let size = std::mem::size_of::<Mat4>() as u64;
-
-                if let Some(buffer) = shader.uniform_buffers.get_buffer(2) {
-                    binding_info.bind_group_2 =
+                if let Some(buffer) = shader.uniform_buffers.get_buffer(group) {
+                    *bind_group_field =
                         Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
-                            label: Some(&format!("Bind Group 2 - Model {}", key.component_id)),
-                            layout: &shader.bind_group_layouts[2],
+                            label: Some(&format!(
+                                "Bind Group {} - Component {}",
+                                group, key.component_id
+                            )),
+                            layout: &shader.bind_group_layouts[group as usize],
                             entries: &[wgpu::BindGroupEntry {
-                                binding: 0,
+                                binding: layout.binding,
                                 resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
                                     buffer,
                                     offset,
-                                    size: Some(std::num::NonZeroU64::new(size).unwrap()),
+                                    size: std::num::NonZeroU64::new(size),
                                 }),
                             }],
                         }));
@@ -294,6 +272,45 @@ impl Default for BindingManager {
     fn default() -> Self {
         Self::new()
     }
+}
+
+// MARK: - Helper Functions
+
+/// Pack custom uniform values into buffer following layout
+fn pack_custom_uniforms(
+    layout: &super::buffers::UniformBufferLayout,
+    buffer_data: &mut [u8],
+    values: &std::collections::HashMap<String, super::buffers::UniformValue>,
+) -> Result<(), String> {
+    for field in &layout.fields {
+        if let Some(value) = values.get(&field.name) {
+            // Check type match
+            if !value.matches_type(field.field_type) {
+                return Err(format!(
+                    "Type mismatch for '{}': expected {:?}",
+                    field.name, field.field_type
+                ));
+            }
+
+            // Get bytes and copy to buffer
+            let bytes = value.as_bytes();
+            let offset = field.offset as usize;
+            let end = offset + bytes.len();
+
+            if end > buffer_data.len() {
+                return Err(format!(
+                    "Buffer overflow for field '{}': offset {} + size {} > buffer size {}",
+                    field.name,
+                    offset,
+                    bytes.len(),
+                    buffer_data.len()
+                ));
+            }
+
+            buffer_data[offset..end].copy_from_slice(&bytes);
+        }
+    }
+    Ok(())
 }
 
 // MARK: - Shader Uniform Buffers
@@ -413,16 +430,6 @@ impl ShaderUniformBuffers {
             0 => self.group_0_buffer.as_ref(),
             1 => self.group_1_buffer.as_ref(),
             2 => self.group_2_buffer.as_ref(),
-            _ => None,
-        }
-    }
-
-    /// Get allocator for a group
-    pub fn get_allocator(&self, group: u32) -> Option<&BufferAllocator> {
-        match group {
-            0 => Some(&self.group_0_allocator),
-            1 => Some(&self.group_1_allocator),
-            2 => Some(&self.group_2_allocator),
             _ => None,
         }
     }

@@ -110,63 +110,9 @@ impl BufferAllocator {
         }
     }
 
-    /// Get allocation info for a resource
-    pub fn get_allocation(&self, id: u32) -> Option<(u64, u64)> {
-        self.allocations.get(&id).copied()
-    }
-
     /// Get current buffer capacity
     pub fn capacity(&self) -> u64 {
         self.capacity
-    }
-
-    /// Check if buffer needs compaction (high fragmentation)
-    ///
-    /// Returns true if more than 30% of allocated space is fragmented
-    pub fn needs_compaction(&self) -> bool {
-        let _used_space: u64 = self.allocations.values().map(|(_, size)| size).sum();
-        let free_space: u64 = self.free_slots.iter().map(|(_, size)| size).sum();
-        let total_allocated = self.next_offset;
-
-        // If more than 30% is fragmented free space, consider compaction
-        free_space > 0 && (free_space as f32 / total_allocated as f32) > 0.3
-    }
-
-    /// Compact allocations (move to eliminate fragmentation)
-    ///
-    /// Returns a map of old_offset → new_offset for data migration
-    /// This requires copying data in the buffer to new locations
-    pub fn compact(&mut self) -> HashMap<u64, u64> {
-        let mut migrations: HashMap<u64, u64> = HashMap::new();
-        let mut new_allocations: HashMap<u32, (u64, u64)> = HashMap::new();
-        let mut new_offset = 0u64;
-
-        // Sort allocations by current offset
-        let mut allocs: Vec<_> = self.allocations.iter().collect();
-        allocs.sort_by_key(|(_, (offset, _))| *offset);
-
-        // Reassign offsets sequentially
-        for (id, (old_offset, size)) in allocs {
-            if new_offset != *old_offset {
-                migrations.insert(*old_offset, new_offset);
-            }
-            new_allocations.insert(*id, (new_offset, *size));
-            new_offset += size;
-        }
-
-        // Update state
-        self.allocations = new_allocations;
-        self.next_offset = new_offset;
-        self.free_slots.clear();
-
-        migrations
-    }
-
-    /// Clear all allocations
-    pub fn clear(&mut self) {
-        self.allocations.clear();
-        self.free_slots.clear();
-        self.next_offset = 0;
     }
 }
 

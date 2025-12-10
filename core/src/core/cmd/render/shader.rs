@@ -74,12 +74,7 @@ pub fn engine_cmd_shader_create(
         }
     };
 
-    // Get or create render state
-    if window_state.render_state.is_none() {
-        window_state.render_state = Some(crate::core::render::RenderState::new());
-    }
-
-    let render_state = window_state.render_state.as_mut().unwrap();
+    let render_state = &mut window_state.render_state;
 
     // Check if shader already exists
     if render_state.resources.shaders.contains_key(&args.shader_id) {
@@ -224,18 +219,9 @@ pub fn engine_cmd_shader_dispose(
         }
     };
 
-    // Get render state
-    let render_state = match &mut window_state.render_state {
-        Some(rs) => rs,
-        None => {
-            return CmdResultShaderDispose {
-                success: false,
-                message: "Window has no render state".into(),
-            };
-        }
-    };
+    let render_state = &mut window_state.render_state;
 
-    // 🆕 CASCADING: Find all materials using this shader
+    // Check if shader exists
     let materials_to_dispose: Vec<_> = render_state
         .resources
         .materials

@@ -72,12 +72,7 @@ pub fn engine_cmd_texture_create(
         }
     };
 
-    // Get or create render state
-    if window_state.render_state.is_none() {
-        window_state.render_state = Some(crate::core::render::RenderState::new());
-    }
-
-    let render_state = window_state.render_state.as_mut().unwrap();
+    let render_state = &mut window_state.render_state;
 
     // Check if texture already exists
     if render_state
@@ -275,16 +270,7 @@ pub fn engine_cmd_texture_update(
         }
     };
 
-    // Get render state
-    let render_state = match &mut window_state.render_state {
-        Some(rs) => rs,
-        None => {
-            return CmdResultTextureUpdate {
-                success: false,
-                message: "Window has no render state".into(),
-            };
-        }
-    };
+    let render_state = &mut window_state.render_state;
 
     // Get texture resource
     let texture_resource = match render_state.resources.textures.get(&args.texture_id) {
@@ -455,16 +441,7 @@ pub fn engine_cmd_texture_dispose(
         }
     };
 
-    // Get render state
-    let render_state = match &mut window_state.render_state {
-        Some(rs) => rs,
-        None => {
-            return CmdResultTextureDispose {
-                success: false,
-                message: "Window has no render state".into(),
-            };
-        }
-    };
+    let render_state = &mut window_state.render_state;
 
     // Check if texture is in use by any materials
     let in_use = render_state

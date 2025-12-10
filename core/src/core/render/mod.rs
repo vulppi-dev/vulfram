@@ -4,12 +4,14 @@ pub mod buffers;
 pub mod components;
 pub mod enums;
 pub mod material_types;
+pub mod passes;
 pub mod pipeline;
 pub mod resources;
 mod state;
 
 use crate::core::state::EngineState;
 
+use self::passes::{ForwardRenderItem, compose_pass, forward_pass};
 pub use self::state::RenderState;
 
 /// Flush dirty components to GPU buffers (DEPRECATED)
@@ -33,11 +35,6 @@ pub fn render_frames(engine_state: &mut EngineState) {
 
     // Render all windows
     for (_window_id, window_state) in engine_state.windows.iter_mut() {
-        // Ensure render state exists
-        if window_state.render_state.is_none() {
-            window_state.render_state = Some(RenderState::new());
-        }
-
         // Get the surface texture
         let surface_texture = match window_state.surface.get_current_texture() {
             Ok(texture) => texture,
@@ -53,10 +50,9 @@ pub fn render_frames(engine_state: &mut EngineState) {
             .create_view(&wgpu::TextureViewDescriptor::default());
 
         // Split render state to avoid borrow checker issues
-        let render_state = window_state.render_state.as_mut().unwrap();
+        let render_state = &mut window_state.render_state;
 
-        // Phase 1: Update all bindings (lazy)
-        // Collect (camera_id, model_id, shader_id, material_id, geometry_id) tuples
+        // Phase 1: Collect render items and update bindings (lazy)
         let mut render_items = Vec::new();
 
         for (camera_id, camera) in render_state.components.cameras.iter() {
@@ -82,31 +78,35 @@ pub fn render_frames(engine_state: &mut EngineState) {
 
                 let shader_id = material.pipeline_spec.shader_id;
 
-                render_items.push((
-                    *camera_id,
-                    *model_id,
+                render_items.push(ForwardRenderItem {
+                    camera_id: *camera_id,
+                    model_id: *model_id,
                     shader_id,
-                    model.material,
-                    model.geometry,
-                ));
+                    material_id: model.material,
+                    geometry_id: model.geometry,
+                });
             }
         }
 
         // Update bindings for all render items
-        for (camera_id, model_id, shader_id, material_id, geometry_id) in &render_items {
+        for item in &render_items {
             // Create binding key
             let binding_key = binding::BindingKey {
-                component_id: *model_id,
-                shader_id: *shader_id,
-                resource_ids: vec![*material_id, *geometry_id],
+                component_id: item.model_id,
+                shader_id: item.shader_id,
+                resource_ids: vec![item.material_id, item.geometry_id],
             };
 
             // Get camera and model
-            let camera = render_state.components.cameras.get(camera_id).unwrap();
-            let model = render_state.components.models.get(model_id).unwrap();
+            let camera = render_state
+                .components
+                .cameras
+                .get(&item.camera_id)
+                .unwrap();
+            let model = render_state.components.models.get(&item.model_id).unwrap();
 
             // Get shader (mutable)
-            let shader = match render_state.resources.shaders.get_mut(shader_id) {
+            let shader = match render_state.resources.shaders.get_mut(&item.shader_id) {
                 Some(s) => s,
                 None => continue,
             };
@@ -124,59 +124,30 @@ pub fn render_frames(engine_state: &mut EngineState) {
             }
         }
 
-        // Phase 2: Create command encoder and render
+        // Phase 2: Render passes
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder"),
         });
 
-        // Iterate through cameras for rendering
-        for (camera_id, camera) in render_state.components.cameras.iter() {
-            // Create render pass for this camera
-            let mut _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some(&format!("Camera {} Render Pass", camera_id)),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &camera.render_target_view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(render_state.clear_color),
-                        store: wgpu::StoreOp::Store,
-                    },
-                    depth_slice: None,
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
+        // Collect camera IDs first to avoid borrow checker issues
+        let camera_ids: Vec<_> = render_state.components.cameras.keys().copied().collect();
 
-            // TODO: Actual draw calls
-            // Filter render_items for this camera
-            // For each item:
-            //   - Get binding from binding_manager
-            //   - Get/create pipeline from pipeline_cache
-            //   - Set pipeline, bind groups, vertex/index buffers
-            //   - Draw indexed
+        // Forward pass: Render models to camera render targets
+        for camera_id in camera_ids {
+            forward_pass(&mut encoder, device, render_state, camera_id, &render_items);
         }
 
-        // Copy camera render targets to surface (blit)
-        // TODO: Implement camera render target to surface copy
-        // For now, just clear the surface
-        {
-            let _final_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Surface Clear Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(render_state.clear_color),
-                        store: wgpu::StoreOp::Store,
-                    },
-                    depth_slice: None,
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
-        }
+        // Get surface size for compose pass
+        let surface_size = (window_state.config.width, window_state.config.height);
+
+        // Compose pass: Blit camera render targets to surface
+        compose_pass(
+            &mut encoder,
+            &view,
+            &surface_texture.texture,
+            surface_size,
+            render_state,
+        );
 
         // Submit the commands
         queue.submit(std::iter::once(encoder.finish()));

@@ -93,8 +93,13 @@ impl Default for Viewport {
 }
 
 impl Viewport {
-    /// Calculate actual pixel coordinates based on window size
-    pub fn calculate_rect(&self, window_width: u32, window_height: u32) -> (u32, u32, u32, u32) {
+    /// Calculate actual pixel rectangle based on window size
+    /// Returns UVec2 (position) and UVec2 (size) in pixels
+    pub fn calculate_rect(
+        &self,
+        window_width: u32,
+        window_height: u32,
+    ) -> (glam::UVec2, glam::UVec2) {
         // Calculate position
         let (px, py) = match self.position_mode {
             ViewportMode::Relative => (
@@ -120,7 +125,7 @@ impl Viewport {
         let final_x = px.saturating_sub(anchor_offset_x);
         let final_y = py.saturating_sub(anchor_offset_y);
 
-        (final_x, final_y, w, h)
+        (glam::UVec2::new(final_x, final_y), glam::UVec2::new(w, h))
     }
 
     /// Create a fullscreen viewport (covers entire window)

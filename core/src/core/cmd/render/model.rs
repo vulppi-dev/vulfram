@@ -66,12 +66,7 @@ pub fn engine_cmd_model_create(
         }
     };
 
-    // Get or create render state
-    if window_state.render_state.is_none() {
-        window_state.render_state = Some(crate::core::render::RenderState::new());
-    }
-
-    let render_state = window_state.render_state.as_mut().unwrap();
+    let render_state = &mut window_state.render_state;
 
     // Check if entity already has a model component
     if render_state
@@ -190,16 +185,7 @@ pub fn engine_cmd_model_update(
         }
     };
 
-    // Get render state
-    let render_state = match &mut window_state.render_state {
-        Some(rs) => rs,
-        None => {
-            return CmdResultModelUpdate {
-                success: false,
-                message: "Window has no render state".into(),
-            };
-        }
-    };
+    let render_state = &mut window_state.render_state;
 
     // Get model component
     let model = match render_state.components.models.get_mut(&args.component_id) {
@@ -308,16 +294,7 @@ pub fn engine_cmd_model_dispose(
         }
     };
 
-    // Get render state
-    let render_state = match &mut window_state.render_state {
-        Some(rs) => rs,
-        None => {
-            return CmdResultModelDispose {
-                success: false,
-                message: "Window has no render state".into(),
-            };
-        }
-    };
+    let render_state = &mut window_state.render_state;
 
     // 🆕 Get model to find its material (and thus shader)
     let shader_id = if let Some(model) = render_state.components.models.get(&args.component_id) {

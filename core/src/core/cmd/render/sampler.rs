@@ -82,12 +82,7 @@ pub fn engine_cmd_sampler_create(
         }
     };
 
-    // Get or create render state
-    if window_state.render_state.is_none() {
-        window_state.render_state = Some(crate::core::render::RenderState::new());
-    }
-
-    let render_state = window_state.render_state.as_mut().unwrap();
+    let render_state = &mut window_state.render_state;
 
     // Check if sampler already exists
     if render_state
@@ -251,15 +246,7 @@ pub fn engine_cmd_sampler_update(
         }
     };
 
-    let render_state = match window_state.render_state.as_mut() {
-        Some(rs) => rs,
-        None => {
-            return CmdResultSamplerUpdate {
-                success: false,
-                message: "Render state not initialized".into(),
-            };
-        }
-    };
+    let render_state = &mut window_state.render_state;
 
     // Check if sampler exists
     if !render_state
@@ -398,15 +385,7 @@ pub fn engine_cmd_sampler_dispose(
         }
     };
 
-    let render_state = match window_state.render_state.as_mut() {
-        Some(rs) => rs,
-        None => {
-            return CmdResultSamplerDispose {
-                success: false,
-                message: "Render state not initialized".into(),
-            };
-        }
-    };
+    let render_state = &mut window_state.render_state;
 
     // Remove sampler
     match render_state.resources.samplers.remove(&args.sampler_id) {

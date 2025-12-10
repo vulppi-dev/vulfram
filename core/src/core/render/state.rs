@@ -8,6 +8,9 @@ pub struct RenderState {
     pub resources: Resources,
     pub clear_color: wgpu::Color,
 
+    /// Surface texture format (used for pipeline creation)
+    pub surface_format: wgpu::TextureFormat,
+
     /// Binding manager for component-shader-resource combinations
     pub binding_manager: BindingManager,
 
@@ -15,8 +18,9 @@ pub struct RenderState {
     pub pipeline_cache: PipelineCache,
 }
 
-impl Default for RenderState {
-    fn default() -> Self {
+impl RenderState {
+    /// Create a new RenderState with the specified surface format
+    pub fn new(surface_format: wgpu::TextureFormat) -> Self {
         Self {
             components: Components::new(),
             resources: Resources::new(),
@@ -26,15 +30,10 @@ impl Default for RenderState {
                 b: 0.0,
                 a: 1.0,
             },
+            surface_format,
             binding_manager: BindingManager::new(),
             pipeline_cache: PipelineCache::new(),
         }
-    }
-}
-
-impl RenderState {
-    pub fn new() -> Self {
-        Self::default()
     }
 
     /// Explicitly drop all render state resources

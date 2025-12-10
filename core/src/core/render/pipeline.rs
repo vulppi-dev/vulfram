@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use wgpu;
 
-use super::resources::{MaterialId, ShaderId};
+use super::resources::{MaterialId, MaterialResource, ShaderId, ShaderResource};
 
 // MARK: - Pipeline Cache Key
 
@@ -24,7 +24,7 @@ impl PipelineCacheKey {
 // MARK: - Pipeline Cache
 
 /// Cache for render pipelines
-/// 
+///
 /// Pipelines are created lazily on first use and cached for reuse.
 /// A pipeline is uniquely identified by shader + material combination.
 pub struct PipelineCache {
@@ -77,6 +77,69 @@ impl PipelineCache {
     /// Check if empty
     pub fn is_empty(&self) -> bool {
         self.pipelines.is_empty()
+    }
+
+    /// Get or create a render pipeline (lazy creation)
+    ///
+    /// This method creates pipelines lazily on first use and caches them for reuse.
+    /// A pipeline is uniquely identified by shader + material combination.
+    pub fn get_or_create(
+        &mut self,
+        shader_id: ShaderId,
+        material_id: MaterialId,
+        device: &wgpu::Device,
+        shader: &ShaderResource,
+        material: &MaterialResource,
+        surface_format: wgpu::TextureFormat,
+    ) -> Result<&wgpu::RenderPipeline, String> {
+        let key = PipelineCacheKey::new(shader_id, material_id);
+
+        // If already exists, return from cache
+        if self.pipelines.contains_key(&key) {
+            return Ok(self.pipelines.get(&key).unwrap());
+        }
+
+        // Create pipeline layout from shader bind group layouts
+        let bind_group_layout_refs: Vec<&wgpu::BindGroupLayout> =
+            shader.bind_group_layouts.iter().collect();
+
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some(&format!("Pipeline Layout S{} M{}", shader_id, material_id)),
+            bind_group_layouts: &bind_group_layout_refs,
+            push_constant_ranges: &[],
+        });
+
+        // Create render pipeline
+        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some(&format!("Render Pipeline S{} M{}", shader_id, material_id)),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader.module,
+                entry_point: Some("vs_main"),
+                buffers: &[shader.vertex_buffer_layout.clone()],
+                compilation_options: Default::default(),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader.module,
+                entry_point: Some("fs_main"),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: surface_format,
+                    blend: material.pipeline_spec.blend,
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            primitive: material.pipeline_spec.primitive,
+            depth_stencil: material.pipeline_spec.depth_stencil.clone(),
+            multisample: material.pipeline_spec.multisample,
+            multiview: None,
+            cache: None,
+        });
+
+        // Insert into cache
+        self.pipelines.insert(key.clone(), pipeline);
+
+        Ok(self.pipelines.get(&key).unwrap())
     }
 }
 

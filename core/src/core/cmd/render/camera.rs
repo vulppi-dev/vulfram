@@ -69,12 +69,7 @@ pub fn engine_cmd_camera_create(
         }
     };
 
-    // Get or create render state
-    if window_state.render_state.is_none() {
-        window_state.render_state = Some(crate::core::render::RenderState::new());
-    }
-
-    let render_state = window_state.render_state.as_mut().unwrap();
+    let render_state = &mut window_state.render_state;
 
     // Check if entity already has a camera component
     if render_state
@@ -208,16 +203,7 @@ pub fn engine_cmd_camera_update(
         }
     };
 
-    // Get render state
-    let render_state = match &mut window_state.render_state {
-        Some(rs) => rs,
-        None => {
-            return CmdResultCameraUpdate {
-                success: false,
-                message: "Window has no render state".into(),
-            };
-        }
-    };
+    let render_state = &mut window_state.render_state;
 
     // Get camera component
     let camera = match render_state.components.cameras.get_mut(&args.component_id) {
@@ -312,16 +298,7 @@ pub fn engine_cmd_camera_dispose(
         }
     };
 
-    // Get render state
-    let render_state = match &mut window_state.render_state {
-        Some(rs) => rs,
-        None => {
-            return CmdResultCameraDispose {
-                success: false,
-                message: "Window has no render state".into(),
-            };
-        }
-    };
+    let render_state = &mut window_state.render_state;
 
     // 🆕 Get all shaders that have bindings with this camera
     let shader_ids = render_state

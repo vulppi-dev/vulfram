@@ -70,12 +70,7 @@ pub fn engine_cmd_material_create(
         }
     };
 
-    // Get or create render state
-    if window_state.render_state.is_none() {
-        window_state.render_state = Some(crate::core::render::RenderState::new());
-    }
-
-    let render_state = window_state.render_state.as_mut().unwrap();
+    let render_state = &mut window_state.render_state;
 
     // Check if material already exists
     if render_state
@@ -252,18 +247,9 @@ pub fn engine_cmd_material_update(
         }
     };
 
-    // Get render state
-    let render_state = match &mut window_state.render_state {
-        Some(rs) => rs,
-        None => {
-            return CmdResultMaterialUpdate {
-                success: false,
-                message: "Window has no render state".into(),
-            };
-        }
-    };
+    let render_state = &mut window_state.render_state;
 
-    // Get material resource
+    // Check if material exists
     let material = match render_state.resources.materials.get_mut(&args.material_id) {
         Some(m) => m,
         None => {
@@ -366,18 +352,9 @@ pub fn engine_cmd_material_dispose(
         }
     };
 
-    // Get render state
-    let render_state = match &mut window_state.render_state {
-        Some(rs) => rs,
-        None => {
-            return CmdResultMaterialDispose {
-                success: false,
-                message: "Window has no render state".into(),
-            };
-        }
-    };
+    let render_state = &mut window_state.render_state;
 
-    // Check if material is in use by any models
+    // Check if material exists
     let in_use = render_state
         .components
         .models

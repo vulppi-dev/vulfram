@@ -15,7 +15,7 @@ pub struct WindowState {
     pub surface: wgpu::Surface<'static>,
     pub config: wgpu::SurfaceConfiguration,
 
-    pub render_state: Option<RenderState>,
+    pub render_state: RenderState,
 
     // Window state tracking
     pub inner_position: IVec2,
@@ -155,10 +155,7 @@ impl EngineState {
             self.cursor_positions.remove(&window_id);
 
             // Explicitly drop render state to free GPU resources
-            if let Some(ref mut render_state) = window_state.render_state {
-                render_state.drop_all();
-            }
-            window_state.render_state = None;
+            window_state.render_state.drop_all();
 
             // Window and surface will be dropped automatically
             true

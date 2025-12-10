@@ -201,12 +201,12 @@ pub fn engine_cmd_window_create(
         WindowState {
             window,
             surface,
-            config,
+            config: config.clone(),
             inner_position: IVec2::new(inner_position.x, inner_position.y),
             outer_position: IVec2::new(outer_position.x, outer_position.y),
             inner_size: UVec2::new(inner_size.width, inner_size.height),
             outer_size: UVec2::new(outer_size.width, outer_size.height),
-            render_state: None,
+            render_state: crate::core::render::RenderState::new(format),
             is_dirty: true, // New window needs initial render
         },
     );

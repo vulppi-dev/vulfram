@@ -71,12 +71,7 @@ pub fn engine_cmd_geometry_create(
         }
     };
 
-    // Get or create render state
-    if window_state.render_state.is_none() {
-        window_state.render_state = Some(crate::core::render::RenderState::new());
-    }
-
-    let render_state = window_state.render_state.as_mut().unwrap();
+    let render_state = &mut window_state.render_state;
 
     // Check if geometry already exists
     if render_state
@@ -242,18 +237,9 @@ pub fn engine_cmd_geometry_dispose(
         }
     };
 
-    // Get render state
-    let render_state = match &mut window_state.render_state {
-        Some(rs) => rs,
-        None => {
-            return CmdResultGeometryDispose {
-                success: false,
-                message: "Window has no render state".into(),
-            };
-        }
-    };
+    let render_state = &mut window_state.render_state;
 
-    // Check if geometry is in use by any models
+    // Check if geometry exists
     let in_use = render_state
         .components
         .models

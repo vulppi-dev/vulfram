@@ -1,6 +1,17 @@
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
+// MARK: - Group Constants
+
+/// Bind group 0: Global/Camera data (time, delta_time, camera matrices, position)
+pub const GROUP_GLOBAL: u32 = 0;
+/// Bind group 1: Mesh data (model_transform, model_normal)
+pub const GROUP_MESH: u32 = 1;
+/// Bind group 2: Instance data (instance arrays) - Reserved for future
+pub const GROUP_INSTANCE: u32 = 2;
+/// Bind group 3: Material custom data (user-defined uniforms)
+pub const GROUP_MATERIAL: u32 = 3;
+
 // MARK: - Uniform Types
 
 /// All possible uniform types in WGSL

@@ -22,18 +22,22 @@ pub struct BindingKey {
 /// Information about buffer bindings and bind groups for a specific combination
 #[derive(Debug)]
 pub struct BindingInfo {
-    /// Offset in the shader's group 0 buffer (camera/global)
+    /// Offset in the shader's group 0 buffer (global/camera)
     pub group_0_offset: Option<u64>,
-    /// Offset in the shader's group 1 buffer (material)
+    /// Offset in the shader's group 1 buffer (mesh)
     pub group_1_offset: Option<u64>,
-    /// Offset in the shader's group 2 buffer (instance/model)
+    /// Offset in the shader's group 2 buffer (instance) - Reserved for future
     pub group_2_offset: Option<u64>,
+    /// Offset in the shader's group 3 buffer (material custom)
+    pub group_3_offset: Option<u64>,
     /// Cached bind group for group 0
     pub bind_group_0: Option<wgpu::BindGroup>,
     /// Cached bind group for group 1
     pub bind_group_1: Option<wgpu::BindGroup>,
     /// Cached bind group for group 2
     pub bind_group_2: Option<wgpu::BindGroup>,
+    /// Cached bind group for group 3
+    pub bind_group_3: Option<wgpu::BindGroup>,
 }
 
 impl BindingInfo {
@@ -42,9 +46,11 @@ impl BindingInfo {
             group_0_offset: None,
             group_1_offset: None,
             group_2_offset: None,
+            group_3_offset: None,
             bind_group_0: None,
             bind_group_1: None,
             bind_group_2: None,
+            bind_group_3: None,
         }
     }
 }
@@ -157,17 +163,21 @@ impl BindingManager {
 
             // Determine which offset/bind_group fields to use
             let (offset_field, bind_group_field) = match group {
-                0 => (
+                super::buffers::GROUP_GLOBAL => (
                     &mut binding_info.group_0_offset,
                     &mut binding_info.bind_group_0,
                 ),
-                1 => (
+                super::buffers::GROUP_MESH => (
                     &mut binding_info.group_1_offset,
                     &mut binding_info.bind_group_1,
                 ),
-                2 => (
+                super::buffers::GROUP_INSTANCE => (
                     &mut binding_info.group_2_offset,
                     &mut binding_info.bind_group_2,
+                ),
+                super::buffers::GROUP_MATERIAL => (
+                    &mut binding_info.group_3_offset,
+                    &mut binding_info.bind_group_3,
                 ),
                 _ => continue, // Skip unsupported groups
             };
@@ -194,53 +204,59 @@ impl BindingManager {
             // Prepare buffer data with automatic uniform injection
             let mut buffer_data = vec![0u8; layout.total_size as usize];
 
-            // Inject automatic uniforms based on reserved names
-            if let Some(camera) = camera_opt {
-                // Calculate view_projection if needed
-                let view_proj = camera.proj_mat * camera.view_mat;
+            // Inject automatic uniforms based on group and reserved names
+            match group {
+                super::buffers::GROUP_GLOBAL => {
+                    // Group 0: Global/Camera data
+                    if let Some(camera) = camera_opt {
+                        let view_proj = camera.proj_mat * camera.view_mat;
+                        let camera_pos = camera.view_mat.inverse().w_axis.truncate();
 
-                // Extract camera position from inverse of view matrix
-                let camera_pos = camera.view_mat.inverse().w_axis.truncate();
-
-                layout.inject_automatic_uniforms(
-                    &mut buffer_data,
-                    Some(time),
-                    Some(delta_time),
-                    Some(&camera.view_mat), // camera_view
-                    Some(&camera.proj_mat), // camera_projection
-                    Some(&view_proj),       // camera_view_projection
-                    Some(&camera_pos),      // camera_position
-                    None,
-                    None,
-                );
-            }
-
-            if let Some(model) = model_opt {
-                // Calculate normal matrix if needed (inverse transpose of model matrix)
-                let normal_mat = glam::Mat3::from_mat4(model.model_mat).inverse().transpose();
-
-                layout.inject_automatic_uniforms(
-                    &mut buffer_data,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    Some(&model.model_mat), // model_transform
-                    Some(&normal_mat),      // model_normal
-                );
-            }
-
-            // Pack material custom uniforms if provided (typically for group 1)
-            if let Some(uniforms) = material_uniforms {
-                if let Err(e) = pack_custom_uniforms(layout, &mut buffer_data, uniforms) {
-                    log::warn!(
-                        "Failed to pack material uniforms for group {}: {}",
-                        group,
-                        e
-                    );
+                        layout.inject_automatic_uniforms(
+                            &mut buffer_data,
+                            Some(time),
+                            Some(delta_time),
+                            Some(&camera.view_mat),
+                            Some(&camera.proj_mat),
+                            Some(&view_proj),
+                            Some(&camera_pos),
+                            None,
+                            None,
+                        );
+                    }
                 }
+                super::buffers::GROUP_MESH => {
+                    // Group 1: Mesh data
+                    if let Some(model) = model_opt {
+                        let normal_mat =
+                            glam::Mat3::from_mat4(model.model_mat).inverse().transpose();
+
+                        layout.inject_automatic_uniforms(
+                            &mut buffer_data,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            Some(&model.model_mat),
+                            Some(&normal_mat),
+                        );
+                    }
+                }
+                super::buffers::GROUP_MATERIAL => {
+                    // Group 3: Material custom uniforms
+                    if let Some(uniforms) = material_uniforms {
+                        if let Err(e) = pack_custom_uniforms(layout, &mut buffer_data, uniforms) {
+                            log::warn!(
+                                "Failed to pack material uniforms for group {}: {}",
+                                group,
+                                e
+                            );
+                        }
+                    }
+                }
+                _ => {}
             }
 
             // Write buffer data to GPU

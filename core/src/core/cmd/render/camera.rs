@@ -323,6 +323,9 @@ pub fn engine_cmd_camera_dispose(
         .binding_manager
         .remove_component_bindings(args.component_id);
 
+    // 🆕 Remove from blit bind group cache
+    render_state.blit_bind_group_cache.remove(&args.component_id);
+
     // Remove camera component (render_target dropped automatically)
     match render_state.components.cameras.remove(&args.component_id) {
         Some(_) => CmdResultCameraDispose {

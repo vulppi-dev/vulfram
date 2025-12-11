@@ -174,7 +174,7 @@ impl BindingManager {
 
             // Allocate buffer space if needed
             if needs_allocation {
-                let offset = shader.uniform_buffers.allocate(
+                let (offset, needs_recreation) = shader.uniform_buffers.allocate(
                     device,
                     group,
                     key.component_id,
@@ -182,6 +182,11 @@ impl BindingManager {
                     shader.shader_id,
                 )?;
                 *offset_field = Some(offset);
+
+                // If buffer was recreated, invalidate bind group to force recreation
+                if needs_recreation {
+                    *bind_group_field = None;
+                }
             }
 
             // Prepare buffer data with automatic uniform injection
@@ -192,12 +197,15 @@ impl BindingManager {
                 // Calculate view_projection if needed
                 let view_proj = camera.proj_mat * camera.view_mat;
 
+                // Extract camera position from inverse of view matrix
+                let camera_pos = camera.view_mat.inverse().w_axis.truncate();
+
                 layout.inject_automatic_uniforms(
                     &mut buffer_data,
                     Some(&camera.view_mat), // camera_view
                     Some(&camera.proj_mat), // camera_projection
                     Some(&view_proj),       // camera_view_projection
-                    None,                   // camera_position (TODO: add to CameraInstance)
+                    Some(&camera_pos),      // camera_position
                     None,
                     None,
                 );
@@ -363,6 +371,7 @@ impl ShaderUniformBuffers {
     }
 
     /// Allocate space in the appropriate group buffer
+    /// Returns (offset, needs_recreation)
     pub fn allocate(
         &mut self,
         device: &wgpu::Device,
@@ -370,7 +379,7 @@ impl ShaderUniformBuffers {
         id: u32,
         size: u64,
         shader_id: ShaderId,
-    ) -> Result<u64, String> {
+    ) -> Result<(u64, bool), String> {
         // Ensure buffer exists
         self.ensure_buffer(
             device,
@@ -407,11 +416,11 @@ impl ShaderUniformBuffers {
                 mapped_at_creation: false,
             }));
 
-            // TODO: Copy old data to new buffer if needed
-            // For now, data will be rewritten on next update
+            // Signal that all bind groups for this shader must be recreated
+            // This is handled by returning needs_recreation flag to caller
         }
 
-        Ok(offset)
+        Ok((offset, needs_recreation))
     }
 
     /// Deallocate space in the appropriate group buffer

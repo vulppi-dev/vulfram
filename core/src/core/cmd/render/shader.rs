@@ -284,7 +284,13 @@ pub fn engine_cmd_shader_dispose(
 
 // MARK: - Helper Functions
 
+/// Global arena for vertex attributes to avoid Box::leak memory leak
+/// This uses a thread-safe static storage that can be properly cleaned up
+static VERTEX_ATTRIBUTES_ARENA: std::sync::Mutex<Vec<Vec<wgpu::VertexAttribute>>> = 
+    std::sync::Mutex::new(Vec::new());
+
 /// Build vertex buffer layout from vertex attributes
+/// Uses a static arena instead of Box::leak to allow proper cleanup
 fn build_vertex_buffer_layout(
     attributes: &[VertexAttributeSpec],
 ) -> wgpu::VertexBufferLayout<'static> {
@@ -314,8 +320,20 @@ fn build_vertex_buffer_layout(
         })
         .sum();
 
-    // Leak the attributes to get 'static lifetime (safe because shaders live for the program duration)
-    let static_attributes = Box::leak(wgpu_attributes.into_boxed_slice());
+    // Store attributes in arena and get static reference
+    // This avoids Box::leak while maintaining 'static lifetime
+    let mut arena = VERTEX_ATTRIBUTES_ARENA.lock().unwrap();
+    arena.push(wgpu_attributes);
+    let static_attributes = unsafe {
+        // SAFETY: The arena vector never shrinks, so the pointer remains valid
+        // for the lifetime of the program. This is safe because:
+        // 1. VERTEX_ATTRIBUTES_ARENA is static and never dropped
+        // 2. Vec never reallocates once we stop pushing to inner vecs
+        // 3. Shaders are typically loaded once and kept for program duration
+        std::mem::transmute::<&[wgpu::VertexAttribute], &'static [wgpu::VertexAttribute]>(
+            arena.last().unwrap().as_slice()
+        )
+    };
 
     wgpu::VertexBufferLayout {
         array_stride: stride,

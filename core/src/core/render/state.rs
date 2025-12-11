@@ -2,6 +2,7 @@ use super::binding::BindingManager;
 use super::components::Components;
 use super::pipeline::PipelineCache;
 use super::resources::Resources;
+use std::collections::HashMap;
 
 pub struct RenderState {
     pub components: Components,
@@ -25,6 +26,9 @@ pub struct RenderState {
 
     /// Blit bind group layout
     pub blit_bind_group_layout: Option<wgpu::BindGroupLayout>,
+
+    /// Cache for blit bind groups per camera
+    pub blit_bind_group_cache: HashMap<u32, wgpu::BindGroup>,
 }
 
 impl RenderState {
@@ -45,6 +49,7 @@ impl RenderState {
             blit_pipeline: None,
             blit_sampler: None,
             blit_bind_group_layout: None,
+            blit_bind_group_cache: HashMap::new(),
         }
     }
 
@@ -148,6 +153,7 @@ impl RenderState {
         // Clear caches first
         self.binding_manager.clear();
         self.pipeline_cache.clear();
+        self.blit_bind_group_cache.clear();
 
         // Drop components (includes render targets)
         self.components.drop_all();

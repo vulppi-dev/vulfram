@@ -12,12 +12,12 @@ use crate::core::render::RenderState;
 /// * `encoder` - Command encoder for recording commands
 /// * `device` - WGPU device for creating bind groups
 /// * `surface_view` - Surface texture view to render to
-/// * `render_state` - Render state with cameras and blit resources
+/// * `render_state` - Render state with cameras and blit resources (mutable for bind group caching)
 pub fn compose_pass(
     encoder: &mut wgpu::CommandEncoder,
     device: &wgpu::Device,
     surface_view: &wgpu::TextureView,
-    render_state: &RenderState,
+    render_state: &mut RenderState,
 ) {
     // Get blit resources
     let blit_pipeline = match &render_state.blit_pipeline {
@@ -75,24 +75,32 @@ pub fn compose_pass(
             None => continue,
         };
 
-        // Create bind group for this camera's render target
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some(&format!("Blit Bind Group - Camera {}", camera_id)),
-            layout: bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&camera.render_target_view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(blit_sampler),
-                },
-            ],
-        });
+        // Get or create bind group from cache (reuses existing if available)
+        let bind_group = render_state
+            .blit_bind_group_cache
+            .entry(camera_id)
+            .or_insert_with(|| {
+                device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some(&format!("Blit Bind Group - Camera {}", camera_id)),
+                    layout: bind_group_layout,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::TextureView(
+                                &camera.render_target_view,
+                            ),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::Sampler(blit_sampler),
+                        },
+                    ],
+                })
+            });
 
         // Set bind group and draw fullscreen triangle
-        render_pass.set_bind_group(0, &bind_group, &[]);
+        // Cast to immutable reference for set_bind_group
+        render_pass.set_bind_group(0, &*bind_group, &[]);
         render_pass.draw(0..3, 0..1);
     }
 }

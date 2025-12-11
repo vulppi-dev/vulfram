@@ -184,7 +184,6 @@ pub fn engine_cmd_material_create(
 
     // Create material resource (pipeline will be created lazily on first use)
     let material_resource = MaterialResource {
-        material_id: args.material_id,
         pipeline_spec,
         pipeline: None,
         textures: args.textures.clone(),

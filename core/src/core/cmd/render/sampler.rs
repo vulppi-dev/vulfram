@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::core::render::enums::{
     AddressMode, BorderColor, CompareFunction, FilterMode, MipmapFilterMode,
 };
-use crate::core::render::resources::{SamplerId, SamplerParams, SamplerResource};
+use crate::core::render::resources::{SamplerId, SamplerResource};
 use crate::core::state::EngineState;
 
 // MARK: - Create Sampler
@@ -136,27 +136,8 @@ pub fn engine_cmd_sampler_create(
     // Create sampler
     let sampler = device.create_sampler(&sampler_desc);
 
-    // Store parameters
-    let params = SamplerParams {
-        address_mode_u,
-        address_mode_v,
-        address_mode_w,
-        mag_filter,
-        min_filter,
-        mipmap_filter,
-        lod_min_clamp: args.lod_min_clamp,
-        lod_max_clamp: args.lod_max_clamp,
-        compare,
-        anisotropy_clamp: args.anisotropy_clamp,
-        border_color,
-    };
-
     // Create sampler resource
-    let sampler_resource = SamplerResource {
-        sampler_id: args.sampler_id,
-        sampler,
-        params,
-    };
+    let sampler_resource = SamplerResource { sampler };
 
     // Insert sampler into resources
     render_state
@@ -300,27 +281,8 @@ pub fn engine_cmd_sampler_update(
     // Create new sampler
     let sampler = device.create_sampler(&sampler_desc);
 
-    // Store parameters
-    let params = SamplerParams {
-        address_mode_u,
-        address_mode_v,
-        address_mode_w,
-        mag_filter,
-        min_filter,
-        mipmap_filter,
-        lod_min_clamp: args.lod_min_clamp,
-        lod_max_clamp: args.lod_max_clamp,
-        compare,
-        anisotropy_clamp: args.anisotropy_clamp,
-        border_color,
-    };
-
     // Update sampler resource
-    let sampler_resource = SamplerResource {
-        sampler_id: args.sampler_id,
-        sampler,
-        params,
-    };
+    let sampler_resource = SamplerResource { sampler };
 
     render_state
         .resources

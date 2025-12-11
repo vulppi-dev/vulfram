@@ -90,7 +90,6 @@ fn main() {
     println!("🎨 Configurando cena...\n");
 
     let mut cmd_id = 1u64;
-    let mut window_id = 0u32; // Will be set from response
     let shader_id = 1u32;
     let geometry_id = 1u32;
     let material_id = 1u32;
@@ -120,7 +119,7 @@ fn main() {
         eprintln!("❌ Falha ao criar janela!");
         return;
     }
-    window_id = received_id;
+    let window_id = received_id;
     println!("   Window ID recebido: {}\n", window_id);
     std::thread::sleep(std::time::Duration::from_millis(100));
 

@@ -98,17 +98,14 @@ pub struct ShaderResource {
 
     // Interface metadata
     pub uniform_layouts: Vec<UniformBufferLayout>,
-    pub texture_bindings: Vec<TextureBinding>,
-    pub storage_buffers: Vec<StorageBufferBinding>,
-    pub vertex_attributes: Vec<VertexAttributeSpec>,
 
-    // 🆕 NEW: Vertex buffer layout (calculated from vertex_attributes)
+    // Vertex buffer layout (calculated from vertex_attributes during creation)
     pub vertex_buffer_layout: wgpu::VertexBufferLayout<'static>,
 
-    // 🆕 NEW: Bind group layouts (one per group)
+    // Bind group layouts (one per group)
     pub bind_group_layouts: Vec<wgpu::BindGroupLayout>,
 
-    // 🆕 NEW: Shader-owned uniform buffers with allocators
+    // Shader-owned uniform buffers with allocators
     pub uniform_buffers: ShaderUniformBuffers,
 }
 
@@ -133,12 +130,9 @@ impl Default for VertexAttributeDesc {
 
 /// GeometryResource represents a mesh/geometry asset
 pub struct GeometryResource {
-    pub geometry_id: GeometryId,
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
-    pub vertex_count: u32,
     pub index_count: u32,
-    pub vertex_stride: u32,
     pub index_format: IndexFormat,
 }
 
@@ -147,40 +141,19 @@ pub struct GeometryResource {
 pub struct TextureParams {
     pub width: u32,
     pub height: u32,
-    pub format: wgpu::TextureFormat,
-    pub usage: wgpu::TextureUsages,
     pub mip_level_count: u32,
 }
 
-/// TextureResource wraps a WGPU texture and view
+/// TextureResource wraps a WGPU texture
 pub struct TextureResource {
-    pub texture_id: TextureId,
     pub texture: wgpu::Texture,
-    pub view: wgpu::TextureView,
     pub params: TextureParams,
 }
 
-/// SamplerParams describes sampler creation parameters
-#[derive(Debug, Clone)]
-pub struct SamplerParams {
-    pub address_mode_u: wgpu::AddressMode,
-    pub address_mode_v: wgpu::AddressMode,
-    pub address_mode_w: wgpu::AddressMode,
-    pub mag_filter: wgpu::FilterMode,
-    pub min_filter: wgpu::FilterMode,
-    pub mipmap_filter: wgpu::FilterMode,
-    pub lod_min_clamp: f32,
-    pub lod_max_clamp: f32,
-    pub compare: Option<wgpu::CompareFunction>,
-    pub anisotropy_clamp: u16,
-    pub border_color: Option<wgpu::SamplerBorderColor>,
-}
-
 /// SamplerResource wraps a WGPU sampler
+/// TODO: Integrate samplers with texture bindings in bind groups
 pub struct SamplerResource {
-    pub sampler_id: SamplerId,
     pub sampler: wgpu::Sampler,
-    pub params: SamplerParams,
 }
 
 /// PipelineSpec is a logical description of a render pipeline
@@ -195,7 +168,6 @@ pub struct PipelineSpec {
 
 /// MaterialResource represents everything needed to draw with a material
 pub struct MaterialResource {
-    pub material_id: MaterialId,
     pub pipeline_spec: PipelineSpec,
     pub pipeline: Option<wgpu::RenderPipeline>,
     pub textures: Vec<TextureId>,

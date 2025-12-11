@@ -168,14 +168,11 @@ pub fn engine_cmd_shader_create(
     // Create uniform buffers (initially empty, will grow as needed)
     let uniform_buffers = ShaderUniformBuffers::new();
 
-    // Create shader resource with metadata
+    // Insert shader resource
     let shader_resource = ShaderResource {
         shader_id: args.shader_id,
         module,
         uniform_layouts,
-        texture_bindings: args.texture_bindings.clone(),
-        storage_buffers: args.storage_buffers.clone(),
-        vertex_attributes: args.vertex_attributes.clone(),
         vertex_buffer_layout,
         bind_group_layouts,
         uniform_buffers,

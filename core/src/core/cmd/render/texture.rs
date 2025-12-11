@@ -145,8 +145,6 @@ pub fn engine_cmd_texture_create(
     let params = TextureParams {
         width: actual_width,
         height: actual_height,
-        format,
-        usage,
         mip_level_count: args.mip_level_count,
     };
 
@@ -180,16 +178,8 @@ pub fn engine_cmd_texture_create(
         texture_size,
     );
 
-    // Create texture view
-    let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-
     // Create texture resource
-    let texture_resource = TextureResource {
-        texture_id: args.texture_id,
-        texture,
-        view,
-        params,
-    };
+    let texture_resource = TextureResource { texture, params };
 
     // Insert texture resource
     render_state

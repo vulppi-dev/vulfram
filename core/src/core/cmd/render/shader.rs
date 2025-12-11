@@ -320,34 +320,33 @@ static VERTEX_ATTRIBUTES_ARENA: std::sync::Mutex<Vec<Vec<wgpu::VertexAttribute>>
 
 /// Build vertex buffer layout from vertex attributes
 /// Uses a static arena instead of Box::leak to allow proper cleanup
+/// Calculates offsets dynamically based on semantic order and format size
 fn build_vertex_buffer_layout(
     attributes: &[VertexAttributeSpec],
 ) -> wgpu::VertexBufferLayout<'static> {
-    // Convert attributes to WGPU format
-    let wgpu_attributes: Vec<wgpu::VertexAttribute> = attributes
-        .iter()
-        .map(|attr| wgpu::VertexAttribute {
-            format: attr.format.to_wgpu(),
-            offset: 0, // Will be calculated based on semantic order
-            shader_location: attr.location,
-        })
-        .collect();
+    // Sort attributes by semantic to ensure consistent layout
+    // This creates a canonical order: Position, Normal, Tangent, UVs, Colors, Joints
+    let mut sorted_attributes: Vec<&VertexAttributeSpec> = attributes.iter().collect();
+    sorted_attributes.sort_by_key(|attr| attr.semantic as u32);
 
-    // Calculate stride (sum of all attribute sizes)
-    let stride = attributes
-        .iter()
-        .map(|attr| match attr.format {
-            crate::core::render::enums::VertexFormat::Float32 => 4,
-            crate::core::render::enums::VertexFormat::Float32x2 => 8,
-            crate::core::render::enums::VertexFormat::Float32x3 => 12,
-            crate::core::render::enums::VertexFormat::Float32x4 => 16,
-            crate::core::render::enums::VertexFormat::Uint32 => 4,
-            crate::core::render::enums::VertexFormat::Uint32x2 => 8,
-            crate::core::render::enums::VertexFormat::Uint32x3 => 12,
-            crate::core::render::enums::VertexFormat::Uint32x4 => 16,
-            _ => 0,
-        })
-        .sum();
+    // Calculate offsets based on sorted order
+    let mut current_offset = 0u64;
+    let mut wgpu_attributes: Vec<wgpu::VertexAttribute> = Vec::new();
+
+    for attr in &sorted_attributes {
+        let size = attr.format.size_bytes();
+
+        wgpu_attributes.push(wgpu::VertexAttribute {
+            format: attr.format.to_wgpu(),
+            offset: current_offset,
+            shader_location: attr.location,
+        });
+
+        current_offset += size;
+    }
+
+    // Stride is the total size of all attributes
+    let stride = current_offset;
 
     // Store attributes in arena and get static reference
     // This avoids Box::leak while maintaining 'static lifetime
@@ -364,6 +363,11 @@ fn build_vertex_buffer_layout(
         )
     };
 
+    // Dynamic vertex layout:
+    // - Geometry data is interpreted based on shader's vertex_attributes
+    // - Offsets calculated from semantic order ensure consistent layout
+    // - Format from shader spec defines how raw bytes are interpreted
+    // - Same geometry buffer can be used with different shaders if semantics match
     wgpu::VertexBufferLayout {
         array_stride: stride,
         step_mode: wgpu::VertexStepMode::Vertex,

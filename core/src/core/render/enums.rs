@@ -1,5 +1,29 @@
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
+// MARK: - Vertex Format Helper
+
+impl VertexFormat {
+    /// Get the size in bytes of this vertex format
+    pub fn size_bytes(&self) -> u64 {
+        match self {
+            Self::Uint8x2 | Self::Sint8x2 | Self::Unorm8x2 | Self::Snorm8x2 => 2,
+            Self::Uint8x4 | Self::Sint8x4 | Self::Unorm8x4 | Self::Snorm8x4 => 4,
+            Self::Uint16x2 | Self::Sint16x2 | Self::Unorm16x2 | Self::Snorm16x2 => 4,
+            Self::Uint16x4 | Self::Sint16x4 | Self::Unorm16x4 | Self::Snorm16x4 => 8,
+            Self::Float16x2 => 4,
+            Self::Float16x4 => 8,
+            Self::Float32 | Self::Uint32 | Self::Sint32 => 4,
+            Self::Float32x2 | Self::Uint32x2 | Self::Sint32x2 => 8,
+            Self::Float32x3 | Self::Uint32x3 | Self::Sint32x3 => 12,
+            Self::Float32x4 | Self::Uint32x4 | Self::Sint32x4 => 16,
+            Self::Float64 => 8,
+            Self::Float64x2 => 16,
+            Self::Float64x3 => 24,
+            Self::Float64x4 => 32,
+        }
+    }
+}
+
 // MARK: - Texture Enums
 
 /// Texture format enum

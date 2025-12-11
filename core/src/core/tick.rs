@@ -93,10 +93,8 @@ fn process_gilrs_event(engine_state: &mut EngineState, event: GilrsEvent) {
                 "Unknown".into()
             };
 
-            // Add to cache first, then move String to event (avoids clone)
-            engine_state
-                .gamepad_cache
-                .add_gamepad(gamepad_id, name.clone());
+            // Add to cache for event filtering
+            engine_state.gamepad_cache.add_gamepad(gamepad_id);
 
             engine_state
                 .event_queue

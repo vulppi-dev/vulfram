@@ -12,22 +12,15 @@ pub const GAMEPAD_AXIS_CHANGE_THRESHOLD: f32 = 0.01;
 pub const GAMEPAD_BUTTON_CHANGE_THRESHOLD: f32 = 0.05;
 
 /// Cached state for a single gamepad
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct GamepadStateCache {
-    pub connected: bool,
-    pub name: String,
     pub axes: HashMap<u32, f32>,
     pub buttons: HashMap<u32, (ElementState, f32)>,
 }
 
 impl GamepadStateCache {
-    pub fn new(name: String) -> Self {
-        Self {
-            connected: true,
-            name,
-            axes: HashMap::new(),
-            buttons: HashMap::new(),
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Apply dead zone to axis value
@@ -96,9 +89,8 @@ impl GamepadCacheManager {
     }
 
     /// Create cache for a newly connected gamepad
-    pub fn add_gamepad(&mut self, gamepad_id: u32, name: String) {
-        self.gamepads
-            .insert(gamepad_id, GamepadStateCache::new(name));
+    pub fn add_gamepad(&mut self, gamepad_id: u32) {
+        self.gamepads.insert(gamepad_id, GamepadStateCache::new());
     }
 
     /// Remove cache for a disconnected gamepad

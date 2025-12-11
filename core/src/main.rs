@@ -170,6 +170,7 @@ fn main() {
                 },
             ],
             texture_bindings: vec![],
+            sampler_bindings: vec![],
             storage_buffers: vec![],
         }),
     });
@@ -246,6 +247,7 @@ fn main() {
             window_id,
             shader_id,
             textures: vec![],
+            samplers: vec![],
             blend: None,
             depth_stencil: None,
             primitive: PrimitiveStateDesc {

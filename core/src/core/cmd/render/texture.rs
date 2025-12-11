@@ -178,8 +178,11 @@ pub fn engine_cmd_texture_create(
         texture_size,
     );
 
+    // Create texture view
+    let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+
     // Create texture resource
-    let texture_resource = TextureResource { texture, params };
+    let texture_resource = TextureResource { texture, view, params };
 
     // Insert texture resource
     render_state
@@ -433,28 +436,52 @@ pub fn engine_cmd_texture_dispose(
 
     let render_state = &mut window_state.render_state;
 
-    // Check if texture is in use by any materials
-    let in_use = render_state
-        .resources
-        .materials
-        .values()
-        .any(|m| m.textures.contains(&args.texture_id));
-
-    if in_use {
+    // Prevent disposal of fallback texture
+    if args.texture_id == crate::core::render::resources::FALLBACK_TEXTURE_ID {
         return CmdResultTextureDispose {
             success: false,
-            message: format!(
-                "Texture {} is still in use by one or more materials",
-                args.texture_id
-            ),
+            message: "Cannot dispose fallback texture".into(),
         };
+    }
+
+    // Replace texture with fallback in all materials using it
+    let materials_affected: Vec<_> = render_state
+        .resources
+        .materials
+        .iter()
+        .filter(|(_, m)| m.textures.contains(&args.texture_id))
+        .map(|(id, _)| *id)
+        .collect();
+
+    for material_id in &materials_affected {
+        if let Some(material) = render_state.resources.materials.get_mut(material_id) {
+            for texture_id in material.textures.iter_mut() {
+                if *texture_id == args.texture_id {
+                    *texture_id = render_state.fallback_texture_id;
+                }
+            }
+        }
+    }
+
+    // Invalidate bind group 2 for affected materials
+    if !materials_affected.is_empty() {
+        render_state
+            .binding_manager
+            .invalidate_bind_group_2_for_materials(&materials_affected);
     }
 
     // Remove texture resource
     match render_state.resources.textures.remove(&args.texture_id) {
         Some(_) => CmdResultTextureDispose {
             success: true,
-            message: "Texture resource disposed successfully".into(),
+            message: if materials_affected.is_empty() {
+                "Texture resource disposed successfully".into()
+            } else {
+                format!(
+                    "Texture disposed ({} materials switched to fallback)",
+                    materials_affected.len()
+                )
+            },
         },
         None => CmdResultTextureDispose {
             success: false,

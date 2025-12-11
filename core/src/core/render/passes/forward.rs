@@ -165,14 +165,19 @@ pub fn forward_pass(
             render_pass.set_bind_group(1, bind_group, &offsets);
         }
 
-        // Group 2: Model/Instance uniforms
+        // Group 2: Textures/Samplers (if exists)
         if let Some(bind_group) = &binding.bind_group_2 {
-            let offsets = if let Some(offset) = binding.group_2_offset {
+            render_pass.set_bind_group(2, bind_group, &[]);
+        }
+
+        // Group 4: Material custom uniforms (if exists)
+        if let Some(bind_group) = &binding.bind_group_4 {
+            let offsets = if let Some(offset) = binding.group_4_offset {
                 vec![offset as u32]
             } else {
                 vec![]
             };
-            render_pass.set_bind_group(2, bind_group, &offsets);
+            render_pass.set_bind_group(4, bind_group, &offsets);
         }
 
         // Set vertex buffer

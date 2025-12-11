@@ -15,6 +15,12 @@ pub type MaterialId = u32;
 pub type TextureId = u32;
 pub type SamplerId = u32;
 
+/// Reserved ID for fallback texture (1x1 black)
+pub const FALLBACK_TEXTURE_ID: TextureId = u32::MAX;
+
+/// Reserved ID for fallback sampler (linear filtering)
+pub const FALLBACK_SAMPLER_ID: SamplerId = u32::MAX;
+
 // MARK: - Shader Bindings
 
 /// Texture binding specification in shader
@@ -24,6 +30,23 @@ pub struct TextureBinding {
     pub binding: u32,
     pub sample_type: TextureSampleType,
     pub view_dimension: TextureViewDimension,
+}
+
+/// Sampler binding specification in shader
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct SamplerBinding {
+    pub group: u32,
+    pub binding: u32,
+    pub sampler_type: SamplerBindingType,
+}
+
+/// Sampler binding type
+#[derive(Debug, Clone, Copy, Deserialize_repr, Serialize_repr)]
+#[repr(u32)]
+pub enum SamplerBindingType {
+    Filtering = 0,
+    NonFiltering,
+    Comparison,
 }
 
 /// Texture sample type
@@ -98,6 +121,8 @@ pub struct ShaderResource {
 
     // Interface metadata
     pub uniform_layouts: Vec<UniformBufferLayout>,
+    pub texture_bindings: Vec<TextureBinding>,
+    pub sampler_bindings: Vec<SamplerBinding>,
 
     // Vertex buffer layout (calculated from vertex_attributes during creation)
     pub vertex_buffer_layout: wgpu::VertexBufferLayout<'static>,
@@ -147,6 +172,7 @@ pub struct TextureParams {
 /// TextureResource wraps a WGPU texture
 pub struct TextureResource {
     pub texture: wgpu::Texture,
+    pub view: wgpu::TextureView,
     pub params: TextureParams,
 }
 
@@ -171,6 +197,7 @@ pub struct MaterialResource {
     pub pipeline_spec: PipelineSpec,
     pub pipeline: Option<wgpu::RenderPipeline>,
     pub textures: Vec<TextureId>,
+    pub samplers: Vec<SamplerId>,
     pub uniform_values: HashMap<String, UniformValue>,
 }
 

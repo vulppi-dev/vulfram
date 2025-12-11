@@ -349,11 +349,53 @@ pub fn engine_cmd_sampler_dispose(
 
     let render_state = &mut window_state.render_state;
 
+    // Prevent disposal of fallback sampler
+    if args.sampler_id == crate::core::render::resources::FALLBACK_SAMPLER_ID {
+        return CmdResultSamplerDispose {
+            success: false,
+            message: "Cannot dispose fallback sampler".into(),
+        };
+    }
+
+    // Replace sampler with fallback in all materials using it
+    let materials_affected: Vec<_> = render_state
+        .resources
+        .materials
+        .iter()
+        .filter(|(_, m)| m.samplers.contains(&args.sampler_id))
+        .map(|(id, _)| *id)
+        .collect();
+
+    for material_id in &materials_affected {
+        if let Some(material) = render_state.resources.materials.get_mut(material_id) {
+            for sampler_id in material.samplers.iter_mut() {
+                if *sampler_id == args.sampler_id {
+                    *sampler_id = render_state.fallback_sampler_id;
+                }
+            }
+        }
+    }
+
+    // Invalidate bind group 2 for affected materials
+    if !materials_affected.is_empty() {
+        render_state
+            .binding_manager
+            .invalidate_bind_group_2_for_materials(&materials_affected);
+    }
+
     // Remove sampler
     match render_state.resources.samplers.remove(&args.sampler_id) {
         Some(_) => CmdResultSamplerDispose {
             success: true,
-            message: format!("Sampler {} disposed successfully", args.sampler_id),
+            message: if materials_affected.is_empty() {
+                format!("Sampler {} disposed successfully", args.sampler_id)
+            } else {
+                format!(
+                    "Sampler {} disposed ({} materials switched to fallback)",
+                    args.sampler_id,
+                    materials_affected.len()
+                )
+            },
         },
         None => CmdResultSamplerDispose {
             success: false,

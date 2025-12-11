@@ -7,10 +7,12 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 pub const GROUP_GLOBAL: u32 = 0;
 /// Bind group 1: Mesh data (model_transform, model_normal)
 pub const GROUP_MESH: u32 = 1;
-/// Bind group 2: Instance data (instance arrays) - Reserved for future
-pub const GROUP_INSTANCE: u32 = 2;
-/// Bind group 3: Material custom data (user-defined uniforms)
-pub const GROUP_MATERIAL: u32 = 3;
+/// Bind group 2: Textures and Samplers
+pub const GROUP_TEXTURES: u32 = 2;
+/// Bind group 3: Instance data (instance arrays) - Reserved for future
+pub const GROUP_INSTANCE: u32 = 3;
+/// Bind group 4: Material custom data (user-defined uniforms)
+pub const GROUP_MATERIAL: u32 = 4;
 
 // MARK: - Uniform Types
 

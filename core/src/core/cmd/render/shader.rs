@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use crate::core::render::binding::ShaderUniformBuffers;
 use crate::core::render::buffers::UniformBufferLayout;
 use crate::core::render::resources::{
-    ShaderId, ShaderResource, StorageBufferBinding, TextureBinding, UniformBufferBinding,
-    VertexAttributeSpec,
+    SamplerBinding, ShaderId, ShaderResource, StorageBufferBinding, TextureBinding,
+    UniformBufferBinding, VertexAttributeSpec,
 };
 use crate::core::state::EngineState;
 
@@ -22,6 +22,7 @@ pub struct CmdShaderCreateArgs {
     // Shader interface metadata
     pub uniform_buffers: Vec<UniformBufferBinding>,
     pub texture_bindings: Vec<TextureBinding>,
+    pub sampler_bindings: Vec<SamplerBinding>,
     pub storage_buffers: Vec<StorageBufferBinding>,
     pub vertex_attributes: Vec<VertexAttributeSpec>,
 }
@@ -35,6 +36,7 @@ impl Default for CmdShaderCreateArgs {
             label: None,
             uniform_buffers: Vec::new(),
             texture_bindings: Vec::new(),
+            sampler_bindings: Vec::new(),
             storage_buffers: Vec::new(),
             vertex_attributes: Vec::new(),
         }
@@ -162,6 +164,7 @@ pub fn engine_cmd_shader_create(
         device,
         &uniform_layouts,
         &args.texture_bindings,
+        &args.sampler_bindings,
         &args.storage_buffers,
     );
 
@@ -173,6 +176,8 @@ pub fn engine_cmd_shader_create(
         shader_id: args.shader_id,
         module,
         uniform_layouts,
+        texture_bindings: args.texture_bindings.clone(),
+        sampler_bindings: args.sampler_bindings.clone(),
         vertex_buffer_layout,
         bind_group_layouts,
         uniform_buffers,
@@ -377,6 +382,7 @@ fn create_bind_group_layouts(
     device: &wgpu::Device,
     uniform_layouts: &[UniformBufferLayout],
     texture_bindings: &[TextureBinding],
+    sampler_bindings: &[SamplerBinding],
     storage_buffers: &[StorageBufferBinding],
 ) -> Vec<wgpu::BindGroupLayout> {
     let mut layouts = Vec::new();
@@ -386,6 +392,7 @@ fn create_bind_group_layouts(
         .iter()
         .map(|l| l.group)
         .chain(texture_bindings.iter().map(|t| t.group))
+        .chain(sampler_bindings.iter().map(|s| s.group))
         .chain(storage_buffers.iter().map(|s| s.group))
         .max()
         .unwrap_or(0);
@@ -421,6 +428,26 @@ fn create_bind_group_layouts(
                     has_dynamic_offset: false,
                     min_binding_size: None,
                 },
+                count: None,
+            });
+        }
+
+        // Add sampler entries for this group
+        for sampler in sampler_bindings.iter().filter(|s| s.group == group_idx) {
+            entries.push(wgpu::BindGroupLayoutEntry {
+                binding: sampler.binding,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(match sampler.sampler_type {
+                    crate::core::render::resources::SamplerBindingType::Filtering => {
+                        wgpu::SamplerBindingType::Filtering
+                    }
+                    crate::core::render::resources::SamplerBindingType::NonFiltering => {
+                        wgpu::SamplerBindingType::NonFiltering
+                    }
+                    crate::core::render::resources::SamplerBindingType::Comparison => {
+                        wgpu::SamplerBindingType::Comparison
+                    }
+                }),
                 count: None,
             });
         }

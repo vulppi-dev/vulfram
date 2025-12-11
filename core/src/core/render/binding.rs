@@ -26,18 +26,20 @@ pub struct BindingInfo {
     pub group_0_offset: Option<u64>,
     /// Offset in the shader's group 1 buffer (mesh)
     pub group_1_offset: Option<u64>,
-    /// Offset in the shader's group 2 buffer (instance) - Reserved for future
-    pub group_2_offset: Option<u64>,
-    /// Offset in the shader's group 3 buffer (material custom)
+    /// Offset in the shader's group 3 buffer (instance) - Reserved for future
     pub group_3_offset: Option<u64>,
+    /// Offset in the shader's group 4 buffer (material custom)
+    pub group_4_offset: Option<u64>,
     /// Cached bind group for group 0
     pub bind_group_0: Option<wgpu::BindGroup>,
     /// Cached bind group for group 1
     pub bind_group_1: Option<wgpu::BindGroup>,
-    /// Cached bind group for group 2
+    /// Cached bind group for group 2 (textures/samplers)
     pub bind_group_2: Option<wgpu::BindGroup>,
-    /// Cached bind group for group 3
+    /// Cached bind group for group 3 (instancing)
     pub bind_group_3: Option<wgpu::BindGroup>,
+    /// Cached bind group for group 4 (material custom)
+    pub bind_group_4: Option<wgpu::BindGroup>,
 }
 
 impl BindingInfo {
@@ -45,12 +47,13 @@ impl BindingInfo {
         Self {
             group_0_offset: None,
             group_1_offset: None,
-            group_2_offset: None,
             group_3_offset: None,
+            group_4_offset: None,
             bind_group_0: None,
             bind_group_1: None,
             bind_group_2: None,
             bind_group_3: None,
+            bind_group_4: None,
         }
     }
 }
@@ -116,6 +119,23 @@ impl BindingManager {
         self.bindings.clear();
     }
 
+    /// Invalidate bind group 2 for specific materials
+    /// This forces recreation of texture/sampler bind groups on next render
+    pub fn invalidate_bind_group_2_for_materials(
+        &mut self,
+        material_ids: &[super::resources::MaterialId],
+    ) {
+        for (key, binding_info) in self.bindings.iter_mut() {
+            // Check if any of the material_ids is in the resource_ids
+            let has_material = material_ids
+                .iter()
+                .any(|mid| key.resource_ids.contains(mid));
+            if has_material {
+                binding_info.bind_group_2 = None;
+            }
+        }
+    }
+
     /// Get or update binding info (lazy creation/update) - FLEXIBLE VERSION
     ///
     /// This is the core lazy update function that:
@@ -132,6 +152,15 @@ impl BindingManager {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         shader: &mut ShaderResource,
+        material_opt: Option<&super::resources::MaterialResource>,
+        textures: &std::collections::HashMap<
+            super::resources::TextureId,
+            super::resources::TextureResource,
+        >,
+        samplers: &std::collections::HashMap<
+            super::resources::SamplerId,
+            super::resources::SamplerResource,
+        >,
         time: f32,
         delta_time: f32,
         camera_opt: Option<&CameraInstance>,
@@ -172,12 +201,12 @@ impl BindingManager {
                     &mut binding_info.bind_group_1,
                 ),
                 super::buffers::GROUP_INSTANCE => (
-                    &mut binding_info.group_2_offset,
-                    &mut binding_info.bind_group_2,
-                ),
-                super::buffers::GROUP_MATERIAL => (
                     &mut binding_info.group_3_offset,
                     &mut binding_info.bind_group_3,
+                ),
+                super::buffers::GROUP_MATERIAL => (
+                    &mut binding_info.group_4_offset,
+                    &mut binding_info.bind_group_4,
                 ),
                 _ => continue, // Skip unsupported groups
             };
@@ -292,6 +321,104 @@ impl BindingManager {
             }
         }
 
+        // PHASE 8B-8E: Create bind group 2 for textures/samplers (if shader has them)
+        // Check if shader has group 2 bindings (textures or samplers)
+        let has_group_2 =
+            !shader.texture_bindings.is_empty() || !shader.sampler_bindings.is_empty();
+
+        if has_group_2 && binding_info.bind_group_2.is_none() {
+            if let Some(material) = material_opt {
+                let mut entries = Vec::new();
+
+                // PHASE 8C: Create entries for textures
+                for texture_binding in shader
+                    .texture_bindings
+                    .iter()
+                    .filter(|t| t.group == super::buffers::GROUP_TEXTURES)
+                {
+                    // Find corresponding texture in material by binding index
+                    // We assume material.textures order matches shader texture_bindings order
+                    let texture_idx = shader
+                        .texture_bindings
+                        .iter()
+                        .filter(|t| t.group == super::buffers::GROUP_TEXTURES)
+                        .position(|t| t.binding == texture_binding.binding);
+
+                    if let Some(idx) = texture_idx {
+                        if idx < material.textures.len() {
+                            let texture_id = material.textures[idx];
+                            if let Some(texture_resource) = textures.get(&texture_id) {
+                                entries.push(wgpu::BindGroupEntry {
+                                    binding: texture_binding.binding,
+                                    resource: wgpu::BindingResource::TextureView(
+                                        &texture_resource.view,
+                                    ),
+                                });
+                            } else {
+                                log::warn!("Texture {} not found in resources", texture_id);
+                            }
+                        } else {
+                            log::warn!(
+                                "Material texture index {} out of bounds (has {} textures)",
+                                idx,
+                                material.textures.len()
+                            );
+                        }
+                    }
+                }
+
+                // PHASE 8D: Create entries for samplers
+                for sampler_binding in shader
+                    .sampler_bindings
+                    .iter()
+                    .filter(|s| s.group == super::buffers::GROUP_TEXTURES)
+                {
+                    // Find corresponding sampler in material by binding index
+                    // We assume material.samplers order matches shader sampler_bindings order
+                    let sampler_idx = shader
+                        .sampler_bindings
+                        .iter()
+                        .filter(|s| s.group == super::buffers::GROUP_TEXTURES)
+                        .position(|s| s.binding == sampler_binding.binding);
+
+                    if let Some(idx) = sampler_idx {
+                        if idx < material.samplers.len() {
+                            let sampler_id = material.samplers[idx];
+                            if let Some(sampler_resource) = samplers.get(&sampler_id) {
+                                entries.push(wgpu::BindGroupEntry {
+                                    binding: sampler_binding.binding,
+                                    resource: wgpu::BindingResource::Sampler(
+                                        &sampler_resource.sampler,
+                                    ),
+                                });
+                            } else {
+                                log::warn!("Sampler {} not found in resources", sampler_id);
+                            }
+                        } else {
+                            log::warn!(
+                                "Material sampler index {} out of bounds (has {} samplers)",
+                                idx,
+                                material.samplers.len()
+                            );
+                        }
+                    }
+                }
+
+                // PHASE 8E: Create bind group 2 if we have entries
+                if !entries.is_empty() {
+                    let layout_idx = super::buffers::GROUP_TEXTURES as usize;
+                    if layout_idx < shader.bind_group_layouts.len() {
+                        binding_info.bind_group_2 =
+                            Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+                                label: Some("Bind Group 2 (Textures/Samplers)"),
+                                layout: &shader.bind_group_layouts[layout_idx],
+                                entries: &entries,
+                            }));
+                    }
+                }
+            }
+        }
+
         // Insert back into cache
         self.bindings.insert(key.clone(), binding_info);
 
@@ -352,13 +479,13 @@ pub struct ShaderUniformBuffers {
     pub group_0_buffer: Option<wgpu::Buffer>,
     pub group_0_allocator: BufferAllocator,
 
-    /// Buffer compartilhado para uniforms do grupo 1 (material)
+    /// Buffer compartilhado para uniforms do grupo 1 (mesh)
     pub group_1_buffer: Option<wgpu::Buffer>,
     pub group_1_allocator: BufferAllocator,
 
-    /// Buffer compartilhado para uniforms do grupo 2 (instance/model)
-    pub group_2_buffer: Option<wgpu::Buffer>,
-    pub group_2_allocator: BufferAllocator,
+    /// Buffer compartilhado para uniforms do grupo 4 (material custom)
+    pub group_4_buffer: Option<wgpu::Buffer>,
+    pub group_4_allocator: BufferAllocator,
 }
 
 impl ShaderUniformBuffers {
@@ -369,8 +496,8 @@ impl ShaderUniformBuffers {
             group_0_allocator: BufferAllocator::new(4096), // 4KB inicial
             group_1_buffer: None,
             group_1_allocator: BufferAllocator::new(16384), // 16KB inicial
-            group_2_buffer: None,
-            group_2_allocator: BufferAllocator::new(8192), // 8KB inicial
+            group_4_buffer: None,
+            group_4_allocator: BufferAllocator::new(8192), // 8KB inicial
         }
     }
 
@@ -379,7 +506,7 @@ impl ShaderUniformBuffers {
         let (buffer_opt, allocator) = match group {
             0 => (&mut self.group_0_buffer, &self.group_0_allocator),
             1 => (&mut self.group_1_buffer, &self.group_1_allocator),
-            2 => (&mut self.group_2_buffer, &self.group_2_allocator),
+            4 => (&mut self.group_4_buffer, &self.group_4_allocator),
             _ => return,
         };
 
@@ -413,7 +540,7 @@ impl ShaderUniformBuffers {
         let allocator = match group {
             0 => &mut self.group_0_allocator,
             1 => &mut self.group_1_allocator,
-            2 => &mut self.group_2_allocator,
+            4 => &mut self.group_4_allocator,
             _ => return Err(format!("Invalid group {}", group)),
         };
 
@@ -424,7 +551,7 @@ impl ShaderUniformBuffers {
             let buffer_opt = match group {
                 0 => &mut self.group_0_buffer,
                 1 => &mut self.group_1_buffer,
-                2 => &mut self.group_2_buffer,
+                4 => &mut self.group_4_buffer,
                 _ => return Err(format!("Invalid group {}", group)),
             };
 
@@ -451,7 +578,7 @@ impl ShaderUniformBuffers {
         match group {
             0 => self.group_0_allocator.deallocate(id),
             1 => self.group_1_allocator.deallocate(id),
-            2 => self.group_2_allocator.deallocate(id),
+            4 => self.group_4_allocator.deallocate(id),
             _ => {}
         }
     }
@@ -461,7 +588,7 @@ impl ShaderUniformBuffers {
         match group {
             0 => self.group_0_buffer.as_ref(),
             1 => self.group_1_buffer.as_ref(),
-            2 => self.group_2_buffer.as_ref(),
+            4 => self.group_4_buffer.as_ref(),
             _ => None,
         }
     }

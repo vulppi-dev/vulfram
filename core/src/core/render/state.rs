@@ -29,6 +29,12 @@ pub struct RenderState {
 
     /// Cache for blit bind groups per camera
     pub blit_bind_group_cache: HashMap<u32, wgpu::BindGroup>,
+
+    /// Fallback texture ID (always available, cannot be disposed)
+    pub fallback_texture_id: super::resources::TextureId,
+
+    /// Fallback sampler ID (always available, cannot be disposed)
+    pub fallback_sampler_id: super::resources::SamplerId,
 }
 
 impl RenderState {
@@ -50,6 +56,8 @@ impl RenderState {
             blit_sampler: None,
             blit_bind_group_layout: None,
             blit_bind_group_cache: HashMap::new(),
+            fallback_texture_id: super::resources::FALLBACK_TEXTURE_ID,
+            fallback_sampler_id: super::resources::FALLBACK_SAMPLER_ID,
         }
     }
 
@@ -145,6 +153,79 @@ impl RenderState {
         self.blit_pipeline = Some(pipeline);
         self.blit_sampler = Some(sampler);
         self.blit_bind_group_layout = Some(bind_group_layout);
+    }
+
+    /// Initialize fallback resources (1x1 black texture and default sampler)
+    /// These resources are always available and cannot be disposed
+    pub fn init_fallback_resources(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
+        // Create 1x1 black texture
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Fallback Texture"),
+            size: wgpu::Extent3d {
+                width: 1,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
+        // Write black pixel data
+        queue.write_texture(
+            texture.as_image_copy(),
+            &[0u8, 0, 0, 255], // Black with full alpha
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(4),
+                rows_per_image: Some(1),
+            },
+            wgpu::Extent3d {
+                width: 1,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        // Texture parameters
+        let params = super::resources::TextureParams {
+            width: 1,
+            height: 1,
+            mip_level_count: 1,
+        };
+
+        // Register fallback texture
+        self.resources.textures.insert(
+            super::resources::FALLBACK_TEXTURE_ID,
+            super::resources::TextureResource {
+                texture,
+                view,
+                params,
+            },
+        );
+
+        // Create fallback sampler (linear filtering, repeat addressing)
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("Fallback Sampler"),
+            address_mode_u: wgpu::AddressMode::Repeat,
+            address_mode_v: wgpu::AddressMode::Repeat,
+            address_mode_w: wgpu::AddressMode::Repeat,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Linear,
+            ..Default::default()
+        });
+
+        // Register fallback sampler
+        self.resources.samplers.insert(
+            super::resources::FALLBACK_SAMPLER_ID,
+            super::resources::SamplerResource { sampler },
+        );
     }
 
     /// Explicitly drop all render state resources

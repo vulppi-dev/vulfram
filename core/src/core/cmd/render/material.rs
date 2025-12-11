@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use crate::core::render::buffers::UniformValue;
 use crate::core::render::material_types::*;
 use crate::core::render::resources::{
-    MaterialId, MaterialResource, PipelineSpec, ShaderId, TextureId,
+    MaterialId, MaterialResource, PipelineSpec, SamplerId, ShaderId, TextureId,
 };
 use crate::core::state::EngineState;
 
@@ -18,6 +18,7 @@ pub struct CmdMaterialCreateArgs {
     pub window_id: u32,
     pub shader_id: ShaderId,
     pub textures: Vec<TextureId>,
+    pub samplers: Vec<SamplerId>,
     pub blend: Option<BlendStateDesc>,
     pub depth_stencil: Option<DepthStencilStateDesc>,
     pub primitive: PrimitiveStateDesc,
@@ -33,6 +34,7 @@ impl Default for CmdMaterialCreateArgs {
             window_id: 0,
             shader_id: 0,
             textures: Vec::new(),
+            samplers: Vec::new(),
             blend: None,
             depth_stencil: None,
             primitive: PrimitiveStateDesc::default(),
@@ -113,6 +115,16 @@ pub fn engine_cmd_material_create(
         }
     }
 
+    // Validate all samplers exist
+    for sampler_id in &args.samplers {
+        if !render_state.resources.samplers.contains_key(sampler_id) {
+            return CmdResultMaterialCreate {
+                success: false,
+                message: format!("Sampler with id {} not found", sampler_id),
+            };
+        }
+    }
+
     // Convert blend state
     let blend = args.blend.as_ref().map(|b| wgpu::BlendState {
         color: wgpu::BlendComponent {
@@ -187,6 +199,7 @@ pub fn engine_cmd_material_create(
         pipeline_spec,
         pipeline: None,
         textures: args.textures.clone(),
+        samplers: args.samplers.clone(),
         uniform_values: args.uniform_values.clone().unwrap_or_default(),
     };
 

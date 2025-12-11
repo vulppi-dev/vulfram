@@ -158,8 +158,12 @@ pub fn engine_cmd_shader_create(
     let vertex_buffer_layout = build_vertex_buffer_layout(&args.vertex_attributes);
 
     // Create bind group layouts
-    let bind_group_layouts =
-        create_bind_group_layouts(device, &uniform_layouts, &args.texture_bindings);
+    let bind_group_layouts = create_bind_group_layouts(
+        device,
+        &uniform_layouts,
+        &args.texture_bindings,
+        &args.storage_buffers,
+    );
 
     // Create uniform buffers (initially empty, will grow as needed)
     let uniform_buffers = ShaderUniformBuffers::new();
@@ -367,11 +371,12 @@ fn build_vertex_buffer_layout(
     }
 }
 
-/// Create bind group layouts from uniform layouts and texture bindings
+/// Create bind group layouts from uniform layouts, texture bindings, and storage buffers
 fn create_bind_group_layouts(
     device: &wgpu::Device,
     uniform_layouts: &[UniformBufferLayout],
     texture_bindings: &[TextureBinding],
+    storage_buffers: &[StorageBufferBinding],
 ) -> Vec<wgpu::BindGroupLayout> {
     let mut layouts = Vec::new();
 
@@ -380,6 +385,7 @@ fn create_bind_group_layouts(
         .iter()
         .map(|l| l.group)
         .chain(texture_bindings.iter().map(|t| t.group))
+        .chain(storage_buffers.iter().map(|s| s.group))
         .max()
         .unwrap_or(0);
 
@@ -394,6 +400,24 @@ fn create_bind_group_layouts(
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: true, // Always dynamic for flexibility
+                    min_binding_size: None,
+                },
+                count: None,
+            });
+        }
+
+        // Add storage buffer entries for this group
+        for storage in storage_buffers.iter().filter(|s| s.group == group_idx) {
+            entries.push(wgpu::BindGroupLayoutEntry {
+                binding: storage.binding,
+                visibility: wgpu::ShaderStages::VERTEX
+                    | wgpu::ShaderStages::FRAGMENT
+                    | wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage {
+                        read_only: storage.read_only,
+                    },
+                    has_dynamic_offset: false,
                     min_binding_size: None,
                 },
                 count: None,

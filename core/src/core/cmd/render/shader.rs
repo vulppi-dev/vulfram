@@ -63,6 +63,11 @@ pub fn engine_cmd_shader_create(
     engine: &mut EngineState,
     args: &CmdShaderCreateArgs,
 ) -> CmdResultShaderCreate {
+    eprintln!(
+        "🔍 DEBUG: Shader create - window_id={}, shader_id={}, buffer_id={}",
+        args.window_id, args.shader_id, args.buffer_id
+    );
+
     // Validate window exists
     let window_state = match engine.windows.get_mut(&args.window_id) {
         Some(ws) => ws,
@@ -96,17 +101,37 @@ pub fn engine_cmd_shader_create(
     };
 
     // Get shader source from upload buffer
+    eprintln!("🔍 DEBUG: Looking for shader buffer {}", args.buffer_id);
+    eprintln!(
+        "🔍 DEBUG: Available buffers: {:?}",
+        engine.buffers.keys().collect::<Vec<_>>()
+    );
+
     let shader_source = match engine.buffers.get(&args.buffer_id) {
-        Some(buffer) => match std::str::from_utf8(&buffer.data) {
-            Ok(source) => source,
-            Err(_) => {
-                return CmdResultShaderCreate {
-                    success: false,
-                    message: "Invalid UTF-8 in shader source".into(),
-                };
+        Some(buffer) => {
+            eprintln!(
+                "🔍 DEBUG: Found shader buffer, size={} bytes",
+                buffer.data.len()
+            );
+            match std::str::from_utf8(&buffer.data) {
+                Ok(source) => {
+                    eprintln!(
+                        "🔍 DEBUG: Shader source valid UTF-8, first 100 chars: {}",
+                        &source[..source.len().min(100)]
+                    );
+                    source
+                }
+                Err(_) => {
+                    eprintln!("🔍 DEBUG: Shader source is not valid UTF-8");
+                    return CmdResultShaderCreate {
+                        success: false,
+                        message: "Invalid UTF-8 in shader source".into(),
+                    };
+                }
             }
-        },
+        }
         None => {
+            eprintln!("🔍 DEBUG: Shader buffer {} not found", args.buffer_id);
             return CmdResultShaderCreate {
                 success: false,
                 message: format!("Upload buffer with id {} not found", args.buffer_id),
@@ -286,7 +311,7 @@ pub fn engine_cmd_shader_dispose(
 
 /// Global arena for vertex attributes to avoid Box::leak memory leak
 /// This uses a thread-safe static storage that can be properly cleaned up
-static VERTEX_ATTRIBUTES_ARENA: std::sync::Mutex<Vec<Vec<wgpu::VertexAttribute>>> = 
+static VERTEX_ATTRIBUTES_ARENA: std::sync::Mutex<Vec<Vec<wgpu::VertexAttribute>>> =
     std::sync::Mutex::new(Vec::new());
 
 /// Build vertex buffer layout from vertex attributes
@@ -331,7 +356,7 @@ fn build_vertex_buffer_layout(
         // 2. Vec never reallocates once we stop pushing to inner vecs
         // 3. Shaders are typically loaded once and kept for program duration
         std::mem::transmute::<&[wgpu::VertexAttribute], &'static [wgpu::VertexAttribute]>(
-            arena.last().unwrap().as_slice()
+            arena.last().unwrap().as_slice(),
         )
     };
 
@@ -368,7 +393,7 @@ fn create_bind_group_layouts(
                 visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
+                    has_dynamic_offset: true, // Always dynamic for flexibility
                     min_binding_size: None,
                 },
                 count: None,
@@ -421,14 +446,13 @@ fn create_bind_group_layouts(
             });
         }
 
-        // Only create layout if there are entries
-        if !entries.is_empty() {
-            let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some(&format!("Bind Group Layout {}", group_idx)),
-                entries: &entries,
-            });
-            layouts.push(layout);
-        }
+        // Create layout even if empty - wgpu requires bind group indices to match layout positions
+        // If we have group 0 and group 2, we need 3 layouts (0, 1, 2) where 1 is empty
+        let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some(&format!("Bind Group Layout {}", group_idx)),
+            entries: &entries,
+        });
+        layouts.push(layout);
     }
 
     layouts

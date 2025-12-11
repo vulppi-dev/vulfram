@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::core::state::EngineState;
 
@@ -40,16 +41,15 @@ pub fn engine_cmd_window_set_cursor_visible(
 // MARK: - Set Cursor Grab
 
 /// Cursor grab modes
-#[repr(u8)]
-#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
-#[serde(rename_all = "kebab-case")]
+#[repr(u32)]
+#[derive(Debug, Deserialize_repr, Serialize_repr, Clone, Copy)]
 pub enum CursorGrabMode {
     /// No grabbing
     None = 0,
     /// Cursor confined to window
-    Confined = 1,
+    Confined,
     /// Cursor locked to window
-    Locked = 2,
+    Locked,
 }
 
 impl Default for CursorGrabMode {
@@ -124,78 +124,77 @@ pub fn engine_cmd_window_set_cursor_grab(
 // MARK: - Set Cursor Icon
 
 /// Cursor icon types
-#[repr(u16)]
-#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
-#[serde(rename_all = "kebab-case")]
+#[repr(u32)]
+#[derive(Debug, Deserialize_repr, Serialize_repr, Clone, Copy)]
 pub enum CursorIcon {
     /// Default cursor
     Default = 0,
     /// Context menu cursor
-    ContextMenu = 1,
+    ContextMenu,
     /// Help cursor
-    Help = 2,
+    Help,
     /// Pointer/hand cursor
-    Pointer = 3,
+    Pointer,
     /// Progress cursor
-    Progress = 4,
+    Progress,
     /// Wait cursor
-    Wait = 5,
+    Wait,
     /// Cell cursor
-    Cell = 6,
+    Cell,
     /// Crosshair cursor
-    Crosshair = 7,
+    Crosshair,
     /// Text cursor
-    Text = 8,
+    Text,
     /// Vertical text cursor
-    VerticalText = 9,
+    VerticalText,
     /// Alias cursor
-    Alias = 10,
+    Alias,
     /// Copy cursor
-    Copy = 11,
+    Copy,
     /// Move cursor
-    Move = 12,
+    Move,
     /// No drop cursor
-    NoDrop = 13,
+    NoDrop,
     /// Not allowed cursor
-    NotAllowed = 14,
+    NotAllowed,
     /// Grab cursor
-    Grab = 15,
+    Grab,
     /// Grabbing cursor
-    Grabbing = 16,
+    Grabbing,
     /// E-resize cursor
-    EResize = 17,
+    EResize,
     /// N-resize cursor
-    NResize = 18,
+    NResize,
     /// NE-resize cursor
-    NeResize = 19,
+    NeResize,
     /// NW-resize cursor
-    NwResize = 20,
+    NwResize,
     /// S-resize cursor
-    SResize = 21,
+    SResize,
     /// SE-resize cursor
-    SeResize = 22,
+    SeResize,
     /// SW-resize cursor
-    SwResize = 23,
+    SwResize,
     /// W-resize cursor
-    WResize = 24,
+    WResize,
     /// EW-resize cursor
-    EwResize = 25,
+    EwResize,
     /// NS-resize cursor
-    NsResize = 26,
+    NsResize,
     /// NESW-resize cursor
-    NeswResize = 27,
+    NeswResize,
     /// NWSE-resize cursor
-    NwseResize = 28,
+    NwseResize,
     /// Column resize cursor
-    ColResize = 29,
+    ColResize,
     /// Row resize cursor
-    RowResize = 30,
+    RowResize,
     /// All scroll cursor
-    AllScroll = 31,
+    AllScroll,
     /// Zoom in cursor
-    ZoomIn = 32,
+    ZoomIn,
     /// Zoom out cursor
-    ZoomOut = 33,
+    ZoomOut,
 }
 
 impl Default for CursorIcon {

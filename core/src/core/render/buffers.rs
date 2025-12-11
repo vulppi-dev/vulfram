@@ -186,7 +186,6 @@ pub struct UniformFieldLayout {
     pub name: String,
     pub field_type: UniformType,
     pub offset: u32,
-    #[allow(dead_code)]
     pub size: u32,
 }
 
@@ -233,7 +232,6 @@ impl UniformBufferLayout {
     }
 
     /// Pack uniform values into byte buffer following this layout
-    #[allow(dead_code)]
     pub fn pack_values(&self, values: &HashMap<String, UniformValue>) -> Result<Vec<u8>, String> {
         let mut packed = vec![0u8; self.total_size as usize];
 

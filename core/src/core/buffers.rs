@@ -1,4 +1,4 @@
-use super::result::VulframResult;
+use super::VulframResult;
 use super::singleton::with_engine;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 

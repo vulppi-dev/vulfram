@@ -244,27 +244,28 @@ impl BindingManager {
             }
 
             // Create bind group if needed (first time or buffer recreated)
-            if bind_group_field.is_none() && (group as usize) < shader.bind_group_layouts.len() {
-                let offset = offset_field.unwrap();
-                let size = layout.total_size as u64;
+            // With dynamic offsets, we create ONE bind group per shader group (not per component)
+            if bind_group_field.is_none() {
+                // With the new architecture, bind_group_layouts is dense and group index = layout index
+                // If we have groups 0 and 2, bind_group_layouts has 3 elements (0, 1 empty, 2)
+                let layout_idx = group as usize;
 
                 if let Some(buffer) = shader.uniform_buffers.get_buffer(group) {
-                    *bind_group_field =
-                        Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
-                            label: Some(&format!(
-                                "Bind Group {} - Component {}",
-                                group, key.component_id
-                            )),
-                            layout: &shader.bind_group_layouts[group as usize],
-                            entries: &[wgpu::BindGroupEntry {
-                                binding: layout.binding,
-                                resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                                    buffer,
-                                    offset,
-                                    size: std::num::NonZeroU64::new(size),
-                                }),
-                            }],
-                        }));
+                    if layout_idx < shader.bind_group_layouts.len() {
+                        *bind_group_field =
+                            Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+                                label: Some(&format!("Bind Group {}", group)),
+                                layout: &shader.bind_group_layouts[layout_idx],
+                                entries: &[wgpu::BindGroupEntry {
+                                    binding: layout.binding,
+                                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                                        buffer,
+                                        offset: 0, // Dynamic offset - will be provided at draw time
+                                        size: None, // Whole buffer
+                                    }),
+                                }],
+                            }));
+                    }
                 }
             }
         }

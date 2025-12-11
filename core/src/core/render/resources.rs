@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::HashMap;
 use wgpu;
 
@@ -26,20 +27,20 @@ pub struct TextureBinding {
 }
 
 /// Texture sample type
-#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Debug, Clone, Copy, Deserialize_repr, Serialize_repr)]
+#[repr(u32)]
 pub enum TextureSampleType {
-    Float,
+    Float = 0,
     Depth,
     Sint,
     Uint,
 }
 
 /// Texture view dimension
-#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Debug, Clone, Copy, Deserialize_repr, Serialize_repr)]
+#[repr(u32)]
 pub enum TextureViewDimension {
-    D1,
+    D1 = 0,
     D2,
     D2Array,
     Cube,
@@ -72,10 +73,10 @@ pub struct VertexAttributeSpec {
 }
 
 /// Vertex semantic for attribute matching
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize_repr, Serialize_repr)]
+#[repr(u32)]
 pub enum VertexSemantic {
-    Position,
+    Position = 0,
     Normal,
     Tangent,
     UV0,
@@ -97,11 +98,8 @@ pub struct ShaderResource {
 
     // Interface metadata
     pub uniform_layouts: Vec<UniformBufferLayout>,
-    #[allow(dead_code)]
     pub texture_bindings: Vec<TextureBinding>,
-    #[allow(dead_code)]
     pub storage_buffers: Vec<StorageBufferBinding>,
-    #[allow(dead_code)]
     pub vertex_attributes: Vec<VertexAttributeSpec>,
 
     // 🆕 NEW: Vertex buffer layout (calculated from vertex_attributes)
@@ -135,16 +133,11 @@ impl Default for VertexAttributeDesc {
 
 /// GeometryResource represents a mesh/geometry asset
 pub struct GeometryResource {
-    #[allow(dead_code)]
     pub geometry_id: GeometryId,
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
-    #[allow(dead_code)]
     pub vertex_count: u32,
     pub index_count: u32,
-    /// 🆕 Vertex stride in bytes (replaces vertex_attributes)
-    /// Vertex layout comes from the shader, not the geometry
-    #[allow(dead_code)]
     pub vertex_stride: u32,
     pub index_format: IndexFormat,
 }
@@ -154,26 +147,21 @@ pub struct GeometryResource {
 pub struct TextureParams {
     pub width: u32,
     pub height: u32,
-    #[allow(dead_code)]
     pub format: wgpu::TextureFormat,
-    #[allow(dead_code)]
     pub usage: wgpu::TextureUsages,
     pub mip_level_count: u32,
 }
 
 /// TextureResource wraps a WGPU texture and view
 pub struct TextureResource {
-    #[allow(dead_code)]
     pub texture_id: TextureId,
     pub texture: wgpu::Texture,
-    #[allow(dead_code)]
     pub view: wgpu::TextureView,
     pub params: TextureParams,
 }
 
 /// SamplerParams describes sampler creation parameters
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct SamplerParams {
     pub address_mode_u: wgpu::AddressMode,
     pub address_mode_v: wgpu::AddressMode,
@@ -189,7 +177,6 @@ pub struct SamplerParams {
 }
 
 /// SamplerResource wraps a WGPU sampler
-#[allow(dead_code)]
 pub struct SamplerResource {
     pub sampler_id: SamplerId,
     pub sampler: wgpu::Sampler,
@@ -208,15 +195,10 @@ pub struct PipelineSpec {
 
 /// MaterialResource represents everything needed to draw with a material
 pub struct MaterialResource {
-    #[allow(dead_code)]
     pub material_id: MaterialId,
     pub pipeline_spec: PipelineSpec,
-    /// Render pipeline (created lazily on first draw)
-    /// Pipeline is built from shader + pipeline_spec
     pub pipeline: Option<wgpu::RenderPipeline>,
-    /// Textures used by this material
     pub textures: Vec<TextureId>,
-    /// Custom uniform values for material-specific parameters
     pub uniform_values: HashMap<String, UniformValue>,
 }
 

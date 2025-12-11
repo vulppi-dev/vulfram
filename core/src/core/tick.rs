@@ -2,9 +2,9 @@ use gilrs::{Event as GilrsEvent, EventType as GilrsEventType};
 use std::time::Instant;
 use winit::platform::pump_events::EventLoopExtPumpEvents;
 
+use super::VulframResult;
 use super::cmd::EngineEvent;
 use super::cmd::events::{ElementState, GamepadEvent};
-use super::result::VulframResult;
 use super::singleton::with_engine_singleton;
 use super::state::EngineState;
 

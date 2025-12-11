@@ -126,22 +126,6 @@ impl EngineState {
         }
     }
 
-    /// Mark a specific window as dirty to trigger redraw on next tick
-    #[allow(dead_code)]
-    pub fn mark_window_dirty(&mut self, window_id: u32) {
-        if let Some(window_state) = self.windows.get_mut(&window_id) {
-            window_state.is_dirty = true;
-        }
-    }
-
-    /// Mark all windows as dirty to trigger redraw on next tick
-    #[allow(dead_code)]
-    pub fn mark_all_windows_dirty(&mut self) {
-        for window_state in self.windows.values_mut() {
-            window_state.is_dirty = true;
-        }
-    }
-
     /// Cleanup window resources (called on close or destroy)
     /// Returns true if window was found and cleaned up
     pub fn cleanup_window(&mut self, window_id: u32) -> bool {

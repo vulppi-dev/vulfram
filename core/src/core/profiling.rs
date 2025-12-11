@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::result::VulframResult;
+use super::VulframResult;
 use super::singleton::with_engine;
 
 /// Profiling data structure for export

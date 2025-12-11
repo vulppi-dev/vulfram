@@ -1,18 +1,18 @@
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::core::state::EngineState;
 
 // MARK: - Request Attention
 
 /// User attention request types
-#[repr(u8)]
-#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
-#[serde(rename_all = "kebab-case")]
+#[repr(u32)]
+#[derive(Debug, Deserialize_repr, Serialize_repr, Clone, Copy)]
 pub enum UserAttentionType {
     /// Urgent attention (e.g., bouncing icon, flashing taskbar continuously)
     Critical = 0,
     /// Informational attention (e.g., single bounce, flash once)
-    Informational = 1,
+    Informational,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]

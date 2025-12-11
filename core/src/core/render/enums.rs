@@ -8,49 +8,49 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 pub enum TextureFormat {
     // 8-bit formats
     R8Unorm = 0,
-    R8Snorm = 1,
-    R8Uint = 2,
-    R8Sint = 3,
+    R8Snorm,
+    R8Uint,
+    R8Sint,
     // 16-bit formats
-    R16Uint = 4,
-    R16Sint = 5,
-    R16Float = 6,
-    Rg8Unorm = 7,
-    Rg8Snorm = 8,
-    Rg8Uint = 9,
-    Rg8Sint = 10,
+    R16Uint,
+    R16Sint,
+    R16Float,
+    Rg8Unorm,
+    Rg8Snorm,
+    Rg8Uint,
+    Rg8Sint,
     // 32-bit formats
-    R32Uint = 11,
-    R32Sint = 12,
-    R32Float = 13,
-    Rg16Uint = 14,
-    Rg16Sint = 15,
-    Rg16Float = 16,
-    Rgba8Unorm = 17,
-    Rgba8UnormSrgb = 18,
-    Rgba8Snorm = 19,
-    Rgba8Uint = 20,
-    Rgba8Sint = 21,
-    Bgra8Unorm = 22,
-    Bgra8UnormSrgb = 23,
+    R32Uint,
+    R32Sint,
+    R32Float,
+    Rg16Uint,
+    Rg16Sint,
+    Rg16Float,
+    Rgba8Unorm,
+    Rgba8UnormSrgb,
+    Rgba8Snorm,
+    Rgba8Uint,
+    Rgba8Sint,
+    Bgra8Unorm,
+    Bgra8UnormSrgb,
     // Packed 32-bit formats
-    Rgb10a2Unorm = 24,
+    Rgb10a2Unorm,
     // 64-bit formats
-    Rg32Uint = 25,
-    Rg32Sint = 26,
-    Rg32Float = 27,
-    Rgba16Uint = 28,
-    Rgba16Sint = 29,
-    Rgba16Float = 30,
+    Rg32Uint,
+    Rg32Sint,
+    Rg32Float,
+    Rgba16Uint,
+    Rgba16Sint,
+    Rgba16Float,
     // 128-bit formats
-    Rgba32Uint = 31,
-    Rgba32Sint = 32,
-    Rgba32Float = 33,
+    Rgba32Uint,
+    Rgba32Sint,
+    Rgba32Float,
     // Depth/stencil formats
-    Depth32Float = 34,
-    Depth24Plus = 35,
-    Depth24PlusStencil8 = 36,
-    Depth32FloatStencil8 = 37,
+    Depth32Float,
+    Depth24Plus,
+    Depth24PlusStencil8,
+    Depth32FloatStencil8,
 }
 
 impl TextureFormat {
@@ -135,39 +135,39 @@ impl TextureUsage {
 #[repr(u32)]
 pub enum VertexFormat {
     Uint8x2 = 0,
-    Uint8x4 = 1,
-    Sint8x2 = 2,
-    Sint8x4 = 3,
-    Unorm8x2 = 4,
-    Unorm8x4 = 5,
-    Snorm8x2 = 6,
-    Snorm8x4 = 7,
-    Uint16x2 = 8,
-    Uint16x4 = 9,
-    Sint16x2 = 10,
-    Sint16x4 = 11,
-    Unorm16x2 = 12,
-    Unorm16x4 = 13,
-    Snorm16x2 = 14,
-    Snorm16x4 = 15,
-    Float16x2 = 16,
-    Float16x4 = 17,
-    Float32 = 18,
-    Float32x2 = 19,
-    Float32x3 = 20,
-    Float32x4 = 21,
-    Uint32 = 22,
-    Uint32x2 = 23,
-    Uint32x3 = 24,
-    Uint32x4 = 25,
-    Sint32 = 26,
-    Sint32x2 = 27,
-    Sint32x3 = 28,
-    Sint32x4 = 29,
-    Float64 = 30,
-    Float64x2 = 31,
-    Float64x3 = 32,
-    Float64x4 = 33,
+    Uint8x4,
+    Sint8x2,
+    Sint8x4,
+    Unorm8x2,
+    Unorm8x4,
+    Snorm8x2,
+    Snorm8x4,
+    Uint16x2,
+    Uint16x4,
+    Sint16x2,
+    Sint16x4,
+    Unorm16x2,
+    Unorm16x4,
+    Snorm16x2,
+    Snorm16x4,
+    Float16x2,
+    Float16x4,
+    Float32,
+    Float32x2,
+    Float32x3,
+    Float32x4,
+    Uint32,
+    Uint32x2,
+    Uint32x3,
+    Uint32x4,
+    Sint32,
+    Sint32x2,
+    Sint32x3,
+    Sint32x4,
+    Float64,
+    Float64x2,
+    Float64x3,
+    Float64x4,
 }
 
 impl VertexFormat {
@@ -216,7 +216,7 @@ impl VertexFormat {
 #[repr(u32)]
 pub enum IndexFormat {
     Uint16 = 0,
-    Uint32 = 1,
+    Uint32,
 }
 
 impl IndexFormat {
@@ -235,18 +235,18 @@ impl IndexFormat {
 #[repr(u32)]
 pub enum BlendFactor {
     Zero = 0,
-    One = 1,
-    Src = 2,
-    OneMinusSrc = 3,
-    SrcAlpha = 4,
-    OneMinusSrcAlpha = 5,
-    Dst = 6,
-    OneMinusDst = 7,
-    DstAlpha = 8,
-    OneMinusDstAlpha = 9,
-    SrcAlphaSaturated = 10,
-    Constant = 11,
-    OneMinusConstant = 12,
+    One,
+    Src,
+    OneMinusSrc,
+    SrcAlpha,
+    OneMinusSrcAlpha,
+    Dst,
+    OneMinusDst,
+    DstAlpha,
+    OneMinusDstAlpha,
+    SrcAlphaSaturated,
+    Constant,
+    OneMinusConstant,
 }
 
 impl BlendFactor {
@@ -274,10 +274,10 @@ impl BlendFactor {
 #[repr(u32)]
 pub enum BlendOperation {
     Add = 0,
-    Subtract = 1,
-    ReverseSubtract = 2,
-    Min = 3,
-    Max = 4,
+    Subtract,
+    ReverseSubtract,
+    Min,
+    Max,
 }
 
 impl BlendOperation {
@@ -297,13 +297,13 @@ impl BlendOperation {
 #[repr(u32)]
 pub enum CompareFunction {
     Never = 0,
-    Less = 1,
-    Equal = 2,
-    LessEqual = 3,
-    Greater = 4,
-    NotEqual = 5,
-    GreaterEqual = 6,
-    Always = 7,
+    Less,
+    Equal,
+    LessEqual,
+    Greater,
+    NotEqual,
+    GreaterEqual,
+    Always,
 }
 
 impl CompareFunction {
@@ -326,13 +326,13 @@ impl CompareFunction {
 #[repr(u32)]
 pub enum StencilOperation {
     Keep = 0,
-    Zero = 1,
-    Replace = 2,
-    Invert = 3,
-    IncrementClamp = 4,
-    DecrementClamp = 5,
-    IncrementWrap = 6,
-    DecrementWrap = 7,
+    Zero,
+    Replace,
+    Invert,
+    IncrementClamp,
+    DecrementClamp,
+    IncrementWrap,
+    DecrementWrap,
 }
 
 impl StencilOperation {
@@ -355,10 +355,10 @@ impl StencilOperation {
 #[repr(u32)]
 pub enum PrimitiveTopology {
     PointList = 0,
-    LineList = 1,
-    LineStrip = 2,
-    TriangleList = 3,
-    TriangleStrip = 4,
+    LineList,
+    LineStrip,
+    TriangleList,
+    TriangleStrip,
 }
 
 impl PrimitiveTopology {
@@ -378,7 +378,7 @@ impl PrimitiveTopology {
 #[repr(u32)]
 pub enum FrontFace {
     Ccw = 0,
-    Cw = 1,
+    Cw,
 }
 
 impl FrontFace {
@@ -395,7 +395,7 @@ impl FrontFace {
 #[repr(u32)]
 pub enum CullMode {
     Front = 0,
-    Back = 1,
+    Back,
 }
 
 impl CullMode {
@@ -412,8 +412,8 @@ impl CullMode {
 #[repr(u32)]
 pub enum PolygonMode {
     Fill = 0,
-    Line = 1,
-    Point = 2,
+    Line,
+    Point,
 }
 
 impl PolygonMode {
@@ -433,9 +433,9 @@ impl PolygonMode {
 #[repr(u32)]
 pub enum AddressMode {
     ClampToEdge = 0,
-    Repeat = 1,
-    MirrorRepeat = 2,
-    ClampToBorder = 3,
+    Repeat,
+    MirrorRepeat,
+    ClampToBorder,
 }
 
 impl AddressMode {
@@ -454,7 +454,7 @@ impl AddressMode {
 #[repr(u32)]
 pub enum FilterMode {
     Nearest = 0,
-    Linear = 1,
+    Linear,
 }
 
 impl FilterMode {
@@ -471,7 +471,7 @@ impl FilterMode {
 #[repr(u32)]
 pub enum MipmapFilterMode {
     Nearest = 0,
-    Linear = 1,
+    Linear,
 }
 
 impl MipmapFilterMode {
@@ -488,8 +488,8 @@ impl MipmapFilterMode {
 #[repr(u32)]
 pub enum BorderColor {
     TransparentBlack = 0,
-    OpaqueBlack = 1,
-    OpaqueWhite = 2,
+    OpaqueBlack,
+    OpaqueWhite,
 }
 
 impl BorderColor {

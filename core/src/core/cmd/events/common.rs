@@ -6,7 +6,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize_repr, Serialize_repr)]
 pub enum ElementState {
     Released = 0,
-    Pressed = 1,
+    Pressed,
 }
 
 /// Represents the phase of a touch/gesture event
@@ -14,9 +14,9 @@ pub enum ElementState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize_repr, Serialize_repr)]
 pub enum TouchPhase {
     Started = 0,
-    Moved = 1,
-    Ended = 2,
-    Cancelled = 3,
+    Moved,
+    Ended,
+    Cancelled,
 }
 
 /// Represents keyboard modifier keys state

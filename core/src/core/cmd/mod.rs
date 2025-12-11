@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use winit::event_loop::EventLoopProxy;
 
-use crate::core::result::VulframResult;
+use crate::core::VulframResult;
 use crate::core::singleton::EngineCustomEvents;
 use crate::core::state::EngineState;
 
@@ -283,7 +283,12 @@ pub fn engine_process_batch(
                 });
             }
             EngineCmd::CmdShaderCreate(args) => {
+                eprintln!("🔍 DEBUG: Received CmdShaderCreate command");
                 let result = render::engine_cmd_shader_create(engine, &args);
+                eprintln!(
+                    "🔍 DEBUG: Shader creation result: success={}, message={}",
+                    result.success, result.message
+                );
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::ShaderCreate(result),
@@ -311,7 +316,12 @@ pub fn engine_process_batch(
                 });
             }
             EngineCmd::CmdMaterialCreate(args) => {
+                eprintln!("🔍 DEBUG: Received CmdMaterialCreate command");
                 let result = render::engine_cmd_material_create(engine, &args);
+                eprintln!(
+                    "🔍 DEBUG: Material creation result: success={}, message={}",
+                    result.success, result.message
+                );
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::MaterialCreate(result),

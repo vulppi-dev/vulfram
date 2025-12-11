@@ -7,6 +7,7 @@ use std::time::Instant;
 use core::cmd::render::*;
 use core::cmd::win::*;
 use core::cmd::{EngineBatchCmds, EngineCmd, EngineCmdEnvelope};
+use core::render::buffers::{UniformField, UniformType};
 use core::render::components::{Viewport, ViewportMode};
 use core::render::enums::*;
 use core::render::material_types::PrimitiveStateDesc;
@@ -24,6 +25,17 @@ struct Vertex {
 // MARK: - Shader Source
 
 const TRIANGLE_SHADER: &str = r#"
+struct CameraUniforms {
+    camera_view_projection: mat4x4<f32>,
+}
+
+struct ModelUniforms {
+    model_transform: mat4x4<f32>,
+}
+
+@group(0) @binding(0) var<uniform> camera: CameraUniforms;
+@group(1) @binding(0) var<uniform> model: ModelUniforms;
+
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) color: vec3<f32>,
@@ -37,7 +49,8 @@ struct VertexOutput {
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    out.clip_position = vec4<f32>(in.position, 1.0);
+    let world_pos = model.model_transform * vec4<f32>(in.position, 1.0);
+    out.clip_position = camera.camera_view_projection * world_pos;
     out.color = in.color;
     return out;
 }
@@ -60,7 +73,7 @@ fn main() {
     // MARK: Initialize
     println!("📦 Inicializando engine...");
     let init_result = core::vulfram_init();
-    if init_result != core::result::VulframResult::Success {
+    if init_result != core::VulframResult::Success {
         eprintln!("❌ Falha ao inicializar: {:?}", init_result);
         std::process::exit(1);
     }
@@ -139,7 +152,24 @@ fn main() {
                     format: VertexFormat::Float32x3,
                 },
             ],
-            uniform_buffers: vec![],
+            uniform_buffers: vec![
+                UniformBufferBinding {
+                    group: 0,
+                    binding: 0,
+                    fields: vec![UniformField {
+                        name: "camera_view_projection".into(),
+                        field_type: UniformType::Mat4x4,
+                    }],
+                },
+                UniformBufferBinding {
+                    group: 1,
+                    binding: 0,
+                    fields: vec![UniformField {
+                        name: "model_transform".into(),
+                        field_type: UniformType::Mat4x4,
+                    }],
+                },
+            ],
             texture_bindings: vec![],
             storage_buffers: vec![],
         }),
@@ -239,7 +269,12 @@ fn main() {
 
     // Step 7: Create Camera
     println!("7️⃣ Criando câmera...");
-    let proj_mat = Mat4::IDENTITY;
+    let proj_mat = Mat4::perspective_rh(
+        std::f32::consts::FRAC_PI_4, // 45 graus FOV
+        800.0 / 600.0,               // aspect ratio
+        0.1,                         // near plane
+        100.0,                       // far plane
+    );
     let view_mat = Mat4::look_at_rh(Vec3::new(0.0, 0.0, 2.0), Vec3::ZERO, Vec3::Y);
 
     batch.clear();
@@ -290,12 +325,13 @@ fn main() {
 
     // MARK: Main Loop
     println!("🎮 Loop de renderização...");
-    println!("   Renderizando por 5 segundos\n");
+    println!("   Renderizando por 5 segundos com rotação\n");
 
     let start_time = Instant::now();
     let mut last_time = start_time;
     let mut running = true;
     let mut frame_count = 0u64;
+    let mut rotation_angle = 0.0f32;
 
     while running {
         let current_time = Instant::now();
@@ -303,9 +339,31 @@ fn main() {
         let delta_ms = current_time.duration_since(last_time).as_millis() as u32;
         last_time = current_time;
 
+        // Update rotation (1 rotation per second = 360 degrees/s = 6.28 rad/s)
+        rotation_angle += (delta_ms as f32 / 1000.0) * std::f32::consts::TAU;
+
+        // Create rotation matrix around Z axis
+        let rotation_mat = Mat4::from_rotation_z(rotation_angle);
+
+        // Send model update with new rotation
+        batch.clear();
+        batch.push(EngineCmdEnvelope {
+            id: cmd_id,
+            cmd: EngineCmd::CmdModelUpdate(CmdModelUpdateArgs {
+                component_id: model_id,
+                window_id,
+                geometry_id: None,
+                material_id: None,
+                model_mat: Some(rotation_mat),
+                layer_mask: None,
+            }),
+        });
+        cmd_id += 1;
+        send_commands(&batch);
+
         // Tick engine
         let tick_result = core::vulfram_tick(elapsed_ms, delta_ms);
-        if tick_result != core::result::VulframResult::Success {
+        if tick_result != core::VulframResult::Success {
             eprintln!("❌ Erro no tick: {:?}", tick_result);
             break;
         }
@@ -315,14 +373,41 @@ fn main() {
 
         frame_count += 1;
 
+        // Read update responses (optional - para debug)
+        let mut ptr: *const u8 = std::ptr::null();
+        let mut len: usize = 0;
+        let result = core::vulfram_receive_queue(&mut ptr, &mut len);
+        if result == core::VulframResult::Success && !ptr.is_null() && len > 0 {
+            unsafe {
+                let slice = std::slice::from_raw_parts(ptr, len);
+                if let Ok(responses) =
+                    rmp_serde::from_slice::<core::cmd::EngineBatchResponses>(slice)
+                {
+                    for response in responses {
+                        if let core::cmd::CommandResponse::ModelUpdate(r) = &response.response {
+                            if !r.success {
+                                eprintln!("⚠️ Erro ao atualizar modelo: {}", r.message);
+                            }
+                        }
+                    }
+                }
+                free_core_buffer(ptr, len);
+            }
+        }
+
         // Log a cada 60 frames (~1s)
         if frame_count % 60 == 0 {
             let fps = 1000.0 / delta_ms.max(1) as f32;
-            println!("📊 Frame {}: {:.1} FPS", frame_count, fps);
+            println!(
+                "📊 Frame {}: {:.1} FPS | Ângulo: {:.1}°",
+                frame_count,
+                fps,
+                rotation_angle.to_degrees() % 360.0
+            );
         }
 
-        // Sleep ~60 FPS
-        std::thread::sleep(std::time::Duration::from_millis(16));
+        // Sleep ~244 FPS
+        std::thread::sleep(std::time::Duration::from_millis(4));
 
         // Roda por 5 segundos
         if elapsed_ms > 5000 {
@@ -358,7 +443,7 @@ fn free_core_buffer(ptr: *const u8, len: usize) {
 
 fn upload_buffer(buffer_id: u64, data: &[u8]) {
     let result = core::vulfram_upload_buffer(buffer_id, 0, data.as_ptr(), data.len());
-    if result != core::result::VulframResult::Success {
+    if result != core::VulframResult::Success {
         eprintln!("⚠️ Falha no upload do buffer {}: {:?}", buffer_id, result);
     }
 }
@@ -367,7 +452,7 @@ fn send_commands(batch: &EngineBatchCmds) {
     match rmp_serde::to_vec(batch) {
         Ok(bytes) => {
             let result = core::vulfram_send_queue(bytes.as_ptr(), bytes.len());
-            if result != core::result::VulframResult::Success {
+            if result != core::VulframResult::Success {
                 eprintln!("⚠️ Falha ao enviar comandos: {:?}", result);
             }
         }
@@ -384,7 +469,7 @@ fn read_window_create_response() -> (bool, u32) {
     let mut success = false;
 
     let result = core::vulfram_receive_queue(&mut ptr, &mut len);
-    if result == core::result::VulframResult::Success && !ptr.is_null() && len > 0 {
+    if result == core::VulframResult::Success && !ptr.is_null() && len > 0 {
         unsafe {
             let slice = std::slice::from_raw_parts(ptr, len);
             match rmp_serde::from_slice::<core::cmd::EngineBatchResponses>(slice) {
@@ -418,7 +503,7 @@ fn read_responses() {
     let mut len: usize = 0;
 
     let result = core::vulfram_receive_queue(&mut ptr, &mut len);
-    if result == core::result::VulframResult::Success && !ptr.is_null() && len > 0 {
+    if result == core::VulframResult::Success && !ptr.is_null() && len > 0 {
         unsafe {
             let slice = std::slice::from_raw_parts(ptr, len);
             match rmp_serde::from_slice::<core::cmd::EngineBatchResponses>(slice) {
@@ -480,7 +565,7 @@ fn read_events() {
     let mut len: usize = 0;
 
     let result = core::vulfram_receive_events(&mut ptr, &mut len);
-    if result == core::result::VulframResult::Success && !ptr.is_null() && len > 0 {
+    if result == core::VulframResult::Success && !ptr.is_null() && len > 0 {
         unsafe {
             let slice = std::slice::from_raw_parts(ptr, len);
             match rmp_serde::from_slice::<core::cmd::EngineBatchEvents>(slice) {

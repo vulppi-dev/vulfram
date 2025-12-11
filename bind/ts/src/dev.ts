@@ -31,6 +31,7 @@ import {
   type EngineBatchCmds,
   // Helpers - Material
   createDefaultPrimitiveState,
+  createDoubleSidedPrimitiveState,
   // Helpers - Viewport
   createFullscreenViewport,
   // Helpers - Layers
@@ -39,6 +40,8 @@ import {
   uniformVec4,
   uniformMat4,
   uniformColorHex,
+  // Helpers - Matrix conversion
+  mat4ToArray,
   KeyCode,
 } from './index';
 
@@ -107,26 +110,24 @@ struct VertexOutput {
 };
 
 struct CameraUniforms {
-    proj: mat4x4<f32>,
-    view: mat4x4<f32>,
+    camera_view_projection: mat4x4<f32>,
 };
 
 struct ModelUniforms {
-    model: mat4x4<f32>,
+    model_transform: mat4x4<f32>,
 };
 
 @group(0) @binding(0)
 var<uniform> camera: CameraUniforms;
 
-@group(2) @binding(0)
+@group(1) @binding(0)
 var<uniform> model: ModelUniforms;
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    let world_pos = model.model * vec4<f32>(in.position, 1.0);
-    let view_pos = camera.view * world_pos;
-    out.position = camera.proj * view_pos;
+    let world_pos = model.model_transform * vec4<f32>(in.position, 1.0);
+    out.position = camera.camera_view_projection * world_pos;
     out.color = in.color;
     return out;
 }
@@ -158,15 +159,12 @@ const shaderCmd: CmdShaderCreateArgs = {
     {
       group: 0,
       binding: 0,
-      fields: [
-        { name: 'proj', uniformType: 'mat4x4' },
-        { name: 'view', uniformType: 'mat4x4' },
-      ],
+      fields: [{ name: 'camera_view_projection', uniformType: 'mat4x4' }],
     },
     {
-      group: 2,
+      group: 1,
       binding: 0,
-      fields: [{ name: 'model', uniformType: 'mat4x4' }],
+      fields: [{ name: 'model_transform', uniformType: 'mat4x4' }],
     },
   ],
   textureBindings: [],
@@ -200,64 +198,37 @@ console.log('✓ Shader created');
 
 // MARK: Upload Geometry Data
 
-// Cube vertices (position + color)
+// Simple triangle vertices (position + color) - matching main.rs
 const vertices = new Float32Array([
-  // Front face (red)
-  -1, -1, 1, 1, 0, 0, 1, -1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, -1, 1, 1, 1, 0, 0,
-  // Back face (green)
-  -1, -1, -1, 0, 1, 0, 1, -1, -1, 0, 1, 0, 1, 1, -1, 0, 1, 0, -1, 1, -1, 0, 1,
-  0,
-  // Top face (blue)
-  -1, 1, -1, 0, 0, 1, 1, 1, -1, 0, 0, 1, 1, 1, 1, 0, 0, 1, -1, 1, 1, 0, 0, 1,
-  // Bottom face (yellow)
-  -1, -1, -1, 1, 1, 0, 1, -1, -1, 1, 1, 0, 1, -1, 1, 1, 1, 0, -1, -1, 1, 1, 1,
-  0,
-  // Right face (cyan)
-  1, -1, -1, 0, 1, 1, 1, 1, -1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, -1, 1, 0, 1, 1,
-  // Left face (magenta)
-  -1, -1, -1, 1, 0, 1, -1, 1, -1, 1, 0, 1, -1, 1, 1, 1, 0, 1, -1, -1, 1, 1, 0,
-  1,
+  // position        color
+  0.0,
+  0.5,
+  0.0,
+  1.0,
+  0.0,
+  0.0, // Top - Red
+  -0.5,
+  -0.5,
+  0.0,
+  0.0,
+  1.0,
+  0.0, // Bottom Left - Green
+  0.5,
+  -0.5,
+  0.0,
+  0.0,
+  0.0,
+  1.0, // Bottom Right - Blue
 ]);
 
-// Cube indices
-const indices = new Uint16Array([
-  0,
-  1,
-  2,
-  0,
-  2,
-  3, // Front
-  4,
-  5,
-  6,
-  4,
-  6,
-  7, // Back
-  8,
-  9,
-  10,
-  8,
-  10,
-  11, // Top
-  12,
-  13,
-  14,
-  12,
-  14,
-  15, // Bottom
-  16,
-  17,
-  18,
-  16,
-  18,
-  19, // Right
-  20,
-  21,
-  22,
-  20,
-  22,
-  23, // Left
-]);
+// Triangle indices
+const indices = new Uint16Array([0, 1, 2]);
+
+console.log('\n🔍 Geometry data:');
+console.log('Vertices:', vertices);
+console.log('Indices:', indices);
+console.log('Vertex buffer size:', vertices.byteLength, 'bytes');
+console.log('Index buffer size:', indices.byteLength, 'bytes');
 
 const vertexBufferId = 2;
 const indexBufferId = 3;
@@ -282,14 +253,14 @@ const geometryCmd: CmdGeometryCreateArgs = {
   windowId,
   vertexBufferId,
   indexBufferId,
-  vertexCount: 24,
-  indexCount: 36,
+  vertexCount: 3,
+  indexCount: 3,
   vertexAttributes: [
     { format: VertexFormat.Float32x3, offset: 0, shaderLocation: 0 }, // position
     { format: VertexFormat.Float32x3, offset: 12, shaderLocation: 1 }, // color
   ],
   indexFormat: IndexFormat.Uint16,
-  label: 'ColoredCube',
+  label: 'Triangle',
 };
 
 commands = [];
@@ -320,21 +291,30 @@ const materialCmd: CmdMaterialCreateArgs = {
   windowId,
   shaderId,
   textures: [],
-  primitive: createDefaultPrimitiveState(),
+  primitive: createDoubleSidedPrimitiveState(), // No culling to ensure triangle is visible
   label: 'DefaultMaterial',
 };
 
+console.log('\n🔍 Material command:', JSON.stringify(materialCmd, null, 2));
+
 commands = [];
-commands.push({
+const materialCommand = {
   id: nextCmdId++,
   type: 'cmd-material-create',
   content: materialCmd,
-});
+};
+commands.push(materialCommand);
+
+console.log(
+  '🔍 Full material command:',
+  JSON.stringify(materialCommand, null, 2),
+);
 
 vulframSendQueue(commands);
 vulframTick(Date.now(), 0);
 
 const [materialResponses] = vulframReceiveQueue();
+console.log('Material responses count:', materialResponses.length);
 if (materialResponses.length > 0) {
   const matResp = materialResponses[0]!;
   console.log('Material response:', matResp);
@@ -350,27 +330,35 @@ const cameraId = 100;
 const aspect = 1280 / 720;
 const projMat = mat4.perspective(
   mat4.create(),
-  (60 * Math.PI) / 180, // FOV em radianos
+  (45 * Math.PI) / 180, // 45° FOV (matching Rust)
   aspect,
   0.1,
-  1000,
+  100.0, // Far plane matching Rust
 );
 const viewMat = mat4.lookAt(
   mat4.create(),
-  [0, 2, 5], // eye
+  [0, 0, 2], // eye - matching main.rs distance
   [0, 0, 0], // target
   [0, 1, 0], // up
 );
 
+// Convert Float32Array to plain arrays for MessagePack serialization
+const projMatArray = mat4ToArray(projMat);
+const viewMatArray = mat4ToArray(viewMat);
+
+// Debug: print matrices
+console.log('\n🔍 Camera matrices:');
+console.log('Projection matrix:', projMatArray);
+console.log('View matrix:', viewMatArray);
+
 const cameraCmd: CmdCameraCreateArgs = {
   componentId: cameraId,
   windowId,
-  projMat,
-  viewMat,
+  projMat: projMatArray as any, // Convert to plain array
+  viewMat: viewMatArray as any, // Convert to plain array
   viewport: createFullscreenViewport(),
   layerMask: LAYER_WORLD,
 };
-
 commands = [];
 commands.push({
   id: nextCmdId++,
@@ -396,12 +384,16 @@ console.log('✓ Camera created');
 const modelId = 200;
 let rotation = 0;
 
+const initialModelMat = mat4.create();
+const initialModelMatArray = mat4ToArray(initialModelMat);
+console.log('\n🔍 Initial model matrix (identity):', initialModelMatArray);
+
 const modelCmd: CmdModelCreateArgs = {
   componentId: modelId,
   windowId,
   geometryId,
   materialId,
-  modelMat: mat4.create(), // Identity matrix
+  modelMat: initialModelMatArray as any, // Identity matrix
   layerMask: LAYER_WORLD,
 };
 
@@ -452,6 +444,7 @@ while (running) {
   // Update model matrix (rotation around Y axis)
   const modelMat = mat4.create();
   mat4.rotateY(modelMat, modelMat, rotation);
+  const modelMatArray = mat4ToArray(modelMat);
 
   commands = [];
   commands.push({
@@ -460,7 +453,7 @@ while (running) {
     content: {
       componentId: modelId,
       windowId,
-      modelMat,
+      modelMat: modelMatArray as any,
     },
   });
 

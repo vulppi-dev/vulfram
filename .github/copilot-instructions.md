@@ -326,3 +326,16 @@ bun run dev
   - Team-based filtering
   - Debug-only geometry
   - Special render passes (picking, shadows, etc.)
+
+### Dynamic Offset System
+
+- **Uniform buffer offsets**: Always dynamic (not embedded in bind groups)
+- **has_dynamic_offset**: Always set to `true` for all uniform buffer bindings
+- **Bind groups**: Created with `offset: 0` and `size: None`
+- **Draw time offsets**: Passed via `set_bind_group()` with offset array
+- **Group continuity**: Bind group layout indices must be contiguous (0, 1, 2...)
+  - wgpu requires all bind group slots to be filled in the pipeline layout
+  - If shader uses `@group(0)` and `@group(2)`, must create layouts for 0, 1, and 2
+  - Empty layouts (with no entries) are created for unused intermediate groups
+- **Group mapping**: Layout index = group number (direct mapping after ensuring continuity)
+- **Benefits**: Single bind group per shader group shared across all components using dynamic offsets

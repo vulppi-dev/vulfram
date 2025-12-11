@@ -168,15 +168,23 @@ export function createPrimitiveState(
   unclippedDepth: boolean = false,
   conservative: boolean = false,
 ): PrimitiveStateDesc {
-  return {
+  const result: any = {
     topology,
-    stripIndexFormat,
     frontFace,
-    cullMode: cullMode !== null ? cullMode : undefined,
     unclippedDepth,
     polygonMode,
     conservative,
   };
+
+  // Only include optional fields if they have values
+  if (stripIndexFormat !== undefined) {
+    result.stripIndexFormat = stripIndexFormat;
+  }
+  if (cullMode !== null) {
+    result.cullMode = cullMode;
+  }
+
+  return result;
 }
 
 /**

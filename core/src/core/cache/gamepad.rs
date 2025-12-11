@@ -14,9 +14,7 @@ pub const GAMEPAD_BUTTON_CHANGE_THRESHOLD: f32 = 0.05;
 /// Cached state for a single gamepad
 #[derive(Debug, Clone)]
 pub struct GamepadStateCache {
-    #[allow(dead_code)]
     pub connected: bool,
-    #[allow(dead_code)]
     pub name: String,
     pub axes: HashMap<u32, f32>,
     pub buttons: HashMap<u32, (ElementState, f32)>,
@@ -106,12 +104,6 @@ impl GamepadCacheManager {
     /// Remove cache for a disconnected gamepad
     pub fn remove_gamepad(&mut self, gamepad_id: u32) {
         self.gamepads.remove(&gamepad_id);
-    }
-
-    /// Get cache for a gamepad
-    #[allow(dead_code)]
-    pub fn get(&self, gamepad_id: u32) -> Option<&GamepadStateCache> {
-        self.gamepads.get(&gamepad_id)
     }
 
     /// Get mutable cache for a gamepad

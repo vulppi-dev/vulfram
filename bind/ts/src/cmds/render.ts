@@ -178,6 +178,14 @@ export interface Viewport {
 import type { mat4 } from 'gl-matrix';
 export type Mat4 = mat4;
 
+/**
+ * Convert gl-matrix mat4 (Float32Array) to plain number array for MessagePack serialization
+ * glam in Rust expects column-major order, which gl-matrix already provides
+ */
+export function mat4ToArray(m: mat4): number[] {
+  return Array.from(m);
+}
+
 // MARK: Shader Commands
 
 export interface CmdShaderCreateArgs {

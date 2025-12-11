@@ -64,6 +64,12 @@ pub fn engine_cmd_material_create(
     engine: &mut EngineState,
     args: &CmdMaterialCreateArgs,
 ) -> CmdResultMaterialCreate {
+    // DEBUG: Log material creation request
+    eprintln!(
+        "🔍 DEBUG: Material creation request: window_id={}, material_id={}, shader_id={}",
+        args.window_id, args.material_id, args.shader_id
+    );
+
     // Validate window exists
     let window_state = match engine.windows.get_mut(&args.window_id) {
         Some(ws) => ws,

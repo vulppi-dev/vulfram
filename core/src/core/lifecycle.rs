@@ -1,7 +1,7 @@
 use std::thread;
 use winit::event_loop::EventLoop;
 
-use super::result::VulframResult;
+use super::VulframResult;
 use super::singleton::{ENGINE_INSTANCE, EngineCustomEvents, EngineSingleton, MAIN_THREAD_ID};
 use super::state::EngineState;
 

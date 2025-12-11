@@ -3,8 +3,8 @@ use std::cell::RefCell;
 use std::thread::{self, ThreadId};
 use winit::event_loop::{EventLoop, EventLoopProxy};
 
+use super::VulframResult;
 use super::cmd::win::CmdWindowCreateArgs;
-use super::result::VulframResult;
 use super::state::EngineState;
 
 /// Custom events sent through the event loop

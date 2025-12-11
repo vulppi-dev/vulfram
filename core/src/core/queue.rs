@@ -2,8 +2,8 @@ use std::time::Instant;
 
 use crate::core::cmd::engine_process_batch;
 
+use super::VulframResult;
 use super::cmd::EngineBatchCmds;
-use super::result::VulframResult;
 use super::singleton::{with_engine, with_engine_singleton};
 
 /// Send a batch of commands to the engine
@@ -11,10 +11,17 @@ pub fn vulfram_send_queue(ptr: *const u8, length: usize) -> VulframResult {
     let data = unsafe { std::slice::from_raw_parts(ptr, length).to_vec() };
 
     let batch = match rmp_serde::from_slice::<EngineBatchCmds>(&data) {
-        Err(_e) => {
+        Err(e) => {
+            eprintln!("🔍 DEBUG: MessagePack deserialization error: {:?}", e);
             return VulframResult::CmdInvalidMessagePackError;
         }
-        Ok(batch) => batch,
+        Ok(batch) => {
+            eprintln!(
+                "🔍 DEBUG: Successfully deserialized {} commands",
+                batch.len()
+            );
+            batch
+        }
     };
 
     match with_engine_singleton(|engine| {

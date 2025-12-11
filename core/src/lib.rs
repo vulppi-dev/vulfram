@@ -4,7 +4,7 @@ mod core;
 // N-API Exports - for Node.js native modules
 // ============================================================================
 #[cfg(feature = "napi")]
-#[allow(dead_code)]
+#[allow(unused)]
 mod napi_exports {
     use super::core;
     use napi::bindgen_prelude::*;
@@ -150,7 +150,7 @@ mod napi_exports {
 // Lua Exports - for Lua bindings via mlua
 // ============================================================================
 #[cfg(feature = "lua")]
-#[allow(dead_code)]
+#[allow(unused)]
 mod lua_exports {
     use super::core;
     use mlua::prelude::*;
@@ -286,7 +286,7 @@ mod lua_exports {
 // Python Exports - for Python bindings via PyO3
 // ============================================================================
 #[cfg(feature = "python")]
-#[allow(dead_code)]
+#[allow(unused)]
 mod python_exports {
     use super::core;
     use pyo3::prelude::*;
@@ -420,7 +420,7 @@ mod python_exports {
 // FFI (C ABI) Exports - for Bun/Node FFI via dlopen
 // ============================================================================
 #[cfg(feature = "ffi")]
-#[allow(dead_code)]
+#[allow(unused)]
 mod ffi_exports {
     use super::core;
 

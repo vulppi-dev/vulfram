@@ -126,6 +126,8 @@ impl BindingManager {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         shader: &mut ShaderResource,
+        time: f32,
+        delta_time: f32,
         camera_opt: Option<&CameraInstance>,
         model_opt: Option<&MeshInstance>,
         material_uniforms: Option<&std::collections::HashMap<String, super::buffers::UniformValue>>,
@@ -202,6 +204,8 @@ impl BindingManager {
 
                 layout.inject_automatic_uniforms(
                     &mut buffer_data,
+                    Some(time),
+                    Some(delta_time),
                     Some(&camera.view_mat), // camera_view
                     Some(&camera.proj_mat), // camera_projection
                     Some(&view_proj),       // camera_view_projection
@@ -221,8 +225,10 @@ impl BindingManager {
                     None,
                     None,
                     None,
+                    None,
+                    None,
                     Some(&model.model_mat), // model_transform
-                    Some(&normal_mat),      // model_normal_matrix
+                    Some(&normal_mat),      // model_normal
                 );
             }
 

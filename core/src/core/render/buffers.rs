@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use std::collections::HashMap;
 
 // MARK: - Uniform Types
 
@@ -186,7 +185,6 @@ pub struct UniformFieldLayout {
     pub name: String,
     pub field_type: UniformType,
     pub offset: u32,
-    pub size: u32,
 }
 
 /// Layout of a complete uniform buffer with calculated offsets
@@ -214,7 +212,6 @@ impl UniformBufferLayout {
                 name: field.name.clone(), // Necessário - ownership transfer
                 field_type: field.field_type,
                 offset: current_offset,
-                size,
             });
 
             current_offset += size;
@@ -231,54 +228,27 @@ impl UniformBufferLayout {
         }
     }
 
-    /// Pack uniform values into byte buffer following this layout
-    pub fn pack_values(&self, values: &HashMap<String, UniformValue>) -> Result<Vec<u8>, String> {
-        let mut packed = vec![0u8; self.total_size as usize];
-
-        for field in &self.fields {
-            let value = values
-                .get(&field.name)
-                .ok_or_else(|| format!("Missing uniform value: {}", field.name))?;
-
-            if !value.matches_type(field.field_type) {
-                return Err(format!(
-                    "Type mismatch for '{}': expected {:?}",
-                    field.name, field.field_type
-                ));
-            }
-
-            // Copy bytes directly
-            let bytes = value.as_bytes();
-            let offset = field.offset as usize;
-            let end = offset + bytes.len();
-            if end > packed.len() {
-                return Err(format!(
-                    "Buffer overflow for field '{}': offset {} + size {} > total size {}",
-                    field.name,
-                    offset,
-                    bytes.len(),
-                    packed.len()
-                ));
-            }
-            packed[offset..end].copy_from_slice(&bytes);
-        }
-
-        Ok(packed)
-    }
-
     /// Inject automatic uniform values (camera, model transforms)
     pub fn inject_automatic_uniforms(
         &self,
         buffer_data: &mut [u8],
+        time: Option<f32>,
+        delta_time: Option<f32>,
         camera_view: Option<&glam::Mat4>,
         camera_projection: Option<&glam::Mat4>,
         camera_view_projection: Option<&glam::Mat4>,
         camera_position: Option<&glam::Vec3>,
         model_transform: Option<&glam::Mat4>,
-        model_normal_matrix: Option<&glam::Mat3>,
+        model_normal: Option<&glam::Mat3>,
     ) {
         for field in &self.fields {
+            // Extract values before match to ensure proper lifetimes
+            let time_val = time.unwrap_or(0.0);
+            let delta_time_val = delta_time.unwrap_or(0.0);
+
             let (auto_value, size) = match field.name.as_str() {
+                "time" if time.is_some() => (bytemuck::bytes_of(&time_val), 4),
+                "delta_time" if delta_time.is_some() => (bytemuck::bytes_of(&delta_time_val), 4),
                 "camera_view" if camera_view.is_some() => {
                     (bytemuck::bytes_of(camera_view.unwrap()), 64)
                 }
@@ -294,8 +264,8 @@ impl UniformBufferLayout {
                 "model_transform" if model_transform.is_some() => {
                     (bytemuck::bytes_of(model_transform.unwrap()), 64)
                 }
-                "model_normal_matrix" if model_normal_matrix.is_some() => {
-                    (bytemuck::bytes_of(model_normal_matrix.unwrap()), 48)
+                "model_normal" if model_normal.is_some() => {
+                    (bytemuck::bytes_of(model_normal.unwrap()), 48)
                 }
                 _ => continue,
             };

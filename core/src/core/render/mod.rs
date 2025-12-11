@@ -33,6 +33,10 @@ pub fn render_frames(engine_state: &mut EngineState) {
         None => return,
     };
 
+    // Convert time values from ms to seconds
+    let time = engine_state.time as f32 / 1000.0;
+    let delta_time = engine_state.delta_time as f32 / 1000.0;
+
     // Render all windows
     for (_window_id, window_state) in engine_state.windows.iter_mut() {
         // Get the surface texture
@@ -124,6 +128,8 @@ pub fn render_frames(engine_state: &mut EngineState) {
                 device,
                 queue,
                 shader,
+                time,
+                delta_time,
                 Some(camera),
                 Some(model),
                 material_uniforms,

@@ -1,6 +1,7 @@
-import * as VULFRAM_CORE from './napi';
+import * as VULFRAM_CORE from './ffi';
+// import * as VULFRAM_CORE from './napi';
 import { pack, unpack } from 'msgpackr';
-import type { VulframResult } from './enums';
+import { VulframResult } from './enums';
 import type {
   EngineBatchCmds,
   EngineBatchEvents,
@@ -191,17 +192,10 @@ export function vulframDispose(): VulframResult {
  */
 export function vulframSendQueue(batch: EngineBatchCmds): VulframResult {
   return trackBenchmark('vulframSendQueue', () => {
-    // DEBUG: Log batch before serialization
-    console.log(
-      '🔍 Sending batch:',
-      JSON.stringify(batch, null, 2).slice(0, 300),
-    );
     try {
       const buffer = pack(batch);
-      console.log('🔍 MessagePack size:', buffer.byteLength, 'bytes');
       return VULFRAM_CORE.vulframSendQueue(Buffer.from(buffer));
     } catch (e) {
-      console.error('🔍 MessagePack pack error:', e);
       return VulframResult.CmdInvalidMessagePackError;
     }
   });

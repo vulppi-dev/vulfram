@@ -65,11 +65,6 @@ pub fn engine_cmd_shader_create(
     engine: &mut EngineState,
     args: &CmdShaderCreateArgs,
 ) -> CmdResultShaderCreate {
-    eprintln!(
-        "🔍 DEBUG: Shader create - window_id={}, shader_id={}, buffer_id={}",
-        args.window_id, args.shader_id, args.buffer_id
-    );
-
     // Validate window exists
     let window_state = match engine.windows.get_mut(&args.window_id) {
         Some(ws) => ws,
@@ -102,38 +97,17 @@ pub fn engine_cmd_shader_create(
         }
     };
 
-    // Get shader source from upload buffer
-    eprintln!("🔍 DEBUG: Looking for shader buffer {}", args.buffer_id);
-    eprintln!(
-        "🔍 DEBUG: Available buffers: {:?}",
-        engine.buffers.keys().collect::<Vec<_>>()
-    );
-
     let shader_source = match engine.buffers.get(&args.buffer_id) {
-        Some(buffer) => {
-            eprintln!(
-                "🔍 DEBUG: Found shader buffer, size={} bytes",
-                buffer.data.len()
-            );
-            match std::str::from_utf8(&buffer.data) {
-                Ok(source) => {
-                    eprintln!(
-                        "🔍 DEBUG: Shader source valid UTF-8, first 100 chars: {}",
-                        &source[..source.len().min(100)]
-                    );
-                    source
-                }
-                Err(_) => {
-                    eprintln!("🔍 DEBUG: Shader source is not valid UTF-8");
-                    return CmdResultShaderCreate {
-                        success: false,
-                        message: "Invalid UTF-8 in shader source".into(),
-                    };
-                }
+        Some(buffer) => match std::str::from_utf8(&buffer.data) {
+            Ok(source) => source,
+            Err(_) => {
+                return CmdResultShaderCreate {
+                    success: false,
+                    message: "Invalid UTF-8 in shader source".into(),
+                };
             }
-        }
+        },
         None => {
-            eprintln!("🔍 DEBUG: Shader buffer {} not found", args.buffer_id);
             return CmdResultShaderCreate {
                 success: false,
                 message: format!("Upload buffer with id {} not found", args.buffer_id),

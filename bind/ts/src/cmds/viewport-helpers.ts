@@ -1,12 +1,13 @@
 import type { Viewport } from './render';
+import { ViewportMode } from '../enums';
 
 /**
  * Create a fullscreen viewport (covers entire window)
  */
 export function createFullscreenViewport(): Viewport {
   return {
-    positionMode: 'relative',
-    sizeMode: 'relative',
+    positionMode: ViewportMode.Relative,
+    sizeMode: ViewportMode.Relative,
     x: 0,
     y: 0,
     width: 1,
@@ -35,8 +36,8 @@ export function createRelativePosAbsoluteSizeViewport(
   anchorY: number = 0,
 ): Viewport {
   return {
-    positionMode: 'relative',
-    sizeMode: 'absolute',
+    positionMode: ViewportMode.Relative,
+    sizeMode: ViewportMode.Absolute,
     x,
     y,
     width,
@@ -65,8 +66,8 @@ export function createAbsolutePosRelativeSizeViewport(
   anchorY: number = 0,
 ): Viewport {
   return {
-    positionMode: 'absolute',
-    sizeMode: 'relative',
+    positionMode: ViewportMode.Absolute,
+    sizeMode: ViewportMode.Relative,
     x,
     y,
     width,
@@ -86,8 +87,8 @@ export function createCenteredAbsoluteViewport(
   height: number,
 ): Viewport {
   return {
-    positionMode: 'relative',
-    sizeMode: 'absolute',
+    positionMode: ViewportMode.Relative,
+    sizeMode: ViewportMode.Absolute,
     x: 0.5,
     y: 0.5,
     width,
@@ -114,12 +115,12 @@ export function createCornerViewport(
   offsetX: number = 0,
   offsetY: number = 0,
 ): Viewport {
-  const sizeMode = isAbsolute ? 'absolute' : 'relative';
+  const sizeMode = isAbsolute ? ViewportMode.Absolute : ViewportMode.Relative;
 
   switch (corner) {
     case 'top-left':
       return {
-        positionMode: 'absolute',
+        positionMode: ViewportMode.Absolute,
         sizeMode,
         x: offsetX,
         y: offsetY,
@@ -129,7 +130,7 @@ export function createCornerViewport(
       };
     case 'top-right':
       return {
-        positionMode: 'relative',
+        positionMode: ViewportMode.Relative,
         sizeMode,
         x: 1.0,
         y: 0,
@@ -139,7 +140,7 @@ export function createCornerViewport(
       };
     case 'bottom-left':
       return {
-        positionMode: 'relative',
+        positionMode: ViewportMode.Relative,
         sizeMode,
         x: 0,
         y: 1.0,
@@ -149,7 +150,7 @@ export function createCornerViewport(
       };
     case 'bottom-right':
       return {
-        positionMode: 'relative',
+        positionMode: ViewportMode.Relative,
         sizeMode,
         x: 1.0,
         y: 1.0,
@@ -172,8 +173,8 @@ export function createViewportWithMargin(
 ): Viewport {
   if (isAbsolute) {
     return {
-      positionMode: 'absolute',
-      sizeMode: 'relative',
+      positionMode: ViewportMode.Absolute,
+      sizeMode: ViewportMode.Relative,
       x: margin,
       y: margin,
       width: 1.0,
@@ -182,8 +183,8 @@ export function createViewportWithMargin(
     };
   } else {
     return {
-      positionMode: 'relative',
-      sizeMode: 'relative',
+      positionMode: ViewportMode.Relative,
+      sizeMode: ViewportMode.Relative,
       x: margin,
       y: margin,
       width: 1.0 - margin * 2,
@@ -208,8 +209,8 @@ export function createSplitViewport(
   if (direction === 'horizontal') {
     // Horizontal split (left/right)
     return {
-      positionMode: 'relative',
-      sizeMode: 'relative',
+      positionMode: ViewportMode.Relative,
+      sizeMode: ViewportMode.Relative,
       x: side === 'first' ? 0 : split,
       y: 0,
       width: side === 'first' ? split : 1.0 - split,
@@ -219,8 +220,8 @@ export function createSplitViewport(
   } else {
     // Vertical split (top/bottom)
     return {
-      positionMode: 'relative',
-      sizeMode: 'relative',
+      positionMode: ViewportMode.Relative,
+      sizeMode: ViewportMode.Relative,
       x: 0,
       y: side === 'first' ? 0 : split,
       width: 1.0,

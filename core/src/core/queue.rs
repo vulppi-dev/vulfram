@@ -12,14 +12,9 @@ pub fn vulfram_send_queue(ptr: *const u8, length: usize) -> VulframResult {
 
     let batch = match rmp_serde::from_slice::<EngineBatchCmds>(&data) {
         Err(e) => {
-            eprintln!("🔍 DEBUG: MessagePack deserialization error: {:?}", e);
             return VulframResult::CmdInvalidMessagePackError;
         }
         Ok(batch) => {
-            eprintln!(
-                "🔍 DEBUG: Successfully deserialized {} commands",
-                batch.len()
-            );
             batch
         }
     };

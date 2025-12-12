@@ -228,3 +228,89 @@ export enum UploadType {
   /** Generic binary asset */
   BinaryAsset = 5,
 }
+
+// MARK: Uniform Types
+
+export enum UniformType {
+  Float = 0,
+  Int = 1,
+  UInt = 2,
+  Bool = 3,
+  Vec2 = 4,
+  Vec3 = 5,
+  Vec4 = 6,
+  Vec2i = 7,
+  Vec3i = 8,
+  Vec4i = 9,
+  Vec2u = 10,
+  Vec3u = 11,
+  Vec4u = 12,
+  Mat2x2 = 13,
+  Mat2x3 = 14,
+  Mat2x4 = 15,
+  Mat3x2 = 16,
+  Mat3x3 = 17,
+  Mat3x4 = 18,
+  Mat4x2 = 19,
+  Mat4x3 = 20,
+  Mat4x4 = 21,
+  AtomicInt = 22,
+  AtomicUInt = 23,
+}
+
+// MARK: Texture Binding Types
+
+export enum TextureSampleType {
+  Float = 0,
+  Depth = 1,
+  Sint = 2,
+  Uint = 3,
+}
+
+export enum TextureViewDimension {
+  D1 = 0,
+  D2 = 1,
+  D2Array = 2,
+  Cube = 3,
+  CubeArray = 4,
+  D3 = 5,
+}
+
+export enum SamplerBindingType {
+  Filtering = 0,
+  NonFiltering = 1,
+  Comparison = 2,
+}
+
+// MARK: Window State
+
+export enum WindowState {
+  Minimized = 0,
+  Maximized = 1,
+  Windowed = 2,
+  Fullscreen = 3,
+  WindowedFullscreen = 4,
+}
+
+// MARK: Vertex Semantics
+
+export enum VertexSemantic {
+  Position = 0,
+  Normal = 1,
+  Tangent = 2,
+  UV0 = 3,
+  UV1 = 4,
+  UV2 = 5,
+  UV3 = 6,
+  Color0 = 7,
+  Color1 = 8,
+  JointIndices = 9,
+  JointWeights = 10,
+}
+
+// MARK: Viewport Mode
+
+export enum ViewportMode {
+  Absolute = 0,
+  Relative = 1,
+}

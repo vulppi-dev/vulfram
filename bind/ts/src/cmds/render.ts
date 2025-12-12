@@ -9,6 +9,14 @@ import type {
   CompareFunction,
   BorderColor,
 } from '../enums';
+import {
+  UniformType,
+  TextureSampleType,
+  TextureViewDimension,
+  SamplerBindingType,
+  VertexSemantic,
+  ViewportMode,
+} from '../enums';
 
 // MARK: Logical IDs
 
@@ -19,57 +27,41 @@ export type TextureId = number;
 export type SamplerId = number;
 export type ComponentId = number;
 
-// MARK: Uniform Types
+/**
+ * Reserved ID for fallback texture (1x1 black)
+ * This texture is automatically created when a window is initialized
+ * and cannot be disposed. It's used as a replacement when textures are disposed.
+ */
+export const FALLBACK_TEXTURE_ID: TextureId = 0xffffffff;
 
-export type UniformType =
-  | 'float'
-  | 'int'
-  | 'u-int'
-  | 'bool'
-  | 'vec2'
-  | 'vec3'
-  | 'vec4'
-  | 'vec2i'
-  | 'vec3i'
-  | 'vec4i'
-  | 'vec2u'
-  | 'vec3u'
-  | 'vec4u'
-  | 'mat2x2'
-  | 'mat2x3'
-  | 'mat2x4'
-  | 'mat3x2'
-  | 'mat3x3'
-  | 'mat3x4'
-  | 'mat4x2'
-  | 'mat4x3'
-  | 'mat4x4'
-  | 'atomic-int'
-  | 'atomic-u-int';
+/**
+ * Reserved ID for fallback sampler (linear filtering, repeat addressing)
+ * This sampler is automatically created when a window is initialized
+ * and cannot be disposed. It's used as a replacement when samplers are disposed.
+ */
+export const FALLBACK_SAMPLER_ID: SamplerId = 0xffffffff;
+
+// MARK: Uniform Types
 
 export interface UniformField {
   name: string;
-  uniformType: UniformType;
+  type: UniformType;
   arraySize?: number;
 }
 
 // MARK: Shader Bindings
-
-export type TextureSampleType = 'float' | 'depth' | 'sint' | 'uint';
-
-export type TextureViewDimension =
-  | 'd1'
-  | 'd2'
-  | 'd2-array'
-  | 'cube'
-  | 'cube-array'
-  | 'd3';
 
 export interface TextureBinding {
   group: number;
   binding: number;
   sampleType: TextureSampleType;
   viewDimension: TextureViewDimension;
+}
+
+export interface SamplerBinding {
+  group: number;
+  binding: number;
+  samplerType: SamplerBindingType;
 }
 
 export interface StorageBufferBinding {
@@ -84,18 +76,8 @@ export interface UniformBufferBinding {
   fields: UniformField[];
 }
 
-export type VertexSemantic =
-  | 'position'
-  | 'normal'
-  | 'tangent'
-  | 'uv0'
-  | 'uv1'
-  | 'uv2'
-  | 'uv3'
-  | 'color0'
-  | 'color1'
-  | 'joint-indices'
-  | 'joint-weights';
+// Re-export VertexSemantic from enums
+export { VertexSemantic };
 
 export interface VertexAttributeSpec {
   location: number;
@@ -162,7 +144,8 @@ export interface PrimitiveStateDesc {
 
 // MARK: Component Types
 
-export type ViewportMode = 'relative' | 'absolute';
+// Re-export ViewportMode from enums
+export { ViewportMode };
 
 export interface Viewport {
   positionMode: ViewportMode;
@@ -195,6 +178,7 @@ export interface CmdShaderCreateArgs {
   label?: string;
   uniformBuffers: UniformBufferBinding[];
   textureBindings: TextureBinding[];
+  samplerBindings: SamplerBinding[];
   storageBuffers: StorageBufferBinding[];
   vertexAttributes: VertexAttributeSpec[];
 }
@@ -230,6 +214,7 @@ export interface CmdMaterialCreateArgs {
   windowId: number;
   shaderId: ShaderId;
   textures: TextureId[];
+  samplers: SamplerId[];
   blend?: BlendStateDesc;
   depthStencil?: DepthStencilStateDesc;
   primitive: PrimitiveStateDesc;

@@ -314,6 +314,36 @@ bun run dev
   - Use `#[derive(Serialize_repr, Deserialize_repr)]`
   - Add `#[repr(u32)]` attribute
   - Assign explicit numeric values to variants
+  - **CRITICAL**: TypeScript enums MUST match Rust numeric values exactly for MessagePack serialization
+  - TypeScript enums declared in `enums.ts` with same numeric values as Rust
+  - String union types are only acceptable for non-serialized types (e.g., helper functions)
+
+### Enum Synchronization (Rust ↔ TypeScript)
+
+All enums serialized via MessagePack MUST be numeric and synchronized:
+
+- **Rust side**:
+  - Use `#[derive(Serialize_repr, Deserialize_repr)]`
+  - Use `#[repr(u32)]`
+  - Explicit numeric values (e.g., `Float = 0, Int = 1`)
+  
+- **TypeScript side**:
+  - Declare as numeric enum in `bind/ts/src/enums.ts`
+  - Match exact numeric values from Rust
+  - Import and use enum types (not string literals)
+  
+- **Serialized enums** (MUST be numeric):
+  - `UniformType`: Float=0, Int=1, UInt=2, Bool=3, Vec2=4...Mat4x4=21, AtomicInt=22, AtomicUInt=23
+  - `TextureSampleType`: Float=0, Depth=1, Sint=2, Uint=3
+  - `TextureViewDimension`: D1=0, D2=1, D2Array=2, Cube=3, CubeArray=4, D3=5
+  - `SamplerBindingType`: Filtering=0, NonFiltering=1, Comparison=2
+  - `TextureFormat`: R8Unorm=0, R8Snorm=1...Depth32FloatStencil8=37
+  - `VertexFormat`: Uint8x2=0...Float64x4=33
+  - `IndexFormat`: Uint16=0, Uint32=1
+  
+- **Non-serialized types** (can be string unions):
+  - `VertexSemantic`: 'position' | 'normal' | 'uv0' | 'color0' | etc. (used only in TypeScript)
+  - `ViewportMode`: 'relative' | 'absolute' (used only in TypeScript)
 
 ### Layer Masking and Visibility
 

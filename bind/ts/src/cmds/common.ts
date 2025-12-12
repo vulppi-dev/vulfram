@@ -1,13 +1,10 @@
 import type { IVector2, Size } from '../events';
+import { WindowState } from '../enums';
 
 // MARK: Window State
 
-export type WindowState =
-  | 'minimized'
-  | 'maximized'
-  | 'windowed'
-  | 'fullscreen'
-  | 'windowed-fullscreen';
+// Re-export WindowState from enums
+export { WindowState };
 
 // MARK: Cursor
 

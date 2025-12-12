@@ -74,7 +74,6 @@ fn main() {
     println!("📦 Inicializando engine...");
     let init_result = core::vulfram_init();
     if init_result != core::VulframResult::Success {
-        eprintln!("❌ Falha ao inicializar: {:?}", init_result);
         std::process::exit(1);
     }
     println!("✅ Engine inicializada\n");
@@ -116,7 +115,6 @@ fn main() {
     core::vulfram_tick(0, 0);
     let (success, received_id) = read_window_create_response();
     if !success {
-        eprintln!("❌ Falha ao criar janela!");
         return;
     }
     let window_id = received_id;
@@ -365,7 +363,6 @@ fn main() {
         // Tick engine
         let tick_result = core::vulfram_tick(elapsed_ms, delta_ms);
         if tick_result != core::VulframResult::Success {
-            eprintln!("❌ Erro no tick: {:?}", tick_result);
             break;
         }
 
@@ -387,7 +384,6 @@ fn main() {
                     for response in responses {
                         if let core::cmd::CommandResponse::ModelUpdate(r) = &response.response {
                             if !r.success {
-                                eprintln!("⚠️ Erro ao atualizar modelo: {}", r.message);
                             }
                         }
                     }
@@ -445,7 +441,6 @@ fn free_core_buffer(ptr: *const u8, len: usize) {
 fn upload_buffer(buffer_id: u64, data: &[u8]) {
     let result = core::vulfram_upload_buffer(buffer_id, 0, data.as_ptr(), data.len());
     if result != core::VulframResult::Success {
-        eprintln!("⚠️ Falha no upload do buffer {}: {:?}", buffer_id, result);
     }
 }
 
@@ -454,11 +449,9 @@ fn send_commands(batch: &EngineBatchCmds) {
         Ok(bytes) => {
             let result = core::vulfram_send_queue(bytes.as_ptr(), bytes.len());
             if result != core::VulframResult::Success {
-                eprintln!("⚠️ Falha ao enviar comandos: {:?}", result);
             }
         }
         Err(e) => {
-            eprintln!("⚠️ Falha ao serializar comandos: {}", e);
         }
     }
 }
@@ -484,13 +477,11 @@ fn read_window_create_response() -> (bool, u32) {
                                 success = true;
                                 println!("   ← Janela criada com sucesso! ID: {}", window_id);
                             } else {
-                                eprintln!("   ← Erro ao criar janela: {}", result.message);
                             }
                         }
                     }
                 }
                 Err(e) => {
-                    eprintln!("⚠️ Falha ao desserializar respostas: {}", e);
                 }
             }
             free_core_buffer(ptr, len);
@@ -515,35 +506,30 @@ fn read_responses() {
                                 if r.success {
                                     println!("   ← Shader criado com sucesso");
                                 } else {
-                                    eprintln!("   ← Erro: {}", r.message);
                                 }
                             }
                             core::cmd::CommandResponse::GeometryCreate(r) => {
                                 if r.success {
                                     println!("   ← Geometria criada com sucesso");
                                 } else {
-                                    eprintln!("   ← Erro: {}", r.message);
                                 }
                             }
                             core::cmd::CommandResponse::MaterialCreate(r) => {
                                 if r.success {
                                     println!("   ← Material criado com sucesso");
                                 } else {
-                                    eprintln!("   ← Erro: {}", r.message);
                                 }
                             }
                             core::cmd::CommandResponse::CameraCreate(r) => {
                                 if r.success {
                                     println!("   ← Câmera criada com sucesso");
                                 } else {
-                                    eprintln!("   ← Erro: {}", r.message);
                                 }
                             }
                             core::cmd::CommandResponse::ModelCreate(r) => {
                                 if r.success {
                                     println!("   ← Modelo criado com sucesso");
                                 } else {
-                                    eprintln!("   ← Erro: {}", r.message);
                                 }
                             }
                             _ => {
@@ -553,7 +539,6 @@ fn read_responses() {
                     }
                 }
                 Err(e) => {
-                    eprintln!("⚠️ Falha ao desserializar respostas: {}", e);
                 }
             }
             free_core_buffer(ptr, len);
@@ -585,7 +570,6 @@ fn read_events() {
                     }
                 }
                 Err(e) => {
-                    eprintln!("⚠️ Falha ao desserializar eventos: {}", e);
                 }
             }
             free_core_buffer(ptr, len);

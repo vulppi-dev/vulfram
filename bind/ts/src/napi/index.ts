@@ -1,7 +1,7 @@
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
-const VULFRAM_CORE = require('./vulfram_core.node');
+const VULFRAM_CORE = require('./libvulfram_core.node');
 
 export interface BufferResult {
   buffer: Buffer;

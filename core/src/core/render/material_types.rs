@@ -59,7 +59,7 @@ pub struct DepthStencilStateDesc {
 impl Default for DepthStencilStateDesc {
     fn default() -> Self {
         Self {
-            format: TextureFormat::Depth24Plus,
+            format: TextureFormat::Depth24PlusStencil8,
             depth_write_enabled: true,
             depth_compare: CompareFunction::Less,
             stencil: StencilStateDesc::default(),

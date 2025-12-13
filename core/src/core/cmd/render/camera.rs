@@ -114,11 +114,27 @@ pub fn engine_cmd_camera_create(
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
         format: window_state.config.format,
-        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+            | wgpu::TextureUsages::TEXTURE_BINDING
+            | wgpu::TextureUsages::COPY_SRC,
         view_formats: &[],
     });
 
     let render_target_view = render_target.create_view(&wgpu::TextureViewDescriptor::default());
+
+    // Create depth texture
+    let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("Camera Depth Texture"),
+        size: texture_size,
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Depth24PlusStencil8,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+        view_formats: &[],
+    });
+
+    let depth_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
     // Create camera instance
     let camera_instance = CameraInstance {
@@ -127,6 +143,8 @@ pub fn engine_cmd_camera_create(
         view_mat: args.view_mat,
         render_target,
         render_target_view,
+        depth_texture,
+        depth_view,
         layer_mask: args.layer_mask,
         is_dirty: true,
     };

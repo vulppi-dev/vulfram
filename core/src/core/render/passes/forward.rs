@@ -49,6 +49,7 @@ pub fn forward_pass(
 
     // Extract what we need from camera before mutable borrows
     let render_target_view = camera.render_target_view.clone();
+    let depth_view = camera.depth_view.clone();
     let clear_color = render_state.clear_color;
 
     // Begin render pass for this camera
@@ -63,7 +64,17 @@ pub fn forward_pass(
             },
             depth_slice: None,
         })],
-        depth_stencil_attachment: None,
+        depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+            view: &depth_view,
+            depth_ops: Some(wgpu::Operations {
+                load: wgpu::LoadOp::Clear(1.0),
+                store: wgpu::StoreOp::Store,
+            }),
+            stencil_ops: Some(wgpu::Operations {
+                load: wgpu::LoadOp::Clear(0),
+                store: wgpu::StoreOp::Store,
+            }),
+        }),
         timestamp_writes: None,
         occlusion_query_set: None,
     });

@@ -78,6 +78,8 @@ pub struct CameraInstance {
     pub view_mat: Mat4,
     pub render_target: wgpu::Texture,
     pub render_target_view: wgpu::TextureView,
+    pub depth_texture: wgpu::Texture,
+    pub depth_view: wgpu::TextureView,
     pub layer_mask: u32,
     /// Dirty flag indicating component needs GPU buffer update
     pub is_dirty: bool,
@@ -120,6 +122,8 @@ impl Components {
         for (_, camera) in self.cameras.drain() {
             drop(camera.render_target_view);
             drop(camera.render_target);
+            drop(camera.depth_view);
+            drop(camera.depth_texture);
         }
         self.models.clear();
     }

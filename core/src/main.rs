@@ -10,7 +10,7 @@ use core::cmd::{EngineBatchCmds, EngineCmd, EngineCmdEnvelope};
 use core::render::buffers::{UniformField, UniformType};
 use core::render::components::{Viewport, ViewportMode};
 use core::render::enums::*;
-use core::render::material_types::PrimitiveStateDesc;
+use core::render::material_types::{DepthStencilStateDesc, PrimitiveStateDesc};
 use core::render::resources::*;
 
 // MARK: - Vertex Structure
@@ -24,7 +24,7 @@ struct Vertex {
 
 // MARK: - Shader Source
 
-const TRIANGLE_SHADER: &str = r#"
+const CUBE_SHADER: &str = r#"
 struct CameraUniforms {
     camera_view_projection: mat4x4<f32>,
 }
@@ -42,7 +42,7 @@ struct VertexInput {
 }
 
 struct VertexOutput {
-    @builtin(position) clip_position: vec4<f32>,
+    @builtin(position) position: vec4<f32>,
     @location(0) color: vec3<f32>,
 }
 
@@ -50,7 +50,7 @@ struct VertexOutput {
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     let world_pos = model.model_transform * vec4<f32>(in.position, 1.0);
-    out.clip_position = camera.camera_view_projection * world_pos;
+    out.position = camera.camera_view_projection * world_pos;
     out.color = in.color;
     return out;
 }
@@ -61,13 +61,127 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 }
 "#;
 
+const CUBE_VERTICES: [Vertex; 24] = [
+    // Front face (Red)
+    Vertex {
+        position: [-0.5, -0.5, 0.5],
+        color: [1.0, 0.0, 0.0],
+    },
+    Vertex {
+        position: [0.5, -0.5, 0.5],
+        color: [1.0, 0.0, 0.0],
+    },
+    Vertex {
+        position: [0.5, 0.5, 0.5],
+        color: [1.0, 0.0, 0.0],
+    },
+    Vertex {
+        position: [-0.5, 0.5, 0.5],
+        color: [1.0, 0.0, 0.0],
+    },
+    // Back face (Green)
+    Vertex {
+        position: [-0.5, -0.5, -0.5],
+        color: [0.0, 1.0, 0.0],
+    },
+    Vertex {
+        position: [0.5, -0.5, -0.5],
+        color: [0.0, 1.0, 0.0],
+    },
+    Vertex {
+        position: [0.5, 0.5, -0.5],
+        color: [0.0, 1.0, 0.0],
+    },
+    Vertex {
+        position: [-0.5, 0.5, -0.5],
+        color: [0.0, 1.0, 0.0],
+    },
+    // Top face (Blue)
+    Vertex {
+        position: [-0.5, 0.5, -0.5],
+        color: [0.0, 0.0, 1.0],
+    },
+    Vertex {
+        position: [-0.5, 0.5, 0.5],
+        color: [0.0, 0.0, 1.0],
+    },
+    Vertex {
+        position: [0.5, 0.5, 0.5],
+        color: [0.0, 0.0, 1.0],
+    },
+    Vertex {
+        position: [0.5, 0.5, -0.5],
+        color: [0.0, 0.0, 1.0],
+    },
+    // Bottom face (Yellow)
+    Vertex {
+        position: [-0.5, -0.5, -0.5],
+        color: [1.0, 1.0, 0.0],
+    },
+    Vertex {
+        position: [0.5, -0.5, -0.5],
+        color: [1.0, 1.0, 0.0],
+    },
+    Vertex {
+        position: [0.5, -0.5, 0.5],
+        color: [1.0, 1.0, 0.0],
+    },
+    Vertex {
+        position: [-0.5, -0.5, 0.5],
+        color: [1.0, 1.0, 0.0],
+    },
+    // Right face (Magenta)
+    Vertex {
+        position: [0.5, -0.5, -0.5],
+        color: [1.0, 0.0, 1.0],
+    },
+    Vertex {
+        position: [0.5, 0.5, -0.5],
+        color: [1.0, 0.0, 1.0],
+    },
+    Vertex {
+        position: [0.5, 0.5, 0.5],
+        color: [1.0, 0.0, 1.0],
+    },
+    Vertex {
+        position: [0.5, -0.5, 0.5],
+        color: [1.0, 0.0, 1.0],
+    },
+    // Left face (Cyan)
+    Vertex {
+        position: [-0.5, -0.5, -0.5],
+        color: [0.0, 1.0, 1.0],
+    },
+    Vertex {
+        position: [-0.5, -0.5, 0.5],
+        color: [0.0, 1.0, 1.0],
+    },
+    Vertex {
+        position: [-0.5, 0.5, 0.5],
+        color: [0.0, 1.0, 1.0],
+    },
+    Vertex {
+        position: [-0.5, 0.5, -0.5],
+        color: [0.0, 1.0, 1.0],
+    },
+];
+
+const CUBE_INDICES: [u16; 36] = [
+    0, 1, 2, 2, 3, 0, // Front
+    4, 6, 5, 6, 4, 7, // Back
+    8, 9, 10, 10, 11, 8, // Top
+    12, 13, 14, 14, 15, 12, // Bottom
+    16, 17, 18, 18, 19, 16, // Right
+    20, 21, 22, 22, 23, 20, // Left
+];
+
 // MARK: - Host Simulation
 
 /// Simula um host enviando comandos para desenhar um triângulo
 fn main() {
     env_logger::init();
 
-    println!("🦊 Vulfram Demo - Renderização de Triângulo\n");
+    println!("🦊 Vulfram Demo - Cubo Colorido\n");
     println!("   Simulação de host via MessagePack\n");
 
     // MARK: Initialize
@@ -102,7 +216,7 @@ fn main() {
         id: cmd_id,
         cmd: EngineCmd::CmdWindowCreate(CmdWindowCreateArgs {
             title: "Vulfram Triangle Demo".into(),
-            size: glam::UVec2::new(800, 600),
+            size: glam::UVec2::new(1280, 720),
             resizable: true,
             ..Default::default()
         }),
@@ -123,7 +237,7 @@ fn main() {
 
     // Step 2: Upload Shader
     println!("2️⃣ Fazendo upload do shader...");
-    let shader_bytes = TRIANGLE_SHADER.as_bytes();
+    let shader_bytes = CUBE_SHADER.as_bytes();
     let buffer_id_shader = 1001u64;
     upload_buffer(buffer_id_shader, shader_bytes);
 
@@ -178,27 +292,12 @@ fn main() {
     read_responses();
 
     // Step 4: Upload Geometry
-    println!("4️⃣ Fazendo upload da geometria...");
-    let vertices = [
-        Vertex {
-            position: [0.0, 0.5, 0.0],
-            color: [1.0, 0.0, 0.0],
-        }, // Top - Red
-        Vertex {
-            position: [-0.5, -0.5, 0.0],
-            color: [0.0, 1.0, 0.0],
-        }, // Bottom Left - Green
-        Vertex {
-            position: [0.5, -0.5, 0.0],
-            color: [0.0, 0.0, 1.0],
-        }, // Bottom Right - Blue
-    ];
-    let vertex_bytes = bytemuck::cast_slice(&vertices);
+    println!("4️⃣ Fazendo upload da geometria do cubo...");
+    let vertex_bytes = bytemuck::cast_slice(&CUBE_VERTICES);
     let buffer_id_vertex = 1002u64;
     upload_buffer(buffer_id_vertex, vertex_bytes);
 
-    let indices: [u16; 3] = [0, 1, 2];
-    let index_bytes = bytemuck::cast_slice(&indices);
+    let index_bytes = bytemuck::cast_slice(&CUBE_INDICES);
     let buffer_id_index = 1003u64;
     upload_buffer(buffer_id_index, index_bytes);
 
@@ -212,8 +311,8 @@ fn main() {
             window_id,
             vertex_buffer_id: buffer_id_vertex,
             index_buffer_id: buffer_id_index,
-            vertex_count: 3,
-            index_count: 3,
+            vertex_count: CUBE_VERTICES.len() as u32,
+            index_count: CUBE_INDICES.len() as u32,
             vertex_attributes: vec![
                 VertexAttributeDesc {
                     format: VertexFormat::Float32x3,
@@ -247,12 +346,17 @@ fn main() {
             textures: vec![],
             samplers: vec![],
             blend: None,
-            depth_stencil: None,
+            depth_stencil: Some(DepthStencilStateDesc {
+                format: TextureFormat::Depth24PlusStencil8,
+                depth_write_enabled: true,
+                depth_compare: CompareFunction::Less,
+                ..Default::default()
+            }),
             primitive: PrimitiveStateDesc {
                 topology: PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: FrontFace::Ccw,
-                cull_mode: Some(CullMode::Back),
+                cull_mode: None,
                 unclipped_depth: false,
                 polygon_mode: PolygonMode::Fill,
                 conservative: false,
@@ -270,7 +374,7 @@ fn main() {
     println!("7️⃣ Criando câmera...");
     let proj_mat = Mat4::perspective_rh(
         std::f32::consts::FRAC_PI_4, // 45 graus FOV
-        800.0 / 600.0,               // aspect ratio
+        1280.0 / 720.0,              // aspect ratio
         0.1,                         // near plane
         100.0,                       // far plane
     );
@@ -285,12 +389,12 @@ fn main() {
             proj_mat,
             view_mat,
             viewport: Viewport {
-                position_mode: ViewportMode::Absolute,
-                size_mode: ViewportMode::Absolute,
+                position_mode: ViewportMode::Relative,
+                size_mode: ViewportMode::Relative,
                 x: 0.0,
                 y: 0.0,
-                width: 800.0,
-                height: 600.0,
+                width: 1.0,
+                height: 1.0,
                 anchor: glam::Vec2::ZERO,
             },
             layer_mask: 0xFFFFFFFF,
@@ -324,7 +428,7 @@ fn main() {
 
     // MARK: Main Loop
     println!("🎮 Loop de renderização...");
-    println!("   Renderizando por 5 segundos com rotação\n");
+    println!("   Renderizando cubo por 5 segundos com rotação em Y\n");
 
     let start_time = Instant::now();
     let mut last_time = start_time;
@@ -338,11 +442,11 @@ fn main() {
         let delta_ms = current_time.duration_since(last_time).as_millis() as u32;
         last_time = current_time;
 
-        // Update rotation (1 rotation per second = 360 degrees/s = 6.28 rad/s)
-        rotation_angle += (delta_ms as f32 / 1000.0) * std::f32::consts::TAU;
+        // Update rotation (1 rotation per second = 2π rad/s)
+        rotation_angle += (delta_ms as f32 / 1000.0) * (std::f32::consts::TAU / 2f32);
 
-        // Create rotation matrix around Z axis
-        let rotation_mat = Mat4::from_rotation_z(rotation_angle);
+        // Create rotation matrix around Y axis
+        let rotation_mat = Mat4::from_rotation_y(rotation_angle);
 
         // Send model update with new rotation
         batch.clear();
@@ -383,8 +487,7 @@ fn main() {
                 {
                     for response in responses {
                         if let core::cmd::CommandResponse::ModelUpdate(r) = &response.response {
-                            if !r.success {
-                            }
+                            if !r.success {}
                         }
                     }
                 }
@@ -440,19 +543,16 @@ fn free_core_buffer(ptr: *const u8, len: usize) {
 
 fn upload_buffer(buffer_id: u64, data: &[u8]) {
     let result = core::vulfram_upload_buffer(buffer_id, 0, data.as_ptr(), data.len());
-    if result != core::VulframResult::Success {
-    }
+    if result != core::VulframResult::Success {}
 }
 
 fn send_commands(batch: &EngineBatchCmds) {
     match rmp_serde::to_vec(batch) {
         Ok(bytes) => {
             let result = core::vulfram_send_queue(bytes.as_ptr(), bytes.len());
-            if result != core::VulframResult::Success {
-            }
+            if result != core::VulframResult::Success {}
         }
-        Err(e) => {
-        }
+        Err(e) => {}
     }
 }
 
@@ -481,8 +581,7 @@ fn read_window_create_response() -> (bool, u32) {
                         }
                     }
                 }
-                Err(e) => {
-                }
+                Err(e) => {}
             }
             free_core_buffer(ptr, len);
         }
@@ -538,8 +637,7 @@ fn read_responses() {
                         }
                     }
                 }
-                Err(e) => {
-                }
+                Err(e) => {}
             }
             free_core_buffer(ptr, len);
         }
@@ -569,8 +667,7 @@ fn read_events() {
                         }
                     }
                 }
-                Err(e) => {
-                }
+                Err(e) => {}
             }
             free_core_buffer(ptr, len);
         }

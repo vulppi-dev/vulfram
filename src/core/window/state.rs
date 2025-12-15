@@ -25,7 +25,6 @@ pub struct WindowState {
 pub struct WindowManager {
     pub states: HashMap<u32, WindowState>,
     pub window_id_map: HashMap<WindowId, u32>,
-    pub window_id_counter: u32,
     pub cursor_positions: HashMap<u32, Vec2>,
     pub cache: WindowCacheManager,
 }
@@ -35,16 +34,9 @@ impl WindowManager {
         Self {
             states: HashMap::new(),
             window_id_map: HashMap::new(),
-            window_id_counter: 0,
             cursor_positions: HashMap::new(),
             cache: WindowCacheManager::new(),
         }
-    }
-
-    pub fn next_id(&mut self) -> u32 {
-        let id = self.window_id_counter;
-        self.window_id_counter += 1;
-        id
     }
 
     pub fn map_window(&mut self, winit_id: WindowId, engine_id: u32) {

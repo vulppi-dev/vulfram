@@ -18,6 +18,7 @@ use crate::core::window::WindowState;
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowCreateArgs {
+    pub window_id: u32,
     pub title: String,
     #[serde(default = "window_size_default")]
     pub size: UVec2,
@@ -33,7 +34,6 @@ pub struct CmdWindowCreateArgs {
 pub struct CmdResultWindowCreate {
     pub success: bool,
     pub message: String,
-    pub content: u32,
 }
 
 pub fn engine_cmd_window_create(
@@ -69,12 +69,11 @@ pub fn engine_cmd_window_create(
             return CmdResultWindowCreate {
                 success: false,
                 message: format!("Winit create window error: {}", e),
-                content: 0,
             };
         }
     };
 
-    let win_id = engine.window.next_id();
+    let win_id = args.window_id;
     engine.window.map_window(window.id(), win_id);
 
     let surface = match engine.wgpu.create_surface(window.clone()) {
@@ -83,7 +82,6 @@ pub fn engine_cmd_window_create(
             return CmdResultWindowCreate {
                 success: false,
                 message: format!("WGPU create surface error: {}", e),
-                content: 0,
             };
         }
     };
@@ -102,7 +100,6 @@ pub fn engine_cmd_window_create(
                     return CmdResultWindowCreate {
                         success: false,
                         message: "WGPU adapter request error".into(),
-                        content: 0,
                     };
                 }
             };
@@ -122,7 +119,6 @@ pub fn engine_cmd_window_create(
                 return CmdResultWindowCreate {
                     success: false,
                     message: format!("WGPU device request error: {}", e),
-                    content: 0,
                 };
             }
         };
@@ -145,7 +141,6 @@ pub fn engine_cmd_window_create(
                 return CmdResultWindowCreate {
                         success: false,
                         message: "Surface is not compatible with existing WGPU adapter. Cannot create window.".into(),
-                        content: 0,
                     };
             }
         };
@@ -234,7 +229,6 @@ pub fn engine_cmd_window_create(
     CmdResultWindowCreate {
         success: true,
         message: "Window created successfully".into(),
-        content: win_id,
     }
 }
 

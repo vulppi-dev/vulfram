@@ -16,7 +16,9 @@ fn main() {
     assert_eq!(core::vulfram_init(), VulframResult::Success);
 
     println!("Creating window...");
+    let window_id: u32 = 1; // Host provides the window ID
     let create_cmd = EngineCmd::CmdWindowCreate(CmdWindowCreateArgs {
+        window_id,
         title: "Vulfram Test Window".into(),
         size: glam::UVec2::new(800, 600),
         ..Default::default()
@@ -24,7 +26,7 @@ fn main() {
     assert_eq!(send_commands(vec![create_cmd]), VulframResult::Success);
 
     pump_for(Duration::from_millis(100));
-    let window_id = wait_for_window_id();
+    wait_for_window_create_confirmation();
     println!("Window created with ID: {}", window_id);
 
     println!("Keeping window open for 5 seconds...");
@@ -50,13 +52,13 @@ fn pump_for(duration: Duration) {
     }
 }
 
-fn wait_for_window_id() -> u32 {
+fn wait_for_window_create_confirmation() {
     for _ in 0..40 {
         let responses = receive_responses();
         for response in responses {
             if let CommandResponse::WindowCreate(result) = response.response {
                 assert!(result.success, "window creation failed: {}", result.message);
-                return result.content;
+                return;
             }
         }
         pump_for(Duration::from_millis(50));

@@ -53,12 +53,12 @@ pub fn vulfram_dispose() -> VulframResult {
 
         // Explicitly clean up all render states before dropping
         if let Some(ref mut singleton) = *opt {
-            for (_window_id, window_state) in singleton.state.windows.iter_mut() {
+            for (_window_id, window_state) in singleton.state.window.states.iter_mut() {
                 window_state.render_state.drop_all();
             }
             // Clear all windows to drop GPU resources
-            singleton.state.windows.clear();
-            singleton.state.window_id_map.clear();
+            singleton.state.window.states.clear();
+            singleton.state.window.window_id_map.clear();
         }
 
         *opt = None;

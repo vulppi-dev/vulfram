@@ -23,7 +23,7 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
         // MARK: Gamepad Processing
         let gamepad_start = Instant::now();
         let mut gilrs_events = Vec::new();
-        if let Some(gilrs) = &mut engine.state.gilrs {
+        if let Some(gilrs) = &mut engine.state.gamepad.gilrs {
             while let Some(event) = gilrs.next_event() {
                 gilrs_events.push(event);
             }
@@ -56,7 +56,7 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
         // MARK: Request Redraw
         let start = std::time::Instant::now();
 
-        for window_state in engine.state.windows.values_mut() {
+        for window_state in engine.state.window.states.values_mut() {
             window_state.window.request_redraw();
         }
 

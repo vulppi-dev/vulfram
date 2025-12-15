@@ -1,7 +1,7 @@
 use glam::Vec2;
 use std::collections::HashMap;
 
-use crate::core::cmd::events::ModifiersState;
+use crate::core::input::events::ModifiersState;
 
 /// Cached keyboard state
 #[derive(Debug, Clone, PartialEq, Default)]

@@ -10,7 +10,8 @@ use winit::{
 };
 
 use super::{EngineWindowState, window_size_default};
-use crate::core::state::{EngineState, WindowState};
+use crate::core::state::EngineState;
+use crate::core::window::WindowState;
 
 // MARK: - Create Window
 
@@ -62,9 +63,8 @@ pub fn engine_cmd_window_create(
         }
     };
 
-    let win_id = engine.window_id_counter;
-    engine.window_id_counter += 1;
-    engine.window_id_map.insert(window.id(), win_id);
+    let win_id = engine.window.next_id();
+    engine.window.map_window(window.id(), win_id);
 
     let surface = match engine.wgpu.create_surface(window.clone()) {
         Ok(surface) => surface,
@@ -194,7 +194,7 @@ pub fn engine_cmd_window_create(
         }
     }
 
-    engine.windows.insert(
+    engine.window.insert_state(
         win_id,
         WindowState {
             window,
@@ -205,12 +205,12 @@ pub fn engine_cmd_window_create(
             inner_size: UVec2::new(inner_size.width, inner_size.height),
             outer_size: UVec2::new(outer_size.width, outer_size.height),
             render_state,
-            is_dirty: true, // New window needs initial render
+            is_dirty: true,
         },
     );
 
     // Initialize window cache
-    let cache = engine.window_cache.get_or_create(win_id);
+    let cache = engine.window.cache.get_or_create(win_id);
     cache.inner_position = IVec2::new(inner_position.x, inner_position.y);
     cache.outer_position = IVec2::new(outer_position.x, outer_position.y);
     cache.inner_size = UVec2::new(inner_size.width, inner_size.height);
@@ -247,7 +247,7 @@ pub fn engine_cmd_window_close(
     args: &CmdWindowCloseArgs,
 ) -> CmdResultWindowClose {
     // Check if window exists
-    if !engine.windows.contains_key(&args.window_id) {
+    if !engine.window.states.contains_key(&args.window_id) {
         return CmdResultWindowClose {
             success: false,
             message: format!("Window with id {} not found", args.window_id),

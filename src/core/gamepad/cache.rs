@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::core::cmd::events::ElementState;
+use crate::core::input::events::ElementState;
 
 /// Dead zone threshold for analog sticks and triggers
 pub const GAMEPAD_AXIS_DEAD_ZONE: f32 = 0.1;

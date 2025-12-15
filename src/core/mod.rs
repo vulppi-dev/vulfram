@@ -1,15 +1,17 @@
 // Submodules
 pub mod buffers;
-mod cache;
-mod gamepad;
+pub mod gamepad;
 mod handler;
+pub mod input;
 mod lifecycle;
-mod profiling;
+pub mod profiling;
 mod queue;
 pub mod render;
 mod singleton;
 mod state;
+pub mod system;
 mod tick;
+pub mod window;
 
 // Public modules
 pub mod cmd;

@@ -2,12 +2,14 @@ use serde::{Deserialize, Serialize};
 use winit::event_loop::EventLoopProxy;
 
 use crate::core::VulframResult;
+use crate::core::gamepad::events::GamepadEvent;
+use crate::core::input::events::{KeyboardEvent, PointerEvent};
 use crate::core::singleton::EngineCustomEvents;
 use crate::core::state::EngineState;
+use crate::core::system::SystemEvent;
+use crate::core::window::WindowEvent;
 
-pub mod events;
-pub mod render;
-pub mod win;
+pub use crate::core::window::cmd as win;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(tag = "type", content = "content", rename_all = "kebab-case")]
@@ -39,11 +41,11 @@ pub enum EngineCmd {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "type", content = "content", rename_all = "kebab-case")]
 pub enum EngineEvent {
-    Window(events::WindowEvent),
-    Pointer(events::PointerEvent),
-    Keyboard(events::KeyboardEvent),
-    Gamepad(events::GamepadEvent),
-    System(events::SystemEvent),
+    Window(WindowEvent),
+    Pointer(PointerEvent),
+    Keyboard(KeyboardEvent),
+    Gamepad(GamepadEvent),
+    System(SystemEvent),
 }
 
 /// Command responses (answers to commands sent by user)

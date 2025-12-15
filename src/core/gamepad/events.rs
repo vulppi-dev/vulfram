@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::common::ElementState;
+use crate::core::input::events::ElementState;
 
 /// Gamepad events
 #[derive(Debug, Clone, Deserialize, Serialize)]

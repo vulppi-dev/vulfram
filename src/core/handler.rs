@@ -4,10 +4,15 @@ use winit::event::WindowEvent as WinitWindowEvent;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::WindowId;
 
-use crate::core::cmd::win::engine_cmd_window_create;
+use crate::core::input::{
+    ElementState, KeyboardEvent, ModifiersState, PointerEvent, ScrollDelta, convert_key_code,
+    convert_key_location, convert_mouse_button, convert_touch_phase,
+};
 use crate::core::render::render_frames;
+use crate::core::system::SystemEvent;
+use crate::core::window::WindowEvent;
+use crate::core::window::cmd::engine_cmd_window_create;
 
-use super::cmd::events::*;
 use super::cmd::{CommandResponse, CommandResponseEnvelope, EngineEvent};
 use super::singleton::EngineCustomEvents;
 use super::state::EngineState;
@@ -39,15 +44,15 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
         winit_window_id: WindowId,
         event: WinitWindowEvent,
     ) {
-        let window_id = match self.window_id_map.get(&winit_window_id) {
-            Some(id) => *id,
+        let window_id = match self.window.resolve_window_id(&winit_window_id) {
+            Some(id) => id,
             None => return,
         };
 
         match event {
             WinitWindowEvent::Resized(size) => {
                 let new_size = UVec2::new(size.width, size.height);
-                let cache = self.window_cache.get_or_create(window_id);
+                let cache = self.window.cache.get_or_create(window_id);
 
                 // Only dispatch event if size actually changed
                 if !cache.size_changed(new_size) {
@@ -59,7 +64,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
                 cache.inner_size = new_size;
 
                 // Update surface configuration with new size
-                if let Some(window_state) = self.windows.get_mut(&window_id) {
+                if let Some(window_state) = self.window.states.get_mut(&window_id) {
                     if size.width > 0 && size.height > 0 {
                         window_state.config.width = size.width;
                         window_state.config.height = size.height;
@@ -88,7 +93,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
 
             WinitWindowEvent::Moved(position) => {
                 let new_pos = IVec2::new(position.x, position.y);
-                let cache = self.window_cache.get_or_create(window_id);
+                let cache = self.window.cache.get_or_create(window_id);
 
                 // Only dispatch event if position actually changed
                 if !cache.position_changed(new_pos) {
@@ -100,7 +105,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
                 cache.inner_position = new_pos;
 
                 // Update window state
-                if let Some(window_state) = self.windows.get_mut(&window_id) {
+                if let Some(window_state) = self.window.states.get_mut(&window_id) {
                     window_state.inner_position = new_pos;
                     if let Ok(outer_pos) = window_state.window.outer_position() {
                         window_state.outer_position = IVec2::new(outer_pos.x, outer_pos.y);
@@ -133,6 +138,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
             WinitWindowEvent::DroppedFile(path) => {
                 // Get the last known cursor position for this window
                 let position = self
+                    .window
                     .cursor_positions
                     .get(&window_id)
                     .copied()
@@ -149,6 +155,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
             WinitWindowEvent::HoveredFile(path) => {
                 // Get the last known cursor position for this window
                 let position = self
+                    .window
                     .cursor_positions
                     .get(&window_id)
                     .copied()
@@ -170,7 +177,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
             }
 
             WinitWindowEvent::Focused(focused) => {
-                let cache = self.window_cache.get_or_create(window_id);
+                let cache = self.window.cache.get_or_create(window_id);
 
                 // Only dispatch event if focus state actually changed
                 if cache.focused == focused {
@@ -213,7 +220,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
                         location,
                         repeat: event.repeat,
                         text: event.text.map(|s| s.into()),
-                        modifiers: self.modifiers_state,
+                        modifiers: self.input.modifiers,
                     }));
             }
 
@@ -226,14 +233,14 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
                 };
 
                 // Only dispatch event if modifiers actually changed
-                if self.input_cache.keyboard.modifiers == new_modifiers {
+                if self.input.cache.keyboard.modifiers == new_modifiers {
                     self.profiling.total_events_cached += 1;
                     return;
                 }
 
                 // Update cache and state
-                self.input_cache.keyboard.modifiers = new_modifiers;
-                self.modifiers_state = new_modifiers;
+                self.input.cache.keyboard.modifiers = new_modifiers;
+                self.input.modifiers = new_modifiers;
 
                 self.event_queue
                     .push(EngineEvent::Keyboard(KeyboardEvent::OnModifiersChange {
@@ -260,7 +267,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
 
             WinitWindowEvent::CursorMoved { position, .. } => {
                 let cursor_pos = Vec2::new(position.x as f32, position.y as f32);
-                let pointer_cache = self.input_cache.get_or_create_pointer(window_id);
+                let pointer_cache = self.input.cache.get_or_create_pointer(window_id);
 
                 // Only dispatch event if position changed more than 1px
                 if !pointer_cache.position_changed(cursor_pos) {
@@ -269,7 +276,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
 
                 // Update cache and state
                 pointer_cache.position = cursor_pos;
-                self.cursor_positions.insert(window_id, cursor_pos);
+                self.window.cursor_positions.insert(window_id, cursor_pos);
 
                 self.event_queue
                     .push(EngineEvent::Pointer(PointerEvent::OnMove {
@@ -327,6 +334,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
 
                 // Get the last known cursor position for this window
                 let position = self
+                    .window
                     .cursor_positions
                     .get(&window_id)
                     .copied()
@@ -395,7 +403,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
                 scale_factor,
                 inner_size_writer: _,
             } => {
-                let cache = self.window_cache.get_or_create(window_id);
+                let cache = self.window.cache.get_or_create(window_id);
 
                 // Only dispatch event if scale factor actually changed
                 if !cache.scale_factor_changed(scale_factor) {
@@ -407,7 +415,8 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
 
                 // Get the current window inner size for the event
                 let (new_width, new_height) = self
-                    .windows
+                    .window
+                    .states
                     .get(&window_id)
                     .map(|ws| {
                         let size = ws.window.inner_size();
@@ -426,7 +435,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
 
             WinitWindowEvent::ThemeChanged(theme) => {
                 let dark_mode = matches!(theme, winit::window::Theme::Dark);
-                let cache = self.window_cache.get_or_create(window_id);
+                let cache = self.window.cache.get_or_create(window_id);
 
                 // Only dispatch event if theme actually changed
                 if cache.dark_mode == dark_mode {
@@ -444,7 +453,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
             }
 
             WinitWindowEvent::Occluded(occluded) => {
-                let cache = self.window_cache.get_or_create(window_id);
+                let cache = self.window.cache.get_or_create(window_id);
 
                 // Only dispatch event if occluded state actually changed
                 if cache.occluded == occluded {
@@ -463,7 +472,7 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
 
             WinitWindowEvent::RedrawRequested => {
                 // Only dispatch event and render if window is dirty
-                if let Some(window_state) = self.windows.get_mut(&window_id) {
+                if let Some(window_state) = self.window.states.get_mut(&window_id) {
                     if window_state.is_dirty && window_state.window.is_visible().unwrap_or(true) {
                         window_state.is_dirty = false;
 

@@ -2,6 +2,7 @@ use glam::{IVec2, UVec2};
 use serde::{Deserialize, Serialize};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 
+use crate::core::buffers::state::UploadType;
 use crate::core::image::ImageDecoder;
 use crate::core::state::EngineState;
 
@@ -27,7 +28,7 @@ pub fn engine_cmd_window_set_title(
     engine: &mut EngineState,
     args: &CmdWindowSetTitleArgs,
 ) -> CmdResultWindowSetTitle {
-    match engine.windows.get(&args.window_id) {
+    match engine.window.states.get(&args.window_id) {
         Some(window_state) => {
             window_state.window.set_title(&args.title);
             CmdResultWindowSetTitle {
@@ -62,7 +63,7 @@ pub fn engine_cmd_window_set_position(
     engine: &mut EngineState,
     args: &CmdWindowSetPositionArgs,
 ) -> CmdResultWindowSetPosition {
-    match engine.windows.get(&args.window_id) {
+    match engine.window.states.get(&args.window_id) {
         Some(window_state) => {
             let position = PhysicalPosition::new(args.position[0], args.position[1]);
             window_state.window.set_outer_position(position);
@@ -98,7 +99,7 @@ pub fn engine_cmd_window_get_position(
     engine: &EngineState,
     args: &CmdWindowGetPositionArgs,
 ) -> CmdResultWindowGetPosition {
-    match engine.windows.get(&args.window_id) {
+    match engine.window.states.get(&args.window_id) {
         Some(window_state) => match window_state.window.outer_position() {
             Ok(position) => CmdResultWindowGetPosition {
                 success: true,
@@ -139,7 +140,7 @@ pub fn engine_cmd_window_set_size(
     engine: &mut EngineState,
     args: &CmdWindowSetSizeArgs,
 ) -> CmdResultWindowSetSize {
-    match engine.windows.get_mut(&args.window_id) {
+    match engine.window.states.get_mut(&args.window_id) {
         Some(window_state) => {
             let size = PhysicalSize::new(args.size[0], args.size[1]);
             let _ = window_state.window.request_inner_size(size);
@@ -186,7 +187,7 @@ pub fn engine_cmd_window_get_size(
     engine: &EngineState,
     args: &CmdWindowGetSizeArgs,
 ) -> CmdResultWindowGetSize {
-    match engine.windows.get(&args.window_id) {
+    match engine.window.states.get(&args.window_id) {
         Some(window_state) => {
             let size = window_state.window.inner_size();
             CmdResultWindowGetSize {
@@ -223,7 +224,7 @@ pub fn engine_cmd_window_get_outer_size(
     engine: &EngineState,
     args: &CmdWindowGetOuterSizeArgs,
 ) -> CmdResultWindowGetOuterSize {
-    match engine.windows.get(&args.window_id) {
+    match engine.window.states.get(&args.window_id) {
         Some(window_state) => {
             let size = window_state.window.outer_size();
             CmdResultWindowGetOuterSize {
@@ -260,7 +261,7 @@ pub fn engine_cmd_window_get_surface_size(
     engine: &EngineState,
     args: &CmdWindowGetSurfaceSizeArgs,
 ) -> CmdResultWindowGetSurfaceSize {
-    match engine.windows.get(&args.window_id) {
+    match engine.window.states.get(&args.window_id) {
         Some(window_state) => CmdResultWindowGetSurfaceSize {
             success: true,
             message: "Surface size retrieved successfully".into(),
@@ -294,7 +295,7 @@ pub fn engine_cmd_window_set_state(
     engine: &mut EngineState,
     args: &CmdWindowSetStateArgs,
 ) -> CmdResultWindowSetState {
-    match engine.windows.get(&args.window_id) {
+    match engine.window.states.get(&args.window_id) {
         Some(window_state) => {
             match args.state {
                 EngineWindowState::Minimized => {
@@ -356,7 +357,7 @@ pub fn engine_cmd_window_get_state(
     engine: &EngineState,
     args: &CmdWindowGetStateArgs,
 ) -> CmdResultWindowGetState {
-    match engine.windows.get(&args.window_id) {
+    match engine.window.states.get(&args.window_id) {
         Some(window_state) => {
             let state = if window_state.window.is_minimized().unwrap_or(false) {
                 EngineWindowState::Minimized
@@ -410,7 +411,7 @@ pub fn engine_cmd_window_set_icon(
     args: &CmdWindowSetIconArgs,
 ) -> CmdResultWindowSetIcon {
     // Check if window exists
-    if !engine.windows.contains_key(&args.window_id) {
+    if !engine.window.states.contains_key(&args.window_id) {
         return CmdResultWindowSetIcon {
             success: false,
             message: format!("Window with id {} not found", args.window_id),
@@ -418,7 +419,7 @@ pub fn engine_cmd_window_set_icon(
     }
 
     // Get and remove buffer (one-shot consumption)
-    let buffer = match engine.buffers.remove(&args.buffer_id) {
+    let buffer = match engine.buffers.remove_upload(args.buffer_id) {
         Some(b) => b,
         None => {
             return CmdResultWindowSetIcon {
@@ -429,7 +430,7 @@ pub fn engine_cmd_window_set_icon(
     };
 
     // Validate buffer type
-    if buffer.upload_type != crate::core::buffers::UploadType::ImageData {
+    if buffer.upload_type != UploadType::ImageData {
         return CmdResultWindowSetIcon {
             success: false,
             message: format!(
@@ -466,7 +467,7 @@ pub fn engine_cmd_window_set_icon(
     };
 
     // Apply icon to window
-    let window_state = engine.windows.get(&args.window_id).unwrap();
+    let window_state = engine.window.states.get(&args.window_id).unwrap();
     window_state.window.set_window_icon(Some(icon));
 
     CmdResultWindowSetIcon {

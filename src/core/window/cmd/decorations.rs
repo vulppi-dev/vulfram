@@ -22,7 +22,7 @@ pub fn engine_cmd_window_set_decorations(
     engine: &mut EngineState,
     args: &CmdWindowSetDecorationsArgs,
 ) -> CmdResultWindowSetDecorations {
-    match engine.windows.get(&args.window_id) {
+    match engine.window.states.get(&args.window_id) {
         Some(window_state) => {
             window_state.window.set_decorations(args.decorations);
             CmdResultWindowSetDecorations {
@@ -57,7 +57,7 @@ pub fn engine_cmd_window_has_decorations(
     engine: &EngineState,
     args: &CmdWindowHasDecorationsArgs,
 ) -> CmdResultWindowHasDecorations {
-    match engine.windows.get(&args.window_id) {
+    match engine.window.states.get(&args.window_id) {
         Some(window_state) => {
             let has_decorations = window_state.window.is_decorated();
             CmdResultWindowHasDecorations {
@@ -94,7 +94,7 @@ pub fn engine_cmd_window_set_resizable(
     engine: &mut EngineState,
     args: &CmdWindowSetResizableArgs,
 ) -> CmdResultWindowSetResizable {
-    match engine.windows.get(&args.window_id) {
+    match engine.window.states.get(&args.window_id) {
         Some(window_state) => {
             window_state.window.set_resizable(args.resizable);
             CmdResultWindowSetResizable {
@@ -129,7 +129,7 @@ pub fn engine_cmd_window_is_resizable(
     engine: &EngineState,
     args: &CmdWindowIsResizableArgs,
 ) -> CmdResultWindowIsResizable {
-    match engine.windows.get(&args.window_id) {
+    match engine.window.states.get(&args.window_id) {
         Some(window_state) => {
             let is_resizable = window_state.window.is_resizable();
             CmdResultWindowIsResizable {

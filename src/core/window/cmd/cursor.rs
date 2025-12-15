@@ -23,7 +23,7 @@ pub fn engine_cmd_window_set_cursor_visible(
     engine: &mut EngineState,
     args: &CmdWindowSetCursorVisibleArgs,
 ) -> CmdResultWindowSetCursorVisible {
-    match engine.windows.get(&args.window_id) {
+    match engine.window.states.get(&args.window_id) {
         Some(window_state) => {
             window_state.window.set_cursor_visible(args.visible);
             CmdResultWindowSetCursorVisible {
@@ -76,7 +76,7 @@ pub fn engine_cmd_window_set_cursor_grab(
     engine: &mut EngineState,
     args: &CmdWindowSetCursorGrabArgs,
 ) -> CmdResultWindowSetCursorGrab {
-    match engine.windows.get(&args.window_id) {
+    match engine.window.states.get(&args.window_id) {
         Some(window_state) => {
             let grab_mode = match args.mode {
                 CursorGrabMode::None => {
@@ -221,7 +221,7 @@ pub fn engine_cmd_window_set_cursor_icon(
     engine: &mut EngineState,
     args: &CmdWindowSetCursorIconArgs,
 ) -> CmdResultWindowSetCursorIcon {
-    match engine.windows.get(&args.window_id) {
+    match engine.window.states.get(&args.window_id) {
         Some(window_state) => {
             let winit_icon = match args.icon {
                 CursorIcon::Default => winit::window::CursorIcon::Default,

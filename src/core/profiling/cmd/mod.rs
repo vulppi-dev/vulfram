@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use super::VulframResult;
-use super::singleton::with_engine;
+use crate::core::VulframResult;
+use crate::core::singleton::with_engine;
 
 /// Profiling data structure for export
 #[derive(Debug, Clone, Deserialize, Serialize)]

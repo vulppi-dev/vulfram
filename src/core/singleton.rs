@@ -4,8 +4,8 @@ use std::thread::{self, ThreadId};
 use winit::event_loop::{EventLoop, EventLoopProxy};
 
 use super::VulframResult;
-use super::cmd::win::CmdWindowCreateArgs;
 use super::state::EngineState;
+use super::window::cmd::CmdWindowCreateArgs;
 
 /// Custom events sent through the event loop
 pub enum EngineCustomEvents {

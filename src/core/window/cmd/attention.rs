@@ -33,7 +33,7 @@ pub fn engine_cmd_window_request_attention(
     engine: &mut EngineState,
     args: &CmdWindowRequestAttentionArgs,
 ) -> CmdResultWindowRequestAttention {
-    match engine.windows.get(&args.window_id) {
+    match engine.window.states.get(&args.window_id) {
         Some(window_state) => {
             let attention_type = args.attention_type.map(|t| match t {
                 UserAttentionType::Critical => winit::window::UserAttentionType::Critical,
@@ -71,7 +71,7 @@ pub fn engine_cmd_window_focus(
     engine: &mut EngineState,
     args: &CmdWindowFocusArgs,
 ) -> CmdResultWindowFocus {
-    match engine.windows.get(&args.window_id) {
+    match engine.window.states.get(&args.window_id) {
         Some(window_state) => {
             window_state.window.focus_window();
             CmdResultWindowFocus {

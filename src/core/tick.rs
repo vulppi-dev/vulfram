@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use winit::platform::pump_events::EventLoopExtPumpEvents;
 
 use super::VulframResult;
@@ -36,16 +36,10 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
 
         // MARK: Event Loop Pump
         if let Some(event_loop) = &mut engine.event_loop {
-            // Only set control flow if it's not already set to Poll
-            // This avoids unnecessary overhead
             let pump_start = Instant::now();
-
-            // pump_app_events with timeout=None processes all pending events
-            // without blocking or yielding to the OS
-            event_loop.pump_app_events(None, &mut engine.state);
+            event_loop.pump_app_events(Some(Duration::from_millis(16)), &mut engine.state);
 
             let total_pump_time = pump_start.elapsed().as_nanos() as u64;
-            // Subtract custom events time (window creation) from event loop pump time
             engine.state.profiling.event_loop_pump_ns =
                 total_pump_time.saturating_sub(engine.state.profiling.custom_events_ns);
         }

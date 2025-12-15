@@ -11,24 +11,33 @@ static ENGINE_GUARD: Mutex<()> = Mutex::new(());
 
 fn main() {
     let _lock = ENGINE_GUARD.lock().unwrap();
+
+    println!("Initializing Vulfram engine...");
     assert_eq!(core::vulfram_init(), VulframResult::Success);
 
+    println!("Creating window...");
     let create_cmd = EngineCmd::CmdWindowCreate(CmdWindowCreateArgs {
         title: "Vulfram Test Window".into(),
+        size: glam::UVec2::new(800, 600),
         ..Default::default()
     });
     assert_eq!(send_commands(vec![create_cmd]), VulframResult::Success);
 
     pump_for(Duration::from_millis(100));
     let window_id = wait_for_window_id();
+    println!("Window created with ID: {}", window_id);
 
+    println!("Keeping window open for 5 seconds...");
     pump_for(Duration::from_secs(5));
 
+    println!("Closing window...");
     let close_cmd = EngineCmd::CmdWindowClose(CmdWindowCloseArgs { window_id });
     assert_eq!(send_commands(vec![close_cmd]), VulframResult::Success);
     pump_for(Duration::from_millis(100));
 
+    println!("Disposing engine...");
     assert_eq!(core::vulfram_dispose(), VulframResult::Success);
+    println!("Vulfram test completed successfully.");
 }
 
 fn pump_for(duration: Duration) {

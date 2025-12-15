@@ -15,6 +15,6 @@ impl RenderState {
         _device: &wgpu::Device,
         _queue: &wgpu::Queue,
     ) -> () {
-        todo!()
+        // TODO: Initialize fallback resources (default shader, texture, geometry)
     }
 }

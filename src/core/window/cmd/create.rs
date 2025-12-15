@@ -24,6 +24,7 @@ pub struct CmdWindowCreateArgs {
     pub position: IVec2,
     pub borderless: bool,
     pub resizable: bool,
+    pub transparent: bool,
     pub initial_state: EngineWindowState,
 }
 
@@ -40,16 +41,25 @@ pub fn engine_cmd_window_create(
     event_loop: &ActiveEventLoop,
     args: &CmdWindowCreateArgs,
 ) -> CmdResultWindowCreate {
-    let win_attrs = Window::default_attributes()
+    // Ensure minimum valid size
+    let window_width = args.size.x.max(1);
+    let window_height = args.size.y.max(1);
+
+    let mut win_attrs = Window::default_attributes()
         .with_title(args.title.as_str())
         .with_decorations(!args.borderless)
         .with_resizable(args.resizable)
-        .with_inner_size(PhysicalSize::new(args.size.x, args.size.y))
-        .with_position(Position::Physical(PhysicalPosition::new(
+        .with_inner_size(PhysicalSize::new(window_width, window_height))
+        .with_transparent(args.transparent);
+
+    // Only set position if explicitly provided (not default 0, 0)
+    // Wayland doesn't support arbitrary window positioning
+    if args.position.x != 0 || args.position.y != 0 {
+        win_attrs = win_attrs.with_position(Position::Physical(PhysicalPosition::new(
             args.position.x,
             args.position.y,
-        )))
-        .with_transparent(true);
+        )));
+    }
 
     let window = match event_loop.create_window(win_attrs) {
         Ok(window) => Arc::new(window),
@@ -164,8 +174,8 @@ pub fn engine_cmd_window_create(
 
     let config = wgpu::SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-        width: args.size[0],
-        height: args.size[1],
+        width: window_width,
+        height: window_height,
         present_mode: if caps.present_modes.contains(&wgpu::PresentMode::Mailbox) {
             wgpu::PresentMode::Mailbox
         } else {

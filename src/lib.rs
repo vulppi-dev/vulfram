@@ -1,5 +1,4 @@
 mod core;
-mod test;
 
 // ============================================================================
 // N-API Exports - for Node.js native modules

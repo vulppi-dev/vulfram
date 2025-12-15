@@ -19,10 +19,6 @@ This file contains instructions for you to help it generate code that is consist
 ### Code Comments
 
 - **Rust code**: Minimal comments - function and variable names should be self-descriptive
-- **TypeScript bindings**: Complete JSDoc with:
-  - Purpose explanation
-  - Usage examples
-  - NO need to define parameters/return types (TypeScript handles this)
 
 ## Project Information
 
@@ -158,35 +154,6 @@ This file contains instructions for you to help it generate code that is consist
   - `UI.md`: Visual identity and color palette
   - `MASCOT-DEFINITION.md`: Vulfi character definition
 
-## Build & Development
-
-### Commands
-
-```bash
-# Build native binding (run from project root)
-bun run build:napi
-
-# Development/testing (run from binding folder)
-cd bind/ts
-bun run dev
-```
-
-### Project Structure
-
-- **Root**: Multi-workspace project
-- **core/**: Rust crate (main implementation)
-  - `Cargo.toml`: Rust dependencies and configuration
-  - `src/`: Rust source code
-    - `lib.rs`: FFI bindings entry point
-    - `core/`: Engine implementation
-- **bind/ts/**: TypeScript bindings
-  - `src/`: TypeScript source
-  - `napi/`: Generated native module
-- **bind/lua/**: Lua bindings (mlua)
-- **bind/python/**: Python bindings (PyO3)
-- **docs/**: Complete documentation set
-- **assets/**: Brand assets and resources
-
 ## Technical Decisions
 
 ### Serialization Format
@@ -256,11 +223,6 @@ bun run dev
 - `serde_repr`: Numeric enum serialization
 - `rmp-serde`: MessagePack serialization with Serde support
 
-### TypeScript/JavaScript
-
-- `msgpackr`: MessagePack encoding/decoding
-- `bun`: Primary runtime (but Node.js compatible)
-
 ## Best Practices
 
 ### Error Handling
@@ -318,33 +280,6 @@ bun run dev
   - TypeScript enums declared in `enums.ts` with same numeric values as Rust
   - String union types are only acceptable for non-serialized types (e.g., helper functions)
 
-### Enum Synchronization (Rust ↔ TypeScript)
-
-All enums serialized via MessagePack MUST be numeric and synchronized:
-
-- **Rust side**:
-  - Use `#[derive(Serialize_repr, Deserialize_repr)]`
-  - Use `#[repr(u32)]`
-  - Explicit numeric values (e.g., `Float = 0, Int = 1`)
-  
-- **TypeScript side**:
-  - Declare as numeric enum in `bind/ts/src/enums.ts`
-  - Match exact numeric values from Rust
-  - Import and use enum types (not string literals)
-  
-- **Serialized enums** (MUST be numeric):
-  - `UniformType`: Float=0, Int=1, UInt=2, Bool=3, Vec2=4...Mat4x4=21, AtomicInt=22, AtomicUInt=23
-  - `TextureSampleType`: Float=0, Depth=1, Sint=2, Uint=3
-  - `TextureViewDimension`: D1=0, D2=1, D2Array=2, Cube=3, CubeArray=4, D3=5
-  - `SamplerBindingType`: Filtering=0, NonFiltering=1, Comparison=2
-  - `TextureFormat`: R8Unorm=0, R8Snorm=1...Depth32FloatStencil8=37
-  - `VertexFormat`: Uint8x2=0...Float64x4=33
-  - `IndexFormat`: Uint16=0, Uint32=1
-  
-- **Non-serialized types** (can be string unions):
-  - `VertexSemantic`: 'position' | 'normal' | 'uv0' | 'color0' | etc. (used only in TypeScript)
-  - `ViewportMode`: 'relative' | 'absolute' (used only in TypeScript)
-
 ### Layer Masking and Visibility
 
 - **LayerMask system**: `u32` bitmasks for visibility control
@@ -356,16 +291,3 @@ All enums serialized via MessagePack MUST be numeric and synchronized:
   - Team-based filtering
   - Debug-only geometry
   - Special render passes (picking, shadows, etc.)
-
-### Dynamic Offset System
-
-- **Uniform buffer offsets**: Always dynamic (not embedded in bind groups)
-- **has_dynamic_offset**: Always set to `true` for all uniform buffer bindings
-- **Bind groups**: Created with `offset: 0` and `size: None`
-- **Draw time offsets**: Passed via `set_bind_group()` with offset array
-- **Group continuity**: Bind group layout indices must be contiguous (0, 1, 2...)
-  - wgpu requires all bind group slots to be filled in the pipeline layout
-  - If shader uses `@group(0)` and `@group(2)`, must create layouts for 0, 1, and 2
-  - Empty layouts (with no entries) are created for unused intermediate groups
-- **Group mapping**: Layout index = group number (direct mapping after ensuring continuity)
-- **Benefits**: Single bind group per shader group shared across all components using dynamic offsets

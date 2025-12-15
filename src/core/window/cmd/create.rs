@@ -42,13 +42,14 @@ pub fn engine_cmd_window_create(
     args: &CmdWindowCreateArgs,
 ) -> CmdResultWindowCreate {
     // Ensure minimum valid size
-    let window_width = args.size.x.max(1);
-    let window_height = args.size.y.max(1);
+    let window_width = args.size.x.max(100);
+    let window_height = args.size.y.max(100);
 
     let mut win_attrs = Window::default_attributes()
         .with_title(args.title.as_str())
         .with_decorations(!args.borderless)
         .with_resizable(args.resizable)
+        .with_min_inner_size(PhysicalSize::new(100, 100))
         .with_inner_size(PhysicalSize::new(window_width, window_height))
         .with_transparent(args.transparent);
 

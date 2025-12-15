@@ -2,7 +2,6 @@ use crate::core::VulframResult;
 use crate::core::buffers::state::{BufferStorage, UploadBuffer, UploadType};
 use crate::core::singleton::with_engine;
 
-pub mod cache;
 pub mod state;
 
 pub fn vulfram_upload_buffer(

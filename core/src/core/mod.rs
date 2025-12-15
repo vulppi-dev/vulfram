@@ -1,6 +1,7 @@
 // Submodules
 pub mod buffers;
 mod cache;
+mod gamepad;
 mod handler;
 mod lifecycle;
 mod profiling;

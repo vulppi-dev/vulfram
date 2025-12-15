@@ -3125,7 +3125,6 @@ dependencies = [
  "log",
  "mlua",
  "napi",
- "napi-build",
  "napi-derive",
  "notifica",
  "once_cell",

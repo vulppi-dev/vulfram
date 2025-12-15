@@ -187,10 +187,8 @@ pub fn engine_cmd_window_create(
     let outer_size = window.outer_size();
 
     // Create render state and initialize blit resources
-    let mut render_state = crate::core::render::RenderState::new(format);
+    let render_state = crate::core::render::RenderState::new(format);
     if let Some(device) = &engine.device {
-        render_state.init_blit_resources(device);
-        // Initialize fallback resources (1x1 black texture and default sampler)
         if let Some(queue) = &engine.queue {
             render_state.init_fallback_resources(device, queue);
         }

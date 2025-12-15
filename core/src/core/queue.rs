@@ -11,12 +11,10 @@ pub fn vulfram_send_queue(ptr: *const u8, length: usize) -> VulframResult {
     let data = unsafe { std::slice::from_raw_parts(ptr, length).to_vec() };
 
     let batch = match rmp_serde::from_slice::<EngineBatchCmds>(&data) {
-        Err(e) => {
+        Err(_) => {
             return VulframResult::CmdInvalidMessagePackError;
         }
-        Ok(batch) => {
-            batch
-        }
+        Ok(batch) => batch,
     };
 
     match with_engine_singleton(|engine| {

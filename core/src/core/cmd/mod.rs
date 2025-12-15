@@ -33,25 +33,6 @@ pub enum EngineCmd {
     CmdWindowSetCursorVisible(win::CmdWindowSetCursorVisibleArgs),
     CmdWindowSetCursorGrab(win::CmdWindowSetCursorGrabArgs),
     CmdWindowSetCursorIcon(win::CmdWindowSetCursorIconArgs),
-    CmdShaderCreate(render::CmdShaderCreateArgs),
-    CmdShaderDispose(render::CmdShaderDisposeArgs),
-    CmdGeometryCreate(render::CmdGeometryCreateArgs),
-    CmdGeometryDispose(render::CmdGeometryDisposeArgs),
-    CmdMaterialCreate(render::CmdMaterialCreateArgs),
-    CmdMaterialUpdate(render::CmdMaterialUpdateArgs),
-    CmdMaterialDispose(render::CmdMaterialDisposeArgs),
-    CmdTextureCreate(render::CmdTextureCreateArgs),
-    CmdTextureUpdate(render::CmdTextureUpdateArgs),
-    CmdTextureDispose(render::CmdTextureDisposeArgs),
-    CmdSamplerCreate(render::CmdSamplerCreateArgs),
-    CmdSamplerUpdate(render::CmdSamplerUpdateArgs),
-    CmdSamplerDispose(render::CmdSamplerDisposeArgs),
-    CmdCameraCreate(render::CmdCameraCreateArgs),
-    CmdCameraUpdate(render::CmdCameraUpdateArgs),
-    CmdCameraDispose(render::CmdCameraDisposeArgs),
-    CmdModelCreate(render::CmdModelCreateArgs),
-    CmdModelUpdate(render::CmdModelUpdateArgs),
-    CmdModelDispose(render::CmdModelDisposeArgs),
 }
 
 /// Spontaneous engine events (input, window changes, system events)
@@ -90,25 +71,6 @@ pub enum CommandResponse {
     WindowSetCursorVisible(win::CmdResultWindowSetCursorVisible),
     WindowSetCursorGrab(win::CmdResultWindowSetCursorGrab),
     WindowSetCursorIcon(win::CmdResultWindowSetCursorIcon),
-    ShaderCreate(render::CmdResultShaderCreate),
-    ShaderDispose(render::CmdResultShaderDispose),
-    GeometryCreate(render::CmdResultGeometryCreate),
-    GeometryDispose(render::CmdResultGeometryDispose),
-    MaterialCreate(render::CmdResultMaterialCreate),
-    MaterialUpdate(render::CmdResultMaterialUpdate),
-    MaterialDispose(render::CmdResultMaterialDispose),
-    TextureCreate(render::CmdResultTextureCreate),
-    TextureUpdate(render::CmdResultTextureUpdate),
-    TextureDispose(render::CmdResultTextureDispose),
-    SamplerCreate(render::CmdResultSamplerCreate),
-    SamplerUpdate(render::CmdResultSamplerUpdate),
-    SamplerDispose(render::CmdResultSamplerDispose),
-    CameraCreate(render::CmdResultCameraCreate),
-    CameraUpdate(render::CmdResultCameraUpdate),
-    CameraDispose(render::CmdResultCameraDispose),
-    ModelCreate(render::CmdResultModelCreate),
-    ModelUpdate(render::CmdResultModelUpdate),
-    ModelDispose(render::CmdResultModelDispose),
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -280,139 +242,6 @@ pub fn engine_process_batch(
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::WindowSetCursorIcon(result),
-                });
-            }
-            EngineCmd::CmdShaderCreate(args) => {
-                let result = render::engine_cmd_shader_create(engine, &args);
-                engine.response_queue.push(CommandResponseEnvelope {
-                    id: pack.id,
-                    response: CommandResponse::ShaderCreate(result),
-                });
-            }
-            EngineCmd::CmdShaderDispose(args) => {
-                let result = render::engine_cmd_shader_dispose(engine, &args);
-                engine.response_queue.push(CommandResponseEnvelope {
-                    id: pack.id,
-                    response: CommandResponse::ShaderDispose(result),
-                });
-            }
-            EngineCmd::CmdGeometryCreate(args) => {
-                let result = render::engine_cmd_geometry_create(engine, &args);
-                engine.response_queue.push(CommandResponseEnvelope {
-                    id: pack.id,
-                    response: CommandResponse::GeometryCreate(result),
-                });
-            }
-            EngineCmd::CmdGeometryDispose(args) => {
-                let result = render::engine_cmd_geometry_dispose(engine, &args);
-                engine.response_queue.push(CommandResponseEnvelope {
-                    id: pack.id,
-                    response: CommandResponse::GeometryDispose(result),
-                });
-            }
-            EngineCmd::CmdMaterialCreate(args) => {
-                let result = render::engine_cmd_material_create(engine, &args);
-                engine.response_queue.push(CommandResponseEnvelope {
-                    id: pack.id,
-                    response: CommandResponse::MaterialCreate(result),
-                });
-            }
-            EngineCmd::CmdMaterialUpdate(args) => {
-                let result = render::engine_cmd_material_update(engine, &args);
-                engine.response_queue.push(CommandResponseEnvelope {
-                    id: pack.id,
-                    response: CommandResponse::MaterialUpdate(result),
-                });
-            }
-            EngineCmd::CmdMaterialDispose(args) => {
-                let result = render::engine_cmd_material_dispose(engine, &args);
-                engine.response_queue.push(CommandResponseEnvelope {
-                    id: pack.id,
-                    response: CommandResponse::MaterialDispose(result),
-                });
-            }
-            EngineCmd::CmdTextureCreate(args) => {
-                let result = render::engine_cmd_texture_create(engine, &args);
-                engine.response_queue.push(CommandResponseEnvelope {
-                    id: pack.id,
-                    response: CommandResponse::TextureCreate(result),
-                });
-            }
-            EngineCmd::CmdTextureUpdate(args) => {
-                let result = render::engine_cmd_texture_update(engine, &args);
-                engine.response_queue.push(CommandResponseEnvelope {
-                    id: pack.id,
-                    response: CommandResponse::TextureUpdate(result),
-                });
-            }
-            EngineCmd::CmdTextureDispose(args) => {
-                let result = render::engine_cmd_texture_dispose(engine, &args);
-                engine.response_queue.push(CommandResponseEnvelope {
-                    id: pack.id,
-                    response: CommandResponse::TextureDispose(result),
-                });
-            }
-            EngineCmd::CmdSamplerCreate(args) => {
-                let result = render::engine_cmd_sampler_create(engine, &args);
-                engine.response_queue.push(CommandResponseEnvelope {
-                    id: pack.id,
-                    response: CommandResponse::SamplerCreate(result),
-                });
-            }
-            EngineCmd::CmdSamplerUpdate(args) => {
-                let result = render::engine_cmd_sampler_update(engine, &args);
-                engine.response_queue.push(CommandResponseEnvelope {
-                    id: pack.id,
-                    response: CommandResponse::SamplerUpdate(result),
-                });
-            }
-            EngineCmd::CmdSamplerDispose(args) => {
-                let result = render::engine_cmd_sampler_dispose(engine, &args);
-                engine.response_queue.push(CommandResponseEnvelope {
-                    id: pack.id,
-                    response: CommandResponse::SamplerDispose(result),
-                });
-            }
-            EngineCmd::CmdCameraCreate(args) => {
-                let result = render::engine_cmd_camera_create(engine, &args);
-                engine.response_queue.push(CommandResponseEnvelope {
-                    id: pack.id,
-                    response: CommandResponse::CameraCreate(result),
-                });
-            }
-            EngineCmd::CmdCameraUpdate(args) => {
-                let result = render::engine_cmd_camera_update(engine, &args);
-                engine.response_queue.push(CommandResponseEnvelope {
-                    id: pack.id,
-                    response: CommandResponse::CameraUpdate(result),
-                });
-            }
-            EngineCmd::CmdCameraDispose(args) => {
-                let result = render::engine_cmd_camera_dispose(engine, &args);
-                engine.response_queue.push(CommandResponseEnvelope {
-                    id: pack.id,
-                    response: CommandResponse::CameraDispose(result),
-                });
-            }
-            EngineCmd::CmdModelCreate(args) => {
-                let result = render::engine_cmd_model_create(engine, &args);
-                engine.response_queue.push(CommandResponseEnvelope {
-                    id: pack.id,
-                    response: CommandResponse::ModelCreate(result),
-                });
-            }
-            EngineCmd::CmdModelUpdate(args) => {
-                let result = render::engine_cmd_model_update(engine, &args);
-                engine.response_queue.push(CommandResponseEnvelope {
-                    id: pack.id,
-                    response: CommandResponse::ModelUpdate(result),
-                });
-            }
-            EngineCmd::CmdModelDispose(args) => {
-                let result = render::engine_cmd_model_dispose(engine, &args);
-                engine.response_queue.push(CommandResponseEnvelope {
-                    id: pack.id,
-                    response: CommandResponse::ModelDispose(result),
                 });
             }
         }

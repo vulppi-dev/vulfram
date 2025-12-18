@@ -193,7 +193,7 @@ pub fn engine_cmd_window_create(
     let outer_size = window.outer_size();
 
     // Create render state and initialize blit resources
-    let render_state = crate::core::render::RenderState::new(format);
+    let mut render_state = crate::core::render::RenderState::new(format);
     if let Some(device) = &engine.device {
         if let Some(queue) = &engine.queue {
             render_state.init_fallback_resources(device, queue);

@@ -47,6 +47,12 @@ impl WindowManager {
         self.window_id_map.get(winit_id).copied()
     }
 
+    pub fn mark_all_dirty(&mut self) {
+        for (_, window_state) in self.states.iter_mut() {
+            window_state.is_dirty = true;
+        }
+    }
+
     pub fn insert_state(&mut self, window_id: u32, state: WindowState) {
         self.states.insert(window_id, state);
     }

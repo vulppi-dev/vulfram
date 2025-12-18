@@ -1,21 +1,19 @@
-// Submodules
 pub mod buffers;
+pub mod cmd;
 pub mod gamepad;
 mod handler;
+pub mod image;
 pub mod input;
 mod lifecycle;
 pub mod profiling;
 mod queue;
 pub mod render;
+pub mod resources;
 mod singleton;
 mod state;
 pub mod system;
 mod tick;
 pub mod window;
-
-// Public modules
-pub mod cmd;
-pub mod image;
 
 // Re-exports for public API
 #[allow(unused)]

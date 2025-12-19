@@ -1,293 +1,123 @@
-# Instructions Memory
+# Copilot Instructions — vulfram-core (Rust)
 
-This file contains instructions for you to help it generate code that is consistent with the project's coding style, conventions, and requirements. It serves as a reference for Copilot to understand the context and expectations of the codebase.
+These instructions exist to keep Copilot suggestions consistent with the current codebase and its ABI/binding contracts.
 
-**IMPORTANT**: Edit this file always you need remember specific pattern or style about this project.
+## Language & style
 
----
+- Human communication: pt-BR.
+- Code identifiers: English (functions, variables, types).
+- Formatting: rustfmt (VSCode + rust-analyzer formats on save). Do not add “manual formatting rules”.
 
-# Memory Entries
+## Scope / non-goals
 
-## Communication & Documentation
+- This repository is **Rust-only**. Do **not** generate or maintain TypeScript/JavaScript here.
+- Do **not** introduce or export internal engine/core Rust types. Only the small `vulfram_*` API surface is exported.
 
-### Language Standards
+## Crate profile (Cargo.toml)
 
-- **Communication with user**: Always in Brazilian Portuguese (pt-BR)
-- **Code**: Always in English (variables, functions, types, comments)
-- **Documentation**: Always in English (README, JSDoc, comments)
+- `edition = "2024"`
+- `crate-type = ["cdylib"]`
+- Features:
+  - `default = ["napi"]`
+  - optional: `ffi`, `lua`, `python`
 
-### Code Comments
+## Runtime bindings implemented in Rust
 
-- **Rust code**: Minimal comments - function and variable names should be self-descriptive
+Bindings are implemented behind feature flags:
 
-## Project Information
+- **N-API (default)**: Node.js native module via `napi` / `napi-derive`.
+- **Lua (optional)**: via `mlua`.
+- **Python (optional)**: via `pyo3`.
+- **Raw C ABI (optional)**: `extern "C"` exports behind `feature = "ffi"`.
 
-### About Vulfram
+Keep the binding modules gated by `#[cfg(feature = "...")]` and avoid cross-feature symbol drift.
 
-- **Company**: Vulppi
-- **Project name**: Vulfram (combination of Vulppi + Frame)
-- **Name origin**: Vulppi comes from "Vulpes" (scientific name for fox)
-- **Mascot**: Vulfi (The Frame Fox) - a futuristic, neon-tech fox with purple/magenta colors
-- **Purpose**: Host-agnostic rendering and systems core exposed as a dynamic library
-- **Design philosophy**:
-  - Host controls the engine via small set of C-ABI functions
-  - Core remains a black box owning windowing, input, GPU resources, and render pipeline
-  - Binary communication via MessagePack for speed and compact format
+## Exported API surface
 
-### Technology Stack
+### Status codes
 
-- **Core**: Rust with WGPU (WebGPU implementation)
-- **Windowing**: Winit for cross-platform window creation and OS events
-- **Input**: Gilrs for gamepad support
-- **Image processing**: `image` crate for texture decoding (PNG, JPEG, etc.)
-- **Math**: `glam` for vectors/matrices, `bytemuck` for safe binary packing
-- **Binding**: Multiple targets via C-ABI:
-  - N-API for Node.js/Bun compatibility
-  - `mlua` for Lua bindings
-  - `PyO3` for Python bindings
-  - Any FFI-capable environment
-- **Serialization**: MessagePack via `serde` + `rmp-serde` for command/event communication
-- **Language bindings**: TypeScript/JavaScript, Lua, Python
+- All `vulfram_*` entrypoints return a `u32` status code (`0 = success`, non-zero = error).
 
-## Architecture Patterns
+### Lifecycle
 
-### Core Concepts
+- `vulfram_init() -> u32`
+- `vulfram_dispose() -> u32`
+- `vulfram_tick(time, delta_time) -> u32`
+  - `time`: `u64` in raw C ABI; `i64` in some bindings (casted).
 
-- **Host**: External program/runtime calling `vulfram_*` functions (Node.js, Bun, Lua, Python, etc.)
-  - Manages game logic and world state
-  - Generates logical IDs (entities, resources, buffers)
-  - Builds MessagePack command batches
-  - Drives main loop with `vulfram_tick(time, deltaTime)`
-- **Core**: Rust dynamic library implementing Vulfram
+### Command queue (Host → Core)
 
-  - Abstracts window, input, and rendering systems
-  - Manages GPU resources via WGPU
-  - Translates host commands into internal state changes
-  - Never exposes internal Rust types, WGPU details, or Winit specifics
+- `vulfram_send_queue(...) -> u32`  
+  Receives a byte buffer with a **MessagePack** batch (via `serde` + `rmp-serde`).
 
-- **ABI**: C-ABI interface with primitive types only (`u32`, pointers, `size_t`, `double`)
-  - Function return: `u32` status code (`0` = success, non-zero = error)
-  - All functions are main-thread only, no concurrent calls
-  - Thread safety must be implemented host-side
+### Output queues (Core → Host)
 
-### Command/Event System
+- `vulfram_receive_queue(...) -> (buffer, status)`
+- `vulfram_receive_events(...) -> (buffer, status)`
+- `vulfram_get_profiling(...) -> (buffer, status)` **(note name: `get_profiling`)**
 
-- **Commands**: Sent from Host → Core via `vulfram_send_queue(buffer, length)`
-  - MessagePack-serialized batches
-  - Create/update/destroy resources and components
-  - Maintenance commands (e.g., `DiscardUnusedUploads`)
-- **Messages**: Received Core → Host via `vulfram_receive_queue(out_ptr, out_length)`
-  - Acknowledgments, error info, internal notifications
-  - Host must copy bytes and free core-allocated buffer
-- **Events**: Received Core → Host via `vulfram_receive_events(out_ptr, out_length)`
+All returned buffers are **opaque byte blobs** (usually MessagePack). The meaning/format is defined by the host protocol, not by exported Rust types.
 
-  - Input events (keyboard, mouse, gamepad, touch)
-  - Window events (resize, close, focus, etc.)
-  - Same buffer management as messages
+### Upload / download byte buffers
 
-- **Profiling**: Retrieved via `vulfram_profiling(out_ptr, out_length)`
-  - Timing data for internal sections
-  - Counters (draw calls, instances, resource counts)
-  - Optional, called on-demand or per-frame for debug
+- `vulfram_upload_buffer(id, upload_type, data) -> u32`
+  - `id`: host-generated logical ID
+  - `upload_type`: `u32` discriminator
+  - `data`: byte buffer
+- `vulfram_download_buffer(id) -> (buffer, status)` (bindings)  
+  Raw C ABI may use out-pointers for `(ptr, len)`.
 
-### Components vs Resources
+## Buffer ownership & zero-copy rules (CRITICAL)
 
-- **Components**: High-level structures attached to entities
-  - Examples: `CameraComponent`, `ModelComponent`, `LightComponent` (future)
-  - Always associated with host-generated `ComponentId`
-  - Contain static data (colors, matrices) and/or references to resources
-  - Created/updated via commands in `send_queue`
-- **Resources**: Reusable data assets
-  - **Sharable resources**: Referenced by logical IDs across multiple components
-    - `ShaderResource` (`ShaderId`)
-    - `GeometryResource` (`GeometryId`)
-    - `MaterialResource` (`MaterialId`)
-    - `TextureResource` (`TextureId`)
-    - `SamplerResource` (future)
-  - **Static resources**: Live inside specific components only
-    - No separate logical ID
-    - Examples: camera viewport, per-instance colors
+The core returns outbound data as a `(ptr, len)` pair via out-params. The **binding layer** must take ownership exactly once and ensure the allocation is eventually freed.
 
-### Type Organization
+### N-API (zero-copy into JS Buffer)
 
-- **Commands**: Host-defined interfaces for operations
-- **Events**: Core-defined structures for notifications
-- **Results**: Status codes returned from C-ABI functions (`VulframResult` enum)
-- **Enums**: Shared between Rust and bindings (snake_case in Rust → kebab-case in TS)
+- Convert `(ptr, len)` to `Box<[u8]>` (from_raw on a `slice::from_raw_parts_mut`), then to `Vec<u8>`, then to `napi::Buffer::from(vec)`.
+- This is **zero-copy**: the bytes are moved into the JavaScript engine’s `Buffer`.
+- After `Buffer::from(vec)`, the **JS GC owns the memory** and will free it. Do not add manual free logic.
 
-### Naming Conventions
+### Lua / Python (copy unavoidable)
 
-- **Rust**: snake_case for functions/variables, PascalCase for types/structs
-- **TypeScript**: camelCase for functions/variables, PascalCase for types/interfaces
-- **C-ABI functions**: `vulfram_*` prefix (e.g., `vulfram_init`, `vulfram_tick`, `vulfram_send_queue`)
-- **Commands**: Descriptive names in MessagePack (e.g., `CreateShader`, `UpdateCamera`)
-- **Events**: Descriptive names for input/window notifications
-- **Logical IDs**: Host-managed opaque integers
-  - `ComponentId`, `ShaderId`, `GeometryId`, `MaterialId`, `TextureId`, `BufferId`
-- **Internal handles**: Core-only references (never exposed to host)
-  - `ShaderModuleHandle`, `RenderPipelineHandle`, `BufferHandle`, `TextureHandle`
-  - `CameraInstanceHandle`, `MeshInstanceHandle`
+- Convert `(ptr, len)` back to `Box<[u8]>`, then create `LuaString` / `PyBytes` from it.
+- These runtimes **copy** the bytes.
+- The `Box<[u8]>` must be dropped immediately after the copy.
 
-### Code Structure
+### Raw C ABI (feature = "ffi")
 
-- **Rust modules**: Organized by feature (core/cmd, core/render, core/cache, etc.)
-- **TypeScript**: Barrel exports via `index.ts` files
-- **Core structure**:
-  - `core/`: Engine core functionality
-    - `buffers.rs`: Upload/download buffer management
-    - `handler.rs`: Event and command handling
-    - `lifecycle.rs`: Init/dispose lifecycle
-    - `queue.rs`: Message/event queue management
-    - `state.rs`: Central `EngineState` structure
-    - `tick.rs`: Frame advancement logic
-    - `cache/`: Event filtering and caching
-    - `cmd/`: Command processing
-    - `render/`: WGPU rendering system
-  - `lib.rs`: FFI bindings entry point (N-API, mlua, PyO3)
-- **MARK comments**: Use `// MARK: Section Name` for organization
-- **Documentation**: Reference docs in `docs/` folder
-  - `OVERVIEW.md`: High-level design and concepts
-  - `ABI.md`: C-ABI function reference
-  - `ARCH.md`: Architecture and lifecycle
-  - `API.md`: Internal Rust implementation details
-  - `GLOSSARY.md`: Terminology reference
-  - `UI.md`: Visual identity and color palette
-  - `MASCOT-DEFINITION.md`: Vulfi character definition
+- There is no runtime wrapper to automatically reclaim allocations.
+- If you extend or use this path, keep ownership explicit:
+  - Prefer adding an explicit `vulfram_free_buffer(ptr, len)` export **or**
+  - Change the API to require caller-allocated buffers (no owned pointer returned).
+- Do **not** “leak by design” (e.g., `mem::forget`) without a matching reclamation mechanism.
 
-## Technical Decisions
+### Safety invariants
 
-### Serialization Format
+- The `(ptr, len)` returned by core must reference a Rust heap allocation that is valid for exactly one ownership transfer.
+- Never reconstruct the same allocation twice.
+- Never assume the pointer is valid after transferring ownership to `Buffer::from(vec)`.
 
-- **Choice**: MessagePack (efficient binary serialization)
-- **Reason**: Compact binary format with excellent performance and wide language support
-- **Usage**: Command/Event communication between JS/TS and Rust
-- **Libraries**:
-  - Rust: `rmp-serde` (MessagePack with Serde support)
-  - TypeScript: `msgpackr` (fast MessagePack implementation)
+## Concurrency & threading
 
-### Event Loop Architecture
+- Assume `vulfram_*` calls are main-thread-only.
+- Do not introduce shared mutable global state without synchronization. Keep thread-safety decisions explicit.
 
-- **Pattern**: External event loop (controlled from host)
-- **Tick function**: `vulfram_tick(time, deltaTime)` advances engine
-- **Events**: Pulled via `vulfram_receive_events()` each frame
-- **Commands**: Pushed via `vulfram_send_queue()` as needed
-- **Main loop flow**:
-  1. Update host-side logic
-  2. Perform uploads (optional)
-  3. Send command batch
-  4. Call `vulfram_tick`
-  5. Receive messages
-  6. Receive events
-  7. Receive profiling (optional)
+## Coding conventions
 
-### Buffer Management
+- Prefer self-explanatory names over commentary.
+- Avoid redundant comments. Only comment when needed for:
+  - `unsafe` blocks and FFI invariants,
+  - tricky lifetime/ownership behavior,
+  - non-obvious algorithms or performance tradeoffs.
+- Keep exported interfaces stable; do not add new exported entrypoints unless explicitly requested.
 
-- **Upload**: `vulfram_upload_buffer(id, type, buffer, length)` - Send data to GPU
-  - Host-generated `BufferId` for tracking
-  - Types: shader source, vertex data, index data, texture image, etc.
-  - One-shot semantics: consumed by `Create*` commands
-- **Download**: `vulfram_download_buffer(id, type, out_ptr, out_length)` - Retrieve data from GPU
-  - Frame captures, debug dumps, generated assets
-- **Memory management**: Host must copy and free core-allocated buffers
-- **Format**: Raw byte arrays (Uint8Array in JS/TS)
-- **Cleanup**: `DiscardUnusedUploads` command removes unconsumed uploads
+## Key dependencies (for correct APIs)
 
-### Window Management
-
-- **Multi-window**: Supported with unique window IDs
-- **Lifecycle**: Create → Use → Close Request → Explicit Close
-- **Events**: Window events include window ID for identification
-- **State**: Normal, Minimized, Maximized, Fullscreen
-
-### Input Handling
-
-- **Unified pointer**: Mouse, touch, and pen through PointerEvent
-- **Physical keys**: KeyCode based on physical location (layout-independent)
-- **Gamepad**: Standard mapping with automatic detection
-- **Modifiers**: Tracked separately from key events
-
-## Dependencies
-
-### Rust Crates
-
-- `wgpu`: GPU abstraction layer
-- `winit`: Cross-platform windowing
-- `gilrs`: Gamepad input
-- `image`: Texture file decoding (PNG, JPEG, etc.)
-- `glam`: Vector, matrix, quaternion types
-- `bytemuck`: Safe binary packing for GPU upload
-- `napi`: Node.js N-API bindings
-- `mlua`: Lua bindings
-- `PyO3`: Python bindings
-- `serde`: Serialization framework
-- `serde_repr`: Numeric enum serialization
-- `rmp-serde`: MessagePack serialization with Serde support
-
-## Best Practices
-
-### Error Handling
-
-- Always return `VulframResult` enum from core functions
-- Results include success/failure status and optional message
-- Command results are typed per command type
-
-### Resource Management
-
-- Explicit lifecycle management (init → use → dispose)
-- Buffer IDs managed by user code
-- Window IDs returned on creation
-- Cleanup on dispose
-
-### Performance Considerations
-
-- Batch commands when possible
-- Use buffer upload/download efficiently
-- Process events in bulk each frame
-- MessagePack serialization for speed and compact binary format
-
-### Event Optimization
-
-- **Cache system**: Events are filtered to avoid dispatching duplicates
-- **Window events**: Cache position, size, scale factor, focus, occluded, theme
-- **Pointer events**: 1px threshold for position changes
-- **Gamepad events**:
-  - Dead zone: 0.1 for analog sticks/triggers
-  - Change threshold: 0.01 for axes, 0.05 for button values
-  - Button state changes cached per gamepad
-- **Keyboard events**: Modifier state cached to avoid duplicate events
-- **Cache structure**: `src/core/cache/` with managers for window, input, and gamepad state
-
-### Redraw Optimization
-
-- **Dirty flag system**: Windows only request redraw when marked as dirty
-- **Selective rendering**: Only visible windows are rendered
-- **Needs redraw flag**: Global flag to skip redraw request if nothing changed
-- **Automatic marking**: Window resize and surface reconfiguration automatically mark dirty
-- **Manual marking**: `mark_window_dirty()` and `mark_all_windows_dirty()` for explicit control
-
-### Type Safety
-
-- Full TypeScript types for all commands/events
-- Discriminated unions for command/event types
-- Rust type safety with strong typing
-- Shared enums between Rust and TypeScript
-- **Numeric enums**: Always use `serde_repr` with `u32` representation for enums that can be numeric
-  - Add `use serde_repr::{Deserialize_repr, Serialize_repr};`
-  - Use `#[derive(Serialize_repr, Deserialize_repr)]`
-  - Add `#[repr(u32)]` attribute
-  - Assign explicit numeric values to variants
-  - **CRITICAL**: TypeScript enums MUST match Rust numeric values exactly for MessagePack serialization
-  - TypeScript enums declared in `enums.ts` with same numeric values as Rust
-  - String union types are only acceptable for non-serialized types (e.g., helper functions)
-
-### Layer Masking and Visibility
-
-- **LayerMask system**: `u32` bitmasks for visibility control
-- **Camera layers**: Each camera has `layerMaskCamera`
-- **Component layers**: Each model has `layerMaskComponent`
-- **Visibility rule**: `(layerMaskCamera & layerMaskComponent) > 0`
-- **Use cases**:
-  - Separate world/UI rendering
-  - Team-based filtering
-  - Debug-only geometry
-  - Special render passes (picking, shadows, etc.)
+- `wgpu = "27.0"`
+- `winit = "0.30"`
+- `gilrs = "0.11"`
+- `serde = "1.0"`, `rmp-serde = "1.3.0"`, `serde_repr = "0.1"`
+- Optional bindings:
+  - `napi = "3.6"`, `napi-derive = "3.4"`
+  - `mlua = "0.11.5"`
+  - `pyo3 = "0.27.2"`

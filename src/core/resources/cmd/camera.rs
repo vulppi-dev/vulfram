@@ -1,6 +1,7 @@
+use glam::{Mat4, Vec2, Vec4};
 use serde::{Deserialize, Serialize};
 
-use crate::core::resources::{CameraComponent, ComponentContainer};
+use crate::core::resources::{CameraComponent, CameraKind, ComponentContainer};
 use crate::core::state::EngineState;
 
 // MARK: - Create Camera
@@ -9,7 +10,12 @@ use crate::core::state::EngineState;
 #[serde(rename_all = "camelCase")]
 pub struct CmdCameraCreateArgs {
     pub camera_id: u32,
-    pub component: CameraComponent,
+    pub transform: Mat4,
+    pub kind: CameraKind,
+    #[serde(default)]
+    pub flags: u32,
+    pub near_far: Vec2,
+    pub viewport: Vec4,
     #[serde(default = "default_layer_mask")]
     pub layer_mask: u32,
 }
@@ -41,7 +47,14 @@ pub fn engine_cmd_camera_create(
     }
 
     for (_, window_state) in window_states.iter_mut() {
-        let container = ComponentContainer::new(args.component, args.layer_mask);
+        let component = CameraComponent::new(
+            args.transform,
+            args.kind,
+            args.flags,
+            args.near_far,
+            args.viewport,
+        );
+        let container = ComponentContainer::new(component, args.layer_mask);
         window_state
             .render_state
             .cameras
@@ -61,7 +74,11 @@ pub fn engine_cmd_camera_create(
 #[serde(rename_all = "camelCase")]
 pub struct CmdCameraUpdateArgs {
     pub camera_id: u32,
-    pub component: Option<CameraComponent>,
+    pub transform: Option<Mat4>,
+    pub kind: Option<CameraKind>,
+    pub flags: Option<u32>,
+    pub near_far: Option<Vec2>,
+    pub viewport: Option<Vec4>,
     pub layer_mask: Option<u32>,
 }
 
@@ -83,8 +100,14 @@ pub fn engine_cmd_camera_update(
         if let Some(container) = window_state.render_state.cameras.get_mut(&args.camera_id) {
             found = true;
 
-            if let Some(component) = args.component {
-                container.data = component;
+            if let Some(viewport) = args.viewport {
+                container.data.update(
+                    args.transform,
+                    args.kind,
+                    args.flags,
+                    args.near_far,
+                    viewport,
+                );
             }
 
             if let Some(layer_mask) = args.layer_mask {

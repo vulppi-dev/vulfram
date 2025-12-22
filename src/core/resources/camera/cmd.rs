@@ -1,6 +1,7 @@
 use glam::{Mat4, Vec2, Vec4};
 use serde::{Deserialize, Serialize};
 
+use crate::core::resources::common::default_layer_mask;
 use crate::core::resources::{CameraComponent, CameraKind, ComponentContainer};
 use crate::core::state::EngineState;
 
@@ -177,10 +178,4 @@ pub fn engine_cmd_camera_dispose(
             message: format!("Camera with id {} not found", args.camera_id),
         }
     }
-}
-
-// MARK: - Helpers
-
-fn default_layer_mask() -> u32 {
-    0xFFFFFFFF
 }

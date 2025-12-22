@@ -2,7 +2,7 @@ mod core;
 
 use crate::core::VulframResult;
 use crate::core::cmd::{CommandResponse, CommandResponseEnvelope, EngineCmd, EngineCmdEnvelope};
-use crate::core::window::cmd::{CmdWindowCloseArgs, CmdWindowCreateArgs};
+use crate::core::window::{CmdWindowCloseArgs, CmdWindowCreateArgs};
 use rmp_serde::{from_slice, to_vec_named};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};

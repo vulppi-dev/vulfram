@@ -3181,6 +3181,7 @@ dependencies = [
  "rmp-serde",
  "serde",
  "serde_repr",
+ "smallvec",
  "wgpu",
  "winit",
 ]

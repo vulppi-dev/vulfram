@@ -5,7 +5,7 @@ use winit::event_loop::{EventLoop, EventLoopProxy};
 
 use super::VulframResult;
 use super::state::EngineState;
-use super::window::cmd::CmdWindowCreateArgs;
+use super::window::CmdWindowCreateArgs;
 
 /// Custom events sent through the event loop
 pub enum EngineCustomEvents {

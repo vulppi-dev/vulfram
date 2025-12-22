@@ -9,8 +9,8 @@ use crate::core::state::EngineState;
 use crate::core::system::SystemEvent;
 use crate::core::window::WindowEvent;
 
-pub use crate::core::resources::cmd as res;
-pub use crate::core::window::cmd as win;
+pub use crate::core::resources as res;
+pub use crate::core::window as win;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(tag = "type", content = "content", rename_all = "kebab-case")]

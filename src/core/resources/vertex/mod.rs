@@ -299,7 +299,26 @@ impl VertexAllocatorSystem {
             self.create_pooled(vertex_count, index_info, stream_bytes)?
         };
 
+        // CRITICAL: If ID already exists, we must free old allocations before replacing
         if let Some(rec) = self.records.get_mut(&id) {
+            if rec.alive {
+                // Geometry still alive - free old allocations before replacing
+                match &rec.storage {
+                    GeometryStorage::Pooled { index, streams, .. } => {
+                        if let Some(ix) = index {
+                            self.index_u32.arena.free(ix.handle);
+                        }
+                        for (i, h_opt) in streams.iter().enumerate() {
+                            if let Some(h) = h_opt {
+                                self.streams[i].arena.free(*h);
+                            }
+                        }
+                    }
+                    GeometryStorage::Dedicated { .. } => {
+                        // Dedicated buffer will be dropped when storage is replaced
+                    }
+                }
+            }
             rec.alive = true;
             rec.storage = storage;
         } else {
@@ -443,14 +462,14 @@ impl VertexAllocatorSystem {
     pub fn destroy_geometry(&mut self, id: u32) -> Result<(), VertexAllocError> {
         let rec = self
             .records
-            .get_mut(&id)
+            .remove(&id)
             .ok_or(VertexAllocError::GeometryNotFound)?;
 
         if !rec.alive {
             return Err(VertexAllocError::GeometryNotFound);
         }
 
-        match &rec.storage {
+        match rec.storage {
             GeometryStorage::Pooled { index, streams, .. } => {
                 if let Some(ix) = index {
                     self.index_u32.arena.free(ix.handle);
@@ -461,10 +480,11 @@ impl VertexAllocatorSystem {
                     }
                 }
             }
-            GeometryStorage::Dedicated { .. } => {}
+            GeometryStorage::Dedicated { .. } => {
+                // Dedicated buffer will be dropped here automatically
+            }
         }
 
-        rec.alive = false;
         Ok(())
     }
 

@@ -9,9 +9,9 @@ use crate::core::resources::vertex::arena::{AllocHandle, ArenaAllocator};
 // -----------------------------------------------------------------------------
 #[derive(Debug)]
 pub struct StreamPool {
-    pub stream: VertexStream,
-    pub stride: u64,
-    pub arena: ArenaAllocator,
+    stream: VertexStream,
+    stride: u64,
+    pub(super) arena: ArenaAllocator,
 }
 
 impl StreamPool {
@@ -63,7 +63,7 @@ impl StreamPool {
 // -----------------------------------------------------------------------------
 #[derive(Debug)]
 pub struct IndexPool {
-    pub arena: ArenaAllocator,
+    pub(super) arena: ArenaAllocator,
 }
 
 impl IndexPool {

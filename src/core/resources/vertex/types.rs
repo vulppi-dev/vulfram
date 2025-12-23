@@ -38,11 +38,6 @@ impl VertexStream {
             VertexStream::Weights => 16,  // f32x4
         }
     }
-
-    #[inline]
-    pub fn is_optional(self) -> bool {
-        !matches!(self, VertexStream::Position)
-    }
 }
 
 #[inline]
@@ -133,7 +128,6 @@ pub enum VertexAllocError {
         stream: crate::core::resources::vertex::VertexStream,
     },
     GeometryNotFound,
-    StaleGeometryHandle,
 }
 
 impl std::fmt::Display for VertexAllocError {
@@ -168,7 +162,6 @@ impl std::fmt::Display for VertexAllocError {
                 stream, got, expected
             ),
             GeometryNotFound => write!(f, "geometry id not found"),
-            StaleGeometryHandle => write!(f, "stale geometry handle generation"),
         }
     }
 }

@@ -21,7 +21,6 @@ pub enum GeometryStorage {
 
 #[derive(Debug)]
 pub struct GeometryRecord {
-    pub generation: u32,
     pub alive: bool,
     pub storage: GeometryStorage,
 }

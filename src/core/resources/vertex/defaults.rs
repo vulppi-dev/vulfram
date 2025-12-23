@@ -7,7 +7,7 @@ use super::types::{VertexAllocatorConfig, VertexStream};
 // -----------------------------------------------------------------------------
 #[derive(Debug)]
 pub struct DefaultStreamBuffer {
-    pub stream: VertexStream,
+    stream: VertexStream,
     pub stride: u64,
     pub buffer: Buffer,
     pub capacity_vertices: u32,
@@ -141,12 +141,12 @@ pub fn default_value_bytes(stream: VertexStream) -> Vec<u8> {
 }
 
 #[inline]
-pub fn align4(v: u64) -> u64 {
+pub(super) fn align4(v: u64) -> u64 {
     (v + 3) & !3
 }
 
 #[inline]
-pub fn pad_to_4(bytes: &mut Vec<u8>) {
+pub(super) fn pad_to_4(bytes: &mut Vec<u8>) {
     let rem = bytes.len() & 3;
     if rem != 0 {
         let pad = 4 - rem;

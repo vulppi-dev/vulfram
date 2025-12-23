@@ -300,14 +300,12 @@ impl VertexAllocatorSystem {
         };
 
         if let Some(rec) = self.records.get_mut(&id) {
-            rec.generation = rec.generation.wrapping_add(1);
             rec.alive = true;
             rec.storage = storage;
         } else {
             self.records.insert(
                 id,
                 GeometryRecord {
-                    generation: 0,
                     alive: true,
                     storage,
                 },

@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use crate::core::resources::{
-    ArenaAllocator, CameraComponent, ComponentContainer, UniformBufferPool,
+    CameraComponent, ComponentContainer, UniformBufferPool, VertexAllocatorConfig,
+    VertexAllocatorSystem,
 };
 
 pub struct RenderState {
@@ -9,17 +10,9 @@ pub struct RenderState {
 
     // Buffers
     pub camera_buffer: Option<UniformBufferPool<CameraComponent>>,
-    // pub dummy_buffer: Option<wgpu::Buffer>,
 
-    // Arenas
-    pub positions_arena: Option<ArenaAllocator>,
-    pub normals_arena: Option<ArenaAllocator>,
-    pub colors_arena: Option<ArenaAllocator>,
-    pub tangents_arena: Option<ArenaAllocator>,
-    pub uv_arena: Option<ArenaAllocator>,
-    pub joints_arena: Option<ArenaAllocator>,
-    pub weights_arena: Option<ArenaAllocator>,
-    pub indices_arena: Option<ArenaAllocator>,
+    // Vertex System
+    pub vertex_allocation: Option<VertexAllocatorSystem>,
 
     // Fallback resources
     pub fallback_texture: Option<wgpu::Texture>,
@@ -39,15 +32,7 @@ impl RenderState {
         Self {
             cameras: HashMap::new(),
             camera_buffer: None,
-            // dummy_buffer: None,
-            positions_arena: None,
-            normals_arena: None,
-            colors_arena: None,
-            tangents_arena: None,
-            uv_arena: None,
-            joints_arena: None,
-            weights_arena: None,
-            indices_arena: None,
+            vertex_allocation: None,
             fallback_texture: None,
             fallback_texture_view: None,
             sampler_point_clamp: None,
@@ -76,74 +61,10 @@ impl RenderState {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) -> () {
-        // // Create dummy buffer for bindings that require a buffer but have no data
-        // let dummy_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        //     label: Some("Dummy Buffer"),
-        //     size: 0,
-        //     usage: wgpu::BufferUsages::VERTEX
-        //         | wgpu::BufferUsages::INDEX
-        //         | wgpu::BufferUsages::COPY_DST,
-        //     mapped_at_creation: false,
-        // });
-        // self.dummy_buffer = Some(dummy_buffer);
-
-        // Arenas
-        let arena_initial_capacity = 1024 * 1024; // 1 MB
-        self.positions_arena = Some(ArenaAllocator::new(
+        self.vertex_allocation = Some(VertexAllocatorSystem::new(
             device,
             queue,
-            arena_initial_capacity,
-            wgpu::BufferUsages::VERTEX,
-            Some("Positions Arena"),
-        ));
-        self.normals_arena = Some(ArenaAllocator::new(
-            device,
-            queue,
-            arena_initial_capacity,
-            wgpu::BufferUsages::VERTEX,
-            Some("Normals Arena"),
-        ));
-        self.colors_arena = Some(ArenaAllocator::new(
-            device,
-            queue,
-            arena_initial_capacity,
-            wgpu::BufferUsages::VERTEX,
-            Some("Colors Arena"),
-        ));
-        self.tangents_arena = Some(ArenaAllocator::new(
-            device,
-            queue,
-            arena_initial_capacity,
-            wgpu::BufferUsages::VERTEX,
-            Some("Tangents Arena"),
-        ));
-        self.uv_arena = Some(ArenaAllocator::new(
-            device,
-            queue,
-            arena_initial_capacity,
-            wgpu::BufferUsages::VERTEX,
-            Some("UV Arena"),
-        ));
-        self.joints_arena = Some(ArenaAllocator::new(
-            device,
-            queue,
-            arena_initial_capacity,
-            wgpu::BufferUsages::VERTEX,
-            Some("Joints Arena"),
-        ));
-        self.weights_arena = Some(ArenaAllocator::new(
-            device,
-            queue,
-            arena_initial_capacity,
-            wgpu::BufferUsages::VERTEX,
-            Some("Weights Arena"),
-        ));
-        self.indices_arena = Some(ArenaAllocator::new(
-            device,
-            queue,
-            arena_initial_capacity,
-            wgpu::BufferUsages::INDEX,
-            Some("Indices Arena"),
+            VertexAllocatorConfig::default(),
         ));
 
         // Create 1x1 white fallback texture

@@ -2,7 +2,6 @@ pub mod common;
 
 mod allocation;
 mod camera;
-mod geometry;
 mod spec;
 mod vertex;
 

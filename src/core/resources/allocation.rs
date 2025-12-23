@@ -1,22 +1,39 @@
 // MARK: - Uniform Buffer Pool
 
-use bytemuck::{Pod, bytes_of};
+use bytemuck::{Pod, bytes_of, cast_slice};
 use std::marker::PhantomData;
-use std::ops::Range;
-use wgpu::{Buffer, BufferDescriptor, BufferUsages, Device, Queue};
+
+// -----------------------------------------------------------------------------
+// Internal types
+// -----------------------------------------------------------------------------
+
+#[derive(Debug)]
+struct GarbageEntry {
+    buffer: wgpu::Buffer,
+    retire_after_frame: u64,
+}
+
+// -----------------------------------------------------------------------------
+// UniformBufferPool
+// -----------------------------------------------------------------------------
 
 #[derive(Debug)]
 pub struct UniformBufferPool<T: Pod> {
-    buffer: Buffer,
+    buffer: wgpu::Buffer,
     capacity: u32,
     item_size: u64,
     device: wgpu::Device,
     queue: wgpu::Queue,
+
+    // Deferred drop
+    garbage: Vec<GarbageEntry>,
+    keep_frames: u64,
+
     _phantom: PhantomData<T>,
 }
 
 impl<T: Pod> UniformBufferPool<T> {
-    pub fn new(device: &Device, queue: &Queue, initial_capacity: Option<u32>) -> Self {
+    pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, initial_capacity: Option<u32>) -> Self {
         let capacity = initial_capacity.unwrap_or(4);
         let item_size = std::mem::size_of::<T>() as u64;
 
@@ -38,6 +55,8 @@ impl<T: Pod> UniformBufferPool<T> {
             item_size,
             device: device.clone(),
             queue: queue.clone(),
+            garbage: Vec::new(),
+            keep_frames: 3,
             _phantom: PhantomData,
         }
     }
@@ -71,12 +90,10 @@ impl<T: Pod> UniformBufferPool<T> {
             self.scale_to_capacity(end_index);
         }
 
-        for (i, value) in values.iter().enumerate() {
-            let index = start_index + i as u32;
-            let offset = index as u64 * self.item_size;
-            self.queue
-                .write_buffer(&self.buffer, offset, bytes_of(value));
-        }
+        // Write all values in a single GPU call for efficiency
+        let offset = start_index as u64 * self.item_size;
+        let bytes = cast_slice(values);
+        self.queue.write_buffer(&self.buffer, offset, bytes);
     }
 
     pub fn capacity(&self) -> u32 {
@@ -87,7 +104,7 @@ impl<T: Pod> UniformBufferPool<T> {
         self.item_size
     }
 
-    pub fn buffer(&self) -> &Buffer {
+    pub fn buffer(&self) -> &wgpu::Buffer {
         &self.buffer
     }
 
@@ -98,6 +115,31 @@ impl<T: Pod> UniformBufferPool<T> {
     pub fn buffer_size(&self) -> u64 {
         self.capacity as u64 * self.item_size
     }
+
+    // -------------------------------------------------------------------------
+    // Frame lifecycle / deferred drop
+    // -------------------------------------------------------------------------
+
+    pub fn set_keep_frames(&mut self, frames: u64) {
+        self.keep_frames = frames.max(1);
+    }
+
+    /// Call once per frame to release old buffers that are safe to drop.
+    pub fn begin_frame(&mut self, frame_index: u64) {
+        // Set retire frame for new garbage entries
+        for g in &mut self.garbage {
+            if g.retire_after_frame == 0 {
+                g.retire_after_frame = frame_index + self.keep_frames;
+            }
+        }
+
+        // Remove buffers that are safe to drop
+        self.garbage.retain(|g| g.retire_after_frame > frame_index);
+    }
+
+    // -------------------------------------------------------------------------
+    // Resize
+    // -------------------------------------------------------------------------
 
     fn scale_to_capacity(&mut self, required_capacity: u32) {
         if required_capacity <= self.capacity {
@@ -132,7 +174,14 @@ impl<T: Pod> UniformBufferPool<T> {
 
         self.queue.submit(Some(encoder.finish()));
 
-        self.buffer = new_buffer;
+        // Deferred drop: keep old buffer alive for keep_frames
+        // This ensures GPU commands referencing it have completed
+        let old = std::mem::replace(&mut self.buffer, new_buffer);
+        self.garbage.push(GarbageEntry {
+            buffer: old,
+            retire_after_frame: 0, // Will be set by first begin_frame call
+        });
+
         self.capacity = new_capacity;
     }
 

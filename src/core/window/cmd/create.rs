@@ -197,6 +197,14 @@ pub fn engine_cmd_window_create(
     if let Some(device) = &engine.device {
         if let Some(queue) = &engine.queue {
             render_state.init_fallback_resources(device, queue);
+
+            // Initialize vertex allocator for this window
+            render_state.vertex_allocation =
+                Some(crate::core::resources::VertexAllocatorSystem::new(
+                    device,
+                    queue,
+                    crate::core::resources::VertexAllocatorConfig::default(),
+                ));
         }
     }
 

@@ -39,6 +39,9 @@ pub enum EngineCmd {
     CmdCameraCreate(res::CmdCameraCreateArgs),
     CmdCameraUpdate(res::CmdCameraUpdateArgs),
     CmdCameraDispose(res::CmdCameraDisposeArgs),
+    CmdGeometryCreate(res::CmdGeometryCreateArgs),
+    CmdGeometryUpdate(res::CmdGeometryUpdateArgs),
+    CmdGeometryDispose(res::CmdGeometryDisposeArgs),
 }
 
 /// Spontaneous engine events (input, window changes, system events)
@@ -80,6 +83,9 @@ pub enum CommandResponse {
     CameraCreate(res::CmdResultCameraCreate),
     CameraUpdate(res::CmdResultCameraUpdate),
     CameraDispose(res::CmdResultCameraDispose),
+    GeometryCreate(res::CmdResultGeometryCreate),
+    GeometryUpdate(res::CmdResultGeometryUpdate),
+    GeometryDispose(res::CmdResultGeometryDispose),
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -272,6 +278,27 @@ pub fn engine_process_batch(
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::CameraDispose(result),
+                });
+            }
+            EngineCmd::CmdGeometryCreate(args) => {
+                let result = res::engine_cmd_geometry_create(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::GeometryCreate(result),
+                });
+            }
+            EngineCmd::CmdGeometryUpdate(args) => {
+                let result = res::engine_cmd_geometry_update(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::GeometryUpdate(result),
+                });
+            }
+            EngineCmd::CmdGeometryDispose(args) => {
+                let result = res::engine_cmd_geometry_dispose(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::GeometryDispose(result),
                 });
             }
         }

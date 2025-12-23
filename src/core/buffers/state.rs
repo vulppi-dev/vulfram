@@ -6,6 +6,7 @@ use std::collections::HashMap;
 pub enum UploadType {
     Raw = 0,
     ShaderSource,
+    GeometryData,
     VertexData,
     IndexData,
     ImageData,
@@ -17,10 +18,11 @@ impl UploadType {
         match value {
             0 => Some(UploadType::Raw),
             1 => Some(UploadType::ShaderSource),
-            2 => Some(UploadType::VertexData),
-            3 => Some(UploadType::IndexData),
-            4 => Some(UploadType::ImageData),
-            5 => Some(UploadType::BinaryAsset),
+            2 => Some(UploadType::GeometryData),
+            3 => Some(UploadType::VertexData),
+            4 => Some(UploadType::IndexData),
+            5 => Some(UploadType::ImageData),
+            6 => Some(UploadType::BinaryAsset),
             _ => None,
         }
     }

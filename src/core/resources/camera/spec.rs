@@ -2,6 +2,7 @@ use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Quat, UVec2, Vec2, Vec3, Vec4};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use wgpu::Extent3d;
 
 #[derive(Debug, Clone, Copy, Deserialize_repr, Serialize_repr)]
 #[repr(u32)]
@@ -106,21 +107,122 @@ impl CameraComponent {
     }
 }
 
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[serde(tag = "type", content = "value", rename_all = "camelCase")]
+pub enum ViewValue {
+    Relative(f32),
+    Absolute(u32),
+}
+
+impl ViewValue {
+    pub fn resolve(&self, total: u32) -> u32 {
+        match *self {
+            ViewValue::Relative(value) => {
+                let value = (value * total as f32).round() as u32;
+                value.max(1)
+            }
+            ViewValue::Absolute(value) => value.max(1),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ViewAnchor {
+    pub x: ViewValue,
+    pub y: ViewValue,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ViewSize {
+    pub width: ViewValue,
+    pub height: ViewValue,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ViewPosition {
+    pub anchor: ViewAnchor,
+    pub size: ViewSize,
+}
+
+impl ViewPosition {
+    pub fn resolve_size(&self, total_width: u32, total_height: u32) -> (u32, u32) {
+        let width = self.size.width.resolve(total_width).max(1);
+        let height = self.size.height.resolve(total_height).max(1);
+        (width, height)
+    }
+
+    pub fn resolve_position(&self, total_width: u32, total_height: u32) -> (u32, u32) {
+        let x = match self.anchor.x {
+            ViewValue::Relative(value) => (value * total_width as f32).round() as u32,
+            ViewValue::Absolute(value) => value,
+        };
+        let y = match self.anchor.y {
+            ViewValue::Relative(value) => (value * total_height as f32).round() as u32,
+            ViewValue::Absolute(value) => value,
+        };
+        (x, y)
+    }
+}
+
+#[derive(Debug)]
+pub struct RenderTarget {
+    pub texture: wgpu::Texture,
+    pub view: wgpu::TextureView,
+    pub size: Extent3d,
+    pub format: wgpu::TextureFormat,
+}
+
+impl RenderTarget {
+    pub fn new(device: &wgpu::Device, size: Extent3d, format: wgpu::TextureFormat) -> Self {
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Camera RenderTarget"),
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        Self {
+            texture,
+            view,
+            size,
+            format,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CameraRecord {
     pub data: CameraComponent,
     pub layer_mask: u32,
     pub order: i32,
     pub is_dirty: bool,
+    pub render_target: Option<RenderTarget>,
+    pub view_position: Option<ViewPosition>,
 }
 
 impl CameraRecord {
-    pub fn new(data: CameraComponent, layer_mask: u32, order: i32) -> Self {
+    pub fn new(
+        data: CameraComponent,
+        layer_mask: u32,
+        order: i32,
+        view_position: Option<ViewPosition>,
+    ) -> Self {
         Self {
             data,
             layer_mask,
             order,
             is_dirty: true,
+            render_target: None,
+            view_position,
         }
     }
 
@@ -130,5 +232,13 @@ impl CameraRecord {
 
     pub fn clear_dirty(&mut self) {
         self.is_dirty = false;
+    }
+
+    pub fn set_render_target(&mut self, target: RenderTarget) {
+        self.render_target = Some(target);
+    }
+
+    pub fn clear_render_target(&mut self) {
+        self.render_target = None;
     }
 }

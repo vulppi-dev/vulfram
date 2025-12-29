@@ -2,7 +2,7 @@ use glam::{Mat4, Vec2, Vec4};
 use serde::{Deserialize, Serialize};
 
 use crate::core::resources::common::default_layer_mask;
-use crate::core::resources::{CameraComponent, CameraKind, CameraRecord};
+use crate::core::resources::{CameraComponent, CameraKind, CameraRecord, RenderTarget, ViewPosition};
 use crate::core::state::EngineState;
 
 // MARK: - Create Camera
@@ -21,6 +21,7 @@ pub struct CmdCameraCreateArgs {
     pub layer_mask: u32,
     #[serde(default)]
     pub order: i32,
+    pub view_position: Option<ViewPosition>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -57,7 +58,22 @@ pub fn engine_cmd_camera_create(
             args.near_far,
             args.viewport,
         );
-        let record = CameraRecord::new(component, args.layer_mask, args.order);
+        let mut record =
+            CameraRecord::new(component, args.layer_mask, args.order, args.view_position.clone());
+        if let Some(device) = engine.device.as_ref() {
+            let (target_width, target_height) = args
+                .view_position
+                .as_ref()
+                .map(|vp| vp.resolve_size(window_state.config.width, window_state.config.height))
+                .unwrap_or((window_state.config.width, window_state.config.height));
+            let size = wgpu::Extent3d {
+                width: target_width,
+                height: target_height,
+                depth_or_array_layers: 1,
+            };
+            let target = RenderTarget::new(device, size, window_state.config.format);
+            record.set_render_target(target);
+        }
         window_state
             .render_state
             .cameras

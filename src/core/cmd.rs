@@ -42,6 +42,7 @@ pub enum EngineCmd {
     CmdGeometryCreate(res::CmdGeometryCreateArgs),
     CmdGeometryUpdate(res::CmdGeometryUpdateArgs),
     CmdGeometryDispose(res::CmdGeometryDisposeArgs),
+    CmdPrimitiveGeometryCreate(res::CmdPrimitiveGeometryCreateArgs),
 }
 
 /// Spontaneous engine events (input, window changes, system events)
@@ -86,6 +87,7 @@ pub enum CommandResponse {
     GeometryCreate(res::CmdResultGeometryCreate),
     GeometryUpdate(res::CmdResultGeometryUpdate),
     GeometryDispose(res::CmdResultGeometryDispose),
+    PrimitiveGeometryCreate(res::CmdResultPrimitiveGeometryCreate),
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -299,6 +301,13 @@ pub fn engine_process_batch(
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::GeometryDispose(result),
+                });
+            }
+            EngineCmd::CmdPrimitiveGeometryCreate(args) => {
+                let result = res::engine_cmd_primitive_geometry_create(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::PrimitiveGeometryCreate(result),
                 });
             }
         }

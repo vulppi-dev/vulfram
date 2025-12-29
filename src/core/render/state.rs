@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use crate::core::resources::{
-    CameraComponent, ComponentContainer, ModelComponent, ModelRecord, UniformBufferPool,
+    CameraComponent, CameraRecord, ModelComponent, ModelRecord, UniformBufferPool,
     VertexAllocatorConfig, VertexAllocatorSystem,
 };
 
 pub struct RenderState {
-    pub cameras: HashMap<u32, ComponentContainer<CameraComponent>>,
+    pub cameras: HashMap<u32, CameraRecord>,
     pub models: HashMap<u32, ModelRecord>,
 
     // Buffers

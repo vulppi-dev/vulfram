@@ -105,3 +105,28 @@ impl CameraComponent {
         *self = Self::new(transform, kind, flags, near_far, viewport);
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct CameraRecord {
+    pub data: CameraComponent,
+    pub layer_mask: u32,
+    pub is_dirty: bool,
+}
+
+impl CameraRecord {
+    pub fn new(data: CameraComponent, layer_mask: u32) -> Self {
+        Self {
+            data,
+            layer_mask,
+            is_dirty: true,
+        }
+    }
+
+    pub fn mark_dirty(&mut self) {
+        self.is_dirty = true;
+    }
+
+    pub fn clear_dirty(&mut self) {
+        self.is_dirty = false;
+    }
+}

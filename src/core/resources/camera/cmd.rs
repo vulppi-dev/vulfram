@@ -2,7 +2,7 @@ use glam::{Mat4, Vec2, Vec4};
 use serde::{Deserialize, Serialize};
 
 use crate::core::resources::common::default_layer_mask;
-use crate::core::resources::{CameraComponent, CameraKind, ComponentContainer};
+use crate::core::resources::{CameraComponent, CameraKind, CameraRecord};
 use crate::core::state::EngineState;
 
 // MARK: - Create Camera
@@ -55,11 +55,11 @@ pub fn engine_cmd_camera_create(
             args.near_far,
             args.viewport,
         );
-        let container = ComponentContainer::new(component, args.layer_mask);
+        let record = CameraRecord::new(component, args.layer_mask);
         window_state
             .render_state
             .cameras
-            .insert(args.camera_id, container);
+            .insert(args.camera_id, record);
         window_state.is_dirty = true;
     }
 
@@ -98,11 +98,11 @@ pub fn engine_cmd_camera_update(
 
     let mut found = false;
     for (_, window_state) in window_states.iter_mut() {
-        if let Some(container) = window_state.render_state.cameras.get_mut(&args.camera_id) {
+        if let Some(record) = window_state.render_state.cameras.get_mut(&args.camera_id) {
             found = true;
 
             if let Some(viewport) = args.viewport {
-                container.data.update(
+                record.data.update(
                     args.transform,
                     args.kind,
                     args.flags,
@@ -112,10 +112,10 @@ pub fn engine_cmd_camera_update(
             }
 
             if let Some(layer_mask) = args.layer_mask {
-                container.layer_mask = layer_mask;
+                record.layer_mask = layer_mask;
             }
 
-            container.mark_dirty();
+            record.mark_dirty();
             window_state.is_dirty = true;
         }
     }

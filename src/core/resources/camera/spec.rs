@@ -167,7 +167,7 @@ impl ViewPosition {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RenderTarget {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,

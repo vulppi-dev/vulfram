@@ -21,6 +21,7 @@ pub struct EngineState {
 
     pub(crate) time: u64,
     pub(crate) delta_time: u32,
+    pub(crate) frame_index: u64,
 
     pub input: InputState,
     pub(crate) gamepad: GamepadState,
@@ -52,6 +53,7 @@ impl EngineState {
             response_queue: Vec::new(),
             time: 0,
             delta_time: 0,
+            frame_index: 0,
             input: InputState::new(),
             gamepad: GamepadState::new(),
             profiling: TickProfiling::default(),

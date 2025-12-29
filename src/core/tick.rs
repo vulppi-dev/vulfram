@@ -47,12 +47,11 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
         let events_after = engine.state.event_queue.len();
         engine.state.profiling.total_events_dispatched = events_after - events_before;
 
-        // MARK: Vertex Allocator Frame Lifecycle
-        let frame_index = time;
+        // MARK: Render Frame Lifecycle
+        engine.state.frame_index = engine.state.frame_index.wrapping_add(1);
+        let frame_index = engine.state.frame_index;
         for window_state in engine.state.window.states.values_mut() {
-            if let Some(vertex_allocator) = window_state.render_state.vertex_allocation.as_mut() {
-                vertex_allocator.begin_frame(frame_index);
-            }
+            window_state.render_state.begin_frame(frame_index);
         }
 
         // MARK: Request Redraw

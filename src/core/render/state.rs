@@ -4,6 +4,7 @@ use crate::core::resources::{
     CameraComponent, CameraRecord, ModelComponent, ModelRecord, UniformBufferPool,
     VertexAllocatorConfig, VertexAllocatorSystem,
 };
+use crate::core::render::cache::RenderCache;
 
 pub struct RenderState {
     pub cameras: HashMap<u32, CameraRecord>,
@@ -26,6 +27,9 @@ pub struct RenderState {
     pub sampler_point_repeat: Option<wgpu::Sampler>,
     pub sampler_linear_repeat: Option<wgpu::Sampler>,
     pub sampler_comparison: Option<wgpu::Sampler>,
+
+    // Pipeline cache
+    pub render_cache: RenderCache,
 }
 
 impl RenderState {
@@ -44,6 +48,7 @@ impl RenderState {
             sampler_point_repeat: None,
             sampler_linear_repeat: None,
             sampler_comparison: None,
+            render_cache: RenderCache::new(),
         }
     }
 
@@ -59,6 +64,20 @@ impl RenderState {
         self.sampler_point_repeat = None;
         self.sampler_linear_repeat = None;
         self.sampler_comparison = None;
+        self.render_cache.clear();
+    }
+
+    pub fn begin_frame(&mut self, frame_index: u64) {
+        if let Some(vertex_allocator) = self.vertex_allocation.as_mut() {
+            vertex_allocator.begin_frame(frame_index);
+        }
+        if let Some(camera_buffer) = self.camera_buffer.as_mut() {
+            camera_buffer.begin_frame(frame_index);
+        }
+        if let Some(model_buffer) = self.model_buffer.as_mut() {
+            model_buffer.begin_frame(frame_index);
+        }
+        self.render_cache.gc(frame_index);
     }
 
     pub(crate) fn init_fallback_resources(

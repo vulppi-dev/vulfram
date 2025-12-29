@@ -110,14 +110,16 @@ impl CameraComponent {
 pub struct CameraRecord {
     pub data: CameraComponent,
     pub layer_mask: u32,
+    pub order: i32,
     pub is_dirty: bool,
 }
 
 impl CameraRecord {
-    pub fn new(data: CameraComponent, layer_mask: u32) -> Self {
+    pub fn new(data: CameraComponent, layer_mask: u32, order: i32) -> Self {
         Self {
             data,
             layer_mask,
+            order,
             is_dirty: true,
         }
     }

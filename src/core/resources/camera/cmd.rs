@@ -19,6 +19,8 @@ pub struct CmdCameraCreateArgs {
     pub viewport: Vec4,
     #[serde(default = "default_layer_mask")]
     pub layer_mask: u32,
+    #[serde(default)]
+    pub order: i32,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -55,7 +57,7 @@ pub fn engine_cmd_camera_create(
             args.near_far,
             args.viewport,
         );
-        let record = CameraRecord::new(component, args.layer_mask);
+        let record = CameraRecord::new(component, args.layer_mask, args.order);
         window_state
             .render_state
             .cameras
@@ -81,6 +83,7 @@ pub struct CmdCameraUpdateArgs {
     pub near_far: Option<Vec2>,
     pub viewport: Option<Vec4>,
     pub layer_mask: Option<u32>,
+    pub order: Option<i32>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -113,6 +116,10 @@ pub fn engine_cmd_camera_update(
 
             if let Some(layer_mask) = args.layer_mask {
                 record.layer_mask = layer_mask;
+            }
+
+            if let Some(order) = args.order {
+                record.order = order;
             }
 
             record.mark_dirty();

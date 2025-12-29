@@ -38,9 +38,8 @@ pub(crate) fn push_face_grid(
         let v = y as f32 / subdivisions as f32;
         for x in 0..=n {
             let u = x as f32 / subdivisions as f32;
-            let pos = center
-                + axis_u * ((u * 2.0 - 1.0) * half_u)
-                + axis_v * ((v * 2.0 - 1.0) * half_v);
+            let pos =
+                center + axis_u * ((u * 2.0 - 1.0) * half_u) + axis_v * ((v * 2.0 - 1.0) * half_v);
 
             positions.push(pos);
             normals.push(normal);

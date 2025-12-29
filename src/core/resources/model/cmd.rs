@@ -79,7 +79,10 @@ pub fn engine_cmd_model_create(
         args.material_id,
         args.layer_mask,
     );
-    window_state.render_state.models.insert(args.model_id, record);
+    window_state
+        .render_state
+        .models
+        .insert(args.model_id, record);
     window_state.is_dirty = true;
 
     CmdResultModelCreate {

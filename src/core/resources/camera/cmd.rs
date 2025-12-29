@@ -2,7 +2,9 @@ use glam::{Mat4, Vec2, Vec4};
 use serde::{Deserialize, Serialize};
 
 use crate::core::resources::common::default_layer_mask;
-use crate::core::resources::{CameraComponent, CameraKind, CameraRecord, RenderTarget, ViewPosition};
+use crate::core::resources::{
+    CameraComponent, CameraKind, CameraRecord, RenderTarget, ViewPosition,
+};
 use crate::core::state::EngineState;
 
 // MARK: - Create Camera
@@ -58,8 +60,12 @@ pub fn engine_cmd_camera_create(
             args.near_far,
             args.viewport,
         );
-        let mut record =
-            CameraRecord::new(component, args.layer_mask, args.order, args.view_position.clone());
+        let mut record = CameraRecord::new(
+            component,
+            args.layer_mask,
+            args.order,
+            args.view_position.clone(),
+        );
         if let Some(device) = engine.device.as_ref() {
             let (target_width, target_height) = args
                 .view_position

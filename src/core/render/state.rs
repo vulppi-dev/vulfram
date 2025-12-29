@@ -1,15 +1,17 @@
 use std::collections::HashMap;
 
 use crate::core::resources::{
-    CameraComponent, ComponentContainer, UniformBufferPool, VertexAllocatorConfig,
+    CameraComponent, ComponentContainer, ModelComponent, UniformBufferPool, VertexAllocatorConfig,
     VertexAllocatorSystem,
 };
 
 pub struct RenderState {
     pub cameras: HashMap<u32, ComponentContainer<CameraComponent>>,
+    pub models: HashMap<u32, ComponentContainer<ModelComponent>>,
 
     // Buffers
     pub camera_buffer: Option<UniformBufferPool<CameraComponent>>,
+    pub model_buffer: Option<UniformBufferPool<ModelComponent>>,
 
     // Vertex System
     pub vertex_allocation: Option<VertexAllocatorSystem>,
@@ -31,7 +33,9 @@ impl RenderState {
     pub fn new(_surface_format: wgpu::TextureFormat) -> Self {
         Self {
             cameras: HashMap::new(),
+            models: HashMap::new(),
             camera_buffer: None,
+            model_buffer: None,
             vertex_allocation: None,
             fallback_texture: None,
             fallback_texture_view: None,
@@ -47,6 +51,7 @@ impl RenderState {
     /// This ensures proper cleanup of GPU resources
     pub fn drop_all(&mut self) {
         self.cameras.clear();
+        self.models.clear();
         self.fallback_texture = None;
         self.fallback_texture_view = None;
         self.sampler_point_clamp = None;

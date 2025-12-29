@@ -39,6 +39,9 @@ pub enum EngineCmd {
     CmdCameraCreate(res::CmdCameraCreateArgs),
     CmdCameraUpdate(res::CmdCameraUpdateArgs),
     CmdCameraDispose(res::CmdCameraDisposeArgs),
+    CmdModelCreate(res::CmdModelCreateArgs),
+    CmdModelUpdate(res::CmdModelUpdateArgs),
+    CmdModelDispose(res::CmdModelDisposeArgs),
     CmdGeometryCreate(res::CmdGeometryCreateArgs),
     CmdGeometryUpdate(res::CmdGeometryUpdateArgs),
     CmdGeometryDispose(res::CmdGeometryDisposeArgs),
@@ -84,6 +87,9 @@ pub enum CommandResponse {
     CameraCreate(res::CmdResultCameraCreate),
     CameraUpdate(res::CmdResultCameraUpdate),
     CameraDispose(res::CmdResultCameraDispose),
+    ModelCreate(res::CmdResultModelCreate),
+    ModelUpdate(res::CmdResultModelUpdate),
+    ModelDispose(res::CmdResultModelDispose),
     GeometryCreate(res::CmdResultGeometryCreate),
     GeometryUpdate(res::CmdResultGeometryUpdate),
     GeometryDispose(res::CmdResultGeometryDispose),
@@ -280,6 +286,27 @@ pub fn engine_process_batch(
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::CameraDispose(result),
+                });
+            }
+            EngineCmd::CmdModelCreate(args) => {
+                let result = res::engine_cmd_model_create(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::ModelCreate(result),
+                });
+            }
+            EngineCmd::CmdModelUpdate(args) => {
+                let result = res::engine_cmd_model_update(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::ModelUpdate(result),
+                });
+            }
+            EngineCmd::CmdModelDispose(args) => {
+                let result = res::engine_cmd_model_dispose(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::ModelDispose(result),
                 });
             }
             EngineCmd::CmdGeometryCreate(args) => {

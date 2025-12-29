@@ -3,11 +3,15 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PipelineKey {
     pub shader_id: u64,
-    pub vertex_layout_id: u64,
     pub color_format: wgpu::TextureFormat,
     pub depth_format: Option<wgpu::TextureFormat>,
     pub sample_count: u32,
     pub topology: wgpu::PrimitiveTopology,
+    pub cull_mode: Option<wgpu::Face>,
+    pub front_face: wgpu::FrontFace,
+    pub depth_write_enabled: bool,
+    pub depth_compare: wgpu::CompareFunction,
+    pub blend: Option<wgpu::BlendState>,
 }
 
 #[derive(Debug)]

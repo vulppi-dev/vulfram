@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use crate::core::resources::{
-    CameraComponent, CameraRecord, ModelComponent, ModelRecord, UniformBufferPool,
-    VertexAllocatorConfig, VertexAllocatorSystem,
+    CameraComponent, CameraRecord, FrameSpec, ModelComponent, ModelRecord, RenderTarget,
+    UniformBufferPool, VertexAllocatorConfig, VertexAllocatorSystem,
 };
 use crate::core::render::cache::RenderCache;
 
@@ -11,6 +11,7 @@ pub struct RenderState {
     pub models: HashMap<u32, ModelRecord>,
 
     // Buffers
+    pub frame_buffer: Option<UniformBufferPool<FrameSpec>>,
     pub camera_buffer: Option<UniformBufferPool<CameraComponent>>,
     pub model_buffer: Option<UniformBufferPool<ModelComponent>>,
 
@@ -30,6 +31,15 @@ pub struct RenderState {
 
     // Pipeline cache
     pub render_cache: RenderCache,
+
+    // Bind Group Layouts
+    pub layout_shared: Option<wgpu::BindGroupLayout>,
+    pub layout_object: Option<wgpu::BindGroupLayout>,
+    pub layout_target: Option<wgpu::BindGroupLayout>,
+
+    // Bind Groups (Updated per frame)
+    pub bind_group_shared: Option<wgpu::BindGroup>,
+    pub bind_group_object: Option<wgpu::BindGroup>,
 }
 
 impl RenderState {
@@ -38,6 +48,7 @@ impl RenderState {
         Self {
             cameras: HashMap::new(),
             models: HashMap::new(),
+            frame_buffer: None,
             camera_buffer: None,
             model_buffer: None,
             vertex_allocation: None,
@@ -49,6 +60,11 @@ impl RenderState {
             sampler_linear_repeat: None,
             sampler_comparison: None,
             render_cache: RenderCache::new(),
+            layout_shared: None,
+            layout_object: None,
+            layout_target: None,
+            bind_group_shared: None,
+            bind_group_object: None,
         }
     }
 
@@ -71,6 +87,9 @@ impl RenderState {
         if let Some(vertex_allocator) = self.vertex_allocation.as_mut() {
             vertex_allocator.begin_frame(frame_index);
         }
+        if let Some(frame_buffer) = self.frame_buffer.as_mut() {
+            frame_buffer.begin_frame(frame_index);
+        }
         if let Some(camera_buffer) = self.camera_buffer.as_mut() {
             camera_buffer.begin_frame(frame_index);
         }
@@ -78,6 +97,122 @@ impl RenderState {
             model_buffer.begin_frame(frame_index);
         }
         self.render_cache.gc(frame_index);
+    }
+
+    pub fn on_resize(&mut self, device: &wgpu::Device, width: u32, height: u32) {
+        for record in self.cameras.values_mut() {
+            // Resolve new size based on window dimensions
+            let (target_width, target_height) = record
+                .view_position
+                .as_ref()
+                .map(|vp| vp.resolve_size(width, height))
+                .unwrap_or((width, height));
+
+            let size = wgpu::Extent3d {
+                width: target_width,
+                height: target_height,
+                depth_or_array_layers: 1,
+            };
+
+            // Get existing format or fallback to Rgba8UnormSrgb
+            let format = record
+                .render_target
+                .as_ref()
+                .map(|rt| rt.format)
+                .unwrap_or(wgpu::TextureFormat::Rgba8UnormSrgb);
+
+            // Re-create render target with new size
+            let target = RenderTarget::new(device, size, format);
+            record.set_render_target(target);
+
+            // Update camera projection to match new aspect ratio/size
+            let viewport = glam::Vec4::new(target_width as f32, target_height as f32, 0.0, 0.0);
+            record.data.update(None, None, None, None, viewport);
+
+            record.mark_dirty();
+        }
+    }
+
+    pub fn prepare_render(
+        &mut self,
+        device: &wgpu::Device,
+        frame_spec: FrameSpec,
+    ) {
+        // 1. Upload all data to pools
+        if let Some(pool) = self.frame_buffer.as_mut() {
+            pool.write(0, &frame_spec);
+        }
+
+        if let Some(pool) = self.camera_buffer.as_mut() {
+            for (id, record) in &self.cameras {
+                pool.write(*id, &record.data);
+            }
+        }
+
+        if let Some(pool) = self.model_buffer.as_mut() {
+            for (id, record) in &self.models {
+                pool.write(*id, &record.data);
+            }
+        }
+
+        // 2. Create Shared Bind Group (Group 0: Frame B0, Camera B1 dynamic)
+        if let (Some(frame_pool), Some(camera_pool), Some(layout)) = (
+            self.frame_buffer.as_ref(),
+            self.camera_buffer.as_ref(),
+            self.layout_shared.as_ref(),
+        ) {
+            self.bind_group_shared = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("BindGroup Shared (Frame+Camera)"),
+                layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                            buffer: frame_pool.buffer(),
+                            offset: 0,
+                            size: Some(
+                                std::num::NonZeroU64::new(std::mem::size_of::<FrameSpec>() as u64)
+                                    .unwrap(),
+                            ),
+                        }),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                            buffer: camera_pool.buffer(),
+                            offset: 0,
+                            size: Some(
+                                std::num::NonZeroU64::new(
+                                    std::mem::size_of::<CameraComponent>() as u64,
+                                )
+                                .unwrap(),
+                            ),
+                        }),
+                    },
+                ],
+            }));
+        }
+
+        // 3. Create Object Bind Group (Group 1: Model B0 dynamic)
+        if let (Some(pool), Some(layout)) =
+            (self.model_buffer.as_ref(), self.layout_object.as_ref())
+        {
+            self.bind_group_object = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("BindGroup Object (Model)"),
+                layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: pool.buffer(),
+                        offset: 0,
+                        size: Some(
+                            std::num::NonZeroU64::new(std::mem::size_of::<ModelComponent>() as u64)
+                                .unwrap(),
+                        ),
+                    }),
+                }],
+            }));
+        }
     }
 
     pub(crate) fn init_fallback_resources(
@@ -90,6 +225,11 @@ impl RenderState {
             queue,
             VertexAllocatorConfig::default(),
         ));
+
+        // Initialize uniform pools
+        self.frame_buffer = Some(UniformBufferPool::new(device, queue, Some(1)));
+        self.camera_buffer = Some(UniformBufferPool::new(device, queue, Some(16)));
+        self.model_buffer = Some(UniformBufferPool::new(device, queue, Some(1024)));
 
         // Create 1x1 white fallback texture
         let fallback_texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -195,5 +335,85 @@ impl RenderState {
         self.sampler_point_repeat = Some(sampler_point_repeat);
         self.sampler_linear_repeat = Some(sampler_linear_repeat);
         self.sampler_comparison = Some(sampler_comparison);
+
+        // Create standard bind group layouts
+        // Group 0: Shared (Frame + Camera)
+        let layout_shared = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("BindGroupLayout Shared"),
+            entries: &[
+                // Binding 0: Frame Spec (Static)
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: Some(
+                            std::num::NonZeroU64::new(std::mem::size_of::<FrameSpec>() as u64)
+                                .unwrap(),
+                        ),
+                    },
+                    count: None,
+                },
+                // Binding 1: Camera (Dynamic Offset)
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: true,
+                        min_binding_size: Some(
+                            std::num::NonZeroU64::new(std::mem::size_of::<CameraComponent>() as u64)
+                                .unwrap(),
+                        ),
+                    },
+                    count: None,
+                },
+            ],
+        });
+
+        // Group 1: Object (Model)
+        let layout_object = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("BindGroupLayout Object"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: true,
+                    min_binding_size: Some(
+                        std::num::NonZeroU64::new(std::mem::size_of::<ModelComponent>() as u64)
+                            .unwrap(),
+                    ),
+                },
+                count: None,
+            }],
+        });
+
+        let layout_target = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("BindGroupLayout Target"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+        });
+
+        self.layout_shared = Some(layout_shared);
+        self.layout_object = Some(layout_object);
+        self.layout_target = Some(layout_target);
     }
 }

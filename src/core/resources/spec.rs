@@ -9,3 +9,14 @@ pub struct FrameSpec {
     pub frame_index: u32,
     _padding: u32,
 }
+
+impl FrameSpec {
+    pub fn new(time: f32, delta_time: f32, frame_index: u32) -> Self {
+        Self {
+            time,
+            delta_time,
+            frame_index,
+            _padding: 0,
+        }
+    }
+}

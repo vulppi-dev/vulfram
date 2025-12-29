@@ -72,6 +72,9 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
                         let device = unsafe { self.device.as_ref().unwrap_unchecked() };
                         window_state.surface.configure(device, &window_state.config);
 
+                        // Update camera targets and projections
+                        window_state.render_state.on_resize(device, size.width, size.height);
+
                         // Update size state
                         window_state.inner_size = new_size;
                         let outer_size = window_state.window.outer_size();

@@ -29,3 +29,37 @@ impl ModelComponent {
         *self = Self::new(transform);
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct ModelRecord {
+    pub data: ModelComponent,
+    pub geometry_id: u32,
+    pub material_id: Option<u32>,
+    pub layer_mask: u32,
+    pub is_dirty: bool,
+}
+
+impl ModelRecord {
+    pub fn new(
+        data: ModelComponent,
+        geometry_id: u32,
+        material_id: Option<u32>,
+        layer_mask: u32,
+    ) -> Self {
+        Self {
+            data,
+            geometry_id,
+            material_id,
+            layer_mask,
+            is_dirty: true,
+        }
+    }
+
+    pub fn mark_dirty(&mut self) {
+        self.is_dirty = true;
+    }
+
+    pub fn clear_dirty(&mut self) {
+        self.is_dirty = false;
+    }
+}

@@ -25,50 +25,61 @@ Game Engine Experimental • Marca: Vulfram
 
 ### 2.1 Paleta Principal (Análoga Quente)
 
-**Primária:**
+```css
+:root {
+  --primary-1: oklch(17.8% 0.0162 1.462);
+  --primary-2: oklch(20.5% 0.025 1.462);
+  --primary-3: oklch(25.5% 0.0672 1.462);
+  --primary-4: oklch(29.3% 0.1066 1.462);
+  --primary-5: oklch(33.2% 0.1179 1.462);
+  --primary-6: oklch(38.2% 0.1228 1.462);
+  --primary-7: oklch(45% 0.1355 1.462);
+  --primary-8: oklch(54.2% 0.1672 1.462);
+  --primary-9: oklch(66.6% 0.2405 1.462);
+  --primary-10: oklch(62.7% 0.2221 1.462);
+  --primary-11: oklch(78.7% 0.1885 1.462);
+  --primary-12: oklch(90.9% 0.061 1.462);
 
-- 1: `#180c16`
-- 2: `#240e20`
-- 3: `#3e0b36`
-- 4: `#55004b`
-- 5: `#640058`
-- 6: `#750668`
-- 7: `#901781`
-- 8: `#b81ca4`
-- 9: `#880979`
-- 10: `#710065`
-- 11: `#ff7bf2`
-- 12: `#ffc9f9`
+  --secondary-1: oklch(17.8% 0.0281 334.4);
+  --secondary-2: oklch(20.5% 0.0505 334.4);
+  --secondary-3: oklch(26% 0.0987 334.4);
+  --secondary-4: oklch(29.9% 0.1574 334.4);
+  --secondary-5: oklch(33.8% 0.1681 334.4);
+  --secondary-6: oklch(38.9% 0.173 334.4);
+  --secondary-7: oklch(45.9% 0.1925 334.4);
+  --secondary-8: oklch(54.5% 0.2338 334.4);
+  --secondary-9: oklch(43.3% 0.1925 334.4);
+  --secondary-10: oklch(37.7% 0.173 334.4);
+  --secondary-11: oklch(78.9% 0.2338 334.4);
+  --secondary-12: oklch(90.5% 0.0946 334.4);
 
-### 2.2 Analógica 1
+  --tertiary-1: oklch(17.8% 0.0405 283.9);
+  --tertiary-2: oklch(20.6% 0.0543 283.9);
+  --tertiary-3: oklch(27.2% 0.1267 283.9);
+  --tertiary-4: oklch(31.8% 0.1877 283.9);
+  --tertiary-5: oklch(35.7% 0.2012 283.9);
+  --tertiary-6: oklch(39.8% 0.2059 283.9);
+  --tertiary-7: oklch(44.8% 0.2214 283.9);
+  --tertiary-8: oklch(50.8% 0.255 283.9);
+  --tertiary-9: oklch(54% 0.2816 283.9);
+  --tertiary-10: oklch(49.4% 0.255 283.9);
+  --tertiary-11: oklch(77.6% 0.2433 283.9);
+  --tertiary-12: oklch(91.4% 0.0779 283.9);
 
-- 1: `#190d10`
-- 2: `#231116`
-- 3: `#410a20`
-- 4: `#5a0028`
-- 5: `#6b0031`
-- 6: `#7d003d`
-- 7: `#99134f`
-- 8: `#c71467`
-- 9: `#830a42`
-- 10: `#9c1752`
-- 11: `#ff8ab3`
-- 12: `#ffcddd`
-
-### 2.3 Analógica 2
-
-- 1: `#0f0e21`
-- 2: `#15132d`
-- 3: `#24165d`
-- 4: `#310b86`
-- 5: `#3a1699`
-- 6: `#4325a8`
-- 7: `#4f31c0`
-- 8: `#5f3ae5`
-- 9: `#693bfe`
-- 10: `#5c35e0`
-- 11: `#aba9ff`
-- 12: `#dddeff`
+  --neutral-1: oklch(17.8% 0.014 307.3);
+  --neutral-2: oklch(21.5% 0.0134 307.3);
+  --neutral-3: oklch(25.5% 0.0182 307.3);
+  --neutral-4: oklch(28.4% 0.025 307.3);
+  --neutral-5: oklch(31.4% 0.0295 307.3);
+  --neutral-6: oklch(35% 0.0332 307.3);
+  --neutral-7: oklch(40.2% 0.0402 307.3);
+  --neutral-8: oklch(49.2% 0.0524 307.3);
+  --neutral-9: oklch(54% 0.0558 307.3);
+  --neutral-10: oklch(58.6% 0.0548 307.3);
+  --neutral-11: oklch(77% 0.0461 307.3);
+  --neutral-12: oklch(94.9% 0.0086 307.3);
+}
+```
 
 ---
 

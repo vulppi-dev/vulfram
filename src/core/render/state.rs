@@ -25,6 +25,9 @@ pub struct ResourceLibrary {
     pub layout_shared: wgpu::BindGroupLayout,
     pub layout_object: wgpu::BindGroupLayout,
     pub layout_target: wgpu::BindGroupLayout,
+    pub forward_pipeline_layout: wgpu::PipelineLayout,
+    pub forward_shader: wgpu::ShaderModule,
+    pub compose_shader: wgpu::ShaderModule,
     pub samplers: SamplerSet,
     pub fallback_texture: wgpu::Texture,
     pub fallback_view: wgpu::TextureView,
@@ -115,7 +118,7 @@ impl RenderState {
                 .render_target
                 .as_ref()
                 .map(|rt| rt.format)
-                .unwrap_or(wgpu::TextureFormat::Rgba8UnormSrgb);
+                .unwrap_or(wgpu::TextureFormat::Rgba32Float);
 
             let target = RenderTarget::new(device, size, format);
             record.set_render_target(target);
@@ -376,10 +379,35 @@ impl RenderState {
             ],
         });
 
+        // Initialize forward pass resources
+        let forward_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Forward Shader"),
+            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(include_str!(
+                "passes/forward/forward.wgsl"
+            ))),
+        });
+
+        let compose_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Compose Shader"),
+            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(include_str!(
+                "passes/compose/compose.wgsl"
+            ))),
+        });
+
+        let forward_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Forward Pipeline Layout"),
+                bind_group_layouts: &[&layout_shared, &layout_object],
+                push_constant_ranges: &[],
+            });
+
         self.library = Some(ResourceLibrary {
             layout_shared,
             layout_object,
             layout_target,
+            forward_shader,
+            forward_pipeline_layout,
+            compose_shader,
             samplers,
             fallback_texture,
             fallback_view,

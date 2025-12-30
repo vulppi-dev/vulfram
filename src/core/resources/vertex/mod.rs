@@ -489,7 +489,7 @@ impl VertexAllocatorSystem {
     }
 
     pub fn bind<'a>(
-        &'a mut self,
+        &mut self,
         pass: &mut RenderPass<'a>,
         id: u32,
     ) -> Result<(), VertexAllocError> {

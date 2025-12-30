@@ -40,9 +40,16 @@ pub fn render_frames(engine_state: &mut EngineState) {
         let mut encoder =
             device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
-        passes::pass_forward(render_state, queue, &mut encoder);
+        passes::pass_forward(
+            render_state,
+            device,
+            queue,
+            &mut encoder,
+            engine_state.frame_index,
+        );
         passes::pass_compose(
             render_state,
+            device,
             queue,
             &mut encoder,
             &surface_texture,

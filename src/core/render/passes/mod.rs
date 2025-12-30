@@ -19,12 +19,12 @@ impl ForwardPass {
 
 /// Resources and state for the final composition pass
 pub struct ComposePass {
-    pub shader: Option<wgpu::ShaderModule>,
+    pub pipeline: Option<wgpu::RenderPipeline>,
 }
 
 impl ComposePass {
     pub fn new() -> Self {
-        Self { shader: None }
+        Self { pipeline: None }
     }
 }
 

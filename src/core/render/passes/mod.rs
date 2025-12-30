@@ -1,8 +1,10 @@
 mod compose;
 mod forward;
+mod light_cull;
 
 pub use compose::*;
 pub use forward::*;
+pub use light_cull::*;
 
 use crate::core::resources::RenderTarget;
 
@@ -28,9 +30,25 @@ impl ComposePass {
     }
 }
 
+/// Resources and state for the light culling compute pass
+pub struct LightCullPass {
+    pub pipeline: Option<wgpu::ComputePipeline>,
+    pub bind_group: Option<wgpu::BindGroup>,
+}
+
+impl LightCullPass {
+    pub fn new() -> Self {
+        Self {
+            pipeline: None,
+            bind_group: None,
+        }
+    }
+}
+
 /// Aggregates all render passes used by a window
 pub struct RenderPasses {
     pub forward: ForwardPass,
+    pub light_cull: LightCullPass,
     pub compose: ComposePass,
     // Future: shadow: ShadowPass,
     // Future: ui: UiPass,
@@ -40,6 +58,7 @@ impl RenderPasses {
     pub fn new() -> Self {
         Self {
             forward: ForwardPass::new(),
+            light_cull: LightCullPass::new(),
             compose: ComposePass::new(),
         }
     }

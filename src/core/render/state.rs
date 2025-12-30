@@ -3,8 +3,9 @@ use std::collections::HashMap;
 use crate::core::render::cache::RenderCache;
 use crate::core::render::passes::RenderPasses;
 use crate::core::resources::{
-    CameraComponent, CameraRecord, FrameComponent, LightRecord, ModelComponent, ModelRecord,
-    RenderTarget, UniformBufferPool, VertexAllocatorConfig, VertexAllocatorSystem,
+    CameraComponent, CameraRecord, FrameComponent, LightComponent, LightRecord, ModelComponent,
+    ModelRecord, RenderTarget, StorageBufferPool, UniformBufferPool, VertexAllocatorConfig,
+    VertexAllocatorSystem,
 };
 
 // -----------------------------------------------------------------------------
@@ -25,9 +26,12 @@ pub struct ResourceLibrary {
     pub layout_shared: wgpu::BindGroupLayout,
     pub layout_object: wgpu::BindGroupLayout,
     pub layout_target: wgpu::BindGroupLayout,
+    pub layout_light_cull: wgpu::BindGroupLayout,
     pub forward_pipeline_layout: wgpu::PipelineLayout,
     pub forward_shader: wgpu::ShaderModule,
     pub compose_shader: wgpu::ShaderModule,
+    pub light_cull_shader: wgpu::ShaderModule,
+    pub light_cull_pipeline_layout: wgpu::PipelineLayout,
     pub samplers: SamplerSet,
     pub fallback_texture: wgpu::Texture,
     pub fallback_view: wgpu::TextureView,
@@ -40,6 +44,18 @@ pub struct BindingSystem {
     pub model_pool: UniformBufferPool<ModelComponent>,
     pub shared_group: Option<wgpu::BindGroup>,
     pub object_group: Option<wgpu::BindGroup>,
+}
+
+/// Buffers and state for light preprocessing
+pub struct LightCullingSystem {
+    pub lights: StorageBufferPool<LightComponent>,
+    pub visible_indices: StorageBufferPool<u32>,
+    pub visible_counts: StorageBufferPool<u32>,
+    pub params_buffer: Option<wgpu::Buffer>,
+    pub light_count: usize,
+    pub camera_count: u32,
+    pub max_lights_per_camera: u32,
+    pub queue: wgpu::Queue,
 }
 
 /// Holds the actual scene data to be rendered
@@ -58,6 +74,7 @@ pub struct RenderState {
     pub bindings: Option<BindingSystem>,
     pub library: Option<ResourceLibrary>,
     pub vertex: Option<VertexAllocatorSystem>,
+    pub light_system: Option<LightCullingSystem>,
     pub cache: RenderCache,
     pub passes: RenderPasses,
 }
@@ -74,6 +91,7 @@ impl RenderState {
             bindings: None,
             library: None,
             vertex: None,
+            light_system: None,
             cache: RenderCache::new(),
             passes: RenderPasses::new(),
         }
@@ -87,6 +105,7 @@ impl RenderState {
         self.bindings = None;
         self.library = None;
         self.vertex = None;
+        self.light_system = None;
         self.cache.clear();
         self.passes = RenderPasses::new();
     }
@@ -99,6 +118,11 @@ impl RenderState {
             bindings.frame_pool.begin_frame(frame_index);
             bindings.camera_pool.begin_frame(frame_index);
             bindings.model_pool.begin_frame(frame_index);
+        }
+        if let Some(light_system) = self.light_system.as_mut() {
+            light_system.lights.begin_frame(frame_index);
+            light_system.visible_indices.begin_frame(frame_index);
+            light_system.visible_counts.begin_frame(frame_index);
         }
         self.cache.gc(frame_index);
     }
@@ -149,6 +173,8 @@ impl RenderState {
     }
 
     pub fn prepare_render(&mut self, device: &wgpu::Device, frame_spec: FrameComponent) {
+        self.prepare_lights(device);
+
         let bindings = match self.bindings.as_mut() {
             Some(b) => b,
             None => return,
@@ -240,6 +266,7 @@ impl RenderState {
         ));
 
         let alignment = device.limits().min_uniform_buffer_offset_alignment as u64;
+        let storage_alignment = device.limits().min_storage_buffer_offset_alignment as u64;
 
         // Initialize bindings
         self.bindings = Some(BindingSystem {
@@ -248,6 +275,22 @@ impl RenderState {
             model_pool: UniformBufferPool::new(device, queue, Some(1024), alignment),
             shared_group: None,
             object_group: None,
+        });
+
+        self.light_system = Some(LightCullingSystem {
+            lights: StorageBufferPool::new(device, queue, Some(32), storage_alignment),
+            visible_indices: StorageBufferPool::new(device, queue, Some(128), storage_alignment),
+            visible_counts: StorageBufferPool::new(device, queue, Some(8), storage_alignment),
+            params_buffer: Some(device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("LightCull Params"),
+                size: std::mem::size_of::<u32>() as u64 * 4,
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            })),
+            light_count: 0,
+            camera_count: 0,
+            max_lights_per_camera: 0,
+            queue: queue.clone(),
         });
 
         // Initialize fallback texture
@@ -396,6 +439,55 @@ impl RenderState {
             ],
         });
 
+        let layout_light_cull = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("BindGroupLayout Light Cull"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: Some(
+                            std::num::NonZeroU64::new(std::mem::size_of::<u32>() as u64 * 4)
+                                .unwrap(),
+                        ),
+                    },
+                    count: None,
+                },
+            ],
+        });
+
         // Initialize forward pass resources
         let forward_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Forward Shader"),
@@ -411,6 +503,13 @@ impl RenderState {
             ))),
         });
 
+        let light_cull_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Light Cull Shader"),
+            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(include_str!(
+                "passes/light_cull/light_cull.wgsl"
+            ))),
+        });
+
         let forward_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Forward Pipeline Layout"),
@@ -418,16 +517,66 @@ impl RenderState {
                 push_constant_ranges: &[],
             });
 
+        let light_cull_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Light Cull Pipeline Layout"),
+                bind_group_layouts: &[&layout_light_cull],
+                push_constant_ranges: &[],
+            });
+
         self.library = Some(ResourceLibrary {
             layout_shared,
             layout_object,
             layout_target,
+            layout_light_cull,
             forward_shader,
             forward_pipeline_layout,
             compose_shader,
+            light_cull_shader,
+            light_cull_pipeline_layout,
             samplers,
             fallback_texture,
             fallback_view,
         });
+    }
+
+    fn prepare_lights(&mut self, device: &wgpu::Device) {
+        let light_system = match self.light_system.as_mut() {
+            Some(sys) => sys,
+            None => return,
+        };
+
+        let mut lights = Vec::with_capacity(self.scene.lights.len());
+        for record in self.scene.lights.values() {
+            lights.push(record.data);
+        }
+
+        light_system.light_count = lights.len();
+        if lights.is_empty() {
+            return;
+        }
+
+        light_system.lights.write_slice(0, &lights);
+
+        let camera_count = self.scene.cameras.len() as u32;
+        let total_indices = (lights.len() as u32) * camera_count;
+        if total_indices > 0 {
+            let zeros = vec![0u32; total_indices as usize];
+            light_system.visible_indices.write_slice(0, &zeros);
+        }
+
+        if camera_count > 0 {
+            let zeros = vec![0u32; camera_count as usize];
+            light_system.visible_counts.write_slice(0, &zeros);
+        }
+
+        if light_system.params_buffer.is_none() {
+            light_system.params_buffer = Some(device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("LightCull Params"),
+                size: std::mem::size_of::<u32>() as u64 * 4,
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            }));
+        }
     }
 }

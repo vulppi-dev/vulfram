@@ -40,6 +40,7 @@ pub fn render_frames(engine_state: &mut EngineState) {
         let mut encoder =
             device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
+        passes::pass_light_cull(render_state, device, &mut encoder, engine_state.frame_index);
         passes::pass_forward(
             render_state,
             device,

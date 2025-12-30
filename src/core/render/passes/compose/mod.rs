@@ -42,17 +42,13 @@ pub fn pass_compose(
         let (x, y) = record
             .view_position
             .as_ref()
-            .map(|vp: &crate::core::resources::ViewPosition| {
-                vp.resolve_position(config.width, config.height)
-            })
+            .map(|vp| vp.resolve_position(config.width, config.height))
             .unwrap_or((0, 0));
 
         let (width, height) = record
             .view_position
             .as_ref()
-            .map(|vp: &crate::core::resources::ViewPosition| {
-                vp.resolve_size(config.width, config.height)
-            })
+            .map(|vp| vp.resolve_size(config.width, config.height))
             .unwrap_or((config.width, config.height));
 
         render_pass.set_viewport(x as f32, y as f32, width as f32, height as f32, 0.0, 1.0);

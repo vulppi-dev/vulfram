@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::core::render::cache::RenderCache;
+use crate::core::render::passes::RenderPasses;
 use crate::core::resources::{
     CameraComponent, CameraRecord, FrameSpec, ModelComponent, ModelRecord, RenderTarget,
     UniformBufferPool, VertexAllocatorConfig, VertexAllocatorSystem,
@@ -54,6 +55,7 @@ pub struct RenderState {
     pub library: Option<ResourceLibrary>,
     pub vertex: Option<VertexAllocatorSystem>,
     pub cache: RenderCache,
+    pub passes: RenderPasses,
 }
 
 impl RenderState {
@@ -68,6 +70,7 @@ impl RenderState {
             library: None,
             vertex: None,
             cache: RenderCache::new(),
+            passes: RenderPasses::new(),
         }
     }
 
@@ -79,6 +82,7 @@ impl RenderState {
         self.library = None;
         self.vertex = None;
         self.cache.clear();
+        self.passes = RenderPasses::new();
     }
 
     pub fn begin_frame(&mut self, frame_index: u64) {
@@ -120,6 +124,18 @@ impl RenderState {
             record.data.update(None, None, None, None, viewport);
             record.mark_dirty();
         }
+
+        // Update Forward Pass depth buffer
+        let depth_size = wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        };
+        self.passes.forward.depth_target = Some(RenderTarget::new(
+            device,
+            depth_size,
+            wgpu::TextureFormat::Depth24Plus,
+        ));
     }
 
     pub fn prepare_render(&mut self, device: &wgpu::Device, frame_spec: FrameSpec) {

@@ -34,7 +34,16 @@ pub fn pass_forward(
                     },
                     depth_slice: None,
                 })],
-                depth_stencil_attachment: None, // TODO: Add depth buffer
+                depth_stencil_attachment: render_state.passes.forward.depth_target.as_ref().map(
+                    |target| wgpu::RenderPassDepthStencilAttachment {
+                        view: &target.view,
+                        depth_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(1.0),
+                            store: wgpu::StoreOp::Store,
+                        }),
+                        stencil_ops: None,
+                    },
+                ),
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });

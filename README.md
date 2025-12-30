@@ -7,7 +7,6 @@
   
   [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
   [![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org/)
-  [![TypeScript](https://img.shields.io/badge/typescript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 </div>
 
 ---
@@ -36,7 +35,6 @@
 Vulfram is designed to be **host-agnostic** and driven by external runtimes via FFI:
 
 - 🟢 **Node.js** (N-API)
-- ⚡ **Bun** (`bun:ffi`)
 - 🌙 **Lua** (via `mlua`)
 - 🐍 **Python** (via `PyO3`)
 - 🔧 Any environment capable of calling C-ABI functions
@@ -47,7 +45,7 @@ Vulfram is designed to be **host-agnostic** and driven by external runtimes via 
 - 🔄 **Cross-Platform**: Native support for Windows, macOS, and Linux
 - 🎮 **Complete Input System**: Keyboard, mouse, touch, and gamepads
 - 🪟 **Advanced Window Management**: Full control over multiple windows
-- 🔌 **Language Bindings**: TypeScript, Lua, Python, and more
+- 🔌 **Language Bindings**: N-API, Lua, Python, and more (via feature flags). With C-ABI, `bun:ffi` is also possible.
 - ⚡ **MessagePack Communication**: Fast binary serialization
 - 🎯 **Host-Agnostic Design**: No assumptions about ECS, OOP, or game framework
 
@@ -202,109 +200,24 @@ Heavy data uses one-shot uploads:
 ### Prerequisites
 
 - **Rust** 1.70+ ([rustup.rs](https://rustup.rs/))
-- **Node.js** 18+ or **Bun** 1.0+
 - **Vulkan**, **Metal**, or **DirectX 12** updated drivers
 
-### Installation
+### Quick Start (Core Test Harness)
 
 ```bash
 # Clone the repository
 git clone https://github.com/vulppi-dev/vulfram.git
 cd vulfram
 
-# Install dependencies
-bun install
-
-# Build native binding
-bun run build:napi
+# Build and run the test harness
+cargo run
 ```
 
-### Basic Example
-
-```typescript
-import {
-  vulframInit,
-  vulframSendQueue,
-  vulframReceiveQueue,
-  vulframReceiveEvents,
-  vulframTick,
-  vulframDispose,
-  VulframResult,
-  type EngineBatchCmds,
-  type EngineBatchEvents,
-} from '@vulppi/vulfram';
-
-// Initialize the engine
-if (vulframInit() !== VulframResult.Success) {
-  throw new Error('Failed to initialize Vulfram');
-}
-
-// Create a window
-const createWindowCmd: EngineBatchCmds = {
-  cmds: [
-    {
-      type: 'cmd-window-create',
-      content: {
-        title: 'My Game',
-        size: { width: 1280, height: 720 },
-        position: { x: 100, y: 100 },
-        borderless: false,
-        resizable: true,
-        initialState: 'normal',
-      },
-    },
-  ],
-};
-
-vulframSendQueue(createWindowCmd);
-
-// Game loop
-let lastTime = performance.now();
-let running = true;
-
-function gameLoop() {
-  if (!running) return;
-
-  // Calculate delta time
-  const currentTime = performance.now();
-  const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
-  lastTime = currentTime;
-
-  // Process events
-  const events = vulframReceiveEvents();
-  if (events) {
-    for (const event of events.events) {
-      if (
-        event.kind === 'window' &&
-        event.content.event === 'on-close-request'
-      ) {
-        running = false;
-        break;
-      }
-    }
-  }
-
-  // Process messages (optional)
-  const messages = vulframReceiveQueue();
-  if (messages) {
-    // Handle acknowledgments, errors, etc.
-    console.log('Messages:', messages);
-  }
-
-  // Update the engine (processes commands and renders)
-  vulframTick(currentTime / 1000, deltaTime);
-
-  // Next frame
-  if (running) {
-    requestAnimationFrame(gameLoop);
-  } else {
-    vulframDispose();
-  }
-}
-
-// Start the loop
-requestAnimationFrame(gameLoop);
-```
+The test harness lives in `src/main.rs` and exercises:
+- window creation
+- primitive geometry creation
+- camera + model setup
+- basic rendering loop
 
 ---
 
@@ -363,13 +276,6 @@ requestAnimationFrame(gameLoop);
 # Build Rust core
 cargo build --release
 
-# Build TypeScript binding (from project root)
-bun run build:napi
-
-# Development with hot reload (from binding folder)
-cd bind/ts
-bun run dev
-
 # Run tests
 cargo test
 
@@ -399,7 +305,7 @@ cargo fmt
 ```
 vulfram/
 ├── src/                       # Rust core
-│   ├── lib.rs                # N-API binding entry point
+│   ├── lib.rs                # Crate entry point (cdylib)
 │   └── core/                 # Engine core modules
 │       ├── mod.rs            # Core module exports
 │       ├── buffers.rs        # Buffer management
@@ -421,36 +327,19 @@ vulfram/
 │           ├── state.rs      # Render state management
 │           └── mod.rs        # Render module exports
 │
-├── bind/                      # Language bindings
-│   └── ts/                   # TypeScript/JavaScript binding
-│       ├── src/
-│       │   ├── index.ts      # Public API
-│       │   ├── enums.ts      # Shared enumerations
-│       │   ├── cmds/         # Command type definitions
-│       │   ├── events/       # Event type definitions
-│       │   ├── ffi/          # FFI declarations
-│       │   └── napi/         # Generated native module
-│       ├── package.json
-│       └── tsconfig.json
-│
 ├── docs/                      # Documentation
 │   ├── OVERVIEW.md           # High-level overview
 │   ├── ABI.md                # C-ABI specification
 │   ├── ARCH.md               # Architecture & lifecycle
 │   ├── API.md                # Internal Rust API
-│   └── GLOSSARY.md           # Terminology reference
-│
-├── assets/                    # Visual resources
-│   ├── brand.svg             # Vulfram logo
+│   ├── GLOSSARY.md           # Terminology reference
 │   ├── MASCOT-DEFINITION.md  # Mascot guidelines
 │   └── UI.md                 # UI design guidelines
 │
-├── scripts/                   # Build scripts
-│   └── build.ts              # Build automation
+├── assets/                    # Visual resources
+│   └── brand.svg             # Vulfram logo
 │
 ├── Cargo.toml                 # Rust dependencies
-├── package.json               # Project metadata
-├── tsconfig.json              # TypeScript config
 └── README.md                  # This file
 ```
 
@@ -482,8 +371,8 @@ Comprehensive documentation is available in the `docs/` folder.
 
 **Additional Resources:**
 
-- **[MASCOT-DEFINITION.md](assets/MASCOT-DEFINITION.md)** - Brand mascot guidelines
-- **[UI.md](assets/UI.md)** - User interface design guidelines
+- **[MASCOT-DEFINITION.md](docs/MASCOT-DEFINITION.md)** - Brand mascot guidelines
+- **[UI.md](docs/UI.md)** - User interface design guidelines
 - **[Copilot Instructions](.github/copilot-instructions.md)** - Development patterns and memory
 
 ---
@@ -495,7 +384,6 @@ Contributions are welcome! Please follow these guidelines:
 ### Code Style
 
 - **Rust code**: Minimal comments, self-descriptive names
-- **TypeScript bindings**: Complete JSDoc with examples
 - **All code**: English for variables, functions, types, and comments
 - **Documentation**: English for all docs (README, API docs)
 - **Communication**: Brazilian Portuguese for discussions and issues
@@ -530,17 +418,15 @@ Contributions are welcome! Please follow these guidelines:
 - **`wgpu`** - GPU abstraction layer (WebGPU implementation)
 - **`winit`** - Cross-platform windowing
 - **`gilrs`** - Gamepad input
-- **`napi`** - Node.js N-API bindings
+- **`napi`** - Node.js N-API bindings (optional)
 - **`serde`** - Serialization framework
 - **`rmp-serde`** - MessagePack serialization
 - **`glam`** - Vector and matrix math
 - **`bytemuck`** - Safe type conversions for GPU data
 - **`image`** - Image loading and decoding
 
-### TypeScript/JavaScript
-
-- **`msgpackr`** - MessagePack encoding/decoding
-- **`bun`** - Primary runtime (Node.js compatible)
+Bindings are provided via feature flags (`napi`, `lua`, `python`) and are
+implemented in Rust.
 
 ---
 

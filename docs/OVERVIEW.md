@@ -4,7 +4,7 @@ Vulfram is a **rendering and systems core** written in Rust and exposed as a dyn
 It is designed to be driven by external _hosts_ via FFI:
 
 - Node.js (N-API)
-- Bun (`bun:ffi`)
+- Node.js (N-API)
 - Lua (via `mlua`)
 - Python (via `PyO3`)
 - Any other environment capable of calling C-ABI functions
@@ -51,7 +51,7 @@ Conceptual flow:
 The host is the code that calls the `vulfram_*` functions.
 Typical hosts:
 
-- Node.js / Bun (via N-API / `bun:ffi`)
+- Node.js (N-API)
 - Lua (via `mlua`)
 - Python (via `PyO3`)
 
@@ -122,8 +122,8 @@ They are always associated with an `ComponentId` chosen by the host.
 
 Examples of components:
 
-- `CameraComponent`
-- `ModelComponent` (mesh / renderable)
+- `CameraComponent` (with `order` and optional `view_position`)
+- `ModelComponent` (transform data; references `geometry_id`, future `material_id`)
 - `LightComponent` (future)
 - `EnvironmentComponent` (future)
 
@@ -143,12 +143,11 @@ Resources are the underlying data used by components.
 
 Examples:
 
-- Shaders
-- Geometries
-- Textures
-- Materials
-- Samplers
-- Shadow configs
+- Shaders (future)
+- Geometries (current)
+- Textures (future)
+- Materials (future)
+- Samplers (future)
 - (Future: fonts, sounds, etc.)
 
 They are split into two categories:
@@ -178,11 +177,11 @@ They are split into two categories:
 
 The host generates and owns:
 
-- `ComponentId` — identifies a logical entity
-- `ShaderId` — shader program
+- `CameraId` — identifies a camera
+- `ModelId` — identifies a model instance
 - `GeometryId` — mesh/geometry asset
-- `MaterialId` — material asset
-- `TextureId` — texture asset
+- `MaterialId` — material asset (future)
+- `TextureId` — texture asset (future)
 - `BufferId` — upload/download blob identifier
 
 These are simple integers from the core’s perspective. The only rule is:
@@ -286,13 +285,13 @@ This supports:
 
 For engine users (binding authors or advanced users):
 
-1. `vulfram_overview.md` ← (this file)
-2. `vulfram_abi_spec.md`
-3. `vulfram_architecture_lifecycle.md`
+1. `docs/OVERVIEW.md`
+2. `docs/ABI.md`
+3. `docs/ARCH.md`
 
 For engine contributors (Rust core developers):
 
-1. `vulfram_overview.md`
-2. `vulfram_architecture_lifecycle.md`
-3. `vulfram_internal_api.md`
-4. `vulfram_glossary.md`
+1. `docs/OVERVIEW.md`
+2. `docs/ARCH.md`
+3. `docs/API.md`
+4. `docs/GLOSSARY.md`

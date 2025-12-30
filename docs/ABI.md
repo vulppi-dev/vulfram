@@ -5,7 +5,7 @@ and the **usage contract** expected from hosts and language bindings.
 
 It is intended for:
 
-- Binding authors (N-API, `bun:ffi`, `mlua`, `PyO3`, etc.)
+- Binding authors (N-API, `mlua`, `PyO3`, etc.)
 - Advanced users who need to understand the low-level interaction.
 
 ---
@@ -183,13 +183,12 @@ Typical flow:
 ### 2.5 Upload / Download of Raw Blobs
 
 ```c
-u32 vulfram_upload_buffer(uint32_t id,
+u32 vulfram_upload_buffer(uint64_t id,
                           uint32_t type,
                           const uint8_t* buffer,
                           size_t length);
 
-u32 vulfram_download_buffer(uint32_t id,
-                            uint32_t type,
+u32 vulfram_download_buffer(uint64_t id,
                             uint8_t** out_ptr,
                             size_t* out_length);
 ```
@@ -229,8 +228,8 @@ Direction: **Core → Host** (used by the binding)
 
 Purpose:
 
-- Allows the host to retrieve a raw blob from the core, identified by an
-  `(id, type)` pair:
+- Allows the host to retrieve a raw blob from the core, identified by a
+  `BufferId`:
 
   - Captured frame buffers
   - Debug dumps
@@ -248,7 +247,7 @@ Behavior:
 ### 2.6 Tick / Frame Advance
 
 ```c
-u32 vulfram_tick(double time, double delta_time);
+u32 vulfram_tick(uint64_t time, uint32_t delta_time);
 ```
 
 Called **once per frame** by the host.
@@ -256,12 +255,10 @@ Called **once per frame** by the host.
 Parameters:
 
 - `time`
-  Absolute time since some reference point (e.g. app start).
-  Units are defined by the host (typically seconds), but must be consistent.
+  Host-provided time (currently forwarded to shaders).
 
 - `delta_time`
-  Time elapsed since the previous call to `vulfram_tick`.
-  Again, units must be consistent with `time`.
+  Host-provided delta time (currently forwarded to shaders).
 
 Core responsibilities in `tick`:
 

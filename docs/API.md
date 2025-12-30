@@ -57,147 +57,66 @@ At a high level, the core is organized around a central `EngineState`:
 
 ```rust
 pub struct EngineState {
-    // Subsystems
-    window_system: WindowSystem,        // winit integration
-    render_system: RenderSystem,        // wgpu integration
-    input_system: InputSystem,          // winit + gilrs
+    pub window: WindowManager,
 
-    // Resource and component tables
-    resources: Resources,
-    components: Components,
+    pub wgpu: wgpu::Instance,
+    pub caps: Option<wgpu::SurfaceCapabilities>,
+    pub device: Option<wgpu::Device>,
+    pub queue: Option<wgpu::Queue>,
 
-    // Queues
-    cmd_queue: InternalCmdQueue,        // commands from host (decoded MessagePack)
-    msg_queue: InternalMsgQueue,        // generic messages to host
-    event_queue: InternalEventQueue,    // events to host (input/window)
+    pub buffers: BufferStorage,
 
-    // Uploads
-    buffers: HashMap<u64, UploadBuffer>, // BufferId -> UploadBuffer
+    pub event_queue: EngineBatchEvents,
+    pub response_queue: EngineBatchResponses,
 
-    // Profiling
-    profiling_data: ProfilingData,
+    pub(crate) time: u64,
+    pub(crate) delta_time: u32,
+    pub(crate) frame_index: u64,
+
+    pub input: InputState,
+    pub(crate) gamepad: GamepadState,
+
+    pub(crate) profiling: TickProfiling,
 }
 ```
 
 ---
 
-## 3. Resources
+## 3. Resources (Current)
 
-`Resources` holds all sharable resources indexed by logical IDs:
+At the moment, the core focuses on **geometry** and **uniform buffers**:
 
-```rust
-pub struct Resources {
-    shaders:    HashMap<ShaderId, ShaderResource>,
-    geometries: HashMap<GeometryId, GeometryResource>,
-    materials:  HashMap<MaterialId, MaterialResource>,
-    textures:   HashMap<TextureId, TextureResource>,
-    // future: fonts, sounds, etc.
-}
-```
+- **Geometry** is managed by `VertexAllocatorSystem`, which owns pooled or
+  dedicated vertex/index buffers and validates incoming streams.
+- **Uniform buffers** use `UniformBufferPool<T>` with deferred drop.
+- **Render targets** are per-camera textures (`RenderTarget`) used by passes.
 
-### 3.1 ShaderResource
-
-Contains:
-
-- `shader_id: ShaderId`
-- `module: wgpu::ShaderModule`
-- Optional reflection or metadata if needed for pipeline creation.
-
-### 3.2 GeometryResource
-
-Represents a mesh/geometry asset:
-
-- One or more `wgpu::Buffer` for vertex data (or a shared buffer + ranges).
-- One `wgpu::Buffer` for index data (optional, depending on topology).
-- Layout description:
-
-  - per-vertex attribute formats
-  - strides, offsets
-  - index format and range
-
-### 3.3 TextureResource
-
-Wraps:
-
-- `wgpu::Texture`
-- `wgpu::TextureView` for sampling / attachments
-- Possibly a `wgpu::Sampler` or separate sampler resource.
-
-### 3.4 MaterialResource
-
-Represents everything needed to draw with a given material:
-
-- Pipeline:
-
-  - `PipelineSpec` (logical description: shader, blend, depth, primitive, etc.)
-  - `wgpu::RenderPipeline` (compiled/cached pipeline)
-
-- Uniform data:
-
-  - Offset into `MaterialUniformBuffer` (per-material constants)
-
-- Storage data (optional):
-
-  - Offset into `MaterialStorageBuffer` for large per-material data
-
-- Textures & samplers:
-
-  - List of `TextureHandle`s and sampler handles to bind.
+Texture/material/shader resources are planned but not yet implemented as
+first-class resource tables.
 
 ---
 
-## 4. Components and Instances
+## 4. Components and Instances (Current)
 
-The `Components` struct maps `ComponentId` to internal instances:
+The render state keeps a **scene** with camera/model records:
 
-```rust
-pub struct Components {
-    cameras: HashMap<ComponentId, CameraInstance>,
-    models:  HashMap<ComponentId, MeshInstance>,
-    // future: lights, environments...
-}
+- `CameraRecord`
+  - `data: CameraComponent` (projection/view matrices)
+  - `layer_mask`, `order`
+  - `view_position` (optional, relative/absolute)
+  - `render_target` (per-camera texture)
+
+- `ModelRecord`
+  - `data: ModelComponent` (transform + derived TRS)
+  - `geometry_id` (required)
+  - `material_id` (optional, future)
+  - `layer_mask`
+
+The visibility rule uses `layer_mask`:
+
+```text
+(model.layer_mask & camera.layer_mask) != 0
 ```
-
-### 4.1 CameraInstance
-
-A camera instance stores:
-
-- `camera_uniform_offset: u32`
-
-  - Index into `CameraUniformBuffer` for its `CameraPW` (projection \* view matrix).
-
-- `viewport: Viewport`
-
-  - Mode (relative/absolute)
-  - x, y, width, height
-
-- `render_target: TextureHandle`
-
-  - Dedicated render target texture for this camera.
-
-- `layer_mask_camera: u32`
-
-  - Layer mask used for visibility filtering.
-
-### 4.2 MeshInstance
-
-A mesh/model instance stores:
-
-- `geometry: GeometryHandle`
-
-  - Link to a `GeometryResource`.
-
-- `material: MaterialHandle`
-
-  - Link to a `MaterialResource`.
-
-- `model_uniform_offset: u32`
-
-  - Index into `ModelUniformBuffer` for its transform matrix (model).
-
-- `layer_mask_component: u32`
-
-  - Layer mask used by cameras for visibility filtering.
 
 ---
 
@@ -216,62 +135,13 @@ then decoded into internal Rust enums.
 
 ### 5.2 Command Representation
 
-Conceptual example:
+Current command enum (`EngineCmd`) includes:
 
-```rust
-enum EngineCommand {
-    // Resource creation
-    CreateShader {
-        shader_id: ShaderId,
-        buffer_id: BufferId,
-    },
-    CreateGeometry {
-        geometry_id: GeometryId,
-        buffers: GeometryBuffers,  // buffer IDs + layout info
-    },
-    CreateTexture {
-        texture_id: TextureId,
-        buffer_id: BufferId,
-        params: TextureParams,
-    },
-    CreateMaterial {
-        material_id: MaterialId,
-        shader_id: ShaderId,
-        textures: Vec<TextureId>,
-        params: MaterialParams,
-    },
-
-    // Component creation
-    CreateCameraComponent {
-        component_id: ComponentId,
-        desc: CameraDesc,
-        viewport: ViewportDesc,
-        layer_mask: u32,
-    },
-    CreateModelComponent {
-        component_id: ComponentId,
-        geometry_id: GeometryId,
-        material_id: MaterialId,
-        layer_mask: u32,
-    },
-
-    // Component updates
-    UpdateCameraComponent {
-        component_id: ComponentId,
-        camera_pw: glam::Mat4,
-        viewport: Option<ViewportDesc>,
-    },
-    UpdateModelTransform {
-        component_id: ComponentId,
-        model: glam::Mat4,
-    },
-
-    // Maintenance
-    DiscardUnusedUploads,
-
-    // Future: destroy commands, lights, environment, etc.
-}
-```
+- Window: create/close/size/position/state/etc.
+- Camera: create/update/dispose
+- Model: create/update/dispose
+- Geometry: create/update/dispose
+- Primitive geometry: create
 
 ### 5.3 Command Execution
 
@@ -329,33 +199,26 @@ the draw passes.
 
 ### 7.1 Buffers
 
-Typical GPU buffers:
+Current GPU buffers:
+
+- `FrameUniformBuffer`
+  - Time, delta time, frame index.
 
 - `CameraUniformBuffer`
-
-  - Array of camera uniforms (projection \* view matrix, etc.).
+  - Camera matrices and parameters.
 
 - `ModelUniformBuffer`
+  - Model transforms and derived TRS.
 
-  - Array of model transforms.
-
-- `MaterialUniformBuffer`
-
-  - Array of material constants.
-
-- `MaterialStorageBuffer`
-
-  - Optional large data per material.
-
-- Vertex / index buffers for geometries.
+- Vertex / index buffers for geometries (managed by `VertexAllocatorSystem`).
 
 ### 7.2 Render Pass Flow (per Frame)
 
 Conceptual flow:
 
-1. Update uniform/storage buffers (if dirty):
+1. Update uniform buffers (if dirty):
 
-   - Write updated camera/model/material data into mapped ranges.
+   - Write updated frame/camera/model data into pools.
 
 2. For each camera:
 
@@ -372,9 +235,9 @@ Conceptual flow:
        }
        ```
 
-     - Select material and pipeline:
+     - Select pipeline:
 
-       - Fetch pipeline from `MaterialResource` or create/cache if needed.
+       - Fetch from the pipeline cache or create if needed.
 
      - Bind vertex/index buffers and resource bind groups.
 

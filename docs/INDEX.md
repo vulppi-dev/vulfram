@@ -20,7 +20,7 @@ Welcome to the Vulfram documentation! This index will guide you to the right doc
 
 ### For Engine Users (Binding Authors & Integrators)
 
-If you're building a language binding (JavaScript, Lua, Python, etc.) or integrating Vulfram into your application:
+If you're building a language binding (Node.js, Lua, Python, etc.) or integrating Vulfram into your application:
 
 1. **[OVERVIEW.md](OVERVIEW.md)** - _Start here!_
 
@@ -175,7 +175,7 @@ If you're working on the Rust core implementation:
 
 ## 🎓 Learning Paths
 
-### Path 1: JavaScript/TypeScript Binding Developer
+### Path 1: Node.js Binding Developer (N-API)
 
 ```
 OVERVIEW.md
@@ -226,8 +226,8 @@ GLOSSARY.md (for terminology)
 ## 🔗 External Resources
 
 - **[README.md](../README.md)** - Project overview and quick start
-- **[MASCOT-DEFINITION.md](../assets/MASCOT-DEFINITION.md)** - Brand guidelines
-- **[UI.md](../assets/UI.md)** - User interface guidelines
+- **[MASCOT-DEFINITION.md](MASCOT-DEFINITION.md)** - Brand guidelines
+- **[UI.md](UI.md)** - User interface guidelines
 - **[Copilot Instructions](../.github/copilot-instructions.md)** - Development patterns
 
 ---
@@ -239,7 +239,6 @@ GLOSSARY.md (for terminology)
 - **Conceptual**: Pseudo-code for clarity
 - **Rust**: Actual or near-actual Rust code
 - **C**: C-ABI function signatures
-- **TypeScript**: TypeScript/JavaScript examples
 - **MessagePack**: Logical structure (not binary)
 
 ### Terminology

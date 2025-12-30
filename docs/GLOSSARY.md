@@ -13,7 +13,7 @@ Any external program or runtime that calls the `vulfram_*` functions.
 
 Examples:
 
-- Node.js / Bun runtimes
+- Node.js (N-API) runtime
 - Lua VM
 - Python interpreter
 - Custom native applications

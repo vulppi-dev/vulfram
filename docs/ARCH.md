@@ -15,7 +15,7 @@ Conceptual data flow:
 
 The host is any runtime that calls the C-ABI functions, for example:
 
-- Node.js / Bun
+- Node.js (N-API)
 - Lua
 - Python
 - Any other FFI-capable environment

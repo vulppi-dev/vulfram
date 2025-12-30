@@ -488,11 +488,7 @@ impl VertexAllocatorSystem {
         Ok(())
     }
 
-    pub fn bind<'a>(
-        &mut self,
-        pass: &mut RenderPass<'a>,
-        id: u32,
-    ) -> Result<(), VertexAllocError> {
+    pub fn bind<'a>(&mut self, pass: &mut RenderPass<'a>, id: u32) -> Result<(), VertexAllocError> {
         let rec = self
             .records
             .get(&id)

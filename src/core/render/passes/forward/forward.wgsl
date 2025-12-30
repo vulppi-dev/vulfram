@@ -122,12 +122,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             let l = normalize(-light.direction.xyz);
             let ndotl = max(dot(n, l), 0.0);
             let intensity = light.intensity_range.x;
-            lighting = lighting + (light.color.rgb * intensity * ndotl + vec3<f32>(0.01));
+            lighting = lighting + (light.color.rgb * intensity * ndotl + vec3<f32>(0.001));
             i = i + 1u;
         }
         color = color * lighting;
     } else {
-        color = color * vec3<f32>(0.0);
+        color = color * vec3<f32>(0.001);
     }
 
     return vec4<f32>(color, 1.0);

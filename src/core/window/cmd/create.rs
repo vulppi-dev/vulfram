@@ -199,6 +199,9 @@ pub fn engine_cmd_window_create(
         if let Some(queue) = &engine.queue {
             render_state.init_fallback_resources(device, queue);
 
+            // Initialize size-dependent resources (like depth buffer)
+            render_state.on_resize(device, window_width, window_height);
+
             // Initialize vertex allocator for this window
             render_state.vertex = Some(VertexAllocatorSystem::new(
                 device,

@@ -224,11 +224,13 @@ impl RenderState {
             VertexAllocatorConfig::default(),
         ));
 
+        let alignment = device.limits().min_uniform_buffer_offset_alignment as u64;
+
         // Initialize bindings
         self.bindings = Some(BindingSystem {
-            frame_pool: UniformBufferPool::new(device, queue, Some(1)),
-            camera_pool: UniformBufferPool::new(device, queue, Some(16)),
-            model_pool: UniformBufferPool::new(device, queue, Some(1024)),
+            frame_pool: UniformBufferPool::new(device, queue, Some(1), alignment),
+            camera_pool: UniformBufferPool::new(device, queue, Some(16), alignment),
+            model_pool: UniformBufferPool::new(device, queue, Some(1024), alignment),
             shared_group: None,
             object_group: None,
         });
@@ -364,7 +366,7 @@ impl RenderState {
                     binding: 0,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
                         view_dimension: wgpu::TextureViewDimension::D2,
                         multisampled: false,
                     },
@@ -373,7 +375,7 @@ impl RenderState {
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
                     count: None,
                 },
             ],

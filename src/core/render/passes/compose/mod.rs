@@ -109,7 +109,7 @@ pub fn pass_compose(
                     },
                     wgpu::BindGroupEntry {
                         binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&library.samplers.linear_clamp),
+                        resource: wgpu::BindingResource::Sampler(&library.samplers.point_clamp),
                     },
                 ],
             });

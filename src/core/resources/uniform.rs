@@ -33,11 +33,23 @@ pub struct UniformBufferPool<T: Pod> {
 }
 
 impl<T: Pod> UniformBufferPool<T> {
-    pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, initial_capacity: Option<u32>) -> Self {
+    pub fn new(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        initial_capacity: Option<u32>,
+        alignment: u64,
+    ) -> Self {
         let capacity = initial_capacity.unwrap_or(4);
-        let item_size = std::mem::size_of::<T>() as u64;
+        let raw_item_size = std::mem::size_of::<T>() as u64;
 
-        assert!(item_size > 0, "item_size must be greater than 0");
+        assert!(raw_item_size > 0, "item_size must be greater than 0");
+
+        // Align item size to required alignment
+        let item_size = if alignment > 0 {
+            (raw_item_size + alignment - 1) & !(alignment - 1)
+        } else {
+            raw_item_size
+        };
 
         let buffer_size = capacity as u64 * item_size;
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {

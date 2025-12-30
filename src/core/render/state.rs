@@ -120,6 +120,9 @@ impl RenderState {
                 .map(|rt| rt.format)
                 .unwrap_or(wgpu::TextureFormat::Rgba32Float);
 
+            // Clear old render target before creating new one
+            record.clear_render_target();
+
             let target = RenderTarget::new(device, size, format);
             record.set_render_target(target);
 
@@ -156,12 +159,18 @@ impl RenderState {
         // 1. Upload all data to pools
         bindings.frame_pool.write(0, &frame_spec);
 
-        for (id, record) in &self.scene.cameras {
-            bindings.camera_pool.write(*id, &record.data);
+        for (id, record) in &mut self.scene.cameras {
+            if record.is_dirty {
+                bindings.camera_pool.write(*id, &record.data);
+                record.clear_dirty();
+            }
         }
 
-        for (id, record) in &self.scene.models {
-            bindings.model_pool.write(*id, &record.data);
+        for (id, record) in &mut self.scene.models {
+            if record.is_dirty {
+                bindings.model_pool.write(*id, &record.data);
+                record.clear_dirty();
+            }
         }
 
         // 2. Create Shared Bind Group (Group 0: Frame B0, Camera B1 dynamic)

@@ -28,15 +28,15 @@ pub struct CameraComponent {
 impl CameraComponent {
     /// Create from raw input data
     ///
-    /// `viewport`:
-    /// - If `Perspective`: x=width, y=height (for aspect ratio calculation)
-    /// - If `Orthographic`: x=left, y=right, z=bottom, w=top (rect bounds)
+    /// For both Perspective and Orthographic cameras, uses `window_size` (width, height) to calculate aspect ratio.
+    /// For Orthographic cameras, `ortho_scale` defines the vertical span of the view.
     pub fn new(
         transform: Mat4,
         kind: CameraKind,
         flags: u32,
         near_far: Vec2,
-        viewport: Vec4,
+        window_size: (u32, u32),
+        ortho_scale: f32,
     ) -> Self {
         let position = transform.w_axis.truncate();
         let rotation = Quat::from_mat4(&transform);
@@ -45,19 +45,23 @@ impl CameraComponent {
 
         let view = Mat4::look_to_rh(position, direction, up);
 
+        let aspect_ratio = window_size.0 as f32 / window_size.1 as f32;
+
         let projection = match kind {
             CameraKind::Perspective => {
                 let fov_y = 45.0_f32.to_radians();
-                let aspect_ratio = viewport.x / viewport.y;
                 Mat4::perspective_rh(fov_y, aspect_ratio, near_far.x, near_far.y)
             }
             CameraKind::Orthographic => {
+                let half_height = ortho_scale / 2.0;
+                let half_width = half_height * aspect_ratio;
                 Mat4::orthographic_rh(
-                    viewport.x, // left
-                    viewport.y, // right
-                    viewport.z, // bottom
-                    viewport.w, // top
-                    near_far.x, near_far.y,
+                    -half_width,  // left
+                    half_width,   // right
+                    -half_height, // bottom
+                    half_height,  // top
+                    near_far.x,
+                    near_far.y,
                 )
             }
         };
@@ -83,7 +87,8 @@ impl CameraComponent {
         kind: Option<CameraKind>,
         flags: Option<u32>,
         near_far: Option<Vec2>,
-        viewport: Vec4,
+        window_size: (u32, u32),
+        ortho_scale: f32,
     ) {
         let transform = transform.unwrap_or_else(|| {
             let pos = self.position.truncate();
@@ -103,7 +108,7 @@ impl CameraComponent {
         let flags = flags.unwrap_or(self.kind_flags.y);
         let near_far = near_far.unwrap_or(self.near_far);
 
-        *self = Self::new(transform, kind, flags, near_far, viewport);
+        *self = Self::new(transform, kind, flags, near_far, window_size, ortho_scale);
     }
 }
 

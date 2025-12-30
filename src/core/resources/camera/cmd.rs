@@ -1,4 +1,4 @@
-use glam::{Mat4, Vec2, Vec4};
+use glam::{Mat4, Vec2};
 use serde::{Deserialize, Serialize};
 
 use crate::core::resources::common::default_layer_mask;
@@ -18,12 +18,17 @@ pub struct CmdCameraCreateArgs {
     #[serde(default)]
     pub flags: u32,
     pub near_far: Vec2,
-    pub viewport: Vec4,
     #[serde(default = "default_layer_mask")]
     pub layer_mask: u32,
     #[serde(default)]
     pub order: i32,
     pub view_position: Option<ViewPosition>,
+    #[serde(default = "default_ortho_scale")]
+    pub ortho_scale: f32,
+}
+
+fn default_ortho_scale() -> f32 {
+    10.0
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -54,12 +59,19 @@ pub fn engine_cmd_camera_create(
     }
 
     for (_, window_state) in window_states.iter_mut() {
+        let (target_width, target_height) = args
+            .view_position
+            .as_ref()
+            .map(|vp| vp.resolve_size(window_state.config.width, window_state.config.height))
+            .unwrap_or((window_state.config.width, window_state.config.height));
+
         let component = CameraComponent::new(
             args.transform,
             args.kind,
             args.flags,
             args.near_far,
-            args.viewport,
+            (target_width, target_height),
+            args.ortho_scale,
         );
         let mut record = CameraRecord::new(
             component,
@@ -68,11 +80,6 @@ pub fn engine_cmd_camera_create(
             args.view_position.clone(),
         );
         if let Some(device) = engine.device.as_ref() {
-            let (target_width, target_height) = args
-                .view_position
-                .as_ref()
-                .map(|vp| vp.resolve_size(window_state.config.width, window_state.config.height))
-                .unwrap_or((window_state.config.width, window_state.config.height));
             let size = wgpu::Extent3d {
                 width: target_width,
                 height: target_height,
@@ -105,9 +112,10 @@ pub struct CmdCameraUpdateArgs {
     pub kind: Option<CameraKind>,
     pub flags: Option<u32>,
     pub near_far: Option<Vec2>,
-    pub viewport: Option<Vec4>,
     pub layer_mask: Option<u32>,
     pub order: Option<i32>,
+    pub view_position: Option<ViewPosition>,
+    pub ortho_scale: Option<f32>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -133,15 +141,30 @@ pub fn engine_cmd_camera_update(
         {
             found = true;
 
-            if let Some(viewport) = args.viewport {
-                record.data.update(
-                    args.transform,
-                    args.kind,
-                    args.flags,
-                    args.near_far,
-                    viewport,
-                );
+            // Update view_position if provided
+            if let Some(view_position) = args.view_position.clone() {
+                record.view_position = Some(view_position);
             }
+
+            // Calculate window size from view_position or use window dimensions
+            let (target_width, target_height) = record
+                .view_position
+                .as_ref()
+                .map(|vp| vp.resolve_size(window_state.config.width, window_state.config.height))
+                .unwrap_or((window_state.config.width, window_state.config.height));
+
+            // Get ortho_scale from args or use default
+            let ortho_scale = args.ortho_scale.unwrap_or(10.0);
+
+            // Update camera component
+            record.data.update(
+                args.transform,
+                args.kind,
+                args.flags,
+                args.near_far,
+                (target_width, target_height),
+                ortho_scale,
+            );
 
             if let Some(layer_mask) = args.layer_mask {
                 record.layer_mask = layer_mask;

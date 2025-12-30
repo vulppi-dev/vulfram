@@ -7,7 +7,7 @@ use crate::core::resources::{
     PrimitiveShape,
 };
 use crate::core::window::{CmdWindowCloseArgs, CmdWindowCreateArgs};
-use glam::{Mat4, Vec2, Vec3, Vec4};
+use glam::{Mat4, Vec2, Vec3};
 use rmp_serde::{from_slice, to_vec_named};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -55,10 +55,10 @@ fn main() {
             kind: CameraKind::Perspective,
             flags: 0,
             near_far: Vec2::new(0.1, 100.0),
-            viewport: Vec4::new(1280.0, 720.0, 0.0, 0.0),
             layer_mask: 0xFFFFFFFF,
             order: 0,
             view_position: None,
+            ortho_scale: 10.0,
         }),
         // 3. Create a model using the geometry
         EngineCmd::CmdModelCreate(CmdModelCreateArgs {

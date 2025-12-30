@@ -123,8 +123,9 @@ impl RenderState {
             let target = RenderTarget::new(device, size, format);
             record.set_render_target(target);
 
-            let viewport = glam::Vec4::new(target_width as f32, target_height as f32, 0.0, 0.0);
-            record.data.update(None, None, None, None, viewport);
+            record
+                .data
+                .update(None, None, None, None, (target_width, target_height), 10.0);
             record.mark_dirty();
         }
 

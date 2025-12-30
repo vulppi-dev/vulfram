@@ -27,12 +27,31 @@ struct Model {
     scale: vec4<f32>,
 }
 
+struct LightDrawParams {
+    camera_index: u32,
+    max_lights_per_camera: u32,
+};
+
+struct Light {
+    position: vec4<f32>,
+    direction: vec4<f32>,
+    color: vec4<f32>,
+    intensity_range: vec2<f32>,
+    spot_inner_outer: vec2<f32>,
+    kind_flags: vec2<u32>,
+    _padding: vec2<u32>,
+}
+
 // -----------------------------------------------------------------------------
 // Bindings
 // -----------------------------------------------------------------------------
 
 @group(0) @binding(0) var<uniform> frame: Frame;
 @group(0) @binding(1) var<uniform> camera: Camera;
+@group(0) @binding(2) var<uniform> light_params: LightDrawParams;
+@group(0) @binding(3) var<storage, read> lights: array<Light>;
+@group(0) @binding(4) var<storage, read> visible_indices: array<u32>;
+@group(0) @binding(5) var<storage, read> visible_counts: array<u32>;
 @group(1) @binding(0) var<uniform> model: Model;
 
 // -----------------------------------------------------------------------------
@@ -87,9 +106,17 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // Visualization of normals mixed with vertex color for debugging
     let n = normalize(in.normal) * 0.5 + 0.5;
-    let final_color = mix(vec4<f32>(n, 1.0), in.color0, 0.2);
+    var color = in.color0.rgb * n;
 
-    return final_color;
+    let cam = light_params.camera_index;
+    let base = cam * light_params.max_lights_per_camera;
+    let count = visible_counts[cam];
+    if (count > 0u) {
+        let idx = visible_indices[base];
+        let light = lights[idx];
+        color = color * light.color.rgb * light.intensity_range.x;
+    }
+
+    return vec4<f32>(color, 1.0);
 }

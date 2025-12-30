@@ -46,16 +46,38 @@ pub struct BindingSystem {
     pub object_group: Option<wgpu::BindGroup>,
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct LightDrawParams {
+    camera_index: u32,
+    max_lights_per_camera: u32,
+}
+
 /// Buffers and state for light preprocessing
 pub struct LightCullingSystem {
     pub lights: StorageBufferPool<LightComponent>,
     pub visible_indices: StorageBufferPool<u32>,
     pub visible_counts: StorageBufferPool<u32>,
+    pub light_params: UniformBufferPool<LightDrawParams>,
     pub params_buffer: Option<wgpu::Buffer>,
     pub light_count: usize,
     pub camera_count: u32,
     pub max_lights_per_camera: u32,
     pub queue: wgpu::Queue,
+}
+
+impl LightCullingSystem {
+    pub fn write_draw_params(&mut self, camera_index: u32, max_lights_per_camera: u32) {
+        let params = LightDrawParams {
+            camera_index,
+            max_lights_per_camera,
+        };
+        self.light_params.write(camera_index, &params);
+    }
+
+    pub fn draw_params_offset(&self, camera_index: u32) -> u64 {
+        self.light_params.get_offset(camera_index)
+    }
 }
 
 /// Holds the actual scene data to be rendered
@@ -123,6 +145,7 @@ impl RenderState {
             light_system.lights.begin_frame(frame_index);
             light_system.visible_indices.begin_frame(frame_index);
             light_system.visible_counts.begin_frame(frame_index);
+            light_system.light_params.begin_frame(frame_index);
         }
         self.cache.gc(frame_index);
     }
@@ -202,7 +225,12 @@ impl RenderState {
             }
         }
 
-        // 2. Create Shared Bind Group (Group 0: Frame B0, Camera B1 dynamic)
+        let light_system = match self.light_system.as_ref() {
+            Some(sys) => sys,
+            None => return,
+        };
+
+        // 2. Create Shared Bind Group (Group 0: Frame B0, Camera B1 dynamic, Light params B2 dynamic)
         bindings.shared_group = Some(
             device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("BindGroup Shared (Frame+Camera)"),
@@ -232,6 +260,43 @@ impl RenderState {
                                 )
                                 .unwrap(),
                             ),
+                        }),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 2,
+                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                            buffer: light_system.light_params.buffer(),
+                            offset: 0,
+                            size: Some(
+                                std::num::NonZeroU64::new(
+                                    std::mem::size_of::<LightDrawParams>() as u64
+                                )
+                                .unwrap(),
+                            ),
+                        }),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 3,
+                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                            buffer: light_system.lights.buffer(),
+                            offset: 0,
+                            size: None,
+                        }),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 4,
+                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                            buffer: light_system.visible_indices.buffer(),
+                            offset: 0,
+                            size: None,
+                        }),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 5,
+                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                            buffer: light_system.visible_counts.buffer(),
+                            offset: 0,
+                            size: None,
                         }),
                     },
                 ],
@@ -281,6 +346,7 @@ impl RenderState {
             lights: StorageBufferPool::new(device, queue, Some(32), storage_alignment),
             visible_indices: StorageBufferPool::new(device, queue, Some(128), storage_alignment),
             visible_counts: StorageBufferPool::new(device, queue, Some(8), storage_alignment),
+            light_params: UniformBufferPool::new(device, queue, Some(16), alignment),
             params_buffer: Some(device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("LightCull Params"),
                 size: std::mem::size_of::<u32>() as u64 * 4,
@@ -394,6 +460,52 @@ impl RenderState {
                                 )
                                 .unwrap(),
                             ),
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: true,
+                        min_binding_size:
+                            Some(
+                                std::num::NonZeroU64::new(
+                                    std::mem::size_of::<LightDrawParams>() as u64
+                                )
+                                .unwrap(),
+                            ),
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 5,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
                     },
                     count: None,
                 },

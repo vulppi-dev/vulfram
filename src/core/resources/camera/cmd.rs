@@ -42,6 +42,7 @@ pub fn engine_cmd_camera_create(
     for (_, window_state) in window_states.iter_mut() {
         if window_state
             .render_state
+            .scene
             .cameras
             .contains_key(&args.camera_id)
         {
@@ -82,6 +83,7 @@ pub fn engine_cmd_camera_create(
         }
         window_state
             .render_state
+            .scene
             .cameras
             .insert(args.camera_id, record);
         window_state.is_dirty = true;
@@ -123,7 +125,12 @@ pub fn engine_cmd_camera_update(
 
     let mut found = false;
     for (_, window_state) in window_states.iter_mut() {
-        if let Some(record) = window_state.render_state.cameras.get_mut(&args.camera_id) {
+        if let Some(record) = window_state
+            .render_state
+            .scene
+            .cameras
+            .get_mut(&args.camera_id)
+        {
             found = true;
 
             if let Some(viewport) = args.viewport {
@@ -187,6 +194,7 @@ pub fn engine_cmd_camera_dispose(
     for (_, window_state) in window_states.iter_mut() {
         if window_state
             .render_state
+            .scene
             .cameras
             .remove(&args.camera_id)
             .is_some()

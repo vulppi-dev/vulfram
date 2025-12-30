@@ -6,7 +6,7 @@ pub fn pass_forward(
     encoder: &mut wgpu::CommandEncoder,
 ) {
     // 1. Sort cameras by order
-    let mut sorted_cameras: Vec<_> = render_state.cameras.iter().collect();
+    let mut sorted_cameras: Vec<_> = render_state.scene.cameras.iter().collect();
     sorted_cameras.sort_by_key(|(_, record)| record.order);
 
     for (camera_id, camera_record) in sorted_cameras {
@@ -40,26 +40,26 @@ pub fn pass_forward(
             });
 
             // 4. Bind Shared (Group 0: Frame + Camera)
-            if let (Some(bg_shared), Some(pool)) =
-                (&render_state.bind_group_shared, &render_state.camera_buffer)
-            {
-                let offset = pool.get_offset(*camera_id) as u32;
-                render_pass.set_bind_group(0, bg_shared, &[offset]);
+            if let Some(bindings) = render_state.bindings.as_ref() {
+                if let Some(shared_group) = bindings.shared_group.as_ref() {
+                    let offset = bindings.camera_pool.get_offset(*camera_id) as u32;
+                    render_pass.set_bind_group(0, shared_group, &[offset]);
+                }
             }
 
             // 5. Filter and draw models
-            for (model_id, model_record) in &render_state.models {
+            for (model_id, model_record) in &render_state.scene.models {
                 // Check layer mask
                 if (model_record.layer_mask & camera_record.layer_mask) == 0 {
                     continue;
                 }
 
                 // Bind Object (Group 1: Model)
-                if let (Some(bg_object), Some(pool)) =
-                    (&render_state.bind_group_object, &render_state.model_buffer)
-                {
-                    let offset = pool.get_offset(*model_id) as u32;
-                    render_pass.set_bind_group(1, bg_object, &[offset]);
+                if let Some(bindings) = render_state.bindings.as_ref() {
+                    if let Some(object_group) = bindings.object_group.as_ref() {
+                        let offset = bindings.model_pool.get_offset(*model_id) as u32;
+                        render_pass.set_bind_group(1, object_group, &[offset]);
+                    }
                 }
 
                 // TODO: Set vertex buffers from VertexAllocatorSystem

@@ -10,6 +10,7 @@ use winit::{
 };
 
 use super::{EngineWindowState, window_size_default};
+use crate::core::resources::{VertexAllocatorConfig, VertexAllocatorSystem};
 use crate::core::state::EngineState;
 use crate::core::window::WindowState;
 
@@ -199,12 +200,11 @@ pub fn engine_cmd_window_create(
             render_state.init_fallback_resources(device, queue);
 
             // Initialize vertex allocator for this window
-            render_state.vertex_allocation =
-                Some(crate::core::resources::VertexAllocatorSystem::new(
-                    device,
-                    queue,
-                    crate::core::resources::VertexAllocatorConfig::default(),
-                ));
+            render_state.vertex = Some(VertexAllocatorSystem::new(
+                device,
+                queue,
+                VertexAllocatorConfig::default(),
+            ));
         }
     }
 

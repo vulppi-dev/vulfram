@@ -12,7 +12,7 @@ pub fn pass_compose(
         .create_view(&wgpu::TextureViewDescriptor::default());
 
     // 1. Sort cameras by order
-    let mut sorted_cameras: Vec<_> = render_state.cameras.iter().collect();
+    let mut sorted_cameras: Vec<_> = render_state.scene.cameras.iter().collect();
     sorted_cameras.sort_by_key(|(_, record)| record.order);
 
     // 2. Begin compose pass
@@ -42,13 +42,17 @@ pub fn pass_compose(
         let (x, y) = record
             .view_position
             .as_ref()
-            .map(|vp| vp.resolve_position(config.width, config.height))
+            .map(|vp: &crate::core::resources::ViewPosition| {
+                vp.resolve_position(config.width, config.height)
+            })
             .unwrap_or((0, 0));
 
         let (width, height) = record
             .view_position
             .as_ref()
-            .map(|vp| vp.resolve_size(config.width, config.height))
+            .map(|vp: &crate::core::resources::ViewPosition| {
+                vp.resolve_size(config.width, config.height)
+            })
             .unwrap_or((config.width, config.height));
 
         render_pass.set_viewport(x as f32, y as f32, width as f32, height as f32, 0.0, 1.0);

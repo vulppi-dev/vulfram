@@ -43,6 +43,7 @@ pub fn engine_cmd_model_create(
 
     if window_state
         .render_state
+        .scene
         .models
         .contains_key(&args.model_id)
     {
@@ -52,7 +53,7 @@ pub fn engine_cmd_model_create(
         };
     }
 
-    let vertex_allocator = match window_state.render_state.vertex_allocation.as_mut() {
+    let vertex_allocator = match window_state.render_state.vertex.as_mut() {
         Some(va) => va,
         None => {
             return CmdResultModelCreate {
@@ -81,6 +82,7 @@ pub fn engine_cmd_model_create(
     );
     window_state
         .render_state
+        .scene
         .models
         .insert(args.model_id, record);
     window_state.is_dirty = true;
@@ -126,7 +128,12 @@ pub fn engine_cmd_model_update(
         }
     };
 
-    let record = match window_state.render_state.models.get_mut(&args.model_id) {
+    let record = match window_state
+        .render_state
+        .scene
+        .models
+        .get_mut(&args.model_id)
+    {
         Some(record) => record,
         None => {
             return CmdResultModelUpdate {
@@ -137,7 +144,7 @@ pub fn engine_cmd_model_update(
     };
 
     if let Some(geometry_id) = args.geometry_id {
-        let vertex_allocator = match window_state.render_state.vertex_allocation.as_mut() {
+        let vertex_allocator = match window_state.render_state.vertex.as_mut() {
             Some(va) => va,
             None => {
                 return CmdResultModelUpdate {
@@ -211,6 +218,7 @@ pub fn engine_cmd_model_dispose(
 
     if window_state
         .render_state
+        .scene
         .models
         .remove(&args.model_id)
         .is_some()

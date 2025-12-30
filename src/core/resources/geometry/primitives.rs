@@ -196,7 +196,7 @@ pub fn engine_cmd_primitive_geometry_create(
     };
 
     // 2. Get vertex allocator
-    let vertex_allocator = match window_state.render_state.vertex_allocation.as_mut() {
+    let vertex_allocator = match window_state.render_state.vertex.as_mut() {
         Some(va) => va,
         None => {
             return CmdResultPrimitiveGeometryCreate {

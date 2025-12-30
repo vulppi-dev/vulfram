@@ -67,9 +67,8 @@ impl RenderCache {
 
     pub fn gc(&mut self, frame_index: u64) {
         let max_unused = self.max_unused_frames;
-        self.pipelines.retain(|_, entry| {
-            frame_index.saturating_sub(entry.last_used_frame) <= max_unused
-        });
+        self.pipelines
+            .retain(|_, entry| frame_index.saturating_sub(entry.last_used_frame) <= max_unused);
     }
 
     pub fn clear(&mut self) {

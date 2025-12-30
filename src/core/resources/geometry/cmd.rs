@@ -49,7 +49,7 @@ pub fn engine_cmd_geometry_create(
     };
 
     // 2. Validar que temos vertex_allocator
-    let vertex_allocator = match window_state.render_state.vertex_allocation.as_mut() {
+    let vertex_allocator = match window_state.render_state.vertex.as_mut() {
         Some(va) => va,
         None => {
             return CmdResultGeometryCreate {
@@ -181,7 +181,7 @@ pub fn engine_cmd_geometry_update(
     };
 
     // 2. Validar que temos vertex_allocator
-    let vertex_allocator = match window_state.render_state.vertex_allocation.as_mut() {
+    let vertex_allocator = match window_state.render_state.vertex.as_mut() {
         Some(va) => va,
         None => {
             return CmdResultGeometryUpdate {
@@ -309,7 +309,7 @@ pub fn engine_cmd_geometry_dispose(
     };
 
     // 2. Validar que temos vertex_allocator
-    let vertex_allocator = match window_state.render_state.vertex_allocation.as_mut() {
+    let vertex_allocator = match window_state.render_state.vertex.as_mut() {
         Some(va) => va,
         None => {
             return CmdResultGeometryDispose {

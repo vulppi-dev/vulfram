@@ -65,19 +65,19 @@ struct VertexOutput {
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    
+
     // Simple MVP transformation
     let world_pos = model.transform * vec4<f32>(in.position, 1.0);
     out.clip_position = camera.view_projection * world_pos;
-    
+
     out.world_position = world_pos.xyz;
-    
+
     // Pass-through simple normal transformation (ideally uses normal matrix)
     out.normal = (model.transform * vec4<f32>(in.normal, 0.0)).xyz;
-    
+
     out.uv0 = in.uv0;
     out.color0 = in.color0;
-    
+
     return out;
 }
 
@@ -90,6 +90,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // Visualization of normals mixed with vertex color for debugging
     let n = normalize(in.normal) * 0.5 + 0.5;
     let final_color = mix(vec4<f32>(n, 1.0), in.color0, 0.2);
-    
+
     return final_color;
 }

@@ -1,12 +1,15 @@
 mod core;
 
 use crate::core::VulframResult;
+use crate::core::buffers::state::UploadType;
 use crate::core::cmd::{CommandResponse, CommandResponseEnvelope, EngineCmd, EngineCmdEnvelope};
 use crate::core::resources::{
-    CameraKind, CmdCameraCreateArgs, CmdModelCreateArgs, CmdPrimitiveGeometryCreateArgs,
+    CameraKind, CmdCameraCreateArgs, CmdGeometryUpdateArgs, CmdModelCreateArgs,
+    CmdPrimitiveGeometryCreateArgs, CubeOptions, GeometryPrimitiveEntry, GeometryPrimitiveType,
     PrimitiveShape,
 };
 use crate::core::window::{CmdWindowCloseArgs, CmdWindowCreateArgs};
+use bytemuck::cast_slice;
 use glam::{Mat4, Vec2, Vec3};
 use rmp_serde::{from_slice, to_vec_named};
 use std::sync::Mutex;
@@ -72,6 +75,54 @@ fn main() {
     ];
 
     assert_eq!(send_commands(setup_cmds), VulframResult::Success);
+    let _ = receive_responses();
+
+    println!("Updating geometry with vertex colors...");
+    let mut geometry_data = crate::core::resources::generators::generate_cube(&CubeOptions::default());
+    let position_bytes = geometry_data
+        .iter()
+        .find(|(prim, _)| matches!(prim, GeometryPrimitiveType::Position))
+        .map(|(_, bytes)| bytes.as_slice())
+        .expect("cube positions not found");
+    let vertex_count = cast_slice::<u8, Vec3>(position_bytes).len();
+    let palette = [
+        glam::Vec4::new(1.0, 0.2, 0.2, 1.0),
+        glam::Vec4::new(0.2, 1.0, 0.2, 1.0),
+        glam::Vec4::new(0.2, 0.2, 1.0, 1.0),
+        glam::Vec4::new(1.0, 1.0, 0.2, 1.0),
+        glam::Vec4::new(1.0, 0.2, 1.0, 1.0),
+        glam::Vec4::new(0.2, 1.0, 1.0, 1.0),
+    ];
+    let mut colors = Vec::with_capacity(vertex_count);
+    for i in 0..vertex_count {
+        colors.push(palette[i % palette.len()]);
+    }
+    geometry_data.push((GeometryPrimitiveType::Color, cast_slice(&colors).to_vec()));
+
+    let mut entries = Vec::new();
+    let mut buffer_id: u64 = 1000;
+    for (primitive_type, bytes) in geometry_data {
+        let result = core::vulfram_upload_buffer(
+            buffer_id,
+            UploadType::Raw as u32,
+            bytes.as_ptr(),
+            bytes.len(),
+        );
+        assert_eq!(result, VulframResult::Success);
+        entries.push(GeometryPrimitiveEntry {
+            primitive_type,
+            buffer_id,
+        });
+        buffer_id += 1;
+    }
+
+    let update_cmd = EngineCmd::CmdGeometryUpdate(CmdGeometryUpdateArgs {
+        window_id,
+        geometry_id,
+        entries,
+    });
+    assert_eq!(send_commands(vec![update_cmd]), VulframResult::Success);
+    let _ = receive_responses();
 
     println!("Rendering for 10 seconds...");
     let start_time = Instant::now();
@@ -172,5 +223,9 @@ fn receive_responses() -> Vec<CommandResponseEnvelope> {
 
     // Reclaim the buffer allocated by the core
     let bytes = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, len)) };
-    from_slice(&bytes).expect("failed to deserialize responses")
+    let responses = from_slice(&bytes).expect("failed to deserialize responses");
+    for response in &responses {
+        println!("Command response: {:?}", response);
+    }
+    responses
 }

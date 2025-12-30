@@ -41,16 +41,6 @@ impl ArenaSlice {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct ArenaStats {
-    pub capacity_bytes: u64,
-    pub cursor_bytes: u64,
-    pub live_bytes: u64,
-    pub dead_bytes: u64,
-    pub allocation_count: u32,
-    pub free_handle_count: u32,
-}
-
 // -----------------------------------------------------------------------------
 // Internal bookkeeping
 // -----------------------------------------------------------------------------
@@ -83,7 +73,6 @@ pub struct ArenaAllocator {
 
     // Configuration
     align: u64,
-    min_capacity_bytes: u64,
 
     // Bookkeeping
     records: Vec<AllocRecord>,
@@ -164,7 +153,6 @@ impl ArenaAllocator {
             capacity_bytes: initial_capacity_bytes,
             cursor: 0,
             align,
-            min_capacity_bytes: initial_capacity_bytes,
             records: Vec::new(),
             free_indices: Vec::new(),
             live_bytes: 0,
@@ -204,17 +192,6 @@ impl ArenaAllocator {
     #[inline]
     pub fn alignment(&self) -> u64 {
         self.align
-    }
-
-    pub fn stats(&self) -> ArenaStats {
-        ArenaStats {
-            capacity_bytes: self.capacity_bytes,
-            cursor_bytes: self.cursor,
-            live_bytes: self.live_bytes,
-            dead_bytes: self.dead_bytes,
-            allocation_count: self.records.len() as u32,
-            free_handle_count: self.free_indices.len() as u32,
-        }
     }
 
     // -------------------------------------------------------------------------
@@ -461,14 +438,11 @@ impl ArenaAllocator {
             .collect();
         alive_indices.sort_by_key(|&i| self.records[i as usize].offset);
 
-        // Decide new capacity: live + slack, rounded up to pow2, not below min_capacity_bytes.
+        // Decide new capacity: live + slack, rounded up to pow2, not below COMPACT_FLOOR_BYTES.
         let live = self.live_bytes.max(1);
         let target = ((live as f32) * (1.0 + slack_ratio.max(0.0))) as u64;
 
-        let floor = self
-            .min_capacity_bytes
-            .max(Self::COMPACT_FLOOR_BYTES)
-            .max(self.align);
+        let floor = Self::COMPACT_FLOOR_BYTES.max(self.align);
 
         let new_capacity = Self::next_pow2(target.max(floor));
 

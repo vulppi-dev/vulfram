@@ -34,10 +34,6 @@ impl RenderCache {
         }
     }
 
-    pub fn set_max_unused_frames(&mut self, frames: u64) {
-        self.max_unused_frames = frames.max(1);
-    }
-
     pub fn get_or_create<F>(
         &mut self,
         key: PipelineKey,
@@ -54,15 +50,6 @@ impl RenderCache {
 
         entry.last_used_frame = frame_index;
         &entry.pipeline
-    }
-
-    pub fn mark_used(&mut self, key: PipelineKey, frame_index: u64) -> bool {
-        if let Some(entry) = self.pipelines.get_mut(&key) {
-            entry.last_used_frame = frame_index;
-            true
-        } else {
-            false
-        }
     }
 
     pub fn gc(&mut self, frame_index: u64) {

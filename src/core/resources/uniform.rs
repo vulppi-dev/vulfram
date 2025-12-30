@@ -132,10 +132,6 @@ impl<T: Pod> UniformBufferPool<T> {
     // Frame lifecycle / deferred drop
     // -------------------------------------------------------------------------
 
-    pub fn set_keep_frames(&mut self, frames: u64) {
-        self.keep_frames = frames.max(1);
-    }
-
     /// Call once per frame to release old buffers that are safe to drop.
     pub fn begin_frame(&mut self, frame_index: u64) {
         // Set retire frame for new garbage entries

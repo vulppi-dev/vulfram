@@ -42,6 +42,9 @@ pub enum EngineCmd {
     CmdModelCreate(res::CmdModelCreateArgs),
     CmdModelUpdate(res::CmdModelUpdateArgs),
     CmdModelDispose(res::CmdModelDisposeArgs),
+    CmdLightCreate(res::CmdLightCreateArgs),
+    CmdLightUpdate(res::CmdLightUpdateArgs),
+    CmdLightDispose(res::CmdLightDisposeArgs),
     CmdGeometryCreate(res::CmdGeometryCreateArgs),
     CmdGeometryUpdate(res::CmdGeometryUpdateArgs),
     CmdGeometryDispose(res::CmdGeometryDisposeArgs),
@@ -90,6 +93,9 @@ pub enum CommandResponse {
     ModelCreate(res::CmdResultModelCreate),
     ModelUpdate(res::CmdResultModelUpdate),
     ModelDispose(res::CmdResultModelDispose),
+    LightCreate(res::CmdResultLightCreate),
+    LightUpdate(res::CmdResultLightUpdate),
+    LightDispose(res::CmdResultLightDispose),
     GeometryCreate(res::CmdResultGeometryCreate),
     GeometryUpdate(res::CmdResultGeometryUpdate),
     GeometryDispose(res::CmdResultGeometryDispose),
@@ -307,6 +313,27 @@ pub fn engine_process_batch(
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::ModelDispose(result),
+                });
+            }
+            EngineCmd::CmdLightCreate(args) => {
+                let result = res::engine_cmd_light_create(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::LightCreate(result),
+                });
+            }
+            EngineCmd::CmdLightUpdate(args) => {
+                let result = res::engine_cmd_light_update(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::LightUpdate(result),
+                });
+            }
+            EngineCmd::CmdLightDispose(args) => {
+                let result = res::engine_cmd_light_dispose(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::LightDispose(result),
                 });
             }
             EngineCmd::CmdGeometryCreate(args) => {

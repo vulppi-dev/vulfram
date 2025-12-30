@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::core::render::cache::RenderCache;
 use crate::core::render::passes::RenderPasses;
 use crate::core::resources::{
-    CameraComponent, CameraRecord, FrameSpec, ModelComponent, ModelRecord, RenderTarget,
+    CameraComponent, CameraRecord, FrameComponent, ModelComponent, ModelRecord, RenderTarget,
     UniformBufferPool, VertexAllocatorConfig, VertexAllocatorSystem,
 };
 
@@ -35,7 +35,7 @@ pub struct ResourceLibrary {
 
 /// Manages uniform pools and current frame bind groups
 pub struct BindingSystem {
-    pub frame_pool: UniformBufferPool<FrameSpec>,
+    pub frame_pool: UniformBufferPool<FrameComponent>,
     pub camera_pool: UniformBufferPool<CameraComponent>,
     pub model_pool: UniformBufferPool<ModelComponent>,
     pub shared_group: Option<wgpu::BindGroup>,
@@ -145,7 +145,7 @@ impl RenderState {
         ));
     }
 
-    pub fn prepare_render(&mut self, device: &wgpu::Device, frame_spec: FrameSpec) {
+    pub fn prepare_render(&mut self, device: &wgpu::Device, frame_spec: FrameComponent) {
         let bindings = match self.bindings.as_mut() {
             Some(b) => b,
             None => return,
@@ -185,8 +185,10 @@ impl RenderState {
                             buffer: bindings.frame_pool.buffer(),
                             offset: 0,
                             size: Some(
-                                std::num::NonZeroU64::new(std::mem::size_of::<FrameSpec>() as u64)
-                                    .unwrap(),
+                                std::num::NonZeroU64::new(
+                                    std::mem::size_of::<FrameComponent>() as u64
+                                )
+                                .unwrap(),
                             ),
                         }),
                     },
@@ -327,7 +329,7 @@ impl RenderState {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
                         min_binding_size: Some(
-                            std::num::NonZeroU64::new(std::mem::size_of::<FrameSpec>() as u64)
+                            std::num::NonZeroU64::new(std::mem::size_of::<FrameComponent>() as u64)
                                 .unwrap(),
                         ),
                     },

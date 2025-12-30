@@ -84,8 +84,8 @@ pub fn generate_cylinder(options: &CylinderOptions) -> Vec<(GeometryPrimitiveTyp
 
     for i in 0..sectors {
         indices.push(top_center_index);
-        indices.push(top_center_index + i as u32 + 1);
         indices.push(top_center_index + i as u32 + 2);
+        indices.push(top_center_index + i as u32 + 1);
     }
 
     // Bottom cap
@@ -116,8 +116,8 @@ pub fn generate_cylinder(options: &CylinderOptions) -> Vec<(GeometryPrimitiveTyp
 
     for i in 0..sectors {
         indices.push(bottom_center_index);
-        indices.push(bottom_center_index + i as u32 + 2);
         indices.push(bottom_center_index + i as u32 + 1);
+        indices.push(bottom_center_index + i as u32 + 2);
     }
 
     vec![

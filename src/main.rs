@@ -48,7 +48,7 @@ fn main() {
         EngineCmd::CmdPrimitiveGeometryCreate(CmdPrimitiveGeometryCreateArgs {
             window_id,
             geometry_id,
-            shape: PrimitiveShape::Cube,
+            shape: PrimitiveShape::Cylinder,
             options: None, // Use defaults
         }),
         // 2. Create a camera

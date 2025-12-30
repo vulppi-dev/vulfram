@@ -48,12 +48,12 @@ pub fn generate_torus(options: &TorusOptions) -> Vec<(GeometryPrimitiveType, Vec
         let mut i2 = (i + 1) * (minor_segments + 1);
         for _ in 0..minor_segments {
             indices.push(i1 as u32);
-            indices.push(i2 as u32);
             indices.push((i1 + 1) as u32);
+            indices.push(i2 as u32);
 
             indices.push((i1 + 1) as u32);
-            indices.push(i2 as u32);
             indices.push((i2 + 1) as u32);
+            indices.push(i2 as u32);
             i1 += 1;
             i2 += 1;
         }

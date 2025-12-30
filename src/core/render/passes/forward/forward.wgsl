@@ -89,7 +89,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // Visualization of normals mixed with vertex color for debugging
     let n = normalize(in.normal) * 0.5 + 0.5;
-    let final_color = mix(vec4<f32>(n, 1.0), in.color0, 1.0);
+    let final_color = mix(vec4<f32>(n, 1.0), in.color0, 0.2);
 
     return final_color;
 }

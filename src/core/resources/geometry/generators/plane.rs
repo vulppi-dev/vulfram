@@ -9,7 +9,7 @@ use super::push_face_grid;
 pub fn generate_plane(options: &PlaneOptions) -> Vec<(GeometryPrimitiveType, Vec<u8>)> {
     let half_x = options.size.x / 2.0;
     let half_y = options.size.y / 2.0;
-    let half_z = options.size.z / 2.0;
+    let _half_z = options.size.z / 2.0;
     let subdivisions = options.subdivisions.max(1);
 
     let mut positions = Vec::new();
@@ -24,7 +24,7 @@ pub fn generate_plane(options: &PlaneOptions) -> Vec<(GeometryPrimitiveType, Vec
         &mut uvs,
         &mut tangents,
         &mut indices,
-        Vec3::new(0.0, 0.0, half_z),
+        Vec3::new(0.0, 0.0, 0.0),
         Vec3::X,
         Vec3::Y,
         half_x,

@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use crate::core::render::cache::RenderCache;
 use crate::core::render::passes::RenderPasses;
 use crate::core::resources::{
-    CameraComponent, CameraRecord, FrameComponent, ModelComponent, ModelRecord, RenderTarget,
-    UniformBufferPool, VertexAllocatorConfig, VertexAllocatorSystem,
+    CameraComponent, CameraRecord, FrameComponent, LightRecord, ModelComponent, ModelRecord,
+    RenderTarget, UniformBufferPool, VertexAllocatorConfig, VertexAllocatorSystem,
 };
 
 // -----------------------------------------------------------------------------
@@ -46,6 +46,7 @@ pub struct BindingSystem {
 pub struct RenderScene {
     pub cameras: HashMap<u32, CameraRecord>,
     pub models: HashMap<u32, ModelRecord>,
+    pub lights: HashMap<u32, LightRecord>,
 }
 
 // -----------------------------------------------------------------------------
@@ -68,6 +69,7 @@ impl RenderState {
             scene: RenderScene {
                 cameras: HashMap::new(),
                 models: HashMap::new(),
+                lights: HashMap::new(),
             },
             bindings: None,
             library: None,
@@ -81,6 +83,7 @@ impl RenderState {
     pub fn drop_all(&mut self) {
         self.scene.cameras.clear();
         self.scene.models.clear();
+        self.scene.lights.clear();
         self.bindings = None;
         self.library = None;
         self.vertex = None;

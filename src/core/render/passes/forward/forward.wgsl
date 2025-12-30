@@ -106,16 +106,28 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let n = normalize(in.normal) * 0.5 + 0.5;
-    var color = in.color0.rgb * n;
+    let n = normalize(in.normal);
+    var color = in.color0.rgb;
 
     let cam = light_params.camera_index;
     let base = cam * light_params.max_lights_per_camera;
-    let count = visible_counts[cam];
+    let count = min(visible_counts[cam], light_params.max_lights_per_camera);
     if (count > 0u) {
-        let idx = visible_indices[base];
-        let light = lights[idx];
-        color = color * light.color.rgb * light.intensity_range.x;
+        var lighting = vec3<f32>(0.0);
+        var i = 0u;
+        loop {
+            if (i >= count) { break; }
+            let idx = visible_indices[base + i];
+            let light = lights[idx];
+            let l = normalize(-light.direction.xyz);
+            let ndotl = max(dot(n, l), 0.0);
+            let intensity = light.intensity_range.x;
+            lighting = lighting + (light.color.rgb * intensity * ndotl + vec3<f32>(0.01));
+            i = i + 1u;
+        }
+        color = color * lighting;
+    } else {
+        color = color * vec3<f32>(0.0);
     }
 
     return vec4<f32>(color, 1.0);

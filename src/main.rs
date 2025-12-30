@@ -1,16 +1,13 @@
 mod core;
 
 use crate::core::VulframResult;
-use crate::core::buffers::state::UploadType;
 use crate::core::cmd::{CommandResponse, CommandResponseEnvelope, EngineCmd, EngineCmdEnvelope};
 use crate::core::resources::{
-    CameraKind, CmdCameraCreateArgs, CmdGeometryUpdateArgs, CmdModelCreateArgs,
-    CmdPrimitiveGeometryCreateArgs, CubeOptions, GeometryPrimitiveEntry, GeometryPrimitiveType,
-    PrimitiveShape,
+    CameraKind, CmdCameraCreateArgs, CmdLightCreateArgs, CmdModelCreateArgs,
+    CmdPrimitiveGeometryCreateArgs, LightKind, PrimitiveShape,
 };
 use crate::core::window::{CmdWindowCloseArgs, CmdWindowCreateArgs};
-use bytemuck::cast_slice;
-use glam::{Mat4, Vec2, Vec3};
+use glam::{Mat4, Vec2, Vec3, Vec4};
 use rmp_serde::{from_slice, to_vec_named};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -42,13 +39,15 @@ fn main() {
     let geometry_id: u32 = 1;
     let camera_id: u32 = 1;
     let model_id: u32 = 1;
+    let light_id: u32 = 1;
+    let light_id2: u32 = 2;
 
     let setup_cmds = vec![
         // 1. Create a cube geometry
         EngineCmd::CmdPrimitiveGeometryCreate(CmdPrimitiveGeometryCreateArgs {
             window_id,
             geometry_id,
-            shape: PrimitiveShape::Cylinder,
+            shape: PrimitiveShape::Cube,
             options: None, // Use defaults
         }),
         // 2. Create a camera
@@ -63,6 +62,33 @@ fn main() {
             view_position: None,
             ortho_scale: 10.0,
         }),
+        // 3. Create lights
+        EngineCmd::CmdLightCreate(CmdLightCreateArgs {
+            window_id,
+            light_id,
+            kind: Some(LightKind::Directional),
+            flags: Some(0),
+            position: Some(Vec4::new(3.0, 2.0, 0.0, 1.0)),
+            direction: Some(Vec4::new(-1.0, -1.0, 0.0, 0.0)),
+            color: Some(Vec4::new(1.0, 0.0, 1.0, 1.0)),
+            intensity: Some(2.0),
+            range: Some(20.0),
+            spot_inner_outer: Some(Vec2::new(0.7, 0.9)),
+            layer_mask: 0xFFFFFFFF,
+        }),
+        EngineCmd::CmdLightCreate(CmdLightCreateArgs {
+            window_id,
+            light_id: light_id2,
+            kind: Some(LightKind::Directional),
+            flags: Some(0),
+            position: Some(Vec4::new(-3.0, 2.0, 0.0, 1.0)),
+            direction: Some(Vec4::new(1.0, -1.0, 0.0, 0.0)),
+            color: Some(Vec4::new(0.0, 1.0, 1.0, 1.0)),
+            intensity: Some(1.5),
+            range: Some(20.0),
+            spot_inner_outer: Some(Vec2::new(0.7, 0.9)),
+            layer_mask: 0xFFFFFFFF,
+        }),
         // 3. Create a model using the geometry
         EngineCmd::CmdModelCreate(CmdModelCreateArgs {
             window_id,
@@ -76,54 +102,6 @@ fn main() {
 
     assert_eq!(send_commands(setup_cmds), VulframResult::Success);
     let _ = receive_responses();
-
-    // println!("Updating geometry with vertex colors...");
-    // let mut geometry_data =
-    //     crate::core::resources::generators::generate_cube(&CubeOptions::default());
-    // let position_bytes = geometry_data
-    //     .iter()
-    //     .find(|(prim, _)| matches!(prim, GeometryPrimitiveType::Position))
-    //     .map(|(_, bytes)| bytes.as_slice())
-    //     .expect("cube positions not found");
-    // let vertex_count = cast_slice::<u8, Vec3>(position_bytes).len();
-    // let palette = [
-    //     glam::Vec4::new(1.0, 0.2, 0.2, 1.0),
-    //     glam::Vec4::new(0.2, 1.0, 0.2, 1.0),
-    //     glam::Vec4::new(0.2, 0.2, 1.0, 1.0),
-    //     glam::Vec4::new(1.0, 1.0, 0.2, 1.0),
-    //     glam::Vec4::new(1.0, 0.2, 1.0, 1.0),
-    //     glam::Vec4::new(0.2, 1.0, 1.0, 1.0),
-    // ];
-    // let mut colors = Vec::with_capacity(vertex_count);
-    // for i in 0..vertex_count {
-    //     colors.push(palette[i % palette.len()]);
-    // }
-    // geometry_data.push((GeometryPrimitiveType::Color, cast_slice(&colors).to_vec()));
-
-    // let mut entries = Vec::new();
-    // let mut buffer_id: u64 = 1000;
-    // for (primitive_type, bytes) in geometry_data {
-    //     let result = core::vulfram_upload_buffer(
-    //         buffer_id,
-    //         UploadType::Raw as u32,
-    //         bytes.as_ptr(),
-    //         bytes.len(),
-    //     );
-    //     assert_eq!(result, VulframResult::Success);
-    //     entries.push(GeometryPrimitiveEntry {
-    //         primitive_type,
-    //         buffer_id,
-    //     });
-    //     buffer_id += 1;
-    // }
-
-    // let update_cmd = EngineCmd::CmdGeometryUpdate(CmdGeometryUpdateArgs {
-    //     window_id,
-    //     geometry_id,
-    //     entries,
-    // });
-    // assert_eq!(send_commands(vec![update_cmd]), VulframResult::Success);
-    // let _ = receive_responses();
 
     println!("Rendering for 10 seconds...");
     let start_time = Instant::now();

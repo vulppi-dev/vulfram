@@ -39,6 +39,7 @@ struct AtlasSlot {
 pub struct AtlasSystem {
     texture: wgpu::Texture,
     view: wgpu::TextureView,
+    layer_views: Vec<wgpu::TextureView>, // Cached views for each layer
 
     // Config (clamped by hardware limits)
     tile_px: u32,
@@ -101,9 +102,26 @@ impl AtlasSystem {
         let layer_size = (actual_tiles_w * actual_tiles_h) as usize;
         let layers_occupied = vec![vec![false; layer_size]; actual_layers as usize];
 
+        let mut layer_views = Vec::with_capacity(actual_layers as usize);
+        for i in 0..actual_layers {
+            layer_views.push(
+                texture.create_view(&wgpu::TextureViewDescriptor {
+                    label: desc
+                        .label
+                        .map(|l| format!("{} Layer View {}", l, i))
+                        .as_deref(),
+                    dimension: Some(wgpu::TextureViewDimension::D2),
+                    base_array_layer: i,
+                    array_layer_count: Some(1),
+                    ..Default::default()
+                }),
+            );
+        }
+
         Self {
             texture,
             view,
+            layer_views,
             tile_px: desc.tile_px,
             pitch_px,
             guard_px,
@@ -117,6 +135,10 @@ impl AtlasSystem {
             free_tiles_total: actual_tiles_w * actual_tiles_h * actual_layers,
             repack_count: 0,
         }
+    }
+
+    pub fn layer_view(&self, layer: u32) -> Option<&wgpu::TextureView> {
+        self.layer_views.get(layer as usize)
     }
 
     /// Allocate a region of tiles. Returns None if capacity is insufficient or if fragmentation

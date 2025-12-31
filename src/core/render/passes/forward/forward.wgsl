@@ -42,6 +42,7 @@ struct Light {
     intensity_range: vec2<f32>,
     spot_inner_outer: vec2<f32>,
     kind_flags: vec2<u32>,
+    _padding: vec2<u32>,
 }
 
 struct ShadowPageEntry {
@@ -60,13 +61,14 @@ struct ShadowPageEntry {
 @group(0) @binding(3) var<storage, read> lights: array<Light>;
 @group(0) @binding(4) var<storage, read> visible_indices: array<u32>;
 @group(0) @binding(5) var<storage, read> visible_counts: array<u32>;
-@group(0) @binding(6) var shadow_atlas: texture_depth_2d_array;
-@group(0) @binding(7) var<storage, read> shadow_page_table: array<ShadowPageEntry>;
-@group(0) @binding(8) var shadow_sampler: sampler_comparison;
-@group(0) @binding(9) var linear_sampler: sampler;
-@group(0) @binding(10) var point_sampler: sampler;
+@group(0) @binding(6) var linear_sampler: sampler;
+@group(0) @binding(7) var point_sampler: sampler;
 
 @group(1) @binding(0) var<uniform> model: Model;
+
+@group(2) @binding(0) var shadow_atlas: texture_depth_2d_array;
+@group(2) @binding(1) var<storage, read> shadow_page_table: array<ShadowPageEntry>;
+@group(2) @binding(2) var shadow_sampler: sampler_comparison;
 
 // -----------------------------------------------------------------------------
 // Input / Output
@@ -131,25 +133,32 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             var shadow = 1.0;
             
             // --- Lógica VSM ---
-            // 1. Projetar world_pos para o espaço da luz
             let light_clip = light.view_projection * vec4<f32>(in.world_position, 1.0);
             let light_ndc = light_clip.xyz / light_clip.w;
-            let light_uv = light_ndc.xy * 0.5 + 0.5;
+            
+            // WGPU NDC to UV: X [-1, 1] -> [0, 1], Y [1, -1] -> [0, 1]
+            let light_uv = vec2<f32>(light_ndc.x * 0.5 + 0.5, light_ndc.y * -0.5 + 0.5);
+            // Grid lookup should use the same NDC orientation used by the shadow page selection.
+            let light_grid_uv = vec2<f32>(light_ndc.x * 0.5 + 0.5, light_ndc.y * 0.5 + 0.5);
             let light_depth = light_ndc.z;
 
-            // 2. Encontrar a página virtual (ID)
-            let virtual_grid_size = 128.0; // Deve bater com ShadowManager
-            let grid_x = u32(clamp(light_uv.x * virtual_grid_size, 0.0, virtual_grid_size - 1.0));
-            let grid_y = u32(clamp((1.0 - light_uv.y) * virtual_grid_size, 0.0, virtual_grid_size - 1.0));
-            
-            // ID = (light_idx * grid_size * grid_size + y * grid_size + x) % table_capacity
-            let table_id = (idx * 16384u + grid_y * 128u + grid_x) % 1024u;
-            let page = shadow_page_table[table_id];
+            if (light_uv.x >= 0.0 && light_uv.x <= 1.0 && light_uv.y >= 0.0 && light_uv.y <= 1.0 && light_depth >= 0.0 && light_depth <= 1.0) {
+                let virtual_grid_size = 1.0;
+                let grid_x = u32(clamp(light_grid_uv.x * virtual_grid_size, 0.0, virtual_grid_size - 1.0));
+                let grid_y = u32(clamp(light_grid_uv.y * virtual_grid_size, 0.0, virtual_grid_size - 1.0));
+                
+                let table_id = (idx + grid_y + grid_x) % 1024u;
+                let page = shadow_page_table[table_id];
 
-            // 3. Se a página for válida (scale_offset não zero), amostrar o atlas
-            if (any(page.scale_offset != vec4<f32>(0.0))) {
-                let atlas_uv = (vec2<f32>(light_uv.x, 1.0 - light_uv.y) * page.scale_offset.xy) + page.scale_offset.zw;
-                shadow = textureSampleCompare(shadow_atlas, shadow_sampler, atlas_uv, i32(page.layer_index), light_depth - 0.005);
+                if (any(page.scale_offset != vec4<f32>(0.0))) {
+                    let grid_y_flipped = (virtual_grid_size - 1.0) - f32(grid_y);
+                    let page_origin = vec2<f32>(f32(grid_x), grid_y_flipped) / virtual_grid_size;
+                    let page_uv = clamp((light_uv - page_origin) * virtual_grid_size, vec2<f32>(0.0), vec2<f32>(1.0));
+                    let atlas_uv = (page_uv * page.scale_offset.xy) + page.scale_offset.zw;
+                    // Bias adaptativo simples
+                    let bias = 0.002; 
+                    shadow = textureSampleCompare(shadow_atlas, shadow_sampler, atlas_uv, i32(page.layer_index), light_depth - bias);
+                }
             }
 
             let intensity = light.intensity_range.x;

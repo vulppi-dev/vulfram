@@ -75,7 +75,7 @@ impl ShadowManager {
             page_table,
             table_capacity,
             cache: HashMap::new(),
-            virtual_grid_size: 128,
+            virtual_grid_size: 1,
         }
     }
 

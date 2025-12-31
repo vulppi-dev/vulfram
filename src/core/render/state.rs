@@ -28,7 +28,9 @@ pub struct ResourceLibrary {
     pub layout_object: wgpu::BindGroupLayout,
     pub layout_target: wgpu::BindGroupLayout,
     pub layout_light_cull: wgpu::BindGroupLayout,
+    pub layout_shadow: wgpu::BindGroupLayout,
     pub forward_pipeline_layout: wgpu::PipelineLayout,
+    pub shadow_pipeline_layout: wgpu::PipelineLayout,
     pub forward_shader: wgpu::ShaderModule,
     pub compose_shader: wgpu::ShaderModule,
     pub light_cull_shader: wgpu::ShaderModule,
@@ -46,6 +48,7 @@ pub struct BindingSystem {
     pub model_pool: UniformBufferPool<ModelComponent>,
     pub shared_group: Option<wgpu::BindGroup>,
     pub object_group: Option<wgpu::BindGroup>,
+    pub shadow_group: Option<wgpu::BindGroup>,
 }
 
 #[repr(C)]
@@ -314,33 +317,41 @@ impl RenderState {
                     },
                     wgpu::BindGroupEntry {
                         binding: 6,
-                        resource: wgpu::BindingResource::TextureView(shadow.atlas.view()),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 7,
-                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: shadow.page_table.buffer(),
-                            offset: 0,
-                            size: None,
-                        }),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 8,
-                        resource: wgpu::BindingResource::Sampler(&library.samplers.comparison),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 9,
                         resource: wgpu::BindingResource::Sampler(&library.samplers.linear_clamp),
                     },
                     wgpu::BindGroupEntry {
-                        binding: 10,
+                        binding: 7,
                         resource: wgpu::BindingResource::Sampler(&library.samplers.point_clamp),
                     },
                 ],
             }),
         );
 
-        // 3. Create Object Bind Group (Group 1: Model B0 dynamic)
+        // 3. Create Shadow Bind Group (Group 2)
+        bindings.shadow_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("BindGroup Shadow"),
+            layout: &library.layout_shadow,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(shadow.atlas.view()),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: shadow.page_table.buffer(),
+                        offset: 0,
+                        size: None,
+                    }),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::Sampler(&library.samplers.comparison),
+                },
+            ],
+        }));
+
+        // 4. Create Object Bind Group (Group 1: Model B0 dynamic)
         bindings.object_group = Some(
             device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("BindGroup Object (Model)"),
@@ -373,10 +384,11 @@ impl RenderState {
         // Initialize bindings
         self.bindings = Some(BindingSystem {
             frame_pool: UniformBufferPool::new(device, queue, Some(1), alignment),
-            camera_pool: UniformBufferPool::new(device, queue, Some(16), alignment),
-            model_pool: UniformBufferPool::new(device, queue, Some(1024), alignment),
+            camera_pool: UniformBufferPool::new(device, queue, Some(128), alignment),
+            model_pool: UniformBufferPool::new(device, queue, Some(2048), alignment),
             shared_group: None,
             object_group: None,
+            shadow_group: None,
         });
 
         self.light_system = Some(LightCullingSystem {
@@ -551,6 +563,24 @@ impl RenderState {
                 wgpu::BindGroupLayoutEntry {
                     binding: 6,
                     visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 7,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+                    count: None,
+                },
+            ],
+        });
+
+        let layout_shadow = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("BindGroupLayout Shadow"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
                         sample_type: wgpu::TextureSampleType::Depth,
                         view_dimension: wgpu::TextureViewDimension::D2Array,
@@ -559,7 +589,7 @@ impl RenderState {
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
-                    binding: 7,
+                    binding: 1,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Storage { read_only: true },
@@ -569,21 +599,9 @@ impl RenderState {
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
-                    binding: 8,
+                    binding: 2,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 9,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 10,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
                     count: None,
                 },
             ],
@@ -709,6 +727,13 @@ impl RenderState {
         let forward_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Forward Pipeline Layout"),
+                bind_group_layouts: &[&layout_shared, &layout_object, &layout_shadow],
+                push_constant_ranges: &[],
+            });
+
+        let shadow_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Shadow Pipeline Layout"),
                 bind_group_layouts: &[&layout_shared, &layout_object],
                 push_constant_ranges: &[],
             });
@@ -725,8 +750,10 @@ impl RenderState {
             layout_object,
             layout_target,
             layout_light_cull,
+            layout_shadow,
             forward_shader,
             forward_pipeline_layout,
+            shadow_pipeline_layout,
             compose_shader,
             light_cull_shader,
             shadow_shader,
@@ -744,7 +771,37 @@ impl RenderState {
         };
 
         let mut lights = Vec::with_capacity(self.scene.lights.len());
-        for record in self.scene.lights.values() {
+        let mut light_ids: Vec<u32> = self.scene.lights.keys().copied().collect();
+        light_ids.sort_unstable();
+        for light_id in light_ids {
+            let record = match self.scene.lights.get_mut(&light_id) {
+                Some(record) => record,
+                None => continue,
+            };
+            if record.is_dirty {
+                // Update light matrices for shadow mapping
+                let light_dir = record.data.direction.truncate().normalize();
+                let light_pos = record.data.position.truncate();
+
+                // View matrix
+                record.data.view = glam::Mat4::look_to_rh(light_pos, light_dir, glam::Vec3::Y);
+
+                // Projection matrix (Directional light uses Orthographic)
+                // WGPU range: X [-1, 1], Y [-1, 1], Z [0, 1]
+                let ortho = glam::Mat4::orthographic_rh(-20.0, 20.0, -20.0, 20.0, 0.1, 100.0);
+
+                // Remap Z from [-1, 1] to [0, 1] for WGPU compatibility
+                let correction = glam::Mat4::from_cols(
+                    glam::vec4(1.0, 0.0, 0.0, 0.0),
+                    glam::vec4(0.0, 1.0, 0.0, 0.0),
+                    glam::vec4(0.0, 0.0, 0.5, 0.0),
+                    glam::vec4(0.0, 0.0, 0.5, 1.0),
+                );
+
+                record.data.projection = correction * ortho;
+                record.data.view_projection = record.data.projection * record.data.view;
+                record.clear_dirty();
+            }
             lights.push(record.data);
         }
 

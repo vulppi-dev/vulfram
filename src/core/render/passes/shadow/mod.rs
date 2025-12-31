@@ -42,7 +42,13 @@ pub fn pass_shadow_update(
     // Collect dirty pages
     let mut pages_to_render = Vec::new();
 
-    for (&light_id, light_record) in &render_state.scene.lights {
+    let mut light_ids: Vec<u32> = render_state.scene.lights.keys().copied().collect();
+    light_ids.sort_unstable();
+    for (light_index, light_id) in light_ids.iter().copied().enumerate() {
+        let light_record = match render_state.scene.lights.get(&light_id) {
+            Some(record) => record,
+            None => continue,
+        };
         let light_view = light_record.data.view;
         let light_proj = light_record.data.projection;
         let light_view_proj = light_record.data.view_projection;
@@ -51,13 +57,16 @@ pub fn pass_shadow_update(
             shadow_manager.identify_required_pages(light_view_proj, camera_inv_view_proj);
 
         for (x, y) in required {
-            if let Some(handle) = shadow_manager.request_page(light_id, x, y, frame_index) {
-                let key = crate::core::render::shadow::ShadowPageKey { light_id, x, y };
+            let shadow_light_id = light_index as u32;
+            if let Some(handle) = shadow_manager.request_page(shadow_light_id, x, y, frame_index) {
+                let key = crate::core::render::shadow::ShadowPageKey {
+                    light_id: shadow_light_id,
+                    x,
+                    y,
+                };
                 if let Some(record) = shadow_manager.cache.get_mut(&key) {
-                    if record.is_dirty {
-                        pages_to_render.push((key, handle, light_view, light_proj));
-                        record.is_dirty = false;
-                    }
+                    pages_to_render.push((key, handle, light_view, light_proj));
+                    record.is_dirty = false;
                 }
             }
         }
@@ -76,7 +85,8 @@ pub fn pass_shadow_update(
             ..Default::default()
         };
 
-        let shadow_cam_id = 10000 + key.light_id;
+        // Use a very low ID for shadow cameras to fit in the initial pool capacity (128)
+        let shadow_cam_id = 10 + key.light_id;
         bindings
             .camera_pool
             .write(shadow_cam_id, &shadow_camera_data);
@@ -89,17 +99,10 @@ pub fn pass_shadow_update(
         let vw = transform.0 * (info.tiles_w * info.pitch_px) as f32;
         let vh = transform.1 * (info.tiles_h * info.pitch_px) as f32;
 
-        let atlas_layer_view =
-            shadow_manager
-                .atlas
-                .texture()
-                .create_view(&wgpu::TextureViewDescriptor {
-                    label: Some("Shadow Atlas Layer View"),
-                    dimension: Some(wgpu::TextureViewDimension::D2),
-                    base_array_layer: transform.4,
-                    array_layer_count: Some(1),
-                    ..Default::default()
-                });
+        let atlas_layer_view = shadow_manager
+            .atlas
+            .layer_view(transform.4)
+            .expect("Atlas layer view missing");
 
         {
             let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -153,7 +156,7 @@ pub fn pass_shadow_update(
                     let pipeline = cache.get_or_create(key, frame_index, || {
                         device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                             label: Some("Shadow Pipeline"),
-                            layout: Some(&library.forward_pipeline_layout),
+                            layout: Some(&library.shadow_pipeline_layout),
                             vertex: wgpu::VertexState {
                                 module: &library.shadow_shader,
                                 entry_point: Some("vs_main"),

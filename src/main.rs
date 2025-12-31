@@ -35,25 +35,37 @@ fn main() {
     wait_for_confirmation(window_id);
     println!("Window confirmed.");
 
-    println!("Creating geometry, camera and model...");
-    let geometry_id: u32 = 1;
+    println!("Creating geometry, camera and models...");
+    let geometry_cube: u32 = 1;
+    let geometry_plane: u32 = 2;
     let camera_id: u32 = 1;
-    let model_id: u32 = 1;
+    let model_cube: u32 = 1;
+    let model_plane: u32 = 2;
     let light_id: u32 = 1;
-    let light_id2: u32 = 2;
 
     let setup_cmds = vec![
-        // 1. Create a cube geometry
+        // 1. Create geometries
         EngineCmd::CmdPrimitiveGeometryCreate(CmdPrimitiveGeometryCreateArgs {
             window_id,
-            geometry_id,
+            geometry_id: geometry_cube,
             shape: PrimitiveShape::Cube,
-            options: None, // Use defaults
+            options: None,
+        }),
+        EngineCmd::CmdPrimitiveGeometryCreate(CmdPrimitiveGeometryCreateArgs {
+            window_id,
+            geometry_id: geometry_plane,
+            shape: PrimitiveShape::Plane,
+            options: None,
         }),
         // 2. Create a camera
         EngineCmd::CmdCameraCreate(CmdCameraCreateArgs {
             camera_id,
-            transform: Mat4::from_translation(Vec3::new(0.0, 0.0, 5.0)),
+            transform: Mat4::look_at_rh(
+                Vec3::new(0.0, 14.0, 18.0),
+                Vec3::new(0.0, 0.0, 0.0),
+                Vec3::Y,
+            )
+            .inverse(),
             kind: CameraKind::Perspective,
             flags: 0,
             near_far: Vec2::new(0.1, 100.0),
@@ -62,40 +74,36 @@ fn main() {
             view_position: None,
             ortho_scale: 10.0,
         }),
-        // 3. Create lights
+        // 3. Create a directional light for shadows
         EngineCmd::CmdLightCreate(CmdLightCreateArgs {
             window_id,
             light_id,
             kind: Some(LightKind::Directional),
             flags: Some(0),
-            position: Some(Vec4::new(3.0, 2.0, 0.0, 1.0)),
-            direction: Some(Vec4::new(-1.0, -1.0, 0.0, 0.0)),
-            color: Some(Vec4::new(1.0, 0.0, 1.0, 1.0)),
-            intensity: Some(2.0),
-            range: Some(20.0),
+            position: Some(Vec4::new(0.0, 15.0, 5.0, 1.0)),
+            direction: Some(Vec4::new(0.0, -1.0, -0.3, 0.0)),
+            color: Some(Vec4::new(1.0, 1.0, 1.0, 1.0)),
+            intensity: Some(1.0),
+            range: Some(100.0),
             spot_inner_outer: Some(Vec2::new(0.7, 0.9)),
             layer_mask: 0xFFFFFFFF,
         }),
-        EngineCmd::CmdLightCreate(CmdLightCreateArgs {
-            window_id,
-            light_id: light_id2,
-            kind: Some(LightKind::Directional),
-            flags: Some(0),
-            position: Some(Vec4::new(-3.0, 2.0, 0.0, 1.0)),
-            direction: Some(Vec4::new(1.0, -1.0, 0.0, 0.0)),
-            color: Some(Vec4::new(0.0, 1.0, 1.0, 1.0)),
-            intensity: Some(1.5),
-            range: Some(20.0),
-            spot_inner_outer: Some(Vec2::new(0.7, 0.9)),
-            layer_mask: 0xFFFFFFFF,
-        }),
-        // 3. Create a model using the geometry
+        // 4. Create models
         EngineCmd::CmdModelCreate(CmdModelCreateArgs {
             window_id,
-            model_id,
-            geometry_id,
+            model_id: model_cube,
+            geometry_id: geometry_cube,
             material_id: None,
-            transform: Mat4::IDENTITY,
+            transform: Mat4::from_translation(Vec3::new(0.0, 1.0, 0.0)),
+            layer_mask: 0xFFFFFFFF,
+        }),
+        EngineCmd::CmdModelCreate(CmdModelCreateArgs {
+            window_id,
+            model_id: model_plane,
+            geometry_id: geometry_plane,
+            material_id: None,
+            transform: Mat4::from_rotation_x(-std::f32::consts::FRAC_PI_2)
+                * Mat4::from_scale(Vec3::new(10.0, 10.0, 1.0)),
             layer_mask: 0xFFFFFFFF,
         }),
     ];
@@ -114,12 +122,14 @@ fn main() {
         last_frame_time = now;
         total_ms += delta_ms as u64;
 
-        // Update model rotation
-        let angle = (total_ms as f32 / 1000.0) * 1.0; // 1 radian per second
-        let rotation = Mat4::from_euler(glam::EulerRot::XYZ, angle, angle * 0.5, 0.0);
+        // Update cube rotation and position to see shadow moving
+        let angle = (total_ms as f32 / 1000.0) * 1.0;
+        let x_pos = (total_ms as f32 / 1000.0).sin() * 2.0;
+        let rotation = Mat4::from_translation(Vec3::new(x_pos, 1.5, 0.0))
+            * Mat4::from_euler(glam::EulerRot::XYZ, angle, angle * 0.5, 0.0);
         let update_cmd = EngineCmd::CmdModelUpdate(crate::core::resources::CmdModelUpdateArgs {
             window_id,
-            model_id,
+            model_id: model_cube,
             geometry_id: None,
             material_id: None,
             transform: Some(rotation),

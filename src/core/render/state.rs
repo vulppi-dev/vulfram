@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::core::render::cache::RenderCache;
 use crate::core::render::passes::RenderPasses;
+use crate::core::render::shadow::ShadowManager;
 use crate::core::resources::{
     CameraComponent, CameraRecord, FrameComponent, LightComponent, LightRecord, ModelComponent,
     ModelRecord, RenderTarget, StorageBufferPool, UniformBufferPool, VertexAllocatorConfig,
@@ -97,6 +98,7 @@ pub struct RenderState {
     pub library: Option<ResourceLibrary>,
     pub vertex: Option<VertexAllocatorSystem>,
     pub light_system: Option<LightCullingSystem>,
+    pub shadow: Option<ShadowManager>,
     pub cache: RenderCache,
     pub passes: RenderPasses,
 }
@@ -114,6 +116,7 @@ impl RenderState {
             library: None,
             vertex: None,
             light_system: None,
+            shadow: None,
             cache: RenderCache::new(),
             passes: RenderPasses::new(),
         }
@@ -128,6 +131,7 @@ impl RenderState {
         self.library = None;
         self.vertex = None;
         self.light_system = None;
+        self.shadow = None;
         self.cache.clear();
         self.passes = RenderPasses::new();
     }
@@ -146,6 +150,9 @@ impl RenderState {
             light_system.visible_indices.begin_frame(frame_index);
             light_system.visible_counts.begin_frame(frame_index);
             light_system.light_params.begin_frame(frame_index);
+        }
+        if let Some(shadow) = self.shadow.as_mut() {
+            shadow.begin_frame(frame_index);
         }
         self.cache.gc(frame_index);
     }
@@ -230,6 +237,11 @@ impl RenderState {
             None => return,
         };
 
+        let shadow = match self.shadow.as_ref() {
+            Some(s) => s,
+            None => return,
+        };
+
         // 2. Create Shared Bind Group (Group 0: Frame B0, Camera B1 dynamic, Light params B2 dynamic)
         bindings.shared_group = Some(
             device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -299,6 +311,18 @@ impl RenderState {
                             size: None,
                         }),
                     },
+                    wgpu::BindGroupEntry {
+                        binding: 6,
+                        resource: wgpu::BindingResource::TextureView(shadow.atlas.view()),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 7,
+                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                            buffer: shadow.page_table.buffer(),
+                            offset: 0,
+                            size: None,
+                        }),
+                    },
                 ],
             }),
         );
@@ -358,6 +382,8 @@ impl RenderState {
             max_lights_per_camera: 0,
             queue: queue.clone(),
         });
+
+        self.shadow = Some(ShadowManager::new(device, queue, 1024));
 
         // Initialize fallback texture
         let fallback_texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -501,6 +527,26 @@ impl RenderState {
                 },
                 wgpu::BindGroupLayoutEntry {
                     binding: 5,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 6,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Depth,
+                        view_dimension: wgpu::TextureViewDimension::D2Array,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 7,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Storage { read_only: true },

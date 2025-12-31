@@ -42,6 +42,12 @@ struct Light {
     _padding: vec2<u32>,
 }
 
+struct ShadowPageEntry {
+    scale_offset: vec4<f32>,
+    layer_index: u32,
+    _padding: vec3<u32>,
+}
+
 // -----------------------------------------------------------------------------
 // Bindings
 // -----------------------------------------------------------------------------
@@ -52,6 +58,9 @@ struct Light {
 @group(0) @binding(3) var<storage, read> lights: array<Light>;
 @group(0) @binding(4) var<storage, read> visible_indices: array<u32>;
 @group(0) @binding(5) var<storage, read> visible_counts: array<u32>;
+@group(0) @binding(6) var shadow_atlas: texture_depth_2d_array;
+@group(0) @binding(7) var<storage, read> shadow_page_table: array<ShadowPageEntry>;
+
 @group(1) @binding(0) var<uniform> model: Model;
 
 // -----------------------------------------------------------------------------

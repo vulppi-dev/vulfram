@@ -11,7 +11,7 @@ pub enum CameraKind {
     Orthographic,
 }
 
-#[derive(Debug, Clone, Copy, Pod, Zeroable, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable, Deserialize, Serialize, Default)]
 #[repr(C)]
 pub struct CameraComponent {
     pub position: Vec4,

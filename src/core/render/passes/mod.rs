@@ -1,12 +1,25 @@
 mod compose;
 mod forward;
 mod light_cull;
+mod shadow;
 
 pub use compose::*;
 pub use forward::*;
 pub use light_cull::*;
+pub use shadow::*;
 
 use crate::core::resources::RenderTarget;
+
+/// Resources and state for the shadow map update pass
+pub struct ShadowPass {
+    pub pipeline: Option<wgpu::RenderPipeline>,
+}
+
+impl ShadowPass {
+    pub fn new() -> Self {
+        Self { pipeline: None }
+    }
+}
 
 /// Resources and state for the forward rendering pass
 pub struct ForwardPass {
@@ -50,7 +63,7 @@ pub struct RenderPasses {
     pub forward: ForwardPass,
     pub light_cull: LightCullPass,
     pub compose: ComposePass,
-    // Future: shadow: ShadowPass,
+    pub shadow: ShadowPass,
     // Future: ui: UiPass,
 }
 
@@ -60,6 +73,7 @@ impl RenderPasses {
             forward: ForwardPass::new(),
             light_cull: LightCullPass::new(),
             compose: ComposePass::new(),
+            shadow: ShadowPass::new(),
         }
     }
 }

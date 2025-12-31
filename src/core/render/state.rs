@@ -32,6 +32,7 @@ pub struct ResourceLibrary {
     pub forward_shader: wgpu::ShaderModule,
     pub compose_shader: wgpu::ShaderModule,
     pub light_cull_shader: wgpu::ShaderModule,
+    pub shadow_shader: wgpu::ShaderModule,
     pub light_cull_pipeline_layout: wgpu::PipelineLayout,
     pub samplers: SamplerSet,
     pub fallback_texture: wgpu::Texture,
@@ -668,6 +669,13 @@ impl RenderState {
             ))),
         });
 
+        let shadow_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Shadow Shader"),
+            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(include_str!(
+                "passes/shadow/shadow.wgsl"
+            ))),
+        });
+
         let forward_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Forward Pipeline Layout"),
@@ -691,6 +699,7 @@ impl RenderState {
             forward_pipeline_layout,
             compose_shader,
             light_cull_shader,
+            shadow_shader,
             light_cull_pipeline_layout,
             samplers,
             fallback_texture,

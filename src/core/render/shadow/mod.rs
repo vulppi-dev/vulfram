@@ -143,7 +143,41 @@ impl ShadowManager {
         required
     }
 
+    /// Calculates the View-Projection matrix for a specific virtual page.
+    /// This "zooms in" the light's base projection to the specific page area.
+    pub fn get_page_view_projection(
+        &self,
+        light_view: Mat4,
+        light_proj: Mat4,
+        x: u32,
+        y: u32,
+    ) -> Mat4 {
+        // Calculate the range in NDC space [-1, 1] for this page
+        let s = self.virtual_grid_size as f32;
+        let x_min = -1.0 + (x as f32 * 2.0 / s);
+        let x_max = -1.0 + ((x + 1) as f32 * 2.0 / s);
+        let y_min = -1.0 + (y as f32 * 2.0 / s);
+        let y_max = -1.0 + ((y + 1) as f32 * 2.0 / s);
+
+        // Create a scale and bias matrix to transform the base projection
+        // We want to map the [x_min, x_max] range to [-1, 1]
+        let scale_x = 2.0 / (x_max - x_min);
+        let scale_y = 2.0 / (y_max - y_min);
+        let offset_x = -(x_max + x_min) / (x_max - x_min);
+        let offset_y = -(y_max + y_min) / (y_max - y_min);
+
+        let custom_proj = Mat4::from_cols(
+            glam::vec4(scale_x, 0.0, 0.0, 0.0),
+            glam::vec4(0.0, scale_y, 0.0, 0.0),
+            glam::vec4(0.0, 0.0, 1.0, 0.0),
+            glam::vec4(offset_x, offset_y, 0.0, 1.0),
+        );
+
+        custom_proj * light_proj * light_view
+    }
+
     /// Requests a tile for a specific virtual page.
+
     /// If the page is already cached, returns its handle.
     /// If not, tries to allocate a new one.
     pub fn request_page(

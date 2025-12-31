@@ -24,6 +24,43 @@ pub fn render_frames(engine_state: &mut EngineState) {
 
     let frame_spec = crate::core::resources::FrameComponent::new(time, delta_time, frame_index);
 
+    // 1. Update Shadows (Global for all windows)
+    {
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Shadow Update Encoder"),
+        });
+
+        passes::pass_shadow_update(
+            &mut engine_state
+                .window
+                .states
+                .iter_mut()
+                .next()
+                .unwrap()
+                .1
+                .render_state,
+            device,
+            queue,
+            &mut encoder,
+            engine_state.frame_index,
+        );
+
+        if let Some(shadow) = &mut engine_state
+            .window
+            .states
+            .iter_mut()
+            .next()
+            .unwrap()
+            .1
+            .render_state
+            .shadow
+        {
+            shadow.sync_table();
+        }
+
+        queue.submit(Some(encoder.finish()));
+    }
+
     // Render all windows
     for (_window_id, window_state) in engine_state.window.states.iter_mut() {
         let surface_texture = match window_state.surface.get_current_texture() {

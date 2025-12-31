@@ -1,7 +1,6 @@
 use crate::core::render::RenderState;
 use crate::core::render::cache::PipelineKey;
 use crate::core::resources::{CameraComponent, VertexStream};
-use glam::{Mat4, Vec4Swizzles};
 
 pub fn pass_shadow_update(
     render_state: &mut RenderState,
@@ -44,23 +43,9 @@ pub fn pass_shadow_update(
     let mut pages_to_render = Vec::new();
 
     for (&light_id, light_record) in &render_state.scene.lights {
-        // Generate light view and projection on the fly
-
-        // For directional lights:
-
-        let light_dir = light_record.data.direction.xyz().normalize();
-
-        let light_view = Mat4::look_to_rh(
-            light_record.data.position.xyz(),
-            light_dir,
-            glam::vec3(0.0, 1.0, 0.0),
-        );
-
-        // Orthographic projection for directional light shadows
-
-        let light_proj = Mat4::orthographic_rh(-50.0, 50.0, -50.0, 50.0, 0.1, 500.0);
-
-        let light_view_proj = light_proj * light_view;
+        let light_view = light_record.data.view;
+        let light_proj = light_record.data.projection;
+        let light_view_proj = light_record.data.view_projection;
 
         let required =
             shadow_manager.identify_required_pages(light_view_proj, camera_inv_view_proj);

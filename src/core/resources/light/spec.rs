@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use glam::{UVec2, Vec2, Vec4};
+use glam::{Mat4, UVec2, Vec2, Vec4};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -17,6 +17,9 @@ pub struct LightComponent {
     pub position: Vec4,
     pub direction: Vec4,
     pub color: Vec4,
+    pub view: Mat4,
+    pub projection: Mat4,
+    pub view_projection: Mat4,
     pub intensity_range: Vec2,
     pub spot_inner_outer: Vec2,
     pub kind_flags: UVec2,
@@ -34,10 +37,16 @@ impl LightComponent {
         kind: LightKind,
         flags: u32,
     ) -> Self {
+        let view = Mat4::IDENTITY;
+        let projection = Mat4::IDENTITY;
+
         Self {
             position,
             direction,
             color,
+            view,
+            projection,
+            view_projection: projection * view,
             intensity_range: Vec2::new(intensity, range),
             spot_inner_outer,
             kind_flags: UVec2::new(kind as u32, flags),
@@ -45,7 +54,6 @@ impl LightComponent {
         }
     }
 }
-
 #[derive(Debug, Clone)]
 pub struct LightRecord {
     pub data: LightComponent,

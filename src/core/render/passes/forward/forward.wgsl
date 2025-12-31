@@ -36,10 +36,12 @@ struct Light {
     position: vec4<f32>,
     direction: vec4<f32>,
     color: vec4<f32>,
+    view: mat4x4<f32>,
+    projection: mat4x4<f32>,
+    view_projection: mat4x4<f32>,
     intensity_range: vec2<f32>,
     spot_inner_outer: vec2<f32>,
     kind_flags: vec2<u32>,
-    _padding: vec2<u32>,
 }
 
 struct ShadowPageEntry {
@@ -60,6 +62,9 @@ struct ShadowPageEntry {
 @group(0) @binding(5) var<storage, read> visible_counts: array<u32>;
 @group(0) @binding(6) var shadow_atlas: texture_depth_2d_array;
 @group(0) @binding(7) var<storage, read> shadow_page_table: array<ShadowPageEntry>;
+@group(0) @binding(8) var shadow_sampler: sampler_comparison;
+@group(0) @binding(9) var linear_sampler: sampler;
+@group(0) @binding(10) var point_sampler: sampler;
 
 @group(1) @binding(0) var<uniform> model: Model;
 
@@ -93,19 +98,12 @@ struct VertexOutput {
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-
-    // Simple MVP transformation
     let world_pos = model.transform * vec4<f32>(in.position, 1.0);
     out.clip_position = camera.view_projection * world_pos;
-
     out.world_position = world_pos.xyz;
-
-    // Pass-through simple normal transformation (ideally uses normal matrix)
     out.normal = (model.transform * vec4<f32>(in.normal, 0.0)).xyz;
-
     out.uv0 = in.uv0;
     out.color0 = in.color0;
-
     return out;
 }
 
@@ -121,22 +119,45 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let cam = light_params.camera_index;
     let base = cam * light_params.max_lights_per_camera;
     let count = min(visible_counts[cam], light_params.max_lights_per_camera);
+    
     if (count > 0u) {
         var lighting = vec3<f32>(0.0);
-        var i = 0u;
-        loop {
-            if (i >= count) { break; }
+        for (var i = 0u; i < count; i++) {
             let idx = visible_indices[base + i];
             let light = lights[idx];
             let l = normalize(-light.direction.xyz);
             let ndotl = max(dot(n, l), 0.0);
+            
+            var shadow = 1.0;
+            
+            // --- Lógica VSM ---
+            // 1. Projetar world_pos para o espaço da luz
+            let light_clip = light.view_projection * vec4<f32>(in.world_position, 1.0);
+            let light_ndc = light_clip.xyz / light_clip.w;
+            let light_uv = light_ndc.xy * 0.5 + 0.5;
+            let light_depth = light_ndc.z;
+
+            // 2. Encontrar a página virtual (ID)
+            let virtual_grid_size = 128.0; // Deve bater com ShadowManager
+            let grid_x = u32(clamp(light_uv.x * virtual_grid_size, 0.0, virtual_grid_size - 1.0));
+            let grid_y = u32(clamp((1.0 - light_uv.y) * virtual_grid_size, 0.0, virtual_grid_size - 1.0));
+            
+            // ID = (light_idx * grid_size * grid_size + y * grid_size + x) % table_capacity
+            let table_id = (idx * 16384u + grid_y * 128u + grid_x) % 1024u;
+            let page = shadow_page_table[table_id];
+
+            // 3. Se a página for válida (scale_offset não zero), amostrar o atlas
+            if (any(page.scale_offset != vec4<f32>(0.0))) {
+                let atlas_uv = (vec2<f32>(light_uv.x, 1.0 - light_uv.y) * page.scale_offset.xy) + page.scale_offset.zw;
+                shadow = textureSampleCompare(shadow_atlas, shadow_sampler, atlas_uv, i32(page.layer_index), light_depth - 0.005);
+            }
+
             let intensity = light.intensity_range.x;
-            lighting = lighting + (light.color.rgb * intensity * ndotl + vec3<f32>(0.001));
-            i = i + 1u;
+            lighting += (light.color.rgb * intensity * ndotl * shadow + vec3<f32>(0.001));
         }
-        color = color * lighting;
+        color *= lighting;
     } else {
-        color = color * vec3<f32>(0.001);
+        color *= vec3<f32>(0.001);
     }
 
     return vec4<f32>(color, 1.0);

@@ -85,6 +85,9 @@ pub fn engine_cmd_model_create(
         .scene
         .models
         .insert(args.model_id, record);
+    if let Some(shadow) = window_state.render_state.shadow.as_mut() {
+        shadow.mark_dirty();
+    }
     window_state.is_dirty = true;
 
     CmdResultModelCreate {
@@ -178,6 +181,9 @@ pub fn engine_cmd_model_update(
     }
 
     record.mark_dirty();
+    if let Some(shadow) = window_state.render_state.shadow.as_mut() {
+        shadow.mark_dirty();
+    }
     window_state.is_dirty = true;
 
     CmdResultModelUpdate {
@@ -223,6 +229,9 @@ pub fn engine_cmd_model_dispose(
         .remove(&args.model_id)
         .is_some()
     {
+        if let Some(shadow) = window_state.render_state.shadow.as_mut() {
+            shadow.mark_dirty();
+        }
         window_state.is_dirty = true;
         CmdResultModelDispose {
             success: true,

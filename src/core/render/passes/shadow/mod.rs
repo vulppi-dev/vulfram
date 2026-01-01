@@ -13,6 +13,9 @@ pub fn pass_shadow_update(
         Some(s) => s,
         None => return,
     };
+    if !shadow_manager.is_dirty {
+        return;
+    }
 
     let library = match render_state.library.as_ref() {
         Some(l) => l,
@@ -39,7 +42,7 @@ pub fn pass_shadow_update(
 
     let camera_inv_view_proj = primary_camera.data.view_projection.inverse();
 
-    // Collect dirty pages
+    // Collect pages (re-render on dirty scenes)
     let mut pages_to_render = Vec::new();
 
     let mut light_ids: Vec<u32> = render_state.scene.lights.keys().copied().collect();
@@ -76,7 +79,7 @@ pub fn pass_shadow_update(
         return;
     }
 
-    // 2. Render each dirty page
+    // 2. Render each page
     for (key, handle, light_view, light_proj) in pages_to_render {
         let page_vp = shadow_manager.get_page_view_projection(light_view, light_proj, key.x, key.y);
 
@@ -183,7 +186,12 @@ pub fn pass_shadow_update(
                                 depth_write_enabled: true,
                                 depth_compare: wgpu::CompareFunction::Less,
                                 stencil: wgpu::StencilState::default(),
-                                bias: wgpu::DepthBiasState::default(),
+                                // Bias to reduce self-shadowing artifacts (shadow acne).
+                                bias: wgpu::DepthBiasState {
+                                    constant: 2,
+                                    slope_scale: 2.0,
+                                    clamp: 0.0,
+                                },
                             }),
                             multisample: wgpu::MultisampleState::default(),
                             multiview: None,
@@ -197,4 +205,6 @@ pub fn pass_shadow_update(
             }
         }
     }
+
+    shadow_manager.clear_dirty();
 }

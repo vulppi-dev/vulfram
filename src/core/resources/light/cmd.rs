@@ -91,6 +91,9 @@ pub fn engine_cmd_light_create(
         .scene
         .lights
         .insert(args.light_id, record);
+    if let Some(shadow) = window_state.render_state.shadow.as_mut() {
+        shadow.mark_dirty();
+    }
     window_state.is_dirty = true;
 
     CmdResultLightCreate {
@@ -190,6 +193,9 @@ pub fn engine_cmd_light_update(
     }
 
     record.mark_dirty();
+    if let Some(shadow) = window_state.render_state.shadow.as_mut() {
+        shadow.mark_dirty();
+    }
     window_state.is_dirty = true;
 
     CmdResultLightUpdate {
@@ -235,6 +241,9 @@ pub fn engine_cmd_light_dispose(
         .remove(&args.light_id)
         .is_some()
     {
+        if let Some(shadow) = window_state.render_state.shadow.as_mut() {
+            shadow.mark_dirty();
+        }
         window_state.is_dirty = true;
         CmdResultLightDispose {
             success: true,

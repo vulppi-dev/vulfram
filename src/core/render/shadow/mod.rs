@@ -46,6 +46,7 @@ pub struct ShadowManager {
     pub atlas: AtlasSystem,
     pub page_table: StorageBufferPool<ShadowPageEntry>,
     pub table_capacity: u32,
+    pub is_dirty: bool,
 
     // Virtual to Physical mapping
     pub cache: HashMap<ShadowPageKey, ShadowPageRecord>,
@@ -76,6 +77,7 @@ impl ShadowManager {
             table_capacity,
             cache: HashMap::new(),
             virtual_grid_size: 1,
+            is_dirty: true,
         }
     }
 
@@ -252,5 +254,13 @@ impl ShadowManager {
 
     pub fn begin_frame(&mut self, frame_index: u64) {
         self.page_table.begin_frame(frame_index);
+    }
+
+    pub fn mark_dirty(&mut self) {
+        self.is_dirty = true;
+    }
+
+    pub fn clear_dirty(&mut self) {
+        self.is_dirty = false;
     }
 }

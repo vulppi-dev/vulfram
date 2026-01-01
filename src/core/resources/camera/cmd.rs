@@ -93,6 +93,9 @@ pub fn engine_cmd_camera_create(
             .scene
             .cameras
             .insert(args.camera_id, record);
+        if let Some(shadow) = window_state.render_state.shadow.as_mut() {
+            shadow.mark_dirty();
+        }
         window_state.is_dirty = true;
     }
 
@@ -175,6 +178,9 @@ pub fn engine_cmd_camera_update(
             }
 
             record.mark_dirty();
+            if let Some(shadow) = window_state.render_state.shadow.as_mut() {
+                shadow.mark_dirty();
+            }
             window_state.is_dirty = true;
         }
     }
@@ -223,6 +229,9 @@ pub fn engine_cmd_camera_dispose(
             .is_some()
         {
             found = true;
+            if let Some(shadow) = window_state.render_state.shadow.as_mut() {
+                shadow.mark_dirty();
+            }
             window_state.is_dirty = true;
         }
     }

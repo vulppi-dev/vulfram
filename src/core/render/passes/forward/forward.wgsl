@@ -155,8 +155,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                     let page_origin = vec2<f32>(f32(grid_x), grid_y_flipped) / virtual_grid_size;
                     let page_uv = clamp((light_uv - page_origin) * virtual_grid_size, vec2<f32>(0.0), vec2<f32>(1.0));
                     let atlas_uv = (page_uv * page.scale_offset.xy) + page.scale_offset.zw;
-                    // Bias adaptativo simples
-                    let bias = 0.002; 
+                    // Bias adaptativo simples para reduzir acne
+                    let bias = max(0.002, 0.02 * (1.0 - ndotl));
                     shadow = textureSampleCompare(shadow_atlas, shadow_sampler, atlas_uv, i32(page.layer_index), light_depth - bias);
                 }
             }

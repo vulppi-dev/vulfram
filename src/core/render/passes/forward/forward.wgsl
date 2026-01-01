@@ -52,6 +52,12 @@ struct ShadowPageEntry {
     _padding: vec3<u32>,
 }
 
+struct ShadowParams {
+    virtual_grid_size: f32,
+    pcf_range: i32,
+    _padding: vec2<f32>,
+}
+
 // -----------------------------------------------------------------------------
 // Bindings
 // -----------------------------------------------------------------------------
@@ -62,14 +68,16 @@ struct ShadowPageEntry {
 @group(0) @binding(3) var<storage, read> lights: array<Light>;
 @group(0) @binding(4) var<storage, read> visible_indices: array<u32>;
 @group(0) @binding(5) var<storage, read> visible_counts: array<u32>;
-@group(0) @binding(6) var linear_sampler: sampler;
-@group(0) @binding(7) var point_sampler: sampler;
+@group(0) @binding(6) var<uniform> shadow_params: ShadowParams;
+@group(0) @binding(7) var shadow_atlas: texture_depth_2d_array;
+@group(0) @binding(8) var<storage, read> shadow_page_table: array<ShadowPageEntry>;
+@group(0) @binding(9) var point_clamp_sampler: sampler;
+@group(0) @binding(10) var linear_clamp_sampler: sampler;
+@group(0) @binding(11) var point_repeat_sampler: sampler;
+@group(0) @binding(12) var linear_repeat_sampler: sampler;
+@group(0) @binding(13) var shadow_sampler: sampler_comparison;
 
 @group(1) @binding(0) var<uniform> model: Model;
-
-@group(2) @binding(0) var shadow_atlas: texture_depth_2d_array;
-@group(2) @binding(1) var<storage, read> shadow_page_table: array<ShadowPageEntry>;
-@group(2) @binding(2) var shadow_sampler: sampler_comparison;
 
 // -----------------------------------------------------------------------------
 // Input / Output
@@ -148,7 +156,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 let light_depth = light_ndc.z;
 
                 if (light_uv.x >= 0.0 && light_uv.x <= 1.0 && light_uv.y >= 0.0 && light_uv.y <= 1.0 && light_depth >= 0.0 && light_depth <= 1.0) {
-                    let virtual_grid_size = 1.0;
+                    let virtual_grid_size = shadow_params.virtual_grid_size;
                     let grid_x = u32(clamp(light_grid_uv.x * virtual_grid_size, 0.0, virtual_grid_size - 1.0));
                     let grid_y = u32(clamp(light_grid_uv.y * virtual_grid_size, 0.0, virtual_grid_size - 1.0));
                     
@@ -165,8 +173,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                         let dim = textureDimensions(shadow_atlas);
                         let texel = 1.0 / vec2<f32>(f32(dim.x), f32(dim.y));
                         var sum = 0.0;
-                        for (var oy = -1; oy <= 1; oy = oy + 1) {
-                            for (var ox = -1; ox <= 1; ox = ox + 1) {
+                        let range = shadow_params.pcf_range;
+                        var samples = 0.0;
+                        for (var oy = -range; oy <= range; oy = oy + 1) {
+                            for (var ox = -range; ox <= range; ox = ox + 1) {
                                 let offset = vec2<f32>(f32(ox), f32(oy)) * texel;
                                 sum += textureSampleCompare(
                                     shadow_atlas,
@@ -175,9 +185,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                                     i32(page.layer_index),
                                     light_depth - bias
                                 );
+                                samples += 1.0;
                             }
                         }
-                        shadow = sum / 9.0;
+                        shadow = sum / samples;
                     }
                 }
             }

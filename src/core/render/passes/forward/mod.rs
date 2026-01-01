@@ -90,11 +90,6 @@ pub fn pass_forward(
                 render_pass.set_bind_group(0, shared_group, &[camera_offset, light_offset]);
             }
 
-            // 4.5 Bind Shadow (Group 2)
-            if let Some(shadow_group) = bindings.shadow_group.as_ref() {
-                render_pass.set_bind_group(2, shadow_group, &[]);
-            }
-
             // 5. Filter and draw models
             for (model_id, model_record) in &scene.models {
                 // Check layer mask

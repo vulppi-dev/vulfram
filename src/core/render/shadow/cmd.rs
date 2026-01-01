@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-use crate::core::state::EngineState;
 use crate::core::render::shadow::ShadowConfig;
+use crate::core::state::EngineState;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -50,7 +50,10 @@ pub fn engine_cmd_shadow_configure(
     } else {
         CmdResultShadowConfigure {
             success: false,
-            message: format!("Shadow manager not initialized for window {}", args.window_id),
+            message: format!(
+                "Shadow manager not initialized for window {}",
+                args.window_id
+            ),
         }
     }
 }

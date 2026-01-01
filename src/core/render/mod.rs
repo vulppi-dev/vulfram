@@ -24,8 +24,11 @@ pub fn render_frames(engine_state: &mut EngineState) {
 
     // 1. Update Shadows (Global for all windows - using first window's state as proxy)
     if let Some((_, window_state)) = engine_state.window.states.iter_mut().next() {
-        // Ensure light matrices and bind groups are ready before shadow rendering.
-        window_state.render_state.prepare_render(device, frame_spec);
+        // Ensure data is ready but WITHOUT shadow atlas binding to avoid conflicts
+        window_state
+            .render_state
+            .prepare_render(device, frame_spec, false);
+
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Shadow Update Encoder"),
         });
@@ -56,7 +59,7 @@ pub fn render_frames(engine_state: &mut EngineState) {
         };
 
         let render_state = &mut window_state.render_state;
-        render_state.prepare_render(device, frame_spec);
+        render_state.prepare_render(device, frame_spec, true);
 
         let mut encoder =
             device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });

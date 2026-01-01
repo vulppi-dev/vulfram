@@ -120,6 +120,7 @@ fn main() {
                 atlas_tiles_h: 4,
                 atlas_layers: 1,
                 virtual_grid_size: 1,
+                smoothing: 1,
             },
         }),
     ];
@@ -166,6 +167,7 @@ fn main() {
                     atlas_tiles_h: 4,
                     atlas_layers: 1,
                     virtual_grid_size: 1,
+                    smoothing: 2, // Extra smooth low res
                 },
             });
             let _ = send_commands(vec![reconfig_cmd]);

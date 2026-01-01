@@ -196,7 +196,6 @@ pub fn engine_cmd_light_update(
         record.layer_mask = layer_mask;
     }
 
-
     record.mark_dirty();
     if let Some(shadow) = window_state.render_state.shadow.as_mut() {
         shadow.mark_dirty();

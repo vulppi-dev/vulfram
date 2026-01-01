@@ -35,7 +35,8 @@ impl ModelComponent {
 
     pub fn update(&mut self, transform: Option<Mat4>, receive_shadow: Option<bool>) {
         let transform = transform.unwrap_or(self.transform);
-        let receive_shadow = receive_shadow.unwrap_or((self.flags.x & Self::FLAG_RECEIVE_SHADOW) != 0);
+        let receive_shadow =
+            receive_shadow.unwrap_or((self.flags.x & Self::FLAG_RECEIVE_SHADOW) != 0);
         *self = Self::new(transform, receive_shadow);
     }
 }

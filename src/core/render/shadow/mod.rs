@@ -1,10 +1,47 @@
+use crate::core::resources::{
+    AtlasDesc, AtlasHandle, AtlasSystem, StorageBufferPool, UniformBufferPool,
+};
+use bytemuck::{Pod, Zeroable};
+use glam::{Mat4, Vec4Swizzles};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use wgpu::{Device, Queue, TextureFormat, TextureUsages};
+
 pub mod cmd;
 pub use cmd::*;
 
-use crate::core::resources::{AtlasDesc, AtlasHandle, AtlasSystem, StorageBufferPool};
-use glam::{Mat4, Vec4Swizzles};
-use std::collections::HashMap;
-use wgpu::{Device, Queue, TextureFormat, TextureUsages};
+/// Configuration for the Shadow Manager
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+pub struct ShadowConfig {
+    pub tile_resolution: u32,
+    pub atlas_tiles_w: u32,
+    pub atlas_tiles_h: u32,
+    pub atlas_layers: u32,
+    pub virtual_grid_size: u32,
+    pub smoothing: u32,
+}
+
+impl Default for ShadowConfig {
+    fn default() -> Self {
+        Self {
+            tile_resolution: 1024,
+            atlas_tiles_w: 8,
+            atlas_tiles_h: 8,
+            atlas_layers: 1,
+            virtual_grid_size: 1,
+            smoothing: 1,
+        }
+    }
+}
+
+/// Uniform data for shadow parameters in the shader
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
+pub struct ShadowParams {
+    pub virtual_grid_size: f32,
+    pub pcf_range: i32,
+    pub _padding: [f32; 2],
+}
 
 /// Unique identifier for a virtual shadow page
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -44,34 +81,11 @@ impl Default for ShadowPageEntry {
     }
 }
 
-use serde::{Deserialize, Serialize};
-
-/// Configuration for the Shadow Manager
-#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
-pub struct ShadowConfig {
-    pub tile_resolution: u32,
-    pub atlas_tiles_w: u32,
-    pub atlas_tiles_h: u32,
-    pub atlas_layers: u32,
-    pub virtual_grid_size: u32,
-}
-
-impl Default for ShadowConfig {
-    fn default() -> Self {
-        Self {
-            tile_resolution: 1024,
-            atlas_tiles_w: 8,
-            atlas_tiles_h: 8,
-            atlas_layers: 1,
-            virtual_grid_size: 1,
-        }
-    }
-}
-
 /// Manages Virtual Shadow Maps paging and atlas allocation
 pub struct ShadowManager {
     pub atlas: AtlasSystem,
     pub page_table: StorageBufferPool<ShadowPageEntry>,
+    pub params_pool: UniformBufferPool<ShadowParams>,
     pub table_capacity: u32,
     pub is_dirty: bool,
 
@@ -95,12 +109,26 @@ impl ShadowManager {
         };
 
         let atlas = AtlasSystem::new(device, atlas_desc);
-        let alignment = device.limits().min_storage_buffer_offset_alignment as u64;
-        let page_table = StorageBufferPool::new(device, queue, Some(table_capacity), alignment);
+        let alignment = device.limits().min_uniform_buffer_offset_alignment as u64;
+        let storage_alignment = device.limits().min_storage_buffer_offset_alignment as u64;
+
+        let page_table =
+            StorageBufferPool::new(device, queue, Some(table_capacity), storage_alignment);
+        let mut params_pool = UniformBufferPool::new(device, queue, Some(1), alignment);
+
+        params_pool.write(
+            0,
+            &ShadowParams {
+                virtual_grid_size: config.virtual_grid_size as f32,
+                pcf_range: config.smoothing as i32,
+                _padding: [0.0; 2],
+            },
+        );
 
         Self {
             atlas,
             page_table,
+            params_pool,
             table_capacity,
             cache: HashMap::new(),
             config,
@@ -115,6 +143,15 @@ impl ShadowManager {
             || config.atlas_layers != self.config.atlas_layers;
 
         self.config = config;
+
+        self.params_pool.write(
+            0,
+            &ShadowParams {
+                virtual_grid_size: config.virtual_grid_size as f32,
+                pcf_range: config.smoothing as i32,
+                _padding: [0.0; 2],
+            },
+        );
 
         if needs_atlas_rebuild {
             let atlas_desc = AtlasDesc {
@@ -311,6 +348,7 @@ impl ShadowManager {
 
     pub fn begin_frame(&mut self, frame_index: u64) {
         self.page_table.begin_frame(frame_index);
+        self.params_pool.begin_frame(frame_index);
     }
 
     pub fn mark_dirty(&mut self) {

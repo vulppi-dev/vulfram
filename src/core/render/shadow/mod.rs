@@ -1,5 +1,8 @@
+pub mod cmd;
+pub use cmd::*;
+
 use crate::core::resources::{AtlasDesc, AtlasHandle, AtlasSystem, StorageBufferPool};
-use glam::{Mat4, Vec3, Vec4Swizzles};
+use glam::{Mat4, Vec4Swizzles};
 use std::collections::HashMap;
 use wgpu::{Device, Queue, TextureFormat, TextureUsages};
 
@@ -41,6 +44,30 @@ impl Default for ShadowPageEntry {
     }
 }
 
+use serde::{Deserialize, Serialize};
+
+/// Configuration for the Shadow Manager
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+pub struct ShadowConfig {
+    pub tile_resolution: u32,
+    pub atlas_tiles_w: u32,
+    pub atlas_tiles_h: u32,
+    pub atlas_layers: u32,
+    pub virtual_grid_size: u32,
+}
+
+impl Default for ShadowConfig {
+    fn default() -> Self {
+        Self {
+            tile_resolution: 1024,
+            atlas_tiles_w: 8,
+            atlas_tiles_h: 8,
+            atlas_layers: 1,
+            virtual_grid_size: 1,
+        }
+    }
+}
+
 /// Manages Virtual Shadow Maps paging and atlas allocation
 pub struct ShadowManager {
     pub atlas: AtlasSystem,
@@ -51,20 +78,20 @@ pub struct ShadowManager {
     // Virtual to Physical mapping
     pub cache: HashMap<ShadowPageKey, ShadowPageRecord>,
 
-    /// Virtual grid resolution (e.g. 128x128 virtual pages per light)
-    pub virtual_grid_size: u32,
+    pub config: ShadowConfig,
 }
 
 impl ShadowManager {
     pub fn new(device: &Device, queue: &Queue, table_capacity: u32) -> Self {
+        let config = ShadowConfig::default();
         let atlas_desc = AtlasDesc {
             label: Some("Shadow Atlas"),
             format: TextureFormat::Depth32Float,
             usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
-            tile_px: 512,
-            tiles_w: 8,
-            tiles_h: 8,
-            layers: 1,
+            tile_px: config.tile_resolution,
+            tiles_w: config.atlas_tiles_w,
+            tiles_h: config.atlas_tiles_h,
+            layers: config.atlas_layers,
         };
 
         let atlas = AtlasSystem::new(device, atlas_desc);
@@ -76,8 +103,32 @@ impl ShadowManager {
             page_table,
             table_capacity,
             cache: HashMap::new(),
-            virtual_grid_size: 1,
+            config,
             is_dirty: true,
+        }
+    }
+
+    pub fn configure(&mut self, device: &Device, config: ShadowConfig) {
+        let needs_atlas_rebuild = config.tile_resolution != self.config.tile_resolution
+            || config.atlas_tiles_w != self.config.atlas_tiles_w
+            || config.atlas_tiles_h != self.config.atlas_tiles_h
+            || config.atlas_layers != self.config.atlas_layers;
+
+        self.config = config;
+
+        if needs_atlas_rebuild {
+            let atlas_desc = AtlasDesc {
+                label: Some("Shadow Atlas"),
+                format: TextureFormat::Depth32Float,
+                usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+                tile_px: config.tile_resolution,
+                tiles_w: config.atlas_tiles_w,
+                tiles_h: config.atlas_tiles_h,
+                layers: config.atlas_layers,
+            };
+            self.atlas = AtlasSystem::new(device, atlas_desc);
+            self.cache.clear();
+            self.is_dirty = true;
         }
     }
 
@@ -88,6 +139,8 @@ impl ShadowManager {
         light_view_proj: Mat4,
         camera_inv_view_proj: Mat4,
     ) -> Vec<(u32, u32)> {
+        // ... (rest of the method using self.config.virtual_grid_size)
+        // Note: I will need to replace self.virtual_grid_size with self.config.virtual_grid_size in the implementation
         // 1. Get camera frustum corners in world space (NDC cube -> World)
         let ndc_corners = [
             glam::vec3(-1.0, -1.0, 0.0), // Near bottom left
@@ -130,14 +183,18 @@ impl ShadowManager {
 
         // 4. Convert NDC to virtual grid coordinates
         // NDC [-1, 1] -> Grid [0, virtual_grid_size]
-        let grid_min_x = (((min_x + 1.0) * 0.5) * self.virtual_grid_size as f32).floor() as u32;
-        let grid_max_x = (((max_x + 1.0) * 0.5) * self.virtual_grid_size as f32).ceil() as u32;
-        let grid_min_y = (((min_y + 1.0) * 0.5) * self.virtual_grid_size as f32).floor() as u32;
-        let grid_max_y = (((max_y + 1.0) * 0.5) * self.virtual_grid_size as f32).ceil() as u32;
+        let grid_min_x =
+            (((min_x + 1.0) * 0.5) * self.config.virtual_grid_size as f32).floor() as u32;
+        let grid_max_x =
+            (((max_x + 1.0) * 0.5) * self.config.virtual_grid_size as f32).ceil() as u32;
+        let grid_min_y =
+            (((min_y + 1.0) * 0.5) * self.config.virtual_grid_size as f32).floor() as u32;
+        let grid_max_y =
+            (((max_y + 1.0) * 0.5) * self.config.virtual_grid_size as f32).ceil() as u32;
 
         let mut required = Vec::new();
-        for y in grid_min_y..grid_max_y.min(self.virtual_grid_size) {
-            for x in grid_min_x..grid_max_x.min(self.virtual_grid_size) {
+        for y in grid_min_y..grid_max_y.min(self.config.virtual_grid_size) {
+            for x in grid_min_x..grid_max_x.min(self.config.virtual_grid_size) {
                 required.push((x, y));
             }
         }
@@ -155,7 +212,7 @@ impl ShadowManager {
         y: u32,
     ) -> Mat4 {
         // Calculate the range in NDC space [-1, 1] for this page
-        let s = self.virtual_grid_size as f32;
+        let s = self.config.virtual_grid_size as f32;
         let x_min = -1.0 + (x as f32 * 2.0 / s);
         let x_max = -1.0 + ((x + 1) as f32 * 2.0 / s);
         let y_min = -1.0 + (y as f32 * 2.0 / s);
@@ -235,8 +292,8 @@ impl ShadowManager {
 
         for (key, record) in &self.cache {
             // Linear mapping of light+page to table index
-            let id = (key.light_id * self.virtual_grid_size * self.virtual_grid_size
-                + key.y * self.virtual_grid_size
+            let id = (key.light_id * self.config.virtual_grid_size * self.config.virtual_grid_size
+                + key.y * self.config.virtual_grid_size
                 + key.x)
                 % self.table_capacity;
 

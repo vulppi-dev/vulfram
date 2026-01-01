@@ -15,8 +15,6 @@ pub struct CmdLightCreateArgs {
     #[serde(default)]
     pub kind: Option<LightKind>,
     #[serde(default)]
-    pub flags: Option<u32>,
-    #[serde(default)]
     pub position: Option<Vec4>,
     #[serde(default)]
     pub direction: Option<Vec4>,
@@ -30,6 +28,8 @@ pub struct CmdLightCreateArgs {
     pub spot_inner_outer: Option<Vec2>,
     #[serde(default = "default_layer_mask")]
     pub layer_mask: u32,
+    #[serde(default = "crate::core::resources::common::default_true")]
+    pub cast_shadow: bool,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -66,7 +66,6 @@ pub fn engine_cmd_light_create(
     }
 
     let kind = args.kind.unwrap_or(LightKind::Point);
-    let flags = args.flags.unwrap_or(0);
     let position = args.position.unwrap_or(Vec4::new(0.0, 1.0, 0.0, 1.0));
     let direction = args.direction.unwrap_or(Vec4::new(0.0, -1.0, 0.0, 0.0));
     let color = args.color.unwrap_or(Vec4::new(1.0, 1.0, 1.0, 1.0));
@@ -82,10 +81,10 @@ pub fn engine_cmd_light_create(
         range,
         spot_inner_outer,
         kind,
-        flags,
+        args.cast_shadow,
     );
 
-    let record = LightRecord::new(component, args.layer_mask);
+    let record = LightRecord::new(component, args.layer_mask, args.cast_shadow);
     window_state
         .render_state
         .scene
@@ -110,7 +109,6 @@ pub struct CmdLightUpdateArgs {
     pub window_id: u32,
     pub light_id: u32,
     pub kind: Option<LightKind>,
-    pub flags: Option<u32>,
     pub position: Option<Vec4>,
     pub direction: Option<Vec4>,
     pub color: Option<Vec4>,
@@ -118,6 +116,7 @@ pub struct CmdLightUpdateArgs {
     pub range: Option<f32>,
     pub spot_inner_outer: Option<Vec2>,
     pub layer_mask: Option<u32>,
+    pub cast_shadow: Option<bool>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -160,8 +159,13 @@ pub fn engine_cmd_light_update(
         record.data.kind_flags.x = kind as u32;
     }
 
-    if let Some(flags) = args.flags {
-        record.data.kind_flags.y = flags;
+    if let Some(cast_shadow) = args.cast_shadow {
+        record.cast_shadow = cast_shadow;
+        if cast_shadow {
+            record.data.kind_flags.y |= LightComponent::FLAG_CAST_SHADOW;
+        } else {
+            record.data.kind_flags.y &= !LightComponent::FLAG_CAST_SHADOW;
+        }
     }
 
     if let Some(position) = args.position {
@@ -191,6 +195,7 @@ pub fn engine_cmd_light_update(
     if let Some(layer_mask) = args.layer_mask {
         record.layer_mask = layer_mask;
     }
+
 
     record.mark_dirty();
     if let Some(shadow) = window_state.render_state.shadow.as_mut() {

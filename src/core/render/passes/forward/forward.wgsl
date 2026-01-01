@@ -25,6 +25,7 @@ struct Model {
     translation: vec4<f32>,
     rotation: vec4<f32>,
     scale: vec4<f32>,
+    flags: vec4<u32>, // x: flags (bit 0: receive_shadow)
 }
 
 struct LightDrawParams {
@@ -132,32 +133,52 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             
             var shadow = 1.0;
             
-            // --- Lógica VSM ---
-            let light_clip = light.view_projection * vec4<f32>(in.world_position, 1.0);
-            let light_ndc = light_clip.xyz / light_clip.w;
-            
-            // WGPU NDC to UV: X [-1, 1] -> [0, 1], Y [1, -1] -> [0, 1]
-            let light_uv = vec2<f32>(light_ndc.x * 0.5 + 0.5, light_ndc.y * -0.5 + 0.5);
-            // Grid lookup should use the same NDC orientation used by the shadow page selection.
-            let light_grid_uv = vec2<f32>(light_ndc.x * 0.5 + 0.5, light_ndc.y * 0.5 + 0.5);
-            let light_depth = light_ndc.z;
+            let model_receive_shadow = (model.flags.x & 1u) != 0u;
+            let light_cast_shadow = (light.kind_flags.y & 1u) != 0u;
 
-            if (light_uv.x >= 0.0 && light_uv.x <= 1.0 && light_uv.y >= 0.0 && light_uv.y <= 1.0 && light_depth >= 0.0 && light_depth <= 1.0) {
-                let virtual_grid_size = 1.0;
-                let grid_x = u32(clamp(light_grid_uv.x * virtual_grid_size, 0.0, virtual_grid_size - 1.0));
-                let grid_y = u32(clamp(light_grid_uv.y * virtual_grid_size, 0.0, virtual_grid_size - 1.0));
+            if (model_receive_shadow && light_cast_shadow) {
+                // --- Lógica VSM ---
+                let light_clip = light.view_projection * vec4<f32>(in.world_position, 1.0);
+                let light_ndc = light_clip.xyz / light_clip.w;
                 
-                let table_id = (idx + grid_y + grid_x) % 1024u;
-                let page = shadow_page_table[table_id];
+                // WGPU NDC to UV: X [-1, 1] -> [0, 1], Y [1, -1] -> [0, 1]
+                let light_uv = vec2<f32>(light_ndc.x * 0.5 + 0.5, light_ndc.y * -0.5 + 0.5);
+                // Grid lookup should use the same NDC orientation used by the shadow page selection.
+                let light_grid_uv = vec2<f32>(light_ndc.x * 0.5 + 0.5, light_ndc.y * 0.5 + 0.5);
+                let light_depth = light_ndc.z;
 
-                if (any(page.scale_offset != vec4<f32>(0.0))) {
-                    let grid_y_flipped = (virtual_grid_size - 1.0) - f32(grid_y);
-                    let page_origin = vec2<f32>(f32(grid_x), grid_y_flipped) / virtual_grid_size;
-                    let page_uv = clamp((light_uv - page_origin) * virtual_grid_size, vec2<f32>(0.0), vec2<f32>(1.0));
-                    let atlas_uv = (page_uv * page.scale_offset.xy) + page.scale_offset.zw;
-                    // Bias adaptativo simples para reduzir acne
-                    let bias = max(0.002, 0.02 * (1.0 - ndotl));
-                    shadow = textureSampleCompare(shadow_atlas, shadow_sampler, atlas_uv, i32(page.layer_index), light_depth - bias);
+                if (light_uv.x >= 0.0 && light_uv.x <= 1.0 && light_uv.y >= 0.0 && light_uv.y <= 1.0 && light_depth >= 0.0 && light_depth <= 1.0) {
+                    let virtual_grid_size = 1.0;
+                    let grid_x = u32(clamp(light_grid_uv.x * virtual_grid_size, 0.0, virtual_grid_size - 1.0));
+                    let grid_y = u32(clamp(light_grid_uv.y * virtual_grid_size, 0.0, virtual_grid_size - 1.0));
+                    
+                    let table_id = (idx + grid_y + grid_x) % 1024u;
+                    let page = shadow_page_table[table_id];
+
+                    if (any(page.scale_offset != vec4<f32>(0.0))) {
+                        let grid_y_flipped = (virtual_grid_size - 1.0) - f32(grid_y);
+                        let page_origin = vec2<f32>(f32(grid_x), grid_y_flipped) / virtual_grid_size;
+                        let page_uv = clamp((light_uv - page_origin) * virtual_grid_size, vec2<f32>(0.0), vec2<f32>(1.0));
+                        let atlas_uv = (page_uv * page.scale_offset.xy) + page.scale_offset.zw;
+                        // Bias adaptativo simples para reduzir acne
+                        let bias = max(0.002, 0.02 * (1.0 - ndotl));
+                        let dim = textureDimensions(shadow_atlas);
+                        let texel = 1.0 / vec2<f32>(f32(dim.x), f32(dim.y));
+                        var sum = 0.0;
+                        for (var oy = -1; oy <= 1; oy = oy + 1) {
+                            for (var ox = -1; ox <= 1; ox = ox + 1) {
+                                let offset = vec2<f32>(f32(ox), f32(oy)) * texel;
+                                sum += textureSampleCompare(
+                                    shadow_atlas,
+                                    shadow_sampler,
+                                    atlas_uv + offset,
+                                    i32(page.layer_index),
+                                    light_depth - bias
+                                );
+                            }
+                        }
+                        shadow = sum / 9.0;
+                    }
                 }
             }
 

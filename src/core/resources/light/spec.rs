@@ -22,11 +22,13 @@ pub struct LightComponent {
     pub view_projection: Mat4,
     pub intensity_range: Vec2,
     pub spot_inner_outer: Vec2,
-    pub kind_flags: UVec2,
+    pub kind_flags: UVec2, // x: kind, y: flags (bit 0: cast_shadow)
     pub _padding: UVec2,
 }
 
 impl LightComponent {
+    pub const FLAG_CAST_SHADOW: u32 = 1 << 0;
+
     pub fn new(
         position: Vec4,
         direction: Vec4,
@@ -35,10 +37,15 @@ impl LightComponent {
         range: f32,
         spot_inner_outer: Vec2,
         kind: LightKind,
-        flags: u32,
+        cast_shadow: bool,
     ) -> Self {
         let view = Mat4::IDENTITY;
         let projection = Mat4::IDENTITY;
+
+        let mut flags = 0u32;
+        if cast_shadow {
+            flags |= Self::FLAG_CAST_SHADOW;
+        }
 
         Self {
             position,
@@ -58,14 +65,16 @@ impl LightComponent {
 pub struct LightRecord {
     pub data: LightComponent,
     pub layer_mask: u32,
+    pub cast_shadow: bool,
     pub is_dirty: bool,
 }
 
 impl LightRecord {
-    pub fn new(data: LightComponent, layer_mask: u32) -> Self {
+    pub fn new(data: LightComponent, layer_mask: u32, cast_shadow: bool) -> Self {
         Self {
             data,
             layer_mask,
+            cast_shadow,
             is_dirty: true,
         }
     }

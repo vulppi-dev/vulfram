@@ -19,3 +19,6 @@ pub use spec::*;
 pub use storage::*;
 pub use uniform::*;
 pub use vertex::*;
+
+pub use crate::core::render::shadow::cmd::*;
+pub use crate::core::render::shadow::ShadowConfig;

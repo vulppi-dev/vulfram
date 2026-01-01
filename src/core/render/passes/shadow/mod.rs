@@ -52,6 +52,11 @@ pub fn pass_shadow_update(
             Some(record) => record,
             None => continue,
         };
+
+        if !light_record.cast_shadow {
+            continue;
+        }
+
         let light_view = light_record.data.view;
         let light_proj = light_record.data.projection;
         let light_view_proj = light_record.data.view_projection;
@@ -135,6 +140,10 @@ pub fn pass_shadow_update(
             }
 
             for (model_id, model_record) in &render_state.scene.models {
+                if !model_record.cast_shadow {
+                    continue;
+                }
+
                 if let Some(object_group) = bindings.object_group.as_ref() {
                     let offset = bindings.model_pool.get_offset(*model_id) as u32;
                     rpass.set_bind_group(1, object_group, &[offset]);

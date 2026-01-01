@@ -4,7 +4,8 @@ use crate::core::VulframResult;
 use crate::core::cmd::{CommandResponse, CommandResponseEnvelope, EngineCmd, EngineCmdEnvelope};
 use crate::core::resources::{
     CameraKind, CmdCameraCreateArgs, CmdLightCreateArgs, CmdModelCreateArgs,
-    CmdPrimitiveGeometryCreateArgs, LightKind, PrimitiveShape,
+    CmdPrimitiveGeometryCreateArgs, CmdShadowConfigureArgs, LightKind, PrimitiveShape,
+    ShadowConfig,
 };
 use crate::core::window::{CmdWindowCloseArgs, CmdWindowCreateArgs};
 use glam::{Mat4, Vec2, Vec3, Vec4};
@@ -79,7 +80,6 @@ fn main() {
             window_id,
             light_id,
             kind: Some(LightKind::Directional),
-            flags: Some(0),
             position: Some(Vec4::new(0.0, 15.0, 5.0, 1.0)),
             direction: Some(Vec4::new(0.0, -1.0, -0.3, 0.0)),
             color: Some(Vec4::new(1.0, 1.0, 1.0, 1.0)),
@@ -87,6 +87,7 @@ fn main() {
             range: Some(100.0),
             spot_inner_outer: Some(Vec2::new(0.7, 0.9)),
             layer_mask: 0xFFFFFFFF,
+            cast_shadow: true,
         }),
         // 4. Create models
         EngineCmd::CmdModelCreate(CmdModelCreateArgs {
@@ -96,6 +97,8 @@ fn main() {
             material_id: None,
             transform: Mat4::from_translation(Vec3::new(0.0, 1.0, 0.0)),
             layer_mask: 0xFFFFFFFF,
+            cast_shadow: true,
+            receive_shadow: true,
         }),
         EngineCmd::CmdModelCreate(CmdModelCreateArgs {
             window_id,
@@ -105,6 +108,19 @@ fn main() {
             transform: Mat4::from_rotation_x(-std::f32::consts::FRAC_PI_2)
                 * Mat4::from_scale(Vec3::new(10.0, 10.0, 1.0)),
             layer_mask: 0xFFFFFFFF,
+            cast_shadow: true,
+            receive_shadow: true,
+        }),
+        // 5. Configure Shadows
+        EngineCmd::CmdShadowConfigure(CmdShadowConfigureArgs {
+            window_id,
+            config: ShadowConfig {
+                tile_resolution: 2048,
+                atlas_tiles_w: 4,
+                atlas_tiles_h: 4,
+                atlas_layers: 1,
+                virtual_grid_size: 1,
+            },
         }),
     ];
 
@@ -134,8 +150,26 @@ fn main() {
             material_id: None,
             transform: Some(rotation),
             layer_mask: None,
+            cast_shadow: None,
+            receive_shadow: None,
         });
         let _ = send_commands(vec![update_cmd]);
+
+        // Dynamic shadow reconfiguration test at 5 seconds
+        if total_ms >= 5000 && total_ms < 5016 {
+            println!("Dynamically changing shadow resolution to 128px...");
+            let reconfig_cmd = EngineCmd::CmdShadowConfigure(CmdShadowConfigureArgs {
+                window_id,
+                config: ShadowConfig {
+                    tile_resolution: 128,
+                    atlas_tiles_w: 4,
+                    atlas_tiles_h: 4,
+                    atlas_layers: 1,
+                    virtual_grid_size: 1,
+                },
+            });
+            let _ = send_commands(vec![reconfig_cmd]);
+        }
 
         assert_eq!(
             core::vulfram_tick(total_ms, delta_ms),

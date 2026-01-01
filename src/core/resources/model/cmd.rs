@@ -18,6 +18,10 @@ pub struct CmdModelCreateArgs {
     pub transform: Mat4,
     #[serde(default = "default_layer_mask")]
     pub layer_mask: u32,
+    #[serde(default = "crate::core::resources::common::default_true")]
+    pub cast_shadow: bool,
+    #[serde(default = "crate::core::resources::common::default_true")]
+    pub receive_shadow: bool,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -73,12 +77,14 @@ pub fn engine_cmd_model_create(
         };
     }
 
-    let component = ModelComponent::new(args.transform);
+    let component = ModelComponent::new(args.transform, args.receive_shadow);
     let record = ModelRecord::new(
         component,
         args.geometry_id,
         args.material_id,
         args.layer_mask,
+        args.cast_shadow,
+        args.receive_shadow,
     );
     window_state
         .render_state
@@ -108,6 +114,8 @@ pub struct CmdModelUpdateArgs {
     pub material_id: Option<u32>,
     pub transform: Option<Mat4>,
     pub layer_mask: Option<u32>,
+    pub cast_shadow: Option<bool>,
+    pub receive_shadow: Option<bool>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -174,11 +182,20 @@ pub fn engine_cmd_model_update(
         record.material_id = args.material_id;
     }
 
-    record.data.update(args.transform);
+    if let Some(cast_shadow) = args.cast_shadow {
+        record.cast_shadow = cast_shadow;
+    }
+
+    if let Some(receive_shadow) = args.receive_shadow {
+        record.receive_shadow = receive_shadow;
+    }
+
+    record.data.update(args.transform, args.receive_shadow);
 
     if let Some(layer_mask) = args.layer_mask {
         record.layer_mask = layer_mask;
     }
+
 
     record.mark_dirty();
     if let Some(shadow) = window_state.render_state.shadow.as_mut() {

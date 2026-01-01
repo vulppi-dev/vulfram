@@ -14,6 +14,7 @@ struct Model {
     translation: vec4<f32>,
     rotation: vec4<f32>,
     scale: vec4<f32>,
+    flags: vec4<u32>, // x: flags (bit 0: receive_shadow)
 }
 
 @group(0) @binding(1) var<uniform> camera: Camera;

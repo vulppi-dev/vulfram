@@ -111,16 +111,16 @@ fn main() {
             cast_shadow: true,
             receive_shadow: true,
         }),
-        // 5. Configure Shadows
+        // 5. Configure Shadows: Stage 1 - Low Res, No Smoothing
         EngineCmd::CmdShadowConfigure(CmdShadowConfigureArgs {
             window_id,
             config: ShadowConfig {
-                tile_resolution: 2048,
+                tile_resolution: 256,
                 atlas_tiles_w: 4,
                 atlas_tiles_h: 4,
                 atlas_layers: 1,
                 virtual_grid_size: 1,
-                smoothing: 1,
+                smoothing: 0,
             },
         }),
     ];
@@ -156,18 +156,52 @@ fn main() {
         });
         let _ = send_commands(vec![update_cmd]);
 
-        // Dynamic shadow reconfiguration test at 5 seconds
-        if total_ms >= 5000 && total_ms < 5016 {
-            println!("Dynamically changing shadow resolution to 128px...");
+        // Stage 2: Low Res, With Smoothing (at 2.5s)
+        if total_ms >= 2500 && total_ms < 2516 {
+            println!("Shadow Stage 2: Low Res (256px), With Smoothing (2)...");
             let reconfig_cmd = EngineCmd::CmdShadowConfigure(CmdShadowConfigureArgs {
                 window_id,
                 config: ShadowConfig {
-                    tile_resolution: 128,
+                    tile_resolution: 256,
                     atlas_tiles_w: 4,
                     atlas_tiles_h: 4,
                     atlas_layers: 1,
                     virtual_grid_size: 1,
-                    smoothing: 2, // Extra smooth low res
+                    smoothing: 2,
+                },
+            });
+            let _ = send_commands(vec![reconfig_cmd]);
+        }
+
+        // Stage 3: High Res, No Smoothing (at 5.0s)
+        if total_ms >= 5000 && total_ms < 5016 {
+            println!("Shadow Stage 3: High Res (2048px), No Smoothing (0)...");
+            let reconfig_cmd = EngineCmd::CmdShadowConfigure(CmdShadowConfigureArgs {
+                window_id,
+                config: ShadowConfig {
+                    tile_resolution: 2048,
+                    atlas_tiles_w: 4,
+                    atlas_tiles_h: 4,
+                    atlas_layers: 1,
+                    virtual_grid_size: 1,
+                    smoothing: 0,
+                },
+            });
+            let _ = send_commands(vec![reconfig_cmd]);
+        }
+
+        // Stage 4: High Res, With Smoothing (at 7.5s)
+        if total_ms >= 7500 && total_ms < 7516 {
+            println!("Shadow Stage 4: High Res (2048px), With Smoothing (2)...");
+            let reconfig_cmd = EngineCmd::CmdShadowConfigure(CmdShadowConfigureArgs {
+                window_id,
+                config: ShadowConfig {
+                    tile_resolution: 2048,
+                    atlas_tiles_w: 4,
+                    atlas_tiles_h: 4,
+                    atlas_layers: 1,
+                    virtual_grid_size: 1,
+                    smoothing: 2,
                 },
             });
             let _ = send_commands(vec![reconfig_cmd]);

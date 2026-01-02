@@ -75,19 +75,50 @@ fn main() {
             view_position: None,
             ortho_scale: 10.0,
         }),
-        // 3. Create a directional light for shadows
+        // 3. Create a spot light
         EngineCmd::CmdLightCreate(CmdLightCreateArgs {
             window_id,
-            light_id,
-            kind: Some(LightKind::Directional),
-            position: Some(Vec4::new(0.0, 15.0, 5.0, 1.0)),
-            direction: Some(Vec4::new(0.0, -1.0, -0.3, 0.0)),
-            color: Some(Vec4::new(1.0, 1.0, 1.0, 1.0)),
-            intensity: Some(1.0),
-            range: Some(100.0),
-            spot_inner_outer: Some(Vec2::new(0.7, 0.9)),
+            light_id: 1,
+            kind: Some(LightKind::Spot),
+            position: Some(Vec4::new(-5.0, 10.0, 0.0, 1.0)),
+            direction: Some(Vec4::new(0.5, -1.0, 0.0, 0.0)),
+            color: Some(Vec4::new(1.0, 0.3, 0.2, 1.0)),
+            ground_color: None,
+            intensity: Some(2.0),
+            range: Some(30.0),
+            spot_inner_outer: Some(Vec2::new(0.3, 0.6)),
             layer_mask: 0xFFFFFFFF,
             cast_shadow: true,
+        }),
+        // 3.1 Create a point light
+        EngineCmd::CmdLightCreate(CmdLightCreateArgs {
+            window_id,
+            light_id: 2,
+            kind: Some(LightKind::Point),
+            position: Some(Vec4::new(5.0, 5.0, 0.0, 1.0)),
+            direction: None,
+            color: Some(Vec4::new(0.2, 0.9, 0.4, 1.0)),
+            ground_color: None,
+            intensity: Some(2.0),
+            range: Some(20.0),
+            spot_inner_outer: None,
+            layer_mask: 0xFFFFFFFF,
+            cast_shadow: true,
+        }),
+        // 3.5 Create a hemisphere light
+        EngineCmd::CmdLightCreate(CmdLightCreateArgs {
+            window_id,
+            light_id: 3,
+            kind: Some(LightKind::Hemisphere),
+            position: None,
+            direction: Some(Vec4::new(0.0, 1.0, 0.0, 0.0)),
+            color: Some(Vec4::new(0.2, 0.4, 0.9, 1.0)),
+            ground_color: Some(Vec4::new(0.05, 0.1, 0.2, 1.0)),
+            intensity: Some(0.1),
+            range: None,
+            spot_inner_outer: None,
+            layer_mask: 0xFFFFFFFF,
+            cast_shadow: false,
         }),
         // 4. Create models
         EngineCmd::CmdModelCreate(CmdModelCreateArgs {
@@ -106,7 +137,7 @@ fn main() {
             geometry_id: geometry_plane,
             material_id: None,
             transform: Mat4::from_rotation_x(-std::f32::consts::FRAC_PI_2)
-                * Mat4::from_scale(Vec3::new(10.0, 10.0, 1.0)),
+                * Mat4::from_scale(Vec3::new(20.0, 20.0, 1.0)),
             layer_mask: 0xFFFFFFFF,
             cast_shadow: true,
             receive_shadow: true,
@@ -128,12 +159,12 @@ fn main() {
     assert_eq!(send_commands(setup_cmds), VulframResult::Success);
     let _ = receive_responses();
 
-    println!("Rendering for 10 seconds...");
+    println!("Rendering for 20 seconds...");
     let start_time = Instant::now();
     let mut last_frame_time = Instant::now();
     let mut total_ms: u64 = 0;
 
-    while start_time.elapsed() < Duration::from_secs(10) {
+    while start_time.elapsed() < Duration::from_secs(20) {
         let now = Instant::now();
         let delta_ms = now.duration_since(last_frame_time).as_millis() as u32;
         last_frame_time = now;
@@ -154,10 +185,29 @@ fn main() {
             cast_shadow: None,
             receive_shadow: None,
         });
-        let _ = send_commands(vec![update_cmd]);
 
-        // Stage 2: Low Res, With Smoothing (at 2.5s)
-        if total_ms >= 2500 && total_ms < 2516 {
+        // Update point light position
+        let light_x = (total_ms as f32 / 1000.0).cos() * 5.0;
+        let light_z = (total_ms as f32 / 1000.0).sin() * 5.0;
+        let light_update = EngineCmd::CmdLightUpdate(crate::core::resources::CmdLightUpdateArgs {
+            window_id,
+            light_id: 2,
+            kind: None,
+            position: Some(Vec4::new(light_x, 5.0, light_z, 1.0)),
+            direction: None,
+            color: None,
+            ground_color: None,
+            intensity: None,
+            range: None,
+            spot_inner_outer: None,
+            layer_mask: None,
+            cast_shadow: None,
+        });
+
+        let _ = send_commands(vec![update_cmd, light_update]);
+
+        // Stage 2: Low Res, With Smoothing (at 5.0s)
+        if total_ms >= 5000 && total_ms < 5016 {
             println!("Shadow Stage 2: Low Res (256px), With Smoothing (2)...");
             let reconfig_cmd = EngineCmd::CmdShadowConfigure(CmdShadowConfigureArgs {
                 window_id,
@@ -173,8 +223,8 @@ fn main() {
             let _ = send_commands(vec![reconfig_cmd]);
         }
 
-        // Stage 3: High Res, No Smoothing (at 5.0s)
-        if total_ms >= 5000 && total_ms < 5016 {
+        // Stage 3: High Res, No Smoothing (at 10.0s)
+        if total_ms >= 10000 && total_ms < 10016 {
             println!("Shadow Stage 3: High Res (2048px), No Smoothing (0)...");
             let reconfig_cmd = EngineCmd::CmdShadowConfigure(CmdShadowConfigureArgs {
                 window_id,
@@ -190,8 +240,8 @@ fn main() {
             let _ = send_commands(vec![reconfig_cmd]);
         }
 
-        // Stage 4: High Res, With Smoothing (at 7.5s)
-        if total_ms >= 7500 && total_ms < 7516 {
+        // Stage 4: High Res, With Smoothing (at 15.0s)
+        if total_ms >= 15000 && total_ms < 15016 {
             println!("Shadow Stage 4: High Res (2048px), With Smoothing (2)...");
             let reconfig_cmd = EngineCmd::CmdShadowConfigure(CmdShadowConfigureArgs {
                 window_id,
@@ -206,7 +256,6 @@ fn main() {
             });
             let _ = send_commands(vec![reconfig_cmd]);
         }
-
         assert_eq!(
             core::vulfram_tick(total_ms, delta_ms),
             VulframResult::Success

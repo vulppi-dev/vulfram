@@ -247,11 +247,7 @@ impl RenderState {
         };
 
         // 2. Create Shared Bind Group (Consolidated Group 0)
-        let shadow = if with_shadows {
-            self.shadow.as_ref()
-        } else {
-            None
-        };
+        let shadow_manager = self.shadow.as_ref().expect("ShadowManager missing");
 
         bindings.shared_group = Some(
             device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -327,27 +323,23 @@ impl RenderState {
                     wgpu::BindGroupEntry {
                         binding: 6,
                         resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: shadow
-                                .map(|s| s.params_pool.buffer())
-                                .unwrap_or(bindings.frame_pool.buffer()),
+                            buffer: shadow_manager.params_pool.buffer(),
                             offset: 0,
                             size: None,
                         }),
                     },
                     wgpu::BindGroupEntry {
                         binding: 7,
-                        resource: wgpu::BindingResource::TextureView(
-                            shadow
-                                .map(|s| s.atlas.view())
-                                .unwrap_or(&library.fallback_shadow_view),
-                        ),
+                        resource: wgpu::BindingResource::TextureView(if with_shadows {
+                            shadow_manager.atlas.view()
+                        } else {
+                            &library.fallback_shadow_view
+                        }),
                     },
                     wgpu::BindGroupEntry {
                         binding: 8,
                         resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: shadow
-                                .map(|s| s.page_table.buffer())
-                                .unwrap_or(light_system.lights.buffer()),
+                            buffer: shadow_manager.page_table.buffer(),
                             offset: 0,
                             size: None,
                         }),
@@ -404,7 +396,7 @@ impl RenderState {
         ));
 
         let alignment = device.limits().min_uniform_buffer_offset_alignment as u64;
-        let storage_alignment = device.limits().min_storage_buffer_offset_alignment as u64;
+        let storage_alignment = 0; // Tight packing: no dynamic offsets for storage buffers.
 
         // Initialize bindings
         self.bindings = Some(BindingSystem {
@@ -432,7 +424,7 @@ impl RenderState {
             queue: queue.clone(),
         });
 
-        self.shadow = Some(ShadowManager::new(device, queue, 1024));
+        self.shadow = Some(ShadowManager::new(device, queue, 2048));
 
         // Initialize fallback texture
         let fallback_texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -868,11 +860,8 @@ impl RenderState {
                 // View matrix
                 record.data.view = glam::Mat4::look_to_rh(light_pos, light_dir, glam::Vec3::Y);
 
-                // Projection matrix (Directional light uses Orthographic)
+                // Projection matrix
                 // WGPU range: X [-1, 1], Y [-1, 1], Z [0, 1]
-                let ortho = glam::Mat4::orthographic_rh(-20.0, 20.0, -20.0, 20.0, 0.1, 100.0);
-
-                // Remap Z from [-1, 1] to [0, 1] for WGPU compatibility
                 let correction = glam::Mat4::from_cols(
                     glam::vec4(1.0, 0.0, 0.0, 0.0),
                     glam::vec4(0.0, 1.0, 0.0, 0.0),
@@ -880,7 +869,26 @@ impl RenderState {
                     glam::vec4(0.0, 0.0, 0.5, 1.0),
                 );
 
-                record.data.projection = correction * ortho;
+                match record.data.kind_flags.x {
+                    0 => {
+                        // Directional
+                        let ortho =
+                            glam::Mat4::orthographic_rh(-20.0, 20.0, -20.0, 20.0, 0.1, 100.0);
+                        record.data.projection = correction * ortho;
+                    }
+                    2 => {
+                        // Spot
+                        let outer_angle = record.data.spot_inner_outer.y;
+                        let fov = outer_angle * 2.0;
+                        let range = record.data.intensity_range.y;
+                        let persp = glam::Mat4::perspective_rh(fov, 1.0, 0.1, range);
+                        record.data.projection = correction * persp;
+                    }
+                    _ => {
+                        record.data.projection = glam::Mat4::IDENTITY;
+                    }
+                }
+
                 record.data.view_projection = record.data.projection * record.data.view;
                 record.clear_dirty();
             }

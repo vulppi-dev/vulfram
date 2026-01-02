@@ -21,6 +21,8 @@ pub struct CmdLightCreateArgs {
     #[serde(default)]
     pub color: Option<Vec4>,
     #[serde(default)]
+    pub ground_color: Option<Vec4>,
+    #[serde(default)]
     pub intensity: Option<f32>,
     #[serde(default)]
     pub range: Option<f32>,
@@ -69,6 +71,7 @@ pub fn engine_cmd_light_create(
     let position = args.position.unwrap_or(Vec4::new(0.0, 1.0, 0.0, 1.0));
     let direction = args.direction.unwrap_or(Vec4::new(0.0, -1.0, 0.0, 0.0));
     let color = args.color.unwrap_or(Vec4::new(1.0, 1.0, 1.0, 1.0));
+    let ground_color = args.ground_color.unwrap_or(Vec4::new(0.0, 0.0, 0.0, 1.0));
     let intensity = args.intensity.unwrap_or(1.0);
     let range = args.range.unwrap_or(10.0);
     let spot_inner_outer = args.spot_inner_outer.unwrap_or(Vec2::new(0.5, 0.8));
@@ -77,6 +80,7 @@ pub fn engine_cmd_light_create(
         position,
         direction,
         color,
+        ground_color,
         intensity,
         range,
         spot_inner_outer,
@@ -112,6 +116,7 @@ pub struct CmdLightUpdateArgs {
     pub position: Option<Vec4>,
     pub direction: Option<Vec4>,
     pub color: Option<Vec4>,
+    pub ground_color: Option<Vec4>,
     pub intensity: Option<f32>,
     pub range: Option<f32>,
     pub spot_inner_outer: Option<Vec2>,
@@ -178,6 +183,10 @@ pub fn engine_cmd_light_update(
 
     if let Some(color) = args.color {
         record.data.color = color;
+    }
+
+    if let Some(ground_color) = args.ground_color {
+        record.data.ground_color = ground_color;
     }
 
     if let Some(intensity) = args.intensity {

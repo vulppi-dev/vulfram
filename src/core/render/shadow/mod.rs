@@ -47,6 +47,7 @@ pub struct ShadowParams {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ShadowPageKey {
     pub light_id: u32,
+    pub face: u32,
     pub x: u32,
     pub y: u32,
 }
@@ -110,7 +111,7 @@ impl ShadowManager {
 
         let atlas = AtlasSystem::new(device, atlas_desc);
         let alignment = device.limits().min_uniform_buffer_offset_alignment as u64;
-        let storage_alignment = device.limits().min_storage_buffer_offset_alignment as u64;
+        let storage_alignment = 0; // Tight packing: no dynamic offsets for storage buffers.
 
         let page_table =
             StorageBufferPool::new(device, queue, Some(table_capacity), storage_alignment);
@@ -170,48 +171,61 @@ impl ShadowManager {
     }
 
     /// Identifies which virtual pages are required for a given light and camera.
+
     /// Returns a list of (x, y) coordinates in the virtual grid.
+
     pub fn identify_required_pages(
         &self,
+
         light_view_proj: Mat4,
+
         camera_inv_view_proj: Mat4,
     ) -> Vec<(u32, u32)> {
-        // ... (rest of the method using self.config.virtual_grid_size)
-        // Note: I will need to replace self.virtual_grid_size with self.config.virtual_grid_size in the implementation
-        // 1. Get camera frustum corners in world space (NDC cube -> World)
+        // 1. Get camera frustum corners in world space (NDC cube -> World).
+        // Camera uses OpenGL-style clip depth (z in [-1, 1]).
         let ndc_corners = [
-            glam::vec3(-1.0, -1.0, 0.0), // Near bottom left
-            glam::vec3(1.0, -1.0, 0.0),  // Near bottom right
-            glam::vec3(-1.0, 1.0, 0.0),  // Near top left
-            glam::vec3(1.0, 1.0, 0.0),   // Near top right
-            glam::vec3(-1.0, -1.0, 1.0), // Far bottom left
-            glam::vec3(1.0, -1.0, 1.0),  // Far bottom right
-            glam::vec3(-1.0, 1.0, 1.0),  // Far top left
-            glam::vec3(1.0, 1.0, 1.0),   // Far top right
+            glam::vec3(-1.0, -1.0, -1.0), // Near bottom left
+            glam::vec3(1.0, -1.0, -1.0),  // Near bottom right
+            glam::vec3(-1.0, 1.0, -1.0),  // Near top left
+            glam::vec3(1.0, 1.0, -1.0),   // Near top right
+            glam::vec3(-1.0, -1.0, 1.0),  // Far bottom left
+            glam::vec3(1.0, -1.0, 1.0),   // Far bottom right
+            glam::vec3(-1.0, 1.0, 1.0),   // Far top left
+            glam::vec3(1.0, 1.0, 1.0),    // Far top right
         ];
 
         let mut world_corners = [glam::Vec3::ZERO; 8];
+
         for i in 0..8 {
             let world_pos = camera_inv_view_proj * ndc_corners[i].extend(1.0);
+
             world_corners[i] = world_pos.xyz() / world_pos.w;
         }
 
         // 2. Transform world corners to light NDC space
+
         let mut min_ndc = glam::vec2(1.0, 1.0);
+
         let mut max_ndc = glam::vec2(-1.0, -1.0);
 
         for corner in world_corners {
             let light_ndc = light_view_proj * corner.extend(1.0);
+
             let ndc = light_ndc.xy() / light_ndc.w;
 
             min_ndc = min_ndc.min(ndc);
+
             max_ndc = max_ndc.max(ndc);
         }
 
         // 3. Clamp to light viewport [-1, 1]
+
         let min_x = min_ndc.x.max(-1.0);
+
         let max_x = max_ndc.x.min(1.0);
+
         let min_y = min_ndc.y.max(-1.0);
+
         let max_y = max_ndc.y.min(1.0);
 
         if min_x > max_x || min_y > max_y {
@@ -219,17 +233,23 @@ impl ShadowManager {
         }
 
         // 4. Convert NDC to virtual grid coordinates
-        // NDC [-1, 1] -> Grid [0, virtual_grid_size]
-        let grid_min_x =
-            (((min_x + 1.0) * 0.5) * self.config.virtual_grid_size as f32).floor() as u32;
-        let grid_max_x =
-            (((max_x + 1.0) * 0.5) * self.config.virtual_grid_size as f32).ceil() as u32;
-        let grid_min_y =
-            (((min_y + 1.0) * 0.5) * self.config.virtual_grid_size as f32).floor() as u32;
-        let grid_max_y =
-            (((max_y + 1.0) * 0.5) * self.config.virtual_grid_size as f32).ceil() as u32;
+
+        // NDC X: -1.0 is left (0), 1.0 is right (s)
+
+        // NDC Y: 1.0 is top (0), -1.0 is bottom (s)
+
+        let s = self.config.virtual_grid_size as f32;
+
+        let grid_min_x = (((min_x + 1.0) * 0.5) * s).floor() as u32;
+
+        let grid_max_x = (((max_x + 1.0) * 0.5) * s).ceil() as u32;
+
+        let grid_min_y = (((1.0 - max_y) * 0.5) * s).floor() as u32;
+
+        let grid_max_y = (((1.0 - min_y) * 0.5) * s).ceil() as u32;
 
         let mut required = Vec::new();
+
         for y in grid_min_y..grid_max_y.min(self.config.virtual_grid_size) {
             for x in grid_min_x..grid_max_x.min(self.config.virtual_grid_size) {
                 required.push((x, y));
@@ -240,26 +260,42 @@ impl ShadowManager {
     }
 
     /// Calculates the View-Projection matrix for a specific virtual page.
+
     /// This "zooms in" the light's base projection to the specific page area.
+
     pub fn get_page_view_projection(
         &self,
+
         light_view: Mat4,
+
         light_proj: Mat4,
+
         x: u32,
+
         y: u32,
     ) -> Mat4 {
         // Calculate the range in NDC space [-1, 1] for this page
+
         let s = self.config.virtual_grid_size as f32;
+
         let x_min = -1.0 + (x as f32 * 2.0 / s);
+
         let x_max = -1.0 + ((x + 1) as f32 * 2.0 / s);
-        let y_min = -1.0 + (y as f32 * 2.0 / s);
-        let y_max = -1.0 + ((y + 1) as f32 * 2.0 / s);
+
+        // y=0 is top NDC (1.0)
+
+        let y_max = 1.0 - (y as f32 * 2.0 / s);
+
+        let y_min = 1.0 - ((y + 1) as f32 * 2.0 / s);
 
         // Create a scale and bias matrix to transform the base projection
-        // We want to map the [x_min, x_max] range to [-1, 1]
+
         let scale_x = 2.0 / (x_max - x_min);
+
         let scale_y = 2.0 / (y_max - y_min);
+
         let offset_x = -(x_max + x_min) / (x_max - x_min);
+
         let offset_y = -(y_max + y_min) / (y_max - y_min);
 
         let custom_proj = Mat4::from_cols(
@@ -279,11 +315,17 @@ impl ShadowManager {
     pub fn request_page(
         &mut self,
         light_id: u32,
+        face: u32,
         x: u32,
         y: u32,
         frame_index: u64,
     ) -> Option<AtlasHandle> {
-        let key = ShadowPageKey { light_id, x, y };
+        let key = ShadowPageKey {
+            light_id,
+            face,
+            x,
+            y,
+        };
 
         if let Some(record) = self.cache.get_mut(&key) {
             record.last_frame_used = frame_index;
@@ -328,8 +370,10 @@ impl ShadowManager {
         let mut entries = vec![ShadowPageEntry::default(); self.table_capacity as usize];
 
         for (key, record) in &self.cache {
-            // Linear mapping of light+page to table index
-            let id = (key.light_id * self.config.virtual_grid_size * self.config.virtual_grid_size
+            // Linear mapping of light+face+page to table index
+            // Assuming up to 6 faces per light (1 for Dir/Spot, 6 for Point)
+            let light_base = key.light_id * 6 + key.face;
+            let id = (light_base * self.config.virtual_grid_size * self.config.virtual_grid_size
                 + key.y * self.config.virtual_grid_size
                 + key.x)
                 % self.table_capacity;

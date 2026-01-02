@@ -9,6 +9,8 @@ pub enum LightKind {
     Directional = 0,
     Point,
     Spot,
+    Ambient,
+    Hemisphere,
 }
 
 #[derive(Debug, Clone, Copy, Pod, Zeroable, Deserialize, Serialize)]
@@ -17,6 +19,7 @@ pub struct LightComponent {
     pub position: Vec4,
     pub direction: Vec4,
     pub color: Vec4,
+    pub ground_color: Vec4,
     pub view: Mat4,
     pub projection: Mat4,
     pub view_projection: Mat4,
@@ -33,6 +36,7 @@ impl LightComponent {
         position: Vec4,
         direction: Vec4,
         color: Vec4,
+        ground_color: Vec4,
         intensity: f32,
         range: f32,
         spot_inner_outer: Vec2,
@@ -51,6 +55,7 @@ impl LightComponent {
             position,
             direction,
             color,
+            ground_color,
             view,
             projection,
             view_projection: projection * view,

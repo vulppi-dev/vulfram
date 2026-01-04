@@ -15,7 +15,6 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
 
 @group(0) @binding(0) var t_diffuse: texture_2d<f32>;
 @group(0) @binding(1) var s_diffuse: sampler;
-@group(0) @binding(2) var shadow_atlas: texture_depth_2d_array;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {

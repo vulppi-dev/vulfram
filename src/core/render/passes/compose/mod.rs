@@ -6,7 +6,6 @@ fn build_compose_bind_group(
     device: &wgpu::Device,
     library: &ResourceLibrary,
     target_view: &wgpu::TextureView,
-    shadow_view: &wgpu::TextureView,
 ) -> wgpu::BindGroup {
     device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some("Compose Bind Group"),
@@ -19,10 +18,6 @@ fn build_compose_bind_group(
             wgpu::BindGroupEntry {
                 binding: 1,
                 resource: wgpu::BindingResource::Sampler(&library.samplers.point_clamp),
-            },
-            wgpu::BindGroupEntry {
-                binding: 2,
-                resource: wgpu::BindingResource::TextureView(shadow_view),
             },
         ],
     })
@@ -140,13 +135,7 @@ pub fn pass_compose(
         render_pass.set_viewport(x as f32, y as f32, width as f32, height as f32, 0.0, 1.0);
 
         // 5. Create Bind Group for this camera's target
-        let shadow_view = render_state
-            .shadow
-            .as_ref()
-            .map(|shadow| shadow.atlas.view())
-            .unwrap_or(&library.fallback_shadow_view);
-
-        let bind_group = build_compose_bind_group(device, library, &target.view, shadow_view);
+        let bind_group = build_compose_bind_group(device, library, &target.view);
 
         render_pass.set_bind_group(0, &bind_group, &[]);
         render_pass.draw(0..3, 0..1);

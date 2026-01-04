@@ -16,7 +16,6 @@
 
 use std::ops::Range;
 
-use bytemuck::Pod;
 use wgpu::{Buffer, BufferDescriptor, BufferUsages, Device, Queue};
 
 // -----------------------------------------------------------------------------
@@ -174,26 +173,6 @@ impl ArenaAllocator {
         &self.buffer
     }
 
-    #[inline]
-    pub fn capacity_bytes(&self) -> u64 {
-        self.capacity_bytes
-    }
-
-    #[inline]
-    pub fn live_bytes(&self) -> u64 {
-        self.live_bytes
-    }
-
-    #[inline]
-    pub fn dead_bytes(&self) -> u64 {
-        self.dead_bytes
-    }
-
-    #[inline]
-    pub fn alignment(&self) -> u64 {
-        self.align
-    }
-
     // -------------------------------------------------------------------------
     // Frame lifecycle / deferred drop
     // -------------------------------------------------------------------------
@@ -227,29 +206,6 @@ impl ArenaAllocator {
             offset: rec.offset,
             size: rec.size,
         }
-    }
-
-    // -------------------------------------------------------------------------
-    // Capacity management (byte-based, used by higher-level element planning)
-    // -------------------------------------------------------------------------
-
-    /// Ensure the backing buffer can hold at least `required_capacity_bytes`.
-    /// This does not change the cursor; it only grows the underlying buffer if needed.
-    pub fn ensure_capacity_bytes(&mut self, required_capacity_bytes: u64) {
-        if required_capacity_bytes <= self.capacity_bytes {
-            return;
-        }
-        self.grow_to_fit(required_capacity_bytes);
-    }
-
-    /// Convenience helper: ensure capacity based on element count and stride.
-    /// `required_bytes = align_up(required_elems * stride_bytes)`
-    pub fn ensure_capacity_elems(&mut self, required_elems: u64, stride_bytes: u64) {
-        assert!(stride_bytes > 0);
-        let required = required_elems
-            .checked_mul(stride_bytes)
-            .expect("required capacity overflow");
-        self.ensure_capacity_bytes(Self::align_up_to(required, self.align));
     }
 
     // -------------------------------------------------------------------------
@@ -303,17 +259,6 @@ impl ArenaAllocator {
         }
     }
 
-    /// Allocate based on element count and stride, rounded up to alignment.
-    pub fn allocate_elems(&mut self, elem_count: u64, stride_bytes: u64) -> AllocHandle {
-        assert!(elem_count > 0);
-        assert!(stride_bytes > 0);
-        let raw = elem_count
-            .checked_mul(stride_bytes)
-            .expect("allocation overflow");
-        let size = Self::align_up_to(raw, self.align);
-        self.allocate(size)
-    }
-
     // -------------------------------------------------------------------------
     // Writes
     // -------------------------------------------------------------------------
@@ -358,13 +303,6 @@ impl ArenaAllocator {
         let h = self.allocate(padded_len as u64);
         self.write_bytes(h, &tmp);
         h
-    }
-
-    /// Allocate and write a POD slice.
-    pub fn allocate_and_write_pod_slice<T: Pod>(&mut self, values: &[T]) -> AllocHandle {
-        assert!(!values.is_empty(), "cannot allocate empty slice");
-        let bytes = bytemuck::cast_slice(values);
-        self.allocate_and_write_padded(bytes)
     }
 
     // -------------------------------------------------------------------------

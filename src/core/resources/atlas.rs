@@ -294,10 +294,6 @@ impl AtlasSystem {
         Some((scale_x, scale_y, bias_x, bias_y, slot.layer))
     }
 
-    pub fn texture(&self) -> &wgpu::Texture {
-        &self._texture
-    }
-
     pub fn view(&self) -> &wgpu::TextureView {
         &self.view
     }

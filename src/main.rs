@@ -42,7 +42,6 @@ fn main() {
     let model_cube: u32 = 1;
     let model_plane: u32 = 2;
     let model_light_marker: u32 = 3;
-    let light_id: u32 = 1;
 
     let setup_cmds = vec![
         // 1. Create geometries

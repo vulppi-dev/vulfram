@@ -400,14 +400,8 @@ impl VertexAllocatorSystem {
     ) -> Result<GeometryStorage, VertexAllocError> {
         self.ensure_default_capacity(vertex_count);
 
-        let index_alloc = if let Some((mut bytes, info)) = index_info {
-            pad_to_4(&mut bytes);
-            let h = self.index_u32.allocate(bytes.len() as u64);
-            self.queue.write_buffer(
-                self.index_u32.buffer(),
-                self.index_u32.slice(h).range().start,
-                &bytes,
-            );
+        let index_alloc = if let Some((bytes, info)) = index_info {
+            let h = self.index_u32.allocate_and_write_padded(&bytes);
             Some(types::IndexAlloc { handle: h, info })
         } else {
             None
@@ -416,14 +410,8 @@ impl VertexAllocatorSystem {
         let mut handles: [Option<AllocHandle>; STREAM_COUNT] = [(); STREAM_COUNT].map(|_| None);
 
         for s in all_streams() {
-            if let Some(mut bytes) = stream_bytes[s as usize].take() {
-                pad_to_4(&mut bytes);
-                let h = self.streams[s as usize].allocate(bytes.len() as u64);
-                self.queue.write_buffer(
-                    self.streams[s as usize].buffer(),
-                    self.streams[s as usize].slice(h).range().start,
-                    &bytes,
-                );
+            if let Some(bytes) = stream_bytes[s as usize].take() {
+                let h = self.streams[s as usize].allocate_and_write_padded(&bytes);
                 handles[s as usize] = Some(h);
             }
         }

@@ -173,6 +173,9 @@ impl RenderState {
     pub fn begin_frame(&mut self, frame_index: u64) {
         if let Some(vertex) = self.vertex.as_mut() {
             vertex.begin_frame(frame_index);
+            if frame_index % 120 == 0 {
+                vertex.maybe_compact_all(frame_index, 0.25, 0.3, 256 * 1024);
+            }
         }
         if let Some(bindings) = self.bindings.as_mut() {
             bindings.frame_pool.begin_frame(frame_index);

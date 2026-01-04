@@ -280,7 +280,7 @@ impl AtlasSystem {
         let atlas_w = (self.tiles_w * self.pitch_px) as f32;
         let atlas_h = (self.tiles_h * self.pitch_px) as f32;
 
-        // Inner rect in pixels
+        // Inner rect in pixels (considering the pitch includes the guards)
         let inner_x = (tx * self.pitch_px + self.guard_px) as f32;
         let inner_y = (ty * self.pitch_px + self.guard_px) as f32;
         let inner_w = (tw * self.pitch_px - 2 * self.guard_px) as f32;

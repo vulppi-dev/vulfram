@@ -40,7 +40,12 @@ impl Default for ShadowConfig {
 pub struct ShadowParams {
     pub virtual_grid_size: f32,
     pub pcf_range: i32,
-    pub _padding: [f32; 2],
+    pub table_capacity: u32,
+    pub bias_min: f32,
+    pub bias_slope: f32,
+    pub point_bias_min: f32,
+    pub point_bias_slope: f32,
+    pub _padding: f32,
 }
 
 /// Unique identifier for a virtual shadow page
@@ -86,6 +91,7 @@ impl Default for ShadowPageEntry {
 pub struct ShadowManager {
     pub atlas: AtlasSystem,
     pub page_table: StorageBufferPool<ShadowPageEntry>,
+    pub point_light_vp: StorageBufferPool<glam::Mat4>,
     pub params_pool: UniformBufferPool<ShadowParams>,
     pub table_capacity: u32,
     pub is_dirty: bool,
@@ -115,6 +121,7 @@ impl ShadowManager {
 
         let page_table =
             StorageBufferPool::new(device, queue, Some(table_capacity), storage_alignment);
+        let point_light_vp = StorageBufferPool::new(device, queue, Some(128), storage_alignment);
         let mut params_pool = UniformBufferPool::new(device, queue, Some(1), alignment);
 
         params_pool.write(
@@ -122,13 +129,19 @@ impl ShadowManager {
             &ShadowParams {
                 virtual_grid_size: config.virtual_grid_size as f32,
                 pcf_range: config.smoothing as i32,
-                _padding: [0.0; 2],
+                table_capacity,
+                bias_min: 0.0001,
+                bias_slope: 0.001,
+                point_bias_min: 0.002,
+                point_bias_slope: 0.01,
+                _padding: 0.0,
             },
         );
 
         Self {
             atlas,
             page_table,
+            point_light_vp,
             params_pool,
             table_capacity,
             cache: HashMap::new(),
@@ -150,7 +163,12 @@ impl ShadowManager {
             &ShadowParams {
                 virtual_grid_size: config.virtual_grid_size as f32,
                 pcf_range: config.smoothing as i32,
-                _padding: [0.0; 2],
+                table_capacity: self.table_capacity,
+                bias_min: 0.0001,
+                bias_slope: 0.001,
+                point_bias_min: 0.002,
+                point_bias_slope: 0.01,
+                _padding: 0.0,
             },
         );
 
@@ -371,7 +389,6 @@ impl ShadowManager {
 
         for (key, record) in &self.cache {
             // Linear mapping of light+face+page to table index
-            // Assuming up to 6 faces per light (1 for Dir/Spot, 6 for Point)
             let light_base = key.light_id * 6 + key.face;
             let id = (light_base * self.config.virtual_grid_size * self.config.virtual_grid_size
                 + key.y * self.config.virtual_grid_size
@@ -392,6 +409,7 @@ impl ShadowManager {
 
     pub fn begin_frame(&mut self, frame_index: u64) {
         self.page_table.begin_frame(frame_index);
+        self.point_light_vp.begin_frame(frame_index);
         self.params_pool.begin_frame(frame_index);
     }
 

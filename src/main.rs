@@ -27,6 +27,8 @@ fn main() {
         window_id,
         title: "Vulfram Render Test".into(),
         size: glam::UVec2::new(1280, 720),
+        resizable: true,
+        initial_state: crate::core::window::EngineWindowState::Maximized,
         ..Default::default()
     });
     assert_eq!(send_commands(vec![create_cmd]), VulframResult::Success);
@@ -39,9 +41,11 @@ fn main() {
     println!("Creating geometry, camera and models...");
     let geometry_cube: u32 = 1;
     let geometry_plane: u32 = 2;
+    let geometry_sphere: u32 = 3;
     let camera_id: u32 = 1;
     let model_cube: u32 = 1;
     let model_plane: u32 = 2;
+    let model_light_marker: u32 = 3;
     let light_id: u32 = 1;
 
     let setup_cmds = vec![
@@ -56,6 +60,12 @@ fn main() {
             window_id,
             geometry_id: geometry_plane,
             shape: PrimitiveShape::Plane,
+            options: None,
+        }),
+        EngineCmd::CmdPrimitiveGeometryCreate(CmdPrimitiveGeometryCreateArgs {
+            window_id,
+            geometry_id: geometry_sphere,
+            shape: PrimitiveShape::Sphere,
             options: None,
         }),
         // 2. Create a camera
@@ -75,21 +85,6 @@ fn main() {
             view_position: None,
             ortho_scale: 10.0,
         }),
-        // 3. Create a spot light
-        EngineCmd::CmdLightCreate(CmdLightCreateArgs {
-            window_id,
-            light_id: 1,
-            kind: Some(LightKind::Spot),
-            position: Some(Vec4::new(-5.0, 10.0, 0.0, 1.0)),
-            direction: Some(Vec4::new(0.5, -1.0, 0.0, 0.0)),
-            color: Some(Vec4::new(1.0, 0.3, 0.2, 1.0)),
-            ground_color: None,
-            intensity: Some(2.0),
-            range: Some(30.0),
-            spot_inner_outer: Some(Vec2::new(0.3, 0.6)),
-            layer_mask: 0xFFFFFFFF,
-            cast_shadow: true,
-        }),
         // 3.1 Create a point light
         EngineCmd::CmdLightCreate(CmdLightCreateArgs {
             window_id,
@@ -97,7 +92,7 @@ fn main() {
             kind: Some(LightKind::Point),
             position: Some(Vec4::new(5.0, 5.0, 0.0, 1.0)),
             direction: None,
-            color: Some(Vec4::new(0.2, 0.9, 0.4, 1.0)),
+            color: Some(Vec4::new(1.0, 1.0, 1.0, 1.0)),
             ground_color: None,
             intensity: Some(2.0),
             range: Some(20.0),
@@ -105,21 +100,63 @@ fn main() {
             layer_mask: 0xFFFFFFFF,
             cast_shadow: true,
         }),
-        // 3.5 Create a hemisphere light
-        EngineCmd::CmdLightCreate(CmdLightCreateArgs {
-            window_id,
-            light_id: 3,
-            kind: Some(LightKind::Hemisphere),
-            position: None,
-            direction: Some(Vec4::new(0.0, 1.0, 0.0, 0.0)),
-            color: Some(Vec4::new(0.2, 0.4, 0.9, 1.0)),
-            ground_color: Some(Vec4::new(0.05, 0.1, 0.2, 1.0)),
-            intensity: Some(0.1),
-            range: None,
-            spot_inner_outer: None,
-            layer_mask: 0xFFFFFFFF,
-            cast_shadow: false,
-        }),
+        // 3.6 Create a point light in center above cube
+        // EngineCmd::CmdLightCreate(CmdLightCreateArgs {
+        //     window_id,
+        //     light_id: 4,
+        //     kind: Some(LightKind::Point),
+        //     position: Some(Vec4::new(-3.0, 3.0, 0.0, 1.0)),
+        //     direction: None,
+        //     color: Some(Vec4::new(0.0, 0.0, 1.0, 1.0)),
+        //     ground_color: None,
+        //     intensity: Some(2.0),
+        //     range: Some(20.0),
+        //     spot_inner_outer: None,
+        //     layer_mask: 0xFFFFFFFF,
+        //     cast_shadow: true,
+        // }),
+        // EngineCmd::CmdLightCreate(CmdLightCreateArgs {
+        //     window_id,
+        //     light_id: 5,
+        //     kind: Some(LightKind::Point),
+        //     position: Some(Vec4::new(4.0, 5.0, 0.0, 1.0)),
+        //     direction: None,
+        //     color: Some(Vec4::new(1.0, 0.0, 0.0, 1.0)),
+        //     ground_color: None,
+        //     intensity: Some(2.0),
+        //     range: Some(20.0),
+        //     spot_inner_outer: None,
+        //     layer_mask: 0xFFFFFFFF,
+        //     cast_shadow: true,
+        // }),
+        // EngineCmd::CmdLightCreate(CmdLightCreateArgs {
+        //     window_id,
+        //     light_id: 4,
+        //     kind: Some(LightKind::Point),
+        //     position: Some(Vec4::new(-4.0, 5.0, 0.0, 1.0)),
+        //     direction: None,
+        //     color: Some(Vec4::new(0.0, 1.0, 1.0, 1.0)),
+        //     ground_color: None,
+        //     intensity: Some(2.0),
+        //     range: Some(20.0),
+        //     spot_inner_outer: None,
+        //     layer_mask: 0xFFFFFFFF,
+        //     cast_shadow: true,
+        // }),
+        // EngineCmd::CmdLightCreate(CmdLightCreateArgs {
+        //     window_id,
+        //     light_id: 5,
+        //     kind: Some(LightKind::Point),
+        //     position: Some(Vec4::new(4.0, 5.0, 0.0, 1.0)),
+        //     direction: None,
+        //     color: Some(Vec4::new(1.0, 1.0, 0.0, 1.0)),
+        //     ground_color: None,
+        //     intensity: Some(2.0),
+        //     range: Some(20.0),
+        //     spot_inner_outer: None,
+        //     layer_mask: 0xFFFFFFFF,
+        //     cast_shadow: true,
+        // }),
         // 4. Create models
         EngineCmd::CmdModelCreate(CmdModelCreateArgs {
             window_id,
@@ -142,13 +179,24 @@ fn main() {
             cast_shadow: true,
             receive_shadow: true,
         }),
-        // 5. Configure Shadows: Stage 1 - Low Res, No Smoothing
+        EngineCmd::CmdModelCreate(CmdModelCreateArgs {
+            window_id,
+            model_id: model_light_marker,
+            geometry_id: geometry_sphere,
+            material_id: None,
+            transform: Mat4::from_translation(Vec3::new(5.0, 5.0, 0.0))
+                * Mat4::from_scale(Vec3::splat(0.2)),
+            layer_mask: 0xFFFFFFFF,
+            cast_shadow: false,
+            receive_shadow: false,
+        }),
+        // 5. Configure Shadows: High Res, No Smoothing
         EngineCmd::CmdShadowConfigure(CmdShadowConfigureArgs {
             window_id,
             config: ShadowConfig {
-                tile_resolution: 256,
-                atlas_tiles_w: 4,
-                atlas_tiles_h: 4,
+                tile_resolution: 1024,
+                atlas_tiles_w: 16, // 16x16 = 256 tiles total
+                atlas_tiles_h: 16, // 16x16 = 256 tiles total
                 atlas_layers: 1,
                 virtual_grid_size: 1,
                 smoothing: 0,
@@ -186,6 +234,22 @@ fn main() {
             receive_shadow: None,
         });
 
+        // Update plane rotation
+        let plane_angle = (total_ms as f32 / 1000.0) * 0.5;
+        let plane_rotation = Mat4::from_rotation_y(plane_angle)
+            * Mat4::from_rotation_x(-std::f32::consts::FRAC_PI_2)
+            * Mat4::from_scale(Vec3::new(20.0, 20.0, 1.0));
+        let plane_update = EngineCmd::CmdModelUpdate(crate::core::resources::CmdModelUpdateArgs {
+            window_id,
+            model_id: model_plane,
+            geometry_id: None,
+            material_id: None,
+            transform: Some(plane_rotation),
+            layer_mask: None,
+            cast_shadow: None,
+            receive_shadow: None,
+        });
+
         // Update point light position
         let light_x = (total_ms as f32 / 1000.0).cos() * 5.0;
         let light_z = (total_ms as f32 / 1000.0).sin() * 5.0;
@@ -204,58 +268,22 @@ fn main() {
             cast_shadow: None,
         });
 
-        let _ = send_commands(vec![update_cmd, light_update]);
+        let marker_update = EngineCmd::CmdModelUpdate(crate::core::resources::CmdModelUpdateArgs {
+            window_id,
+            model_id: model_light_marker,
+            geometry_id: None,
+            material_id: None,
+            transform: Some(
+                Mat4::from_translation(Vec3::new(light_x, 5.0, light_z))
+                    * Mat4::from_scale(Vec3::splat(0.2)),
+            ),
+            layer_mask: None,
+            cast_shadow: None,
+            receive_shadow: None,
+        });
 
-        // Stage 2: Low Res, With Smoothing (at 5.0s)
-        if total_ms >= 5000 && total_ms < 5016 {
-            println!("Shadow Stage 2: Low Res (256px), With Smoothing (2)...");
-            let reconfig_cmd = EngineCmd::CmdShadowConfigure(CmdShadowConfigureArgs {
-                window_id,
-                config: ShadowConfig {
-                    tile_resolution: 256,
-                    atlas_tiles_w: 4,
-                    atlas_tiles_h: 4,
-                    atlas_layers: 1,
-                    virtual_grid_size: 1,
-                    smoothing: 2,
-                },
-            });
-            let _ = send_commands(vec![reconfig_cmd]);
-        }
+        let _ = send_commands(vec![update_cmd, plane_update, light_update, marker_update]);
 
-        // Stage 3: High Res, No Smoothing (at 10.0s)
-        if total_ms >= 10000 && total_ms < 10016 {
-            println!("Shadow Stage 3: High Res (2048px), No Smoothing (0)...");
-            let reconfig_cmd = EngineCmd::CmdShadowConfigure(CmdShadowConfigureArgs {
-                window_id,
-                config: ShadowConfig {
-                    tile_resolution: 2048,
-                    atlas_tiles_w: 4,
-                    atlas_tiles_h: 4,
-                    atlas_layers: 1,
-                    virtual_grid_size: 1,
-                    smoothing: 0,
-                },
-            });
-            let _ = send_commands(vec![reconfig_cmd]);
-        }
-
-        // Stage 4: High Res, With Smoothing (at 15.0s)
-        if total_ms >= 15000 && total_ms < 15016 {
-            println!("Shadow Stage 4: High Res (2048px), With Smoothing (2)...");
-            let reconfig_cmd = EngineCmd::CmdShadowConfigure(CmdShadowConfigureArgs {
-                window_id,
-                config: ShadowConfig {
-                    tile_resolution: 2048,
-                    atlas_tiles_w: 4,
-                    atlas_tiles_h: 4,
-                    atlas_layers: 1,
-                    virtual_grid_size: 1,
-                    smoothing: 2,
-                },
-            });
-            let _ = send_commands(vec![reconfig_cmd]);
-        }
         assert_eq!(
             core::vulfram_tick(total_ms, delta_ms),
             VulframResult::Success

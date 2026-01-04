@@ -15,9 +15,23 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
 
 @group(0) @binding(0) var t_diffuse: texture_2d<f32>;
 @group(0) @binding(1) var s_diffuse: sampler;
+@group(0) @binding(2) var shadow_atlas: texture_depth_2d_array;
+
+const SHOW_SHADOW_ATLAS: bool = false;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    if (SHOW_SHADOW_ATLAS) {
+        let dims = textureDimensions(shadow_atlas);
+        let uv = clamp(in.uv, vec2<f32>(0.0), vec2<f32>(1.0));
+        let quadrant = vec2<i32>(uv * 1.0);
+        let layer = quadrant.y + quadrant.x;
+        let local_uv = fract(uv * 1.0);
+        let px = vec2<i32>(local_uv * vec2<f32>(f32(dims.x), f32(dims.y)));
+        let depth = textureLoad(shadow_atlas, px, layer, 0);
+        return vec4<f32>(vec3<f32>(1.0 - depth), 1.0);
+    }
+
     let color = textureSample(t_diffuse, s_diffuse, in.uv);
     // Simple Tonemapping (Reinhard) since we are coming from Rgba32Float
     let mapped = color.rgb / (color.rgb + vec3<f32>(1.0));

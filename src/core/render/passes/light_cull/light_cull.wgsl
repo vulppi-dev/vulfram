@@ -5,7 +5,8 @@ struct Light {
     intensity_range: vec2<f32>,
     spot_inner_outer: vec2<f32>,
     kind_flags: vec2<u32>,
-    _padding: vec2<u32>,
+    shadow_index: u32,
+    _padding: u32,
 };
 
 struct LightCullParams {

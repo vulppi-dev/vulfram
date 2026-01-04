@@ -26,6 +26,6 @@ struct VertexInput {
 
 @vertex
 fn vs_main(in: VertexInput) -> @builtin(position) vec4<f32> {
-    // Camera here will be the Light's View-Projection for the specific page
-    return camera.view_projection * model.transform * vec4<f32>(in.position, 1.0);
+    let world_pos = model.transform * vec4<f32>(in.position, 1.0);
+    return camera.view_projection * world_pos;
 }

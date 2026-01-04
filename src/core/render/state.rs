@@ -238,6 +238,9 @@ impl RenderState {
             if record.is_dirty {
                 bindings.model_pool.write(*id, &record.data);
                 record.clear_dirty();
+                if let Some(shadow) = self.shadow.as_mut() {
+                    shadow.mark_dirty();
+                }
             }
         }
 
@@ -363,6 +366,14 @@ impl RenderState {
                     wgpu::BindGroupEntry {
                         binding: 13,
                         resource: wgpu::BindingResource::Sampler(&library.samplers.comparison),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 14,
+                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                            buffer: shadow_manager.point_light_vp.buffer(),
+                            offset: 0,
+                            size: None,
+                        }),
                     },
                 ],
             }),
@@ -677,6 +688,16 @@ impl RenderState {
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
                     count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 14,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
         });
 
@@ -714,6 +735,16 @@ impl RenderState {
                     binding: 1,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Depth,
+                        view_dimension: wgpu::TextureViewDimension::D2Array,
+                        multisampled: false,
+                    },
                     count: None,
                 },
             ],
@@ -844,9 +875,23 @@ impl RenderState {
             None => return,
         };
 
-        let mut lights = Vec::with_capacity(self.scene.lights.len());
+        // First pass: calculate shadow indices (only for lights that cast shadows)
+        let mut shadow_index_map = std::collections::HashMap::new();
+        let mut shadow_counter = 0u32;
         let mut light_ids: Vec<u32> = self.scene.lights.keys().copied().collect();
         light_ids.sort_unstable();
+
+        for light_id in &light_ids {
+            if let Some(record) = self.scene.lights.get(light_id) {
+                if record.cast_shadow {
+                    shadow_index_map.insert(*light_id, shadow_counter);
+                    shadow_counter += 1;
+                }
+            }
+        }
+
+        // Second pass: prepare lights with shadow index
+        let mut lights = Vec::with_capacity(self.scene.lights.len());
         for light_id in light_ids {
             let record = match self.scene.lights.get_mut(&light_id) {
                 Some(record) => record,
@@ -860,29 +905,32 @@ impl RenderState {
                 // View matrix
                 record.data.view = glam::Mat4::look_to_rh(light_pos, light_dir, glam::Vec3::Y);
 
-                // Projection matrix
-                // WGPU range: X [-1, 1], Y [-1, 1], Z [0, 1]
-                let correction = glam::Mat4::from_cols(
-                    glam::vec4(1.0, 0.0, 0.0, 0.0),
-                    glam::vec4(0.0, 1.0, 0.0, 0.0),
-                    glam::vec4(0.0, 0.0, 0.5, 0.0),
-                    glam::vec4(0.0, 0.0, 0.5, 1.0),
-                );
-
                 match record.data.kind_flags.x {
                     0 => {
                         // Directional
+                        // Orthographic produces [0, 1] by default in glam? No, orthographic_rh is usually [-1, 1].
+                        // We might need a correction for Orthographic if glam doesn't provide _zo variant.
+                        // glam::Mat4::orthographic_rh produces [-1, 1].
+                        // So we NEED correction for Directional.
+                        
+                        let correction = glam::Mat4::from_cols(
+                            glam::vec4(1.0, 0.0, 0.0, 0.0),
+                            glam::vec4(0.0, 1.0, 0.0, 0.0),
+                            glam::vec4(0.0, 0.0, 0.5, 0.0),
+                            glam::vec4(0.0, 0.0, 0.5, 1.0),
+                        );
                         let ortho =
                             glam::Mat4::orthographic_rh(-20.0, 20.0, -20.0, 20.0, 0.1, 100.0);
                         record.data.projection = correction * ortho;
                     }
                     2 => {
                         // Spot
+                        // perspective_rh produces [0, 1], so NO correction needed.
                         let outer_angle = record.data.spot_inner_outer.y;
                         let fov = outer_angle * 2.0;
                         let range = record.data.intensity_range.y;
                         let persp = glam::Mat4::perspective_rh(fov, 1.0, 0.1, range);
-                        record.data.projection = correction * persp;
+                        record.data.projection = persp;
                     }
                     _ => {
                         record.data.projection = glam::Mat4::IDENTITY;
@@ -892,7 +940,16 @@ impl RenderState {
                 record.data.view_projection = record.data.projection * record.data.view;
                 record.clear_dirty();
             }
-            lights.push(record.data);
+
+            // Store shadow index in shadow_index
+            let mut light_data = record.data;
+            if let Some(&shadow_idx) = shadow_index_map.get(&light_id) {
+                light_data.shadow_index = shadow_idx;
+            } else {
+                light_data.shadow_index = 0xFFFFFFFF; // Invalid index for lights that don't cast shadows
+            }
+
+            lights.push(light_data);
         }
 
         light_system.light_count = lights.len();

@@ -1,5 +1,4 @@
 pub mod common;
-pub use common::wgpu_projection_correction;
 
 mod atlas;
 mod camera;

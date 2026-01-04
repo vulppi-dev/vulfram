@@ -1,6 +1,6 @@
 use crate::core::render::RenderState;
 use crate::core::render::cache::PipelineKey;
-use crate::core::resources::{CameraComponent, VertexStream, wgpu_projection_correction};
+use crate::core::resources::{CameraComponent, VertexStream};
 use glam::Vec4Swizzles;
 
 pub fn pass_shadow_update(
@@ -14,14 +14,13 @@ pub fn pass_shadow_update(
         Some(s) => s,
         None => return,
     };
-    if !shadow_manager.is_dirty {
-        return;
-    }
 
     // If the manager is dirty, it means something in the scene changed (light or model).
-    // We must ensure all currently used pages are re-rendered.
-    for record in shadow_manager.cache.values_mut() {
-        record.is_dirty = true;
+    // We must mark all currently cached pages as dirty so they get re-rendered if used.
+    if shadow_manager.is_dirty {
+        for record in shadow_manager.cache.values_mut() {
+            record.is_dirty = true;
+        }
     }
 
     let library = match render_state.library.as_ref() {
@@ -54,7 +53,9 @@ pub fn pass_shadow_update(
 
     let mut light_ids: Vec<u32> = render_state.scene.lights.keys().copied().collect();
     light_ids.sort_unstable();
-    for (light_index, light_id) in light_ids.iter().copied().enumerate() {
+
+    let mut shadow_counter = 0u32;
+    for light_id in light_ids {
         let light_record = match render_state.scene.lights.get(&light_id) {
             Some(record) => record,
             None => continue,
@@ -63,7 +64,10 @@ pub fn pass_shadow_update(
         if !light_record.cast_shadow {
             continue;
         }
-
+        
+        let shadow_light_id = shadow_counter;
+        shadow_counter += 1;
+        
         let mut light_views = Vec::new();
         let mut light_projs = Vec::new();
 
@@ -72,21 +76,31 @@ pub fn pass_shadow_update(
                 // Point Light (6 faces)
                 let pos = light_record.data.position.xyz();
                 let range = light_record.data.intensity_range.y;
-                let projection = wgpu_projection_correction()
-                    * glam::Mat4::perspective_rh(std::f32::consts::FRAC_PI_2, 1.0, 0.1, range);
+                let near = 0.1;
+                let far = range;
 
-                // +X, -X, +Y, -Y, +Z, -Z
+                // FOV 90 degrees, aspect 1.0, convert to WGPU depth range [0, 1].
+                let correction = glam::Mat4::from_cols(
+                    glam::vec4(1.0, 0.0, 0.0, 0.0),
+                    glam::vec4(0.0, 1.0, 0.0, 0.0),
+                    glam::vec4(0.0, 0.0, 0.5, 0.0),
+                    glam::vec4(0.0, 0.0, 0.5, 1.0),
+                );
+                let projection = correction
+                    * glam::Mat4::perspective_rh(std::f32::consts::FRAC_PI_2, 1.0, near, far);
+
+                // Cubemap face directions and up vectors (standard cubemap convention)
                 let targets = [
-                    (glam::Vec3::X, glam::Vec3::Y),
-                    (glam::Vec3::NEG_X, glam::Vec3::Y),
-                    (glam::Vec3::Y, glam::Vec3::NEG_Z),
-                    (glam::Vec3::NEG_Y, glam::Vec3::Z),
-                    (glam::Vec3::Z, glam::Vec3::Y),
-                    (glam::Vec3::NEG_Z, glam::Vec3::Y),
+                    (pos + glam::Vec3::X, glam::Vec3::NEG_Y),     // +X: 0
+                    (pos + glam::Vec3::NEG_X, glam::Vec3::NEG_Y), // -X: 1
+                    (pos + glam::Vec3::Y, glam::Vec3::Z),         // +Y: 2
+                    (pos + glam::Vec3::NEG_Y, glam::Vec3::NEG_Z), // -Y: 3
+                    (pos + glam::Vec3::Z, glam::Vec3::NEG_Y),     // +Z: 4
+                    (pos + glam::Vec3::NEG_Z, glam::Vec3::NEG_Y), // -Z: 5
                 ];
 
                 for (target, up) in targets {
-                    light_views.push(glam::Mat4::look_to_rh(pos, target, up));
+                    light_views.push(glam::Mat4::look_at_rh(pos, target, up));
                     light_projs.push(projection);
                 }
             }
@@ -103,11 +117,31 @@ pub fn pass_shadow_update(
             .enumerate()
         {
             let light_view_proj = light_proj * light_view;
-            let required =
-                shadow_manager.identify_required_pages(light_view_proj, camera_inv_view_proj);
+            if light_record.data.kind_flags.x == 1 {
+                let vp_index = shadow_light_id * 6 + face_index as u32;
+                shadow_manager
+                    .point_light_vp
+                    .write(vp_index, &light_view_proj);
+            }
+
+            // For point lights (kind=1), always render all pages for all 6 faces
+            // For other lights, identify pages based on camera frustum
+            let required = if light_record.data.kind_flags.x == 1 {
+                // Point light: render all virtual pages for this face
+                let grid_size = shadow_manager.config.virtual_grid_size;
+                let mut all_pages = Vec::new();
+                for y in 0..grid_size {
+                    for x in 0..grid_size {
+                        all_pages.push((x, y));
+                    }
+                }
+                all_pages
+            } else {
+                // Directional/Spot: only render visible pages
+                shadow_manager.identify_required_pages(light_view_proj, camera_inv_view_proj)
+            };
 
             for (x, y) in required {
-                let shadow_light_id = light_index as u32;
                 if let Some(handle) = shadow_manager.request_page(
                     shadow_light_id,
                     face_index as u32,
@@ -122,8 +156,10 @@ pub fn pass_shadow_update(
                         y,
                     };
                     if let Some(record) = shadow_manager.cache.get_mut(&key) {
-                        pages_to_render.push((key, handle, light_view, light_proj));
-                        record.is_dirty = false;
+                        if record.is_dirty {
+                            pages_to_render.push((key, handle, light_view, light_proj));
+                            record.is_dirty = false;
+                        }
                     }
                 }
             }
@@ -198,10 +234,16 @@ pub fn pass_shadow_update(
 
         while i < render_pages.len() && render_pages[i].layer == layer {
             let page = &render_pages[i];
-            let vx = page.transform.2 * (info.tiles_w * info.pitch_px) as f32;
-            let vy = page.transform.3 * (info.tiles_h * info.pitch_px) as f32;
-            let vw = page.transform.0 * (info.tiles_w * info.pitch_px) as f32;
-            let vh = page.transform.1 * (info.tiles_h * info.pitch_px) as f32;
+            let atlas_w = (info.tiles_w * info.pitch_px) as f32;
+            let atlas_h = (info.tiles_h * info.pitch_px) as f32;
+
+            // transform: (scale_x, scale_y, bias_x, bias_y, layer)
+            let (sx, sy, bx, by, _) = page.transform;
+
+            let vx = bx * atlas_w;
+            let vy = by * atlas_h;
+            let vw = sx * atlas_w;
+            let vh = sy * atlas_h;
 
             rpass.set_viewport(vx, vy, vw, vh, 0.0, 1.0);
             rpass.set_scissor_rect(vx as u32, vy as u32, vw as u32, vh as u32);
@@ -223,6 +265,10 @@ pub fn pass_shadow_update(
 
                 if let Ok(Some(index_info)) = vertex_sys.index_info(model_record.geometry_id) {
                     let _ = vertex_sys.bind(&mut rpass, model_record.geometry_id);
+                    
+                    // Log only once per frame/model to avoid spam, or just relying on "it runs".
+                    // For now, let's just draw.
+                    // println!("Drawing shadow model {}", model_id); 
 
                     let key = PipelineKey {
                         shader_id: 2,                                      // Shadow Shader
@@ -230,7 +276,7 @@ pub fn pass_shadow_update(
                         depth_format: Some(wgpu::TextureFormat::Depth32Float),
                         sample_count: 1,
                         topology: wgpu::PrimitiveTopology::TriangleList,
-                        cull_mode: Some(wgpu::Face::Back),
+                        cull_mode: None,
                         front_face: wgpu::FrontFace::Ccw,
                         depth_write_enabled: true,
                         depth_compare: wgpu::CompareFunction::Less,
@@ -259,7 +305,7 @@ pub fn pass_shadow_update(
                             primitive: wgpu::PrimitiveState {
                                 topology: key.topology,
                                 front_face: key.front_face,
-                                cull_mode: key.cull_mode,
+                                cull_mode: None,
                                 ..Default::default()
                             },
                             depth_stencil: Some(wgpu::DepthStencilState {
@@ -267,7 +313,6 @@ pub fn pass_shadow_update(
                                 depth_write_enabled: true,
                                 depth_compare: wgpu::CompareFunction::Less,
                                 stencil: wgpu::StencilState::default(),
-                                // Bias to reduce self-shadowing artifacts (shadow acne).
                                 bias: wgpu::DepthBiasState {
                                     constant: 2,
                                     slope_scale: 2.0,

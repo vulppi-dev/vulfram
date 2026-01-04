@@ -26,7 +26,8 @@ pub struct LightComponent {
     pub intensity_range: Vec2,
     pub spot_inner_outer: Vec2,
     pub kind_flags: UVec2, // x: kind, y: flags (bit 0: cast_shadow)
-    pub _padding: UVec2,
+    pub shadow_index: u32,
+    pub _padding: u32,
 }
 
 impl LightComponent {
@@ -62,7 +63,8 @@ impl LightComponent {
             intensity_range: Vec2::new(intensity, range),
             spot_inner_outer,
             kind_flags: UVec2::new(kind as u32, flags),
-            _padding: UVec2::ZERO,
+            shadow_index: 0xFFFFFFFF,
+            _padding: 0,
         }
     }
 }

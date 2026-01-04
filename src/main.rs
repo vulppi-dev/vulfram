@@ -4,9 +4,9 @@ use crate::core::VulframResult;
 use crate::core::cmd::{CommandResponse, CommandResponseEnvelope, EngineCmd, EngineCmdEnvelope};
 use crate::core::resources::{
     CameraKind, CmdCameraCreateArgs, CmdLightCreateArgs, CmdModelCreateArgs,
-    CmdPrimitiveGeometryCreateArgs, CmdShadowConfigureArgs, LightKind, PrimitiveShape,
-    ShadowConfig,
+    CmdPrimitiveGeometryCreateArgs, LightKind, PrimitiveShape,
 };
+use crate::core::resources::shadow::{CmdShadowConfigureArgs, ShadowConfig};
 use crate::core::window::{CmdWindowCloseArgs, CmdWindowCreateArgs};
 use glam::{Mat4, Vec2, Vec3, Vec4};
 use rmp_serde::{from_slice, to_vec_named};
@@ -18,10 +18,8 @@ static ENGINE_GUARD: Mutex<()> = Mutex::new(());
 fn main() {
     let _lock = ENGINE_GUARD.lock().unwrap();
 
-    println!("Initializing Vulfram engine...");
     assert_eq!(core::vulfram_init(), VulframResult::Success);
 
-    println!("Creating window...");
     let window_id: u32 = 1;
     let create_cmd = EngineCmd::CmdWindowCreate(CmdWindowCreateArgs {
         window_id,
@@ -36,9 +34,7 @@ fn main() {
     // Give some time for window to be created and confirm it
     pump_for(Duration::from_millis(200));
     wait_for_confirmation(window_id);
-    println!("Window confirmed.");
-
-    println!("Creating geometry, camera and models...");
+    
     let geometry_cube: u32 = 1;
     let geometry_plane: u32 = 2;
     let geometry_sphere: u32 = 3;
@@ -207,7 +203,6 @@ fn main() {
     assert_eq!(send_commands(setup_cmds), VulframResult::Success);
     let _ = receive_responses();
 
-    println!("Rendering for 20 seconds...");
     let start_time = Instant::now();
     let mut last_frame_time = Instant::now();
     let mut total_ms: u64 = 0;
@@ -295,14 +290,11 @@ fn main() {
         std::thread::sleep(Duration::from_millis(16)); // ~60 FPS
     }
 
-    println!("Closing window...");
     let close_cmd = EngineCmd::CmdWindowClose(CmdWindowCloseArgs { window_id });
     assert_eq!(send_commands(vec![close_cmd]), VulframResult::Success);
     pump_for(Duration::from_millis(100));
 
-    println!("Disposing engine...");
     assert_eq!(core::vulfram_dispose(), VulframResult::Success);
-    println!("Vulfram test completed successfully.");
 }
 
 fn pump_for(duration: Duration) {
@@ -360,8 +352,5 @@ fn receive_responses() -> Vec<CommandResponseEnvelope> {
     // Reclaim the buffer allocated by the core
     let bytes = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, len)) };
     let responses = from_slice(&bytes).expect("failed to deserialize responses");
-    for response in &responses {
-        println!("Command response: {:?}", response);
-    }
     responses
 }

@@ -3,6 +3,17 @@ use crate::core::render::cache::PipelineKey;
 use crate::core::resources::{CameraComponent, VertexStream};
 use glam::Vec4Swizzles;
 
+fn perspective_rh_zo(fov_y: f32, aspect: f32, near: f32, far: f32) -> glam::Mat4 {
+    let f = 1.0 / (fov_y * 0.5).tan();
+    let nf = 1.0 / (near - far);
+    glam::Mat4::from_cols(
+        glam::vec4(f / aspect, 0.0, 0.0, 0.0),
+        glam::vec4(0.0, f, 0.0, 0.0),
+        glam::vec4(0.0, 0.0, far * nf, -1.0),
+        glam::vec4(0.0, 0.0, near * far * nf, 0.0),
+    )
+}
+
 pub fn pass_shadow_update(
     render_state: &mut RenderState,
     device: &wgpu::Device,
@@ -79,15 +90,9 @@ pub fn pass_shadow_update(
                 let near = 0.1;
                 let far = range;
 
-                // FOV 90 degrees, aspect 1.0, convert to WGPU depth range [0, 1].
-                let correction = glam::Mat4::from_cols(
-                    glam::vec4(1.0, 0.0, 0.0, 0.0),
-                    glam::vec4(0.0, 1.0, 0.0, 0.0),
-                    glam::vec4(0.0, 0.0, 0.5, 0.0),
-                    glam::vec4(0.0, 0.0, 0.5, 1.0),
-                );
-                let projection = correction
-                    * glam::Mat4::perspective_rh(std::f32::consts::FRAC_PI_2, 1.0, near, far);
+                // FOV 90 degrees, aspect 1.0, WGPU depth range [0, 1].
+                let projection =
+                    perspective_rh_zo(std::f32::consts::FRAC_PI_2, 1.0, near, far);
 
                 // Cubemap face directions and up vectors (standard cubemap convention)
                 let targets = [
@@ -149,7 +154,7 @@ pub fn pass_shadow_update(
                     y,
                     frame_index,
                 ) {
-                    let key = crate::core::render::shadow::ShadowPageKey {
+                    let key = crate::core::resources::shadow::ShadowPageKey {
                         light_id: shadow_light_id,
                         face: face_index as u32,
                         x,
@@ -172,7 +177,7 @@ pub fn pass_shadow_update(
 
     struct PageRender {
         layer: u32,
-        key: crate::core::render::shadow::ShadowPageKey,
+        key: crate::core::resources::shadow::ShadowPageKey,
         shadow_cam_id: u32,
         transform: (f32, f32, f32, f32, u32),
     }

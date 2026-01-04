@@ -1,4 +1,4 @@
-use crate::core::render::shadow::ShadowConfig;
+use super::ShadowConfig;
 use crate::core::state::EngineState;
 use serde::{Deserialize, Serialize};
 

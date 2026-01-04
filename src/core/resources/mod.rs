@@ -5,6 +5,7 @@ mod camera;
 mod geometry;
 mod light;
 mod model;
+pub mod shadow;
 mod spec;
 mod storage;
 mod uniform;
@@ -19,6 +20,3 @@ pub use spec::*;
 pub use storage::*;
 pub use uniform::*;
 pub use vertex::*;
-
-pub use crate::core::render::shadow::ShadowConfig;
-pub use crate::core::render::shadow::cmd::*;

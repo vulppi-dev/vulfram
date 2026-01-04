@@ -9,6 +9,7 @@ use std::marker::PhantomData;
 
 #[derive(Debug)]
 struct GarbageEntry {
+    #[allow(unused)]
     buffer: wgpu::Buffer,
     retire_after_frame: u64,
 }

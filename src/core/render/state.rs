@@ -2,12 +2,42 @@ use std::collections::HashMap;
 
 use crate::core::render::cache::RenderCache;
 use crate::core::render::passes::RenderPasses;
-use crate::core::render::shadow::ShadowManager;
+use crate::core::resources::shadow::ShadowManager;
 use crate::core::resources::{
     CameraComponent, CameraRecord, FrameComponent, LightComponent, LightRecord, ModelComponent,
     ModelRecord, RenderTarget, StorageBufferPool, UniformBufferPool, VertexAllocatorConfig,
     VertexAllocatorSystem,
 };
+
+fn perspective_rh_zo(fov_y: f32, aspect: f32, near: f32, far: f32) -> glam::Mat4 {
+    let f = 1.0 / (fov_y * 0.5).tan();
+    let nf = 1.0 / (near - far);
+    glam::Mat4::from_cols(
+        glam::vec4(f / aspect, 0.0, 0.0, 0.0),
+        glam::vec4(0.0, f, 0.0, 0.0),
+        glam::vec4(0.0, 0.0, far * nf, -1.0),
+        glam::vec4(0.0, 0.0, near * far * nf, 0.0),
+    )
+}
+
+fn orthographic_rh_zo(
+    left: f32,
+    right: f32,
+    bottom: f32,
+    top: f32,
+    near: f32,
+    far: f32,
+) -> glam::Mat4 {
+    let rl = 1.0 / (right - left);
+    let tb = 1.0 / (top - bottom);
+    let nf = 1.0 / (near - far);
+    glam::Mat4::from_cols(
+        glam::vec4(2.0 * rl, 0.0, 0.0, 0.0),
+        glam::vec4(0.0, 2.0 * tb, 0.0, 0.0),
+        glam::vec4(0.0, 0.0, nf, 0.0),
+        glam::vec4(-(right + left) * rl, -(top + bottom) * tb, near * nf, 1.0),
+    )
+}
 
 // -----------------------------------------------------------------------------
 // Sub-systems
@@ -36,9 +66,9 @@ pub struct ResourceLibrary {
     pub shadow_shader: wgpu::ShaderModule,
     pub light_cull_pipeline_layout: wgpu::PipelineLayout,
     pub samplers: SamplerSet,
-    pub fallback_texture: wgpu::Texture,
+    pub _fallback_texture: wgpu::Texture,
     pub fallback_view: wgpu::TextureView,
-    pub fallback_shadow_texture: wgpu::Texture,
+    pub _fallback_shadow_texture: wgpu::Texture,
     pub fallback_shadow_view: wgpu::TextureView,
 }
 
@@ -53,7 +83,7 @@ pub struct BindingSystem {
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct LightDrawParams {
+pub struct LightDrawParams {
     camera_index: u32,
     max_lights_per_camera: u32,
 }
@@ -862,9 +892,9 @@ impl RenderState {
             shadow_shader,
             light_cull_pipeline_layout,
             samplers,
-            fallback_texture,
+            _fallback_texture: fallback_texture,
             fallback_view,
-            fallback_shadow_texture,
+            _fallback_shadow_texture: fallback_shadow_texture,
             fallback_shadow_view,
         });
     }
@@ -908,28 +938,15 @@ impl RenderState {
                 match record.data.kind_flags.x {
                     0 => {
                         // Directional
-                        // Orthographic produces [0, 1] by default in glam? No, orthographic_rh is usually [-1, 1].
-                        // We might need a correction for Orthographic if glam doesn't provide _zo variant.
-                        // glam::Mat4::orthographic_rh produces [-1, 1].
-                        // So we NEED correction for Directional.
-                        
-                        let correction = glam::Mat4::from_cols(
-                            glam::vec4(1.0, 0.0, 0.0, 0.0),
-                            glam::vec4(0.0, 1.0, 0.0, 0.0),
-                            glam::vec4(0.0, 0.0, 0.5, 0.0),
-                            glam::vec4(0.0, 0.0, 0.5, 1.0),
-                        );
-                        let ortho =
-                            glam::Mat4::orthographic_rh(-20.0, 20.0, -20.0, 20.0, 0.1, 100.0);
-                        record.data.projection = correction * ortho;
+                        let ortho = orthographic_rh_zo(-20.0, 20.0, -20.0, 20.0, 0.1, 100.0);
+                        record.data.projection = ortho;
                     }
                     2 => {
                         // Spot
-                        // perspective_rh produces [0, 1], so NO correction needed.
                         let outer_angle = record.data.spot_inner_outer.y;
                         let fov = outer_angle * 2.0;
                         let range = record.data.intensity_range.y;
-                        let persp = glam::Mat4::perspective_rh(fov, 1.0, 0.1, range);
+                        let persp = perspective_rh_zo(fov, 1.0, 0.1, range);
                         record.data.projection = persp;
                     }
                     _ => {

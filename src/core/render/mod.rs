@@ -1,6 +1,5 @@
 pub mod cache;
 mod passes;
-pub mod shadow;
 pub mod state;
 
 use crate::core::state::EngineState;

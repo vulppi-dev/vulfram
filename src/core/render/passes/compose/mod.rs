@@ -1,4 +1,5 @@
 use crate::core::render::RenderState;
+use crate::core::render::cache::PipelineKey;
 
 pub fn pass_compose(
     render_state: &mut RenderState,
@@ -7,6 +8,7 @@ pub fn pass_compose(
     encoder: &mut wgpu::CommandEncoder,
     surface_texture: &wgpu::SurfaceTexture,
     config: &wgpu::SurfaceConfiguration,
+    frame_index: u64,
 ) {
     let view = surface_texture
         .texture
@@ -22,14 +24,28 @@ pub fn pass_compose(
         None => return,
     };
 
-    if render_state.passes.compose.pipeline.is_none() {
+    let cache = &mut render_state.cache;
+    let key = PipelineKey {
+        shader_id: 1, // Compose Shader
+        color_format: config.format,
+        depth_format: None,
+        sample_count: 1,
+        topology: wgpu::PrimitiveTopology::TriangleList,
+        cull_mode: None,
+        front_face: wgpu::FrontFace::Ccw,
+        depth_write_enabled: false,
+        depth_compare: wgpu::CompareFunction::Always,
+        blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+    };
+
+    let pipeline = cache.get_or_create(key, frame_index, || {
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Compose Pipeline Layout"),
             bind_group_layouts: &[&library.layout_target],
             push_constant_ranges: &[],
         });
 
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Compose Pipeline"),
             layout: Some(&layout),
             vertex: wgpu::VertexState {
@@ -43,7 +59,7 @@ pub fn pass_compose(
                 entry_point: Some("fs_main"),
                 targets: &[Some(wgpu::ColorTargetState {
                     format: config.format,
-                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    blend: key.blend,
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
@@ -53,9 +69,8 @@ pub fn pass_compose(
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
             cache: None,
-        });
-        render_state.passes.compose.pipeline = Some(pipeline);
-    }
+        })
+    });
 
     // 3. Begin compose pass
     let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -74,58 +89,56 @@ pub fn pass_compose(
         occlusion_query_set: None,
     });
 
-    if let Some(pipeline) = &render_state.passes.compose.pipeline {
-        render_pass.set_pipeline(pipeline);
+    render_pass.set_pipeline(pipeline);
 
-        for (_id, record) in sorted_cameras {
-            let target = match &record.render_target {
-                Some(t) => t,
-                None => continue,
-            };
+    for (_id, record) in sorted_cameras {
+        let target = match &record.render_target {
+            Some(t) => t,
+            None => continue,
+        };
 
-            // 4. Resolve viewport
-            let (x, y) = record
-                .view_position
-                .as_ref()
-                .map(|vp| vp.resolve_position(config.width, config.height))
-                .unwrap_or((0, 0));
+        // 4. Resolve viewport
+        let (x, y) = record
+            .view_position
+            .as_ref()
+            .map(|vp| vp.resolve_position(config.width, config.height))
+            .unwrap_or((0, 0));
 
-            let (width, height) = record
-                .view_position
-                .as_ref()
-                .map(|vp| vp.resolve_size(config.width, config.height))
-                .unwrap_or((config.width, config.height));
+        let (width, height) = record
+            .view_position
+            .as_ref()
+            .map(|vp| vp.resolve_size(config.width, config.height))
+            .unwrap_or((config.width, config.height));
 
-            render_pass.set_viewport(x as f32, y as f32, width as f32, height as f32, 0.0, 1.0);
+        render_pass.set_viewport(x as f32, y as f32, width as f32, height as f32, 0.0, 1.0);
 
-            // 5. Create Bind Group for this camera's target
-            let shadow_view = render_state
-                .shadow
-                .as_ref()
-                .map(|shadow| shadow.atlas.view())
-                .unwrap_or(&library.fallback_shadow_view);
+        // 5. Create Bind Group for this camera's target
+        let shadow_view = render_state
+            .shadow
+            .as_ref()
+            .map(|shadow| shadow.atlas.view())
+            .unwrap_or(&library.fallback_shadow_view);
 
-            let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("Compose Bind Group"),
-                layout: &library.layout_target,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&target.view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&library.samplers.point_clamp),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 2,
-                        resource: wgpu::BindingResource::TextureView(shadow_view),
-                    },
-                ],
-            });
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Compose Bind Group"),
+            layout: &library.layout_target,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&target.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&library.samplers.point_clamp),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::TextureView(shadow_view),
+                },
+            ],
+        });
 
-            render_pass.set_bind_group(0, &bind_group, &[]);
-            render_pass.draw(0..3, 0..1);
-        }
+        render_pass.set_bind_group(0, &bind_group, &[]);
+        render_pass.draw(0..3, 0..1);
     }
 }

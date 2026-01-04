@@ -78,6 +78,7 @@ pub fn render_frames(engine_state: &mut EngineState) {
             &mut encoder,
             &surface_texture,
             &window_state.config,
+            engine_state.frame_index,
         );
 
         queue.submit(Some(encoder.finish()));

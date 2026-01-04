@@ -9,8 +9,7 @@ use std::marker::PhantomData;
 
 #[derive(Debug)]
 struct GarbageEntry {
-    #[allow(unused)]
-    buffer: wgpu::Buffer,
+    _buffer: wgpu::Buffer,
     retire_after_frame: u64,
 }
 
@@ -92,6 +91,7 @@ impl<T: Pod> StorageBufferPool<T> {
         self.write_bytes(index, data);
     }
 
+    #[allow(dead_code)]
     pub fn write_slice(&mut self, start_index: u32, values: &[T]) {
         if values.is_empty() {
             return;
@@ -107,24 +107,8 @@ impl<T: Pod> StorageBufferPool<T> {
         self.queue.write_buffer(&self.buffer, offset, bytes);
     }
 
-    pub fn capacity(&self) -> u32 {
-        self.capacity
-    }
-
-    pub fn item_size(&self) -> u64 {
-        self.item_size
-    }
-
     pub fn buffer(&self) -> &wgpu::Buffer {
         &self.buffer
-    }
-
-    pub fn get_offset(&self, index: u32) -> u64 {
-        index as u64 * self.item_size
-    }
-
-    pub fn buffer_size(&self) -> u64 {
-        self.capacity as u64 * self.item_size
     }
 
     // -------------------------------------------------------------------------
@@ -180,7 +164,7 @@ impl<T: Pod> StorageBufferPool<T> {
 
         let old = std::mem::replace(&mut self.buffer, new_buffer);
         self.garbage.push(GarbageEntry {
-            buffer: old,
+            _buffer: old,
             retire_after_frame: 0,
         });
 

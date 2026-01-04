@@ -197,9 +197,8 @@ impl ViewPosition {
 
 #[derive(Debug, Clone)]
 pub struct RenderTarget {
-    pub texture: wgpu::Texture,
+    pub _texture: wgpu::Texture,
     pub view: wgpu::TextureView,
-    pub size: Extent3d,
     pub format: wgpu::TextureFormat,
 }
 
@@ -221,9 +220,8 @@ impl RenderTarget {
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         Self {
-            texture,
+            _texture: texture,
             view,
-            size,
             format,
         }
     }

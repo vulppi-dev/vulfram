@@ -23,13 +23,26 @@ struct PipelineEntry {
 #[derive(Debug)]
 pub struct RenderCache {
     pipelines: HashMap<PipelineKey, PipelineEntry>,
+    compute_pipelines: HashMap<ComputePipelineKey, ComputePipelineEntry>,
     max_unused_frames: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ComputePipelineKey {
+    pub shader_id: u64,
+}
+
+#[derive(Debug)]
+struct ComputePipelineEntry {
+    pipeline: wgpu::ComputePipeline,
+    last_used_frame: u64,
 }
 
 impl RenderCache {
     pub fn new() -> Self {
         Self {
             pipelines: HashMap::new(),
+            compute_pipelines: HashMap::new(),
             max_unused_frames: 3,
         }
     }
@@ -56,9 +69,33 @@ impl RenderCache {
         let max_unused = self.max_unused_frames;
         self.pipelines
             .retain(|_, entry| frame_index.saturating_sub(entry.last_used_frame) <= max_unused);
+        self.compute_pipelines
+            .retain(|_, entry| frame_index.saturating_sub(entry.last_used_frame) <= max_unused);
     }
 
     pub fn clear(&mut self) {
         self.pipelines.clear();
+        self.compute_pipelines.clear();
+    }
+
+    pub fn get_or_create_compute<F>(
+        &mut self,
+        key: ComputePipelineKey,
+        frame_index: u64,
+        create: F,
+    ) -> &wgpu::ComputePipeline
+    where
+        F: FnOnce() -> wgpu::ComputePipeline,
+    {
+        let entry = self
+            .compute_pipelines
+            .entry(key)
+            .or_insert_with(|| ComputePipelineEntry {
+                pipeline: create(),
+                last_used_frame: frame_index,
+            });
+
+        entry.last_used_frame = frame_index;
+        &entry.pipeline
     }
 }

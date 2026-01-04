@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use crate::core::render::cache::RenderCache;
-use crate::core::render::passes::RenderPasses;
 use crate::core::resources::shadow::ShadowManager;
 use crate::core::resources::{
     CameraComponent, CameraRecord, FrameComponent, LightComponent, LightRecord, ModelComponent,
@@ -95,6 +94,7 @@ pub struct LightCullingSystem {
     pub visible_counts: StorageBufferPool<u32>,
     pub light_params: UniformBufferPool<LightDrawParams>,
     pub params_buffer: Option<wgpu::Buffer>,
+    pub bind_group: Option<wgpu::BindGroup>,
     pub light_count: usize,
     pub camera_count: u32,
     pub max_lights_per_camera: u32,
@@ -134,7 +134,7 @@ pub struct RenderState {
     pub light_system: Option<LightCullingSystem>,
     pub shadow: Option<ShadowManager>,
     pub cache: RenderCache,
-    pub passes: RenderPasses,
+    pub forward_depth_target: Option<RenderTarget>,
 }
 
 impl RenderState {
@@ -152,7 +152,7 @@ impl RenderState {
             light_system: None,
             shadow: None,
             cache: RenderCache::new(),
-            passes: RenderPasses::new(),
+            forward_depth_target: None,
         }
     }
 
@@ -167,7 +167,7 @@ impl RenderState {
         self.light_system = None;
         self.shadow = None;
         self.cache.clear();
-        self.passes = RenderPasses::new();
+        self.forward_depth_target = None;
     }
 
     pub fn begin_frame(&mut self, frame_index: u64) {
@@ -232,7 +232,7 @@ impl RenderState {
             height,
             depth_or_array_layers: 1,
         };
-        self.passes.forward.depth_target = Some(RenderTarget::new(
+        self.forward_depth_target = Some(RenderTarget::new(
             device,
             depth_size,
             wgpu::TextureFormat::Depth24Plus,
@@ -462,6 +462,7 @@ impl RenderState {
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             })),
+            bind_group: None,
             light_count: 0,
             camera_count: 0,
             max_lights_per_camera: 0,

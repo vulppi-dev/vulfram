@@ -27,7 +27,7 @@ pub fn pass_forward(
     };
 
     let cache = &mut render_state.cache;
-    let depth_target = render_state.passes.forward.depth_target.as_ref();
+    let depth_target = render_state.forward_depth_target.as_ref();
     let light_system = match render_state.light_system.as_mut() {
         Some(sys) => sys,
         None => return,

@@ -21,10 +21,10 @@ pub struct AtlasDesc {
 #[derive(Debug, Clone)]
 pub struct AtlasRelocation {
     pub handle: AtlasHandle,
-    pub old_layer: u32,
-    pub old_rect_tiles: (u32, u32, u32, u32),
-    pub new_layer: u32,
-    pub new_rect_tiles: (u32, u32, u32, u32),
+    pub _old_layer: u32,
+    pub _old_rect_tiles: (u32, u32, u32, u32),
+    pub _new_layer: u32,
+    pub _new_rect_tiles: (u32, u32, u32, u32),
 }
 
 #[derive(Debug, Clone)]
@@ -246,10 +246,10 @@ impl AtlasSystem {
                             index,
                             generation: slot.generation,
                         },
-                        old_layer,
-                        old_rect_tiles: old_rect,
-                        new_layer,
-                        new_rect_tiles: (new_x, new_y, w, h),
+                        _old_layer: old_layer,
+                        _old_rect_tiles: old_rect,
+                        _new_layer: new_layer,
+                        _new_rect_tiles: (new_x, new_y, w, h),
                     });
 
                     slot.layer = new_layer;
@@ -302,12 +302,12 @@ impl AtlasSystem {
         AtlasInfo {
             tiles_w: self.tiles_w,
             tiles_h: self.tiles_h,
-            layers: self.layers,
-            tile_px: self.tile_px,
+            _layers: self.layers,
+            _tile_px: self.tile_px,
             pitch_px: self.pitch_px,
-            free_tiles: self.free_tiles_total,
-            repack_count: self.repack_count,
-            format: self.format,
+            _free_tiles: self.free_tiles_total,
+            _repack_count: self.repack_count,
+            _format: self.format,
         }
     }
 
@@ -385,10 +385,10 @@ impl AtlasSystem {
 pub struct AtlasInfo {
     pub tiles_w: u32,
     pub tiles_h: u32,
-    pub layers: u32,
-    pub tile_px: u32,
+    pub _layers: u32,
+    pub _tile_px: u32,
     pub pitch_px: u32,
-    pub free_tiles: u32,
-    pub repack_count: u64,
-    pub format: wgpu::TextureFormat,
+    pub _free_tiles: u32,
+    pub _repack_count: u64,
+    pub _format: wgpu::TextureFormat,
 }

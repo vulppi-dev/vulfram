@@ -176,7 +176,6 @@ pub fn pass_shadow_update(
 
     struct PageRender {
         layer: u32,
-        key: crate::core::resources::shadow::ShadowPageKey,
         shadow_cam_id: u32,
         transform: (f32, f32, f32, f32, u32),
     }
@@ -205,7 +204,6 @@ pub fn pass_shadow_update(
 
         render_pages.push(PageRender {
             layer: transform.4,
-            key,
             shadow_cam_id,
             transform,
         });

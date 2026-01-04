@@ -417,6 +417,27 @@ impl ShadowManager {
         self.is_dirty = true;
     }
 
+    pub fn free_light(&mut self, light_id: u32) {
+        let mut to_remove: Vec<(ShadowPageKey, AtlasHandle)> = Vec::new();
+
+        for (key, record) in &self.cache {
+            if key.light_id == light_id {
+                to_remove.push((*key, record.atlas_handle));
+            }
+        }
+
+        if to_remove.is_empty() {
+            return;
+        }
+
+        for (key, handle) in to_remove {
+            self.cache.remove(&key);
+            self.atlas.free(handle);
+        }
+
+        self.is_dirty = true;
+    }
+
     pub fn clear_dirty(&mut self) {
         self.is_dirty = false;
     }

@@ -67,7 +67,7 @@ pub struct ResourceLibrary {
     pub light_cull_pipeline_layout: wgpu::PipelineLayout,
     pub samplers: SamplerSet,
     pub _fallback_texture: wgpu::Texture,
-    pub fallback_view: wgpu::TextureView,
+    pub _fallback_view: wgpu::TextureView,
     pub _fallback_shadow_texture: wgpu::Texture,
     pub fallback_shadow_view: wgpu::TextureView,
 }
@@ -893,7 +893,7 @@ impl RenderState {
             light_cull_pipeline_layout,
             samplers,
             _fallback_texture: fallback_texture,
-            fallback_view,
+            _fallback_view: fallback_view,
             _fallback_shadow_texture: fallback_shadow_texture,
             fallback_shadow_view,
         });

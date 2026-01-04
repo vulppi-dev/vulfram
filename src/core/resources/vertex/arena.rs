@@ -55,7 +55,7 @@ struct AllocRecord {
 
 #[derive(Debug)]
 struct GarbageEntry {
-    buffer: Buffer,
+    _buffer: Buffer,
     retire_after_frame: u64,
 }
 
@@ -87,7 +87,7 @@ pub struct ArenaAllocator {
     // WGPU handles
     device: wgpu::Device,
     queue: wgpu::Queue,
-    label: Option<&'static str>,
+    _label: Option<&'static str>,
 }
 
 impl ArenaAllocator {
@@ -161,7 +161,7 @@ impl ArenaAllocator {
             keep_frames: 3,
             device: device.clone(),
             queue: queue.clone(),
-            label,
+            _label: label,
         }
     }
 
@@ -483,7 +483,7 @@ impl ArenaAllocator {
         // Defer drop old buffer
         let old = std::mem::replace(&mut self.buffer, new_buffer);
         self.garbage.push(GarbageEntry {
-            buffer: old,
+            _buffer: old,
             retire_after_frame: frame_index + self.keep_frames,
         });
 

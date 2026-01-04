@@ -37,7 +37,7 @@ struct AtlasSlot {
 
 /// A sub-allocator for a 2D Texture Array divided into tiles with internal guards
 pub struct AtlasSystem {
-    texture: wgpu::Texture,
+    _texture: wgpu::Texture,
     view: wgpu::TextureView,
     layer_views: Vec<wgpu::TextureView>, // Cached views for each layer
 
@@ -119,7 +119,7 @@ impl AtlasSystem {
         }
 
         Self {
-            texture,
+            _texture: texture,
             view,
             layer_views,
             tile_px: desc.tile_px,
@@ -295,7 +295,7 @@ impl AtlasSystem {
     }
 
     pub fn texture(&self) -> &wgpu::Texture {
-        &self.texture
+        &self._texture
     }
 
     pub fn view(&self) -> &wgpu::TextureView {

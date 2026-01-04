@@ -255,6 +255,7 @@ pub fn engine_cmd_light_dispose(
         .is_some()
     {
         if let Some(shadow) = window_state.render_state.shadow.as_mut() {
+            shadow.free_light(args.light_id);
             shadow.mark_dirty();
         }
         window_state.is_dirty = true;

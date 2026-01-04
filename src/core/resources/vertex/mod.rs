@@ -5,14 +5,12 @@ use wgpu::{Buffer, BufferDescriptor, Device, Queue, RenderPass};
 mod arena;
 mod bind_cache;
 mod defaults;
-mod pools;
 mod storage;
 mod types;
 
 use arena::*;
 use bind_cache::*;
 use defaults::*;
-use pools::*;
 use storage::*;
 use types::*;
 
@@ -30,8 +28,8 @@ pub struct VertexAllocatorSystem {
     device: wgpu::Device,
     queue: wgpu::Queue,
 
-    index_u32: IndexPool,
-    streams: [StreamPool; STREAM_COUNT],
+    index_u32: ArenaAllocator,
+    streams: [ArenaAllocator; STREAM_COUNT],
 
     default_normal: DefaultStreamBuffer,
     default_tangent: DefaultStreamBuffer,
@@ -48,18 +46,77 @@ pub struct VertexAllocatorSystem {
 
 impl VertexAllocatorSystem {
     pub fn new(device: &Device, queue: &Queue, cfg: VertexAllocatorConfig) -> Self {
-        let index_u32 = IndexPool::new(device, queue, cfg);
+        let mut index_u32 = ArenaAllocator::new(
+            device,
+            queue,
+            cfg.min_pool_bytes.max(4),
+            wgpu::BufferUsages::INDEX,
+            Some("Pool(IndexU32)"),
+        );
+        index_u32.set_keep_frames(cfg.keep_frames);
 
-        let streams = [
-            StreamPool::new(device, queue, cfg, VertexStream::Position),
-            StreamPool::new(device, queue, cfg, VertexStream::Normal),
-            StreamPool::new(device, queue, cfg, VertexStream::Tangent),
-            StreamPool::new(device, queue, cfg, VertexStream::Color0),
-            StreamPool::new(device, queue, cfg, VertexStream::UV0),
-            StreamPool::new(device, queue, cfg, VertexStream::UV1),
-            StreamPool::new(device, queue, cfg, VertexStream::Joints),
-            StreamPool::new(device, queue, cfg, VertexStream::Weights),
+        let mut streams = [
+            ArenaAllocator::new(
+                device,
+                queue,
+                cfg.min_pool_bytes.max(VertexStream::Position.stride_bytes()),
+                wgpu::BufferUsages::VERTEX,
+                Some("Pool(Position)"),
+            ),
+            ArenaAllocator::new(
+                device,
+                queue,
+                cfg.min_pool_bytes.max(VertexStream::Normal.stride_bytes()),
+                wgpu::BufferUsages::VERTEX,
+                Some("Pool(Normal)"),
+            ),
+            ArenaAllocator::new(
+                device,
+                queue,
+                cfg.min_pool_bytes.max(VertexStream::Tangent.stride_bytes()),
+                wgpu::BufferUsages::VERTEX,
+                Some("Pool(Tangent)"),
+            ),
+            ArenaAllocator::new(
+                device,
+                queue,
+                cfg.min_pool_bytes.max(VertexStream::Color0.stride_bytes()),
+                wgpu::BufferUsages::VERTEX,
+                Some("Pool(Color0)"),
+            ),
+            ArenaAllocator::new(
+                device,
+                queue,
+                cfg.min_pool_bytes.max(VertexStream::UV0.stride_bytes()),
+                wgpu::BufferUsages::VERTEX,
+                Some("Pool(UV0)"),
+            ),
+            ArenaAllocator::new(
+                device,
+                queue,
+                cfg.min_pool_bytes.max(VertexStream::UV1.stride_bytes()),
+                wgpu::BufferUsages::VERTEX,
+                Some("Pool(UV1)"),
+            ),
+            ArenaAllocator::new(
+                device,
+                queue,
+                cfg.min_pool_bytes.max(VertexStream::Joints.stride_bytes()),
+                wgpu::BufferUsages::VERTEX,
+                Some("Pool(Joints)"),
+            ),
+            ArenaAllocator::new(
+                device,
+                queue,
+                cfg.min_pool_bytes.max(VertexStream::Weights.stride_bytes()),
+                wgpu::BufferUsages::VERTEX,
+                Some("Pool(Weights)"),
+            ),
         ];
+
+        for arena in &mut streams {
+            arena.set_keep_frames(cfg.keep_frames);
+        }
 
         let mut sys = Self {
             cfg,
@@ -134,9 +191,9 @@ impl VertexAllocatorSystem {
     }
 
     pub fn begin_frame(&mut self, frame_index: u64) {
-        self.index_u32.arena.begin_frame(frame_index);
+        self.index_u32.begin_frame(frame_index);
         for p in &mut self.streams {
-            p.arena.begin_frame(frame_index);
+            p.begin_frame(frame_index);
         }
         self.bind_cache.reset();
     }
@@ -306,11 +363,11 @@ impl VertexAllocatorSystem {
                 match &rec.storage {
                     GeometryStorage::Pooled { index, streams, .. } => {
                         if let Some(ix) = index {
-                            self.index_u32.arena.free(ix.handle);
+                            self.index_u32.free(ix.handle);
                         }
                         for (i, h_opt) in streams.iter().enumerate() {
                             if let Some(h) = h_opt {
-                                self.streams[i].arena.free(*h);
+                                self.streams[i].free(*h);
                             }
                         }
                     }
@@ -344,10 +401,10 @@ impl VertexAllocatorSystem {
 
         let index_alloc = if let Some((mut bytes, info)) = index_info {
             pad_to_4(&mut bytes);
-            let h = self.index_u32.arena.allocate(bytes.len() as u64);
+            let h = self.index_u32.allocate(bytes.len() as u64);
             self.queue.write_buffer(
                 self.index_u32.buffer(),
-                self.index_u32.slice_range(h).start,
+                self.index_u32.slice(h).range().start,
                 &bytes,
             );
             Some(types::IndexAlloc { handle: h, info })
@@ -360,10 +417,10 @@ impl VertexAllocatorSystem {
         for s in all_streams() {
             if let Some(mut bytes) = stream_bytes[s as usize].take() {
                 pad_to_4(&mut bytes);
-                let h = self.streams[s as usize].arena.allocate(bytes.len() as u64);
+                let h = self.streams[s as usize].allocate(bytes.len() as u64);
                 self.queue.write_buffer(
                     self.streams[s as usize].buffer(),
-                    self.streams[s as usize].slice_range(h).start,
+                    self.streams[s as usize].slice(h).range().start,
                     &bytes,
                 );
                 handles[s as usize] = Some(h);
@@ -472,11 +529,11 @@ impl VertexAllocatorSystem {
         match rec.storage {
             GeometryStorage::Pooled { index, streams, .. } => {
                 if let Some(ix) = index {
-                    self.index_u32.arena.free(ix.handle);
+                    self.index_u32.free(ix.handle);
                 }
                 for (i, h_opt) in streams.iter().enumerate() {
                     if let Some(h) = h_opt {
-                        self.streams[i].arena.free(*h);
+                        self.streams[i].free(*h);
                     }
                 }
             }
@@ -513,7 +570,7 @@ impl VertexAllocatorSystem {
             GeometryStorage::Pooled { index, streams, .. } => {
                 let index_buffer = index.as_ref().map(|ix| {
                     let buf = self.index_u32.buffer() as *const Buffer;
-                    let r = self.index_u32.slice_range(ix.handle);
+                    let r = self.index_u32.slice(ix.handle).range();
                     (buf, r)
                 });
 
@@ -522,7 +579,7 @@ impl VertexAllocatorSystem {
                     let slot = s.slot();
                     let (buf_ptr, range) = if let Some(h) = streams[s as usize] {
                         let pool = &self.streams[s as usize];
-                        (pool.buffer() as *const Buffer, pool.slice_range(h))
+                        (pool.buffer() as *const Buffer, pool.slice(h).range())
                     } else {
                         let (buf, r) = self.default_slice_for(s, vertex_count);
                         (buf as *const Buffer, r)
@@ -585,7 +642,7 @@ impl VertexAllocatorSystem {
 
         match stream {
             VertexStream::Position => (
-                &self.streams[VertexStream::Position as usize].arena.buffer(),
+                &self.streams[VertexStream::Position as usize].buffer(),
                 0..0,
             ),
             VertexStream::Normal => (&self.default_normal.buffer, r),
@@ -669,12 +726,9 @@ impl VertexAllocatorSystem {
         let mut did = false;
         did |=
             self.index_u32
-                .arena
                 .maybe_compact(frame_index, threshold, slack_ratio, min_dead_bytes);
         for p in &mut self.streams {
-            did |= p
-                .arena
-                .maybe_compact(frame_index, threshold, slack_ratio, min_dead_bytes);
+            did |= p.maybe_compact(frame_index, threshold, slack_ratio, min_dead_bytes);
         }
         did
     }

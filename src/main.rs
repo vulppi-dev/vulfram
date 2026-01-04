@@ -2,11 +2,11 @@ mod core;
 
 use crate::core::VulframResult;
 use crate::core::cmd::{CommandResponse, CommandResponseEnvelope, EngineCmd, EngineCmdEnvelope};
+use crate::core::resources::shadow::{CmdShadowConfigureArgs, ShadowConfig};
 use crate::core::resources::{
     CameraKind, CmdCameraCreateArgs, CmdLightCreateArgs, CmdModelCreateArgs,
     CmdPrimitiveGeometryCreateArgs, LightKind, PrimitiveShape,
 };
-use crate::core::resources::shadow::{CmdShadowConfigureArgs, ShadowConfig};
 use crate::core::window::{CmdWindowCloseArgs, CmdWindowCreateArgs};
 use glam::{Mat4, Vec2, Vec3, Vec4};
 use rmp_serde::{from_slice, to_vec_named};
@@ -34,7 +34,7 @@ fn main() {
     // Give some time for window to be created and confirm it
     pump_for(Duration::from_millis(200));
     wait_for_confirmation(window_id);
-    
+
     let geometry_cube: u32 = 1;
     let geometry_plane: u32 = 2;
     let geometry_sphere: u32 = 3;
@@ -97,62 +97,62 @@ fn main() {
             cast_shadow: true,
         }),
         // 3.6 Create a point light in center above cube
-        // EngineCmd::CmdLightCreate(CmdLightCreateArgs {
-        //     window_id,
-        //     light_id: 4,
-        //     kind: Some(LightKind::Point),
-        //     position: Some(Vec4::new(-3.0, 3.0, 0.0, 1.0)),
-        //     direction: None,
-        //     color: Some(Vec4::new(0.0, 0.0, 1.0, 1.0)),
-        //     ground_color: None,
-        //     intensity: Some(2.0),
-        //     range: Some(20.0),
-        //     spot_inner_outer: None,
-        //     layer_mask: 0xFFFFFFFF,
-        //     cast_shadow: true,
-        // }),
-        // EngineCmd::CmdLightCreate(CmdLightCreateArgs {
-        //     window_id,
-        //     light_id: 5,
-        //     kind: Some(LightKind::Point),
-        //     position: Some(Vec4::new(4.0, 5.0, 0.0, 1.0)),
-        //     direction: None,
-        //     color: Some(Vec4::new(1.0, 0.0, 0.0, 1.0)),
-        //     ground_color: None,
-        //     intensity: Some(2.0),
-        //     range: Some(20.0),
-        //     spot_inner_outer: None,
-        //     layer_mask: 0xFFFFFFFF,
-        //     cast_shadow: true,
-        // }),
-        // EngineCmd::CmdLightCreate(CmdLightCreateArgs {
-        //     window_id,
-        //     light_id: 4,
-        //     kind: Some(LightKind::Point),
-        //     position: Some(Vec4::new(-4.0, 5.0, 0.0, 1.0)),
-        //     direction: None,
-        //     color: Some(Vec4::new(0.0, 1.0, 1.0, 1.0)),
-        //     ground_color: None,
-        //     intensity: Some(2.0),
-        //     range: Some(20.0),
-        //     spot_inner_outer: None,
-        //     layer_mask: 0xFFFFFFFF,
-        //     cast_shadow: true,
-        // }),
-        // EngineCmd::CmdLightCreate(CmdLightCreateArgs {
-        //     window_id,
-        //     light_id: 5,
-        //     kind: Some(LightKind::Point),
-        //     position: Some(Vec4::new(4.0, 5.0, 0.0, 1.0)),
-        //     direction: None,
-        //     color: Some(Vec4::new(1.0, 1.0, 0.0, 1.0)),
-        //     ground_color: None,
-        //     intensity: Some(2.0),
-        //     range: Some(20.0),
-        //     spot_inner_outer: None,
-        //     layer_mask: 0xFFFFFFFF,
-        //     cast_shadow: true,
-        // }),
+        EngineCmd::CmdLightCreate(CmdLightCreateArgs {
+            window_id,
+            light_id: 3,
+            kind: Some(LightKind::Point),
+            position: Some(Vec4::new(0.0, 5.0, -4.0, 1.0)),
+            direction: None,
+            color: Some(Vec4::new(0.0, 0.0, 1.0, 1.0)),
+            ground_color: None,
+            intensity: Some(2.0),
+            range: Some(20.0),
+            spot_inner_outer: None,
+            layer_mask: 0xFFFFFFFF,
+            cast_shadow: true,
+        }),
+        EngineCmd::CmdLightCreate(CmdLightCreateArgs {
+            window_id,
+            light_id: 4,
+            kind: Some(LightKind::Point),
+            position: Some(Vec4::new(0.0, 5.0, 4.0, 1.0)),
+            direction: None,
+            color: Some(Vec4::new(1.0, 0.0, 0.0, 1.0)),
+            ground_color: None,
+            intensity: Some(2.0),
+            range: Some(20.0),
+            spot_inner_outer: None,
+            layer_mask: 0xFFFFFFFF,
+            cast_shadow: true,
+        }),
+        EngineCmd::CmdLightCreate(CmdLightCreateArgs {
+            window_id,
+            light_id: 5,
+            kind: Some(LightKind::Point),
+            position: Some(Vec4::new(-4.0, 5.0, 0.0, 1.0)),
+            direction: None,
+            color: Some(Vec4::new(0.0, 1.0, 1.0, 1.0)),
+            ground_color: None,
+            intensity: Some(2.0),
+            range: Some(20.0),
+            spot_inner_outer: None,
+            layer_mask: 0xFFFFFFFF,
+            cast_shadow: true,
+        }),
+        EngineCmd::CmdLightCreate(CmdLightCreateArgs {
+            window_id,
+            light_id: 6,
+            kind: Some(LightKind::Point),
+            position: Some(Vec4::new(4.0, 5.0, 0.0, 1.0)),
+            direction: None,
+            color: Some(Vec4::new(1.0, 1.0, 0.0, 1.0)),
+            ground_color: None,
+            intensity: Some(2.0),
+            range: Some(20.0),
+            spot_inner_outer: None,
+            layer_mask: 0xFFFFFFFF,
+            cast_shadow: true,
+        }),
         // 4. Create models
         EngineCmd::CmdModelCreate(CmdModelCreateArgs {
             window_id,
@@ -193,9 +193,9 @@ fn main() {
                 tile_resolution: 1024,
                 atlas_tiles_w: 16, // 16x16 = 256 tiles total
                 atlas_tiles_h: 16, // 16x16 = 256 tiles total
-                atlas_layers: 1,
+                atlas_layers: 4,
                 virtual_grid_size: 1,
-                smoothing: 0,
+                smoothing: 2,
             },
         }),
     ];

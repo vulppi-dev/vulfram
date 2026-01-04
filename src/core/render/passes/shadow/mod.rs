@@ -75,10 +75,10 @@ pub fn pass_shadow_update(
         if !light_record.cast_shadow {
             continue;
         }
-        
+
         let shadow_light_id = shadow_counter;
         shadow_counter += 1;
-        
+
         let mut light_views = Vec::new();
         let mut light_projs = Vec::new();
 
@@ -91,8 +91,7 @@ pub fn pass_shadow_update(
                 let far = range;
 
                 // FOV 90 degrees, aspect 1.0, WGPU depth range [0, 1].
-                let projection =
-                    perspective_rh_zo(std::f32::consts::FRAC_PI_2, 1.0, near, far);
+                let projection = perspective_rh_zo(std::f32::consts::FRAC_PI_2, 1.0, near, far);
 
                 // Cubemap face directions and up vectors (standard cubemap convention)
                 let targets = [
@@ -270,10 +269,10 @@ pub fn pass_shadow_update(
 
                 if let Ok(Some(index_info)) = vertex_sys.index_info(model_record.geometry_id) {
                     let _ = vertex_sys.bind(&mut rpass, model_record.geometry_id);
-                    
+
                     // Log only once per frame/model to avoid spam, or just relying on "it runs".
                     // For now, let's just draw.
-                    // println!("Drawing shadow model {}", model_id); 
+                    // println!("Drawing shadow model {}", model_id);
 
                     let key = PipelineKey {
                         shader_id: 2,                                      // Shadow Shader

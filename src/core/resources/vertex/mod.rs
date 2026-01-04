@@ -59,7 +59,8 @@ impl VertexAllocatorSystem {
             ArenaAllocator::new(
                 device,
                 queue,
-                cfg.min_pool_bytes.max(VertexStream::Position.stride_bytes()),
+                cfg.min_pool_bytes
+                    .max(VertexStream::Position.stride_bytes()),
                 wgpu::BufferUsages::VERTEX,
                 Some("Pool(Position)"),
             ),
@@ -724,9 +725,9 @@ impl VertexAllocatorSystem {
         min_dead_bytes: u64,
     ) -> bool {
         let mut did = false;
-        did |=
-            self.index_u32
-                .maybe_compact(frame_index, threshold, slack_ratio, min_dead_bytes);
+        did |= self
+            .index_u32
+            .maybe_compact(frame_index, threshold, slack_ratio, min_dead_bytes);
         for p in &mut self.streams {
             did |= p.maybe_compact(frame_index, threshold, slack_ratio, min_dead_bytes);
         }

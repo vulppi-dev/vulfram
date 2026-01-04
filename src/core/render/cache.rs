@@ -1,6 +1,15 @@
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(u64)]
+pub enum ShaderId {
+    Forward = 0,
+    Compose = 1,
+    Shadow = 2,
+    LightCull = 3,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PipelineKey {
     pub shader_id: u64,
     pub color_format: wgpu::TextureFormat,

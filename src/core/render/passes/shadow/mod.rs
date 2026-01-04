@@ -273,7 +273,7 @@ pub fn pass_shadow_update(
                     // println!("Drawing shadow model {}", model_id);
 
                     let key = PipelineKey {
-                        shader_id: 2,                                      // Shadow Shader
+                        shader_id: crate::core::render::cache::ShaderId::Shadow as u64,
                         color_format: wgpu::TextureFormat::Rgba8UnormSrgb, // Dummy, not used
                         depth_format: Some(wgpu::TextureFormat::Depth32Float),
                         sample_count: 1,

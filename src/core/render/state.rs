@@ -138,6 +138,11 @@ pub struct RenderState {
 }
 
 impl RenderState {
+    const VERTEX_COMPACT_FRAME_INTERVAL: u64 = 120;
+    const VERTEX_COMPACT_THRESHOLD: f32 = 0.25;
+    const VERTEX_COMPACT_SLACK_RATIO: f32 = 0.3;
+    const VERTEX_COMPACT_MIN_DEAD_BYTES: u64 = 256 * 1024;
+
     /// Create a new RenderState with empty systems
     pub fn new(_surface_format: wgpu::TextureFormat) -> Self {
         Self {
@@ -173,8 +178,13 @@ impl RenderState {
     pub fn begin_frame(&mut self, frame_index: u64) {
         if let Some(vertex) = self.vertex.as_mut() {
             vertex.begin_frame(frame_index);
-            if frame_index % 120 == 0 {
-                vertex.maybe_compact_all(frame_index, 0.25, 0.3, 256 * 1024);
+            if frame_index % Self::VERTEX_COMPACT_FRAME_INTERVAL == 0 {
+                vertex.maybe_compact_all(
+                    frame_index,
+                    Self::VERTEX_COMPACT_THRESHOLD,
+                    Self::VERTEX_COMPACT_SLACK_RATIO,
+                    Self::VERTEX_COMPACT_MIN_DEAD_BYTES,
+                );
             }
         }
         if let Some(bindings) = self.bindings.as_mut() {

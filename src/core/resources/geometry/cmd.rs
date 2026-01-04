@@ -114,7 +114,15 @@ pub fn engine_cmd_geometry_create(
     // 5. Montar dados
     let mut geometry_data = Vec::new();
     for entry in &args.entries {
-        let buffer = engine.buffers.uploads.get(&entry.buffer_id).unwrap();
+        let buffer = match engine.buffers.uploads.get(&entry.buffer_id) {
+            Some(buffer) => buffer,
+            None => {
+                return CmdResultGeometryCreate {
+                    success: false,
+                    message: format!("Buffer {} not found", entry.buffer_id),
+                };
+            }
+        };
         geometry_data.push((entry.primitive_type, buffer.data.clone()));
     }
 
@@ -246,7 +254,15 @@ pub fn engine_cmd_geometry_update(
     // 5. Montar dados
     let mut geometry_data = Vec::new();
     for entry in &args.entries {
-        let buffer = engine.buffers.uploads.get(&entry.buffer_id).unwrap();
+        let buffer = match engine.buffers.uploads.get(&entry.buffer_id) {
+            Some(buffer) => buffer,
+            None => {
+                return CmdResultGeometryUpdate {
+                    success: false,
+                    message: format!("Buffer {} not found", entry.buffer_id),
+                };
+            }
+        };
         geometry_data.push((entry.primitive_type, buffer.data.clone()));
     }
 

@@ -1,5 +1,5 @@
 use crate::core::render::RenderState;
-use crate::core::render::cache::PipelineKey;
+use crate::core::render::cache::{PipelineKey, ShaderId};
 use crate::core::resources::VertexStream;
 
 pub fn pass_forward(
@@ -109,7 +109,7 @@ pub fn pass_forward(
 
                     // Pipeline Cache
                     let key = PipelineKey {
-                        shader_id: 0, // Standard Forward Shader
+                        shader_id: ShaderId::Forward as u64,
                         color_format: wgpu::TextureFormat::Rgba32Float,
                         depth_format: Some(wgpu::TextureFormat::Depth24Plus),
                         sample_count: 1,

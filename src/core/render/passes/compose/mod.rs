@@ -1,5 +1,32 @@
 use crate::core::render::RenderState;
-use crate::core::render::cache::PipelineKey;
+use crate::core::render::cache::{PipelineKey, ShaderId};
+use crate::core::render::state::ResourceLibrary;
+
+fn build_compose_bind_group(
+    device: &wgpu::Device,
+    library: &ResourceLibrary,
+    target_view: &wgpu::TextureView,
+    shadow_view: &wgpu::TextureView,
+) -> wgpu::BindGroup {
+    device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: Some("Compose Bind Group"),
+        layout: &library.layout_target,
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(target_view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(&library.samplers.point_clamp),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: wgpu::BindingResource::TextureView(shadow_view),
+            },
+        ],
+    })
+}
 
 pub fn pass_compose(
     render_state: &mut RenderState,
@@ -26,7 +53,7 @@ pub fn pass_compose(
 
     let cache = &mut render_state.cache;
     let key = PipelineKey {
-        shader_id: 1, // Compose Shader
+        shader_id: ShaderId::Compose as u64,
         color_format: config.format,
         depth_format: None,
         sample_count: 1,
@@ -119,24 +146,7 @@ pub fn pass_compose(
             .map(|shadow| shadow.atlas.view())
             .unwrap_or(&library.fallback_shadow_view);
 
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Compose Bind Group"),
-            layout: &library.layout_target,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&target.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&library.samplers.point_clamp),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::TextureView(shadow_view),
-                },
-            ],
-        });
+        let bind_group = build_compose_bind_group(device, library, &target.view, shadow_view);
 
         render_pass.set_bind_group(0, &bind_group, &[]);
         render_pass.draw(0..3, 0..1);

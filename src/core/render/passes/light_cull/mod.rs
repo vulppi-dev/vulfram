@@ -2,7 +2,7 @@ use bytemuck::bytes_of;
 
 use crate::core::render::RenderState;
 use crate::core::render::cache::{ComputePipelineKey, ShaderId};
-use crate::core::render::state::{LightCullingSystem, ResourceLibrary};
+use crate::core::render::state::{FrustumPlane, LightCullingSystem, ResourceLibrary};
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -14,6 +14,46 @@ struct LightCullParams {
 }
 
 const LIGHT_CULL_WORKGROUP_SIZE: u32 = 64;
+const PLANES_PER_CAMERA: u32 = 6;
+
+fn normalize_plane(plane: glam::Vec4) -> glam::Vec4 {
+    let normal = plane.truncate();
+    let len = normal.length();
+    if len > 0.0 {
+        plane / len
+    } else {
+        plane
+    }
+}
+
+fn extract_frustum_planes(view_projection: glam::Mat4) -> [FrustumPlane; 6] {
+    let m = view_projection.to_cols_array_2d();
+    let row0 = glam::Vec4::new(m[0][0], m[1][0], m[2][0], m[3][0]);
+    let row1 = glam::Vec4::new(m[0][1], m[1][1], m[2][1], m[3][1]);
+    let row2 = glam::Vec4::new(m[0][2], m[1][2], m[2][2], m[3][2]);
+    let row3 = glam::Vec4::new(m[0][3], m[1][3], m[2][3], m[3][3]);
+
+    [
+        FrustumPlane {
+            data: normalize_plane(row3 + row0),
+        }, // left
+        FrustumPlane {
+            data: normalize_plane(row3 - row0),
+        }, // right
+        FrustumPlane {
+            data: normalize_plane(row3 + row1),
+        }, // bottom
+        FrustumPlane {
+            data: normalize_plane(row3 - row1),
+        }, // top
+        FrustumPlane {
+            data: normalize_plane(row2),
+        }, // near (WebGPU z 0..1)
+        FrustumPlane {
+            data: normalize_plane(row3 - row2),
+        }, // far
+    ]
+}
 
 fn build_light_cull_bind_group(
     device: &wgpu::Device,
@@ -62,6 +102,14 @@ fn build_light_cull_bind_group(
                     ),
                 }),
             },
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                    buffer: light_system.camera_frustums.buffer(),
+                    offset: 0,
+                    size: None,
+                }),
+            },
         ],
     })
 }
@@ -82,15 +130,17 @@ pub fn pass_light_cull(
     };
 
     let light_count = light_system.light_count as u32;
-    let camera_count = render_state.scene.cameras.len() as u32;
+    let mut sorted_cameras: Vec<_> = render_state.scene.cameras.iter().collect();
+    sorted_cameras.sort_by_key(|(_, record)| record.order);
+    let camera_count = sorted_cameras.len() as u32;
+
+    light_system.camera_count = camera_count as u32;
+    light_system.max_lights_per_camera = light_count;
 
     if light_count == 0 || camera_count == 0 {
         light_system.bind_group = None;
         return;
     }
-
-    light_system.camera_count = camera_count as u32;
-    light_system.max_lights_per_camera = light_count;
 
     let params = LightCullParams {
         light_count,
@@ -103,6 +153,14 @@ pub fn pass_light_cull(
         light_system
             .queue
             .write_buffer(buffer, 0, bytes_of(&params));
+    }
+
+    if camera_count > 0 {
+        let mut planes = Vec::with_capacity((camera_count * PLANES_PER_CAMERA) as usize);
+        for (_id, record) in &sorted_cameras {
+            planes.extend_from_slice(&extract_frustum_planes(record.data.view_projection));
+        }
+        light_system.camera_frustums.write_slice(0, &planes);
     }
 
     let cache = &mut render_state.cache;

@@ -92,6 +92,7 @@ pub struct LightCullingSystem {
     pub lights: StorageBufferPool<LightComponent>,
     pub visible_indices: StorageBufferPool<u32>,
     pub visible_counts: StorageBufferPool<u32>,
+    pub camera_frustums: StorageBufferPool<FrustumPlane>,
     pub light_params: UniformBufferPool<LightDrawParams>,
     pub params_buffer: Option<wgpu::Buffer>,
     pub bind_group: Option<wgpu::BindGroup>,
@@ -113,6 +114,12 @@ impl LightCullingSystem {
     pub fn draw_params_offset(&self, camera_index: u32) -> u64 {
         self.light_params.get_offset(camera_index)
     }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub(crate) struct FrustumPlane {
+    pub data: glam::Vec4,
 }
 
 /// Holds the actual scene data to be rendered
@@ -196,6 +203,7 @@ impl RenderState {
             light_system.lights.begin_frame(frame_index);
             light_system.visible_indices.begin_frame(frame_index);
             light_system.visible_counts.begin_frame(frame_index);
+            light_system.camera_frustums.begin_frame(frame_index);
             light_system.light_params.begin_frame(frame_index);
         }
         if let Some(shadow) = self.shadow.as_mut() {
@@ -465,6 +473,7 @@ impl RenderState {
             lights: StorageBufferPool::new(device, queue, Some(32), storage_alignment),
             visible_indices: StorageBufferPool::new(device, queue, Some(128), storage_alignment),
             visible_counts: StorageBufferPool::new(device, queue, Some(8), storage_alignment),
+            camera_frustums: StorageBufferPool::new(device, queue, Some(96), storage_alignment),
             light_params: UniformBufferPool::new(device, queue, Some(16), alignment),
             params_buffer: Some(device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("LightCull Params"),
@@ -827,6 +836,16 @@ impl RenderState {
                             std::num::NonZeroU64::new(std::mem::size_of::<u32>() as u64 * 4)
                                 .unwrap(),
                         ),
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
                     },
                     count: None,
                 },

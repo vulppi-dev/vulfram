@@ -163,10 +163,8 @@ fn sample_shadow_page_at(
     let grid_size_f = shadow_params.virtual_grid_size;
     let grid_size_u = u32(grid_size_f);
 
-    let grid_uv = light_uv;
-    
-    let grid_x = u32(clamp(grid_uv.x * grid_size_f, 0.0, grid_size_f - 1.0));
-    let grid_y = u32(clamp(grid_uv.y * grid_size_f, 0.0, grid_size_f - 1.0));
+    let grid_x = u32(clamp(light_uv.x * grid_size_f, 0.0, grid_size_f - 1.0));
+    let grid_y = u32(clamp(light_uv.y * grid_size_f, 0.0, grid_size_f - 1.0));
 
     let table_id = compute_table_id(light_base, grid_x, grid_y, grid_size_u);
     let page = shadow_page_table[table_id];
@@ -178,7 +176,7 @@ fn sample_shadow_page_at(
 
     // UV local no tile (0..1)
     let page_origin = vec2<f32>(f32(grid_x), f32(grid_y)) / grid_size_f;
-    let page_uv = (grid_uv - page_origin) * grid_size_f;
+    let page_uv = (light_uv - page_origin) * grid_size_f;
 
     if (page_uv.x < 0.0 || page_uv.x > 1.0 || page_uv.y < 0.0 || page_uv.y > 1.0) {
         return 1.0;
@@ -203,6 +201,17 @@ fn sample_shadow_page_at(
     let guard = atlas_texel * 1.5;
     let uv_min = tile_min + guard;
     let uv_max = tile_max - guard;
+
+    if (shadow_params.pcf_range == 0) {
+        let uv = clamp(atlas_uv_center, uv_min, uv_max);
+        return textureSampleCompare(
+            shadow_atlas,
+            shadow_sampler,
+            uv,
+            i32(page.layer_index),
+            light_depth - bias
+        );
+    }
 
     var sum = 0.0;
     var samples = 0.0;
@@ -315,6 +324,9 @@ fn get_shadow_factor(light_idx: u32, light: Light, world_pos: vec3<f32>, ndotl: 
     if (!model_receive_shadow || !light_cast_shadow) {
         return 1.0;
     }
+    if (ndotl <= 0.0) {
+        return 1.0;
+    }
 
     if (light.kind_flags.x == 1u) { // Point
         return point_shadow_factor(light, world_pos, ndotl);
@@ -335,6 +347,7 @@ fn get_shadow_factor(light_idx: u32, light: Light, world_pos: vec3<f32>, ndotl: 
 fn calculate_directional_light(light: Light, normal: vec3<f32>, world_pos: vec3<f32>, light_idx: u32) -> vec3<f32> {
     let l = normalize(-light.direction.xyz);
     let ndotl = max(dot(normal, l), 0.0);
+    if (ndotl <= 0.0) { return vec3<f32>(0.0); }
     let shadow = get_shadow_factor(light_idx, light, world_pos, ndotl);
     return light.color.rgb * light.intensity_range.x * ndotl * shadow;
 }
@@ -366,6 +379,7 @@ fn calculate_spot_light(light: Light, normal: vec3<f32>, world_pos: vec3<f32>, l
     let spot_intensity = clamp((theta - outer) / epsilon, 0.0, 1.0);
 
     let ndotl = max(dot(normal, l), 0.0);
+    if (ndotl <= 0.0) { return vec3<f32>(0.0); }
     let shadow = get_shadow_factor(light_idx, light, world_pos, ndotl);
 
     return light.color.rgb * light.intensity_range.x * ndotl * attenuation * spot_intensity * shadow;
@@ -381,6 +395,7 @@ fn calculate_point_light(light: Light, normal: vec3<f32>, world_pos: vec3<f32>, 
 
     let attenuation = pow(clamp(1.0 - dist / range, 0.0, 1.0), 2.0);
     let ndotl = max(dot(normal, l), 0.0);
+    if (ndotl <= 0.0) { return vec3<f32>(0.0); }
     let shadow = get_shadow_factor(light_idx, light, world_pos, ndotl);
 
     return light.color.rgb * light.intensity_range.x * ndotl * attenuation * shadow;

@@ -20,14 +20,6 @@ struct Camera {
     view_projection: mat4x4<f32>,
 }
 
-struct Model {
-    transform: mat4x4<f32>,
-    translation: vec4<f32>,
-    rotation: vec4<f32>,
-    scale: vec4<f32>,
-    flags: vec4<u32>, // x: flags (bit 0: receive_shadow)
-}
-
 struct LightDrawParams {
     camera_index: u32,
     max_lights_per_camera: u32,
@@ -43,13 +35,13 @@ struct Light {
     view_projection: mat4x4<f32>,
     intensity_range: vec2<f32>,
     spot_inner_outer: vec2<f32>,
-    kind_flags: vec2<u32>, // x: kind, y: flags (bit0 = cast_shadow)
+    kind_flags: vec2<u32>,
     shadow_index: u32,
     _padding: u32,
 }
 
 struct ShadowPageEntry {
-    scale_offset: vec4<f32>, // xy = scale, zw = offset (atlas uv)
+    scale_offset: vec4<f32>,
     layer_index: u32,
     _padding0: u32,
     _padding1: u32,
@@ -65,6 +57,18 @@ struct ShadowParams {
     point_bias_min: f32,
     point_bias_slope: f32,
     _padding: f32,
+}
+
+struct Model {
+    transform: mat4x4<f32>,
+    translation: vec4<f32>,
+    rotation: vec4<f32>,
+    scale: vec4<f32>,
+    flags: vec4<u32>,
+}
+
+struct MaterialLambert {
+    base_color: vec4<f32>,
 }
 
 // -----------------------------------------------------------------------------
@@ -88,28 +92,7 @@ struct ShadowParams {
 @group(0) @binding(14) var<storage, read> point_light_vp: array<mat4x4<f32>>;
 
 @group(1) @binding(0) var<uniform> model: Model;
-
-fn select_point_face(dir: vec3<f32>) -> u32 {
-    var face: u32 = 0u;
-    var best_dot = dot(dir, vec3<f32>(1.0, 0.0, 0.0)); // +X
-
-    let dot_nx = dot(dir, vec3<f32>(-1.0, 0.0, 0.0));
-    if (dot_nx > best_dot) { best_dot = dot_nx; face = 1u; }
-
-    let dot_py = dot(dir, vec3<f32>(0.0, 1.0, 0.0));
-    if (dot_py > best_dot) { best_dot = dot_py; face = 2u; }
-
-    let dot_ny = dot(dir, vec3<f32>(0.0, -1.0, 0.0));
-    if (dot_ny > best_dot) { best_dot = dot_ny; face = 3u; }
-
-    let dot_pz = dot(dir, vec3<f32>(0.0, 0.0, 1.0));
-    if (dot_pz > best_dot) { best_dot = dot_pz; face = 4u; }
-
-    let dot_nz = dot(dir, vec3<f32>(0.0, 0.0, -1.0));
-    if (dot_nz > best_dot) { best_dot = dot_nz; face = 5u; }
-
-    return face;
-}
+@group(1) @binding(1) var<uniform> material: MaterialLambert;
 
 // -----------------------------------------------------------------------------
 // Vertex I/O
@@ -118,24 +101,18 @@ fn select_point_face(dir: vec3<f32>) -> u32 {
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) normal: vec3<f32>,
-    @location(2) tangent: vec4<f32>,
     @location(3) color0: vec4<f32>,
-    @location(4) uv0: vec2<f32>,
-    @location(5) uv1: vec2<f32>,
-    @location(6) joints: vec4<u32>,
-    @location(7) weights: vec4<f32>,
 }
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) world_position: vec3<f32>,
     @location(1) normal: vec3<f32>,
-    @location(2) uv0: vec2<f32>,
-    @location(3) color0: vec4<f32>,
+    @location(2) color0: vec4<f32>,
 }
 
 // -----------------------------------------------------------------------------
-// Shadow sampling helpers
+// Shadow sampling helpers (ported from legacy forward shader)
 // -----------------------------------------------------------------------------
 
 fn compute_table_id(light_base: u32, grid_x: u32, grid_y: u32, grid_size_u: u32) -> u32 {
@@ -145,14 +122,12 @@ fn compute_table_id(light_base: u32, grid_x: u32, grid_y: u32, grid_size_u: u32)
 }
 
 fn sample_shadow_page_at(
-    light_base: u32,       // (shadow_idx*6 + face)
-    light_ndc: vec3<f32>,  // clip.xyz/clip.w  (WebGPU: z em [0,1])
+    light_base: u32,
+    light_ndc: vec3<f32>,
     ndotl: f32,
     bias_min: f32,
     bias_slope: f32
 ) -> f32 {
-
-    // NDC -> UV (WebGPU)
     let light_uv = vec2<f32>(light_ndc.x * 0.5 + 0.5, light_ndc.y * -0.5 + 0.5);
     let light_depth = light_ndc.z;
 
@@ -162,19 +137,16 @@ fn sample_shadow_page_at(
 
     let grid_size_f = shadow_params.virtual_grid_size;
     let grid_size_u = u32(grid_size_f);
-
     let grid_x = u32(clamp(light_uv.x * grid_size_f, 0.0, grid_size_f - 1.0));
     let grid_y = u32(clamp(light_uv.y * grid_size_f, 0.0, grid_size_f - 1.0));
 
     let table_id = compute_table_id(light_base, grid_x, grid_y, grid_size_u);
     let page = shadow_page_table[table_id];
 
-    // Sem página -> lit
     if (page.scale_offset.x == 0.0 && page.scale_offset.y == 0.0) {
         return 1.0;
     }
 
-    // UV local no tile (0..1)
     let page_origin = vec2<f32>(f32(grid_x), f32(grid_y)) / grid_size_f;
     let page_uv = (light_uv - page_origin) * grid_size_f;
 
@@ -182,22 +154,13 @@ fn sample_shadow_page_at(
         return 1.0;
     }
 
-    // UV no atlas (tile arbitrário)
     let atlas_uv_center = (page_uv * page.scale_offset.xy) + page.scale_offset.zw;
-
-    // Bias
     let bias = max(bias_min, bias_slope * (1.0 - ndotl));
 
-    // PCF
     let dim = textureDimensions(shadow_atlas);
     let atlas_texel = 1.0 / vec2<f32>(f32(dim.x), f32(dim.y));
-
-    // CLAMP para impedir bleeding fora do tile:
-    // tile_min .. tile_max são as bordas do tile no atlas.
     let tile_min = page.scale_offset.zw;
     let tile_max = page.scale_offset.zw + page.scale_offset.xy;
-
-    // guard band: evita tocar na borda (pelo menos 1 texel)
     let guard = atlas_texel * 1.5;
     let uv_min = tile_min + guard;
     let uv_max = tile_max - guard;
@@ -220,10 +183,7 @@ fn sample_shadow_page_at(
     for (var oy = -range; oy <= range; oy = oy + 1) {
         for (var ox = -range; ox <= range; ox = ox + 1) {
             let offset = vec2<f32>(f32(ox), f32(oy)) * atlas_texel;
-
-            // Sem clamp aqui = PCF “vaza” pro tile vizinho (principal causa de flicker/recortes)
             let uv = clamp(atlas_uv_center + offset, uv_min, uv_max);
-
             sum += textureSampleCompare(
                 shadow_atlas,
                 shadow_sampler,
@@ -244,35 +204,21 @@ fn dir_component(v: vec3<f32>, axis: u32) -> f32 {
     return v.z;
 }
 
-// axis: 0=X, 1=Y, 2=Z
-// comp >= 0 => face positiva, comp < 0 => face negativa
 fn face_from_axis(axis: u32, comp: f32) -> u32 {
     let pos = comp >= 0.0;
-
-    if (axis == 0u) {
-        // +X = 0, -X = 1
-        return select(1u, 0u, pos);
-    }
-    if (axis == 1u) {
-        // +Y = 2, -Y = 3
-        return select(3u, 2u, pos);
-    }
-    // +Z = 4, -Z = 5
+    if (axis == 0u) { return select(1u, 0u, pos); }
+    if (axis == 1u) { return select(3u, 2u, pos); }
     return select(5u, 4u, pos);
 }
 
 fn sample_point_face(light: Light, face: u32, world_pos: vec3<f32>, ndotl: f32) -> f32 {
     let shadow_idx = light.shadow_index;
     let vp = point_light_vp[shadow_idx * 6u + face];
-
     let clip = vp * vec4<f32>(world_pos, 1.0);
     let ndc = clip.xyz / clip.w;
-
-    // Fora do frustum do face => lit
     if (ndc.x < -1.0 || ndc.x > 1.0 || ndc.y < -1.0 || ndc.y > 1.0 || ndc.z < 0.0 || ndc.z > 1.0) {
         return 1.0;
     }
-
     let light_base = shadow_idx * 6u + face;
     return sample_shadow_page_at(light_base, ndc, ndotl, shadow_params.point_bias_min, shadow_params.point_bias_slope);
 }
@@ -281,74 +227,51 @@ fn point_shadow_factor(light: Light, world_pos: vec3<f32>, ndotl: f32) -> f32 {
     let v = world_pos - light.position.xyz;
     let dist = length(v);
     if (dist <= 1e-5) { return 1.0; }
-
     let dir = v / dist;
     let ad = abs(dir);
-
-    // acha o maior eixo (a0) e o segundo maior (a1), de forma estável
     var a0: u32 = 0u;
     var m0: f32 = ad.x;
-
     var a1: u32 = 1u;
     var m1: f32 = ad.y;
-
-    // garante m0 >= m1 no início
     if (m1 > m0) {
         let tmpa = a0; a0 = a1; a1 = tmpa;
         let tmpm = m0; m0 = m1; m1 = tmpm;
     }
-
-    // insere Z no ranking
     if (ad.z > m0) {
         a1 = a0; m1 = m0;
         a0 = 2u; m0 = ad.z;
     } else if (ad.z > m1) {
         a1 = 2u; m1 = ad.z;
     }
-
     let face0 = face_from_axis(a0, dir_component(dir, a0));
     let face1 = face_from_axis(a1, dir_component(dir, a1));
-
     let s0 = sample_point_face(light, face0, world_pos, ndotl);
     let s1 = sample_point_face(light, face1, world_pos, ndotl);
-
-    // Conservador: mantém a mais sombreada
     return min(s0, s1);
 }
 
-
-fn get_shadow_factor(light_idx: u32, light: Light, world_pos: vec3<f32>, ndotl: f32) -> f32 {
+fn get_shadow_factor(light: Light, world_pos: vec3<f32>, ndotl: f32) -> f32 {
     let model_receive_shadow = (model.flags.x & 1u) != 0u;
     let light_cast_shadow = (light.kind_flags.y & 1u) != 0u;
-
-    if (!model_receive_shadow || !light_cast_shadow) {
-        return 1.0;
-    }
-    if (ndotl <= 0.0) {
-        return 1.0;
-    }
-
-    if (light.kind_flags.x == 1u) { // Point
-        return point_shadow_factor(light, world_pos, ndotl);
-    }
-
+    if (!model_receive_shadow || !light_cast_shadow) { return 1.0; }
+    if (ndotl <= 0.0) { return 1.0; }
+    if (light.kind_flags.x == 1u) { return point_shadow_factor(light, world_pos, ndotl); }
     let light_clip = light.view_projection * vec4<f32>(world_pos, 1.0);
     let light_ndc = light_clip.xyz / light_clip.w;
-
     let shadow_idx = light.shadow_index;
-    let light_base = shadow_idx * 6u + 0u; // non-point usa face 0
+    let light_base = shadow_idx * 6u + 0u;
     return sample_shadow_page_at(light_base, light_ndc, ndotl, shadow_params.bias_min, shadow_params.bias_slope);
 }
 
 // -----------------------------------------------------------------------------
-// Lighting
+// Lighting (Lambert)
 // -----------------------------------------------------------------------------
 
-fn calculate_directional_light(light: Light, normal: vec3<f32>, world_pos: vec3<f32>, light_idx: u32) -> vec3<f32> {
+fn calculate_directional_light(light: Light, normal: vec3<f32>, world_pos: vec3<f32>) -> vec3<f32> {
     let l = normalize(-light.direction.xyz);
     let ndotl = max(dot(normal, l), 0.0);
     if (ndotl <= 0.0) { return vec3<f32>(0.0); }
-    let shadow = get_shadow_factor(light_idx, light, world_pos, ndotl);
+    let shadow = get_shadow_factor(light, world_pos, ndotl);
     return light.color.rgb * light.intensity_range.x * ndotl * shadow;
 }
 
@@ -362,42 +285,34 @@ fn calculate_hemisphere_light(light: Light, normal: vec3<f32>) -> vec3<f32> {
     return mix(light.ground_color.rgb, light.color.rgb, w) * light.intensity_range.x;
 }
 
-fn calculate_spot_light(light: Light, normal: vec3<f32>, world_pos: vec3<f32>, light_idx: u32) -> vec3<f32> {
+fn calculate_spot_light(light: Light, normal: vec3<f32>, world_pos: vec3<f32>) -> vec3<f32> {
     let light_to_pos = world_pos - light.position.xyz;
     let dist = length(light_to_pos);
     let l = normalize(-light_to_pos);
-
     let range = light.intensity_range.y;
     if (dist > range) { return vec3<f32>(0.0); }
-
     let attenuation = pow(clamp(1.0 - dist / range, 0.0, 1.0), 2.0);
-
     let theta = dot(l, normalize(-light.direction.xyz));
     let inner = cos(light.spot_inner_outer.x);
     let outer = cos(light.spot_inner_outer.y);
     let epsilon = inner - outer;
     let spot_intensity = clamp((theta - outer) / epsilon, 0.0, 1.0);
-
     let ndotl = max(dot(normal, l), 0.0);
     if (ndotl <= 0.0) { return vec3<f32>(0.0); }
-    let shadow = get_shadow_factor(light_idx, light, world_pos, ndotl);
-
+    let shadow = get_shadow_factor(light, world_pos, ndotl);
     return light.color.rgb * light.intensity_range.x * ndotl * attenuation * spot_intensity * shadow;
 }
 
-fn calculate_point_light(light: Light, normal: vec3<f32>, world_pos: vec3<f32>, light_idx: u32) -> vec3<f32> {
+fn calculate_point_light(light: Light, normal: vec3<f32>, world_pos: vec3<f32>) -> vec3<f32> {
     let light_to_pos = world_pos - light.position.xyz;
     let dist = length(light_to_pos);
     let l = normalize(-light_to_pos);
-
     let range = light.intensity_range.y;
     if (dist > range) { return vec3<f32>(0.0); }
-
     let attenuation = pow(clamp(1.0 - dist / range, 0.0, 1.0), 2.0);
     let ndotl = max(dot(normal, l), 0.0);
     if (ndotl <= 0.0) { return vec3<f32>(0.0); }
-    let shadow = get_shadow_factor(light_idx, light, world_pos, ndotl);
-
+    let shadow = get_shadow_factor(light, world_pos, ndotl);
     return light.color.rgb * light.intensity_range.x * ndotl * attenuation * shadow;
 }
 
@@ -409,14 +324,9 @@ fn calculate_point_light(light: Light, normal: vec3<f32>, world_pos: vec3<f32>, 
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     let world_pos = model.transform * vec4<f32>(in.position, 1.0);
-
     out.clip_position = camera.view_projection * world_pos;
     out.world_position = world_pos.xyz;
-
-    // Se você tiver escala não-uniforme, considere inverse-transpose no CPU.
     out.normal = (model.transform * vec4<f32>(in.normal, 0.0)).xyz;
-
-    out.uv0 = in.uv0;
     out.color0 = in.color0;
     return out;
 }
@@ -428,7 +338,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let n = normalize(in.normal);
-    var color = in.color0.rgb;
+    var color = material.base_color.rgb * in.color0.rgb;
 
     let cam = light_params.camera_index;
     let base = cam * light_params.max_lights_per_camera;
@@ -440,9 +350,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             let idx = visible_indices[base + i];
             let light = lights[idx];
             switch (light.kind_flags.x) {
-                case 0u: { lighting += calculate_directional_light(light, n, in.world_position, idx); }
-                case 1u: { lighting += calculate_point_light(light, n, in.world_position, idx); }
-                case 2u: { lighting += calculate_spot_light(light, n, in.world_position, idx); }
+                case 0u: { lighting += calculate_directional_light(light, n, in.world_position); }
+                case 1u: { lighting += calculate_point_light(light, n, in.world_position); }
+                case 2u: { lighting += calculate_spot_light(light, n, in.world_position); }
                 case 3u: { lighting += calculate_ambient_light(light); }
                 case 4u: { lighting += calculate_hemisphere_light(light, n); }
                 default: { }
@@ -453,5 +363,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         color *= vec3<f32>(0.001);
     }
 
-    return vec4<f32>(color, 1.0);
+    return vec4<f32>(color, material.base_color.a);
 }

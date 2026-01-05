@@ -1,6 +1,7 @@
+mod branches;
+
 use crate::core::render::RenderState;
-use crate::core::render::cache::{PipelineKey, ShaderId};
-use crate::core::resources::VertexStream;
+use crate::core::resources::MATERIAL_FALLBACK_ID;
 
 pub fn pass_forward(
     render_state: &mut RenderState,
@@ -32,6 +33,8 @@ pub fn pass_forward(
         Some(sys) => sys,
         None => return,
     };
+    let materials_lambert = &render_state.scene.materials_lambert;
+    let materials_unlit = &render_state.scene.materials_unlit;
 
     // 1. Sort cameras by order
 
@@ -90,164 +93,48 @@ pub fn pass_forward(
                 render_pass.set_bind_group(0, shared_group, &[camera_offset, light_offset]);
             }
 
-            // 5. Filter and draw models
+            // 5. Filter and draw models (Unlit/Lambert Opaque branches)
             for (model_id, model_record) in &scene.models {
                 // Check layer mask
                 if (model_record.layer_mask & camera_record.layer_mask) == 0 {
                     continue;
                 }
 
-                // Bind Object (Group 1: Model)
-                if let Some(object_group) = bindings.object_group.as_ref() {
-                    let offset = bindings.model_pool.get_offset(*model_id) as u32;
-                    render_pass.set_bind_group(1, object_group, &[offset]);
+                let unlit_material_id = model_record
+                    .material_id
+                    .filter(|id| materials_unlit.contains_key(id));
+
+                if let Some(material_id) = unlit_material_id {
+                    if let Some(unlit_group) = bindings.unlit_group.as_ref() {
+                        let model_offset = bindings.model_pool.get_offset(*model_id) as u32;
+                        let material_offset =
+                            bindings.material_unlit_pool.get_offset(material_id) as u32;
+                        render_pass.set_bind_group(1, unlit_group, &[model_offset, material_offset]);
+                    }
+                    let pipeline =
+                        branches::unlit::get_pipeline(cache, frame_index, device, library);
+                    render_pass.set_pipeline(pipeline);
+                } else {
+                    let material_id = model_record
+                        .material_id
+                        .filter(|id| materials_lambert.contains_key(id))
+                        .unwrap_or(MATERIAL_FALLBACK_ID);
+
+                    if let Some(lambert_group) = bindings.lambert_group.as_ref() {
+                        let model_offset = bindings.model_pool.get_offset(*model_id) as u32;
+                        let material_offset =
+                            bindings.material_lambert_pool.get_offset(material_id) as u32;
+                        render_pass.set_bind_group(1, lambert_group, &[model_offset, material_offset]);
+                    }
+                    let pipeline =
+                        branches::lambert::get_pipeline(cache, frame_index, device, library);
+                    render_pass.set_pipeline(pipeline);
                 }
 
                 // Bind Geometry
                 if let Ok(Some(index_info)) = vertex_sys.index_info(model_record.geometry_id) {
                     let _ = vertex_sys.bind(&mut render_pass, model_record.geometry_id);
 
-                    // Pipeline Cache
-                    let key = PipelineKey {
-                        shader_id: ShaderId::Forward as u64,
-                        color_format: wgpu::TextureFormat::Rgba32Float,
-                        depth_format: Some(wgpu::TextureFormat::Depth24Plus),
-                        sample_count: 1,
-                        topology: wgpu::PrimitiveTopology::TriangleList,
-                        cull_mode: Some(wgpu::Face::Back),
-                        front_face: wgpu::FrontFace::Ccw,
-                        depth_write_enabled: true,
-                        depth_compare: wgpu::CompareFunction::Less,
-                        blend: None,
-                    };
-
-                    let pipeline = cache.get_or_create(key, frame_index, || {
-                        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                            label: Some("Forward Standard Pipeline"),
-                            layout: Some(&library.forward_pipeline_layout),
-                            vertex: wgpu::VertexState {
-                                module: &library.forward_shader,
-                                entry_point: Some("vs_main"),
-                                buffers: &[
-                                    // 0: Position
-                                    wgpu::VertexBufferLayout {
-                                        array_stride: VertexStream::Position.stride_bytes(),
-                                        step_mode: wgpu::VertexStepMode::Vertex,
-                                        attributes: &[wgpu::VertexAttribute {
-                                            format: wgpu::VertexFormat::Float32x3,
-                                            offset: 0,
-                                            shader_location: 0,
-                                        }],
-                                    },
-                                    // 1: Normal
-                                    wgpu::VertexBufferLayout {
-                                        array_stride: VertexStream::Normal.stride_bytes(),
-                                        step_mode: wgpu::VertexStepMode::Vertex,
-                                        attributes: &[wgpu::VertexAttribute {
-                                            format: wgpu::VertexFormat::Float32x3,
-                                            offset: 0,
-                                            shader_location: 1,
-                                        }],
-                                    },
-                                    // 2: Tangent
-                                    wgpu::VertexBufferLayout {
-                                        array_stride: VertexStream::Tangent.stride_bytes(),
-                                        step_mode: wgpu::VertexStepMode::Vertex,
-                                        attributes: &[wgpu::VertexAttribute {
-                                            format: wgpu::VertexFormat::Float32x4,
-                                            offset: 0,
-                                            shader_location: 2,
-                                        }],
-                                    },
-                                    // 3: Color0
-                                    wgpu::VertexBufferLayout {
-                                        array_stride: VertexStream::Color0.stride_bytes(),
-                                        step_mode: wgpu::VertexStepMode::Vertex,
-                                        attributes: &[wgpu::VertexAttribute {
-                                            format: wgpu::VertexFormat::Float32x4,
-                                            offset: 0,
-                                            shader_location: 3,
-                                        }],
-                                    },
-                                    // 4: UV0
-                                    wgpu::VertexBufferLayout {
-                                        array_stride: VertexStream::UV0.stride_bytes(),
-                                        step_mode: wgpu::VertexStepMode::Vertex,
-                                        attributes: &[wgpu::VertexAttribute {
-                                            format: wgpu::VertexFormat::Float32x2,
-                                            offset: 0,
-                                            shader_location: 4,
-                                        }],
-                                    },
-                                    // 5: UV1
-                                    wgpu::VertexBufferLayout {
-                                        array_stride: VertexStream::UV1.stride_bytes(),
-                                        step_mode: wgpu::VertexStepMode::Vertex,
-                                        attributes: &[wgpu::VertexAttribute {
-                                            format: wgpu::VertexFormat::Float32x2,
-                                            offset: 0,
-                                            shader_location: 5,
-                                        }],
-                                    },
-                                    // 6: Joints
-                                    wgpu::VertexBufferLayout {
-                                        array_stride: VertexStream::Joints.stride_bytes(),
-                                        step_mode: wgpu::VertexStepMode::Vertex,
-                                        attributes: &[wgpu::VertexAttribute {
-                                            format: wgpu::VertexFormat::Uint16x4,
-                                            offset: 0,
-                                            shader_location: 6,
-                                        }],
-                                    },
-                                    // 7: Weights
-                                    wgpu::VertexBufferLayout {
-                                        array_stride: VertexStream::Weights.stride_bytes(),
-                                        step_mode: wgpu::VertexStepMode::Vertex,
-                                        attributes: &[wgpu::VertexAttribute {
-                                            format: wgpu::VertexFormat::Float32x4,
-                                            offset: 0,
-                                            shader_location: 7,
-                                        }],
-                                    },
-                                ],
-                                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                            },
-                            fragment: Some(wgpu::FragmentState {
-                                module: &library.forward_shader,
-                                entry_point: Some("fs_main"),
-                                targets: &[Some(wgpu::ColorTargetState {
-                                    format: key.color_format,
-                                    blend: key.blend,
-                                    write_mask: wgpu::ColorWrites::ALL,
-                                })],
-                                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                            }),
-                            primitive: wgpu::PrimitiveState {
-                                topology: key.topology,
-                                strip_index_format: None,
-                                front_face: key.front_face,
-                                cull_mode: key.cull_mode,
-                                unclipped_depth: false,
-                                polygon_mode: wgpu::PolygonMode::Fill,
-                                conservative: false,
-                            },
-                            depth_stencil: key.depth_format.map(|format| wgpu::DepthStencilState {
-                                format,
-                                depth_write_enabled: key.depth_write_enabled,
-                                depth_compare: key.depth_compare,
-                                stencil: wgpu::StencilState::default(),
-                                bias: wgpu::DepthBiasState::default(),
-                            }),
-                            multisample: wgpu::MultisampleState {
-                                count: key.sample_count,
-                                mask: !0,
-                                alpha_to_coverage_enabled: false,
-                            },
-                            multiview: None,
-                            cache: None,
-                        })
-                    });
-                    render_pass.set_pipeline(pipeline);
                     render_pass.draw_indexed(0..index_info.count, 0, 0..1);
                 }
             }

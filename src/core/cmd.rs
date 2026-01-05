@@ -45,6 +45,9 @@ pub enum EngineCmd {
     CmdLightCreate(res::CmdLightCreateArgs),
     CmdLightUpdate(res::CmdLightUpdateArgs),
     CmdLightDispose(res::CmdLightDisposeArgs),
+    CmdMaterialCreate(res::CmdMaterialCreateArgs),
+    CmdMaterialUpdate(res::CmdMaterialUpdateArgs),
+    CmdMaterialDispose(res::CmdMaterialDisposeArgs),
     CmdGeometryCreate(res::CmdGeometryCreateArgs),
     CmdGeometryUpdate(res::CmdGeometryUpdateArgs),
     CmdGeometryDispose(res::CmdGeometryDisposeArgs),
@@ -97,6 +100,9 @@ pub enum CommandResponse {
     LightCreate(res::CmdResultLightCreate),
     LightUpdate(res::CmdResultLightUpdate),
     LightDispose(res::CmdResultLightDispose),
+    MaterialCreate(res::CmdResultMaterialCreate),
+    MaterialUpdate(res::CmdResultMaterialUpdate),
+    MaterialDispose(res::CmdResultMaterialDispose),
     GeometryCreate(res::CmdResultGeometryCreate),
     GeometryUpdate(res::CmdResultGeometryUpdate),
     GeometryDispose(res::CmdResultGeometryDispose),
@@ -336,6 +342,27 @@ pub fn engine_process_batch(
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::LightDispose(result),
+                });
+            }
+            EngineCmd::CmdMaterialCreate(args) => {
+                let result = res::engine_cmd_material_create(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::MaterialCreate(result),
+                });
+            }
+            EngineCmd::CmdMaterialUpdate(args) => {
+                let result = res::engine_cmd_material_update(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::MaterialUpdate(result),
+                });
+            }
+            EngineCmd::CmdMaterialDispose(args) => {
+                let result = res::engine_cmd_material_dispose(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::MaterialDispose(result),
                 });
             }
             EngineCmd::CmdGeometryCreate(args) => {

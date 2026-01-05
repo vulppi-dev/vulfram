@@ -2,42 +2,28 @@ use glam::Vec4;
 use serde::{Deserialize, Serialize};
 
 use crate::core::resources::{
-    MaterialLambertComponent, MaterialLambertRecord, MaterialUnlitComponent,
-    MaterialUnlitRecord, MATERIAL_FALLBACK_ID,
+    MaterialStandardComponent, MaterialStandardRecord, SurfaceType, MATERIAL_FALLBACK_ID,
 };
 use crate::core::state::EngineState;
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum MaterialKind {
-    Unlit,
-    Lambert,
+    Standard,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct UnlitOptions {
+pub struct StandardOptions {
     pub base_color: Vec4,
+    pub surface_type: SurfaceType,
 }
 
-impl Default for UnlitOptions {
+impl Default for StandardOptions {
     fn default() -> Self {
         Self {
             base_color: Vec4::ONE,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct LambertOptions {
-    pub base_color: Vec4,
-}
-
-impl Default for LambertOptions {
-    fn default() -> Self {
-        Self {
-            base_color: Vec4::ONE,
+            surface_type: SurfaceType::Opaque,
         }
     }
 }
@@ -45,8 +31,7 @@ impl Default for LambertOptions {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(tag = "type", content = "content", rename_all = "camelCase")]
 pub enum MaterialOptions {
-    Unlit(UnlitOptions),
-    Lambert(LambertOptions),
+    Standard(StandardOptions),
 }
 
 // MARK: - Create Material
@@ -85,13 +70,8 @@ pub fn engine_cmd_material_create(
     if window_state
         .render_state
         .scene
-        .materials_unlit
+        .materials_standard
         .contains_key(&args.material_id)
-        || window_state
-            .render_state
-            .scene
-            .materials_lambert
-            .contains_key(&args.material_id)
     {
         return CmdResultMaterialCreate {
             success: false,
@@ -99,47 +79,28 @@ pub fn engine_cmd_material_create(
         };
     }
 
-    let options = match (args.kind, &args.options) {
-        (MaterialKind::Unlit, Some(MaterialOptions::Unlit(opts))) => {
-            MaterialOptions::Unlit(opts.clone())
-        }
-        (MaterialKind::Unlit, None) => MaterialOptions::Unlit(UnlitOptions::default()),
-        (MaterialKind::Lambert, Some(MaterialOptions::Lambert(opts))) => {
-            MaterialOptions::Lambert(opts.clone())
-        }
-        (MaterialKind::Lambert, None) => MaterialOptions::Lambert(LambertOptions::default()),
-        (kind, Some(_)) => {
-            return CmdResultMaterialCreate {
-                success: false,
-                message: format!("Options type mismatch for {:?}", kind),
-            };
-        }
+    if args.kind != MaterialKind::Standard {
+        return CmdResultMaterialCreate {
+            success: false,
+            message: "Unsupported material kind".into(),
+        };
+    }
+
+    let opts = match &args.options {
+        Some(MaterialOptions::Standard(opts)) => opts.clone(),
+        None => StandardOptions::default(),
     };
 
-    match options {
-        MaterialOptions::Unlit(opts) => {
-            let component = MaterialUnlitComponent {
-                base_color: opts.base_color,
-            };
-            let record = MaterialUnlitRecord::new(component);
-            window_state
-                .render_state
-                .scene
-                .materials_unlit
-                .insert(args.material_id, record);
-        }
-        MaterialOptions::Lambert(opts) => {
-            let component = MaterialLambertComponent {
-                base_color: opts.base_color,
-            };
-            let record = MaterialLambertRecord::new(component);
-            window_state
-                .render_state
-                .scene
-                .materials_lambert
-                .insert(args.material_id, record);
-        }
-    }
+    let component = MaterialStandardComponent {
+        base_color: opts.base_color,
+    };
+    let mut record = MaterialStandardRecord::new(component);
+    record.surface_type = opts.surface_type;
+    window_state
+        .render_state
+        .scene
+        .materials_standard
+        .insert(args.material_id, record);
 
     window_state.is_dirty = true;
 
@@ -182,138 +143,43 @@ pub fn engine_cmd_material_update(
         }
     };
 
-    let existing_kind = if window_state
+    if !window_state
         .render_state
         .scene
-        .materials_unlit
+        .materials_standard
         .contains_key(&args.material_id)
     {
-        Some(MaterialKind::Unlit)
-    } else if window_state
-        .render_state
-        .scene
-        .materials_lambert
-        .contains_key(&args.material_id)
-    {
-        Some(MaterialKind::Lambert)
-    } else {
-        None
-    };
-
-    let existing_kind = match existing_kind {
-        Some(kind) => kind,
-        None => {
-            return CmdResultMaterialUpdate {
-                success: false,
-                message: format!("Material with id {} not found", args.material_id),
-            };
-        }
-    };
-
-    let target_kind = args.kind.unwrap_or(existing_kind);
-
-    let options = match (target_kind, &args.options) {
-        (MaterialKind::Unlit, Some(MaterialOptions::Unlit(opts))) => {
-            Some(MaterialOptions::Unlit(opts.clone()))
-        }
-        (MaterialKind::Lambert, Some(MaterialOptions::Lambert(opts))) => {
-            Some(MaterialOptions::Lambert(opts.clone()))
-        }
-        (MaterialKind::Unlit, None) | (MaterialKind::Lambert, None) => None,
-        (kind, Some(_)) => {
-            return CmdResultMaterialUpdate {
-                success: false,
-                message: format!("Options type mismatch for {:?}", kind),
-            };
-        }
-    };
-
-    if existing_kind != target_kind {
-        match existing_kind {
-            MaterialKind::Unlit => {
-                window_state
-                    .render_state
-                    .scene
-                    .materials_unlit
-                    .remove(&args.material_id);
-            }
-            MaterialKind::Lambert => {
-                window_state
-                    .render_state
-                    .scene
-                    .materials_lambert
-                    .remove(&args.material_id);
-            }
-        }
-
-        match target_kind {
-            MaterialKind::Unlit => {
-                let opts = match options {
-                    Some(MaterialOptions::Unlit(opts)) => opts,
-                    _ => UnlitOptions::default(),
-                };
-                let component = MaterialUnlitComponent {
-                    base_color: opts.base_color,
-                };
-                let record = MaterialUnlitRecord::new(component);
-                window_state
-                    .render_state
-                    .scene
-                    .materials_unlit
-                    .insert(args.material_id, record);
-            }
-            MaterialKind::Lambert => {
-                let opts = match options {
-                    Some(MaterialOptions::Lambert(opts)) => opts,
-                    _ => LambertOptions::default(),
-                };
-                let component = MaterialLambertComponent {
-                    base_color: opts.base_color,
-                };
-                let record = MaterialLambertRecord::new(component);
-                window_state
-                    .render_state
-                    .scene
-                    .materials_lambert
-                    .insert(args.material_id, record);
-            }
-        }
-
-        window_state.is_dirty = true;
-
         return CmdResultMaterialUpdate {
-            success: true,
-            message: "Material updated successfully".into(),
+            success: false,
+            message: format!("Material with id {} not found", args.material_id),
         };
     }
 
-    match target_kind {
-        MaterialKind::Unlit => {
-            if let Some(record) = window_state
-                .render_state
-                .scene
-                .materials_unlit
-                .get_mut(&args.material_id)
-            {
-                if let Some(MaterialOptions::Unlit(opts)) = options {
-                    record.data.base_color = opts.base_color;
-                }
-                record.mark_dirty();
-            }
+    if let Some(kind) = args.kind {
+        if kind != MaterialKind::Standard {
+            return CmdResultMaterialUpdate {
+                success: false,
+                message: "Unsupported material kind".into(),
+            };
         }
-        MaterialKind::Lambert => {
-            if let Some(record) = window_state
-                .render_state
-                .scene
-                .materials_lambert
-                .get_mut(&args.material_id)
-            {
-                if let Some(MaterialOptions::Lambert(opts)) = options {
-                    record.data.base_color = opts.base_color;
-                }
-                record.mark_dirty();
-            }
+    }
+
+    let options = match &args.options {
+        Some(MaterialOptions::Standard(opts)) => Some(opts.clone()),
+        None => None,
+    };
+
+    if let Some(record) = window_state
+        .render_state
+        .scene
+        .materials_standard
+        .get_mut(&args.material_id)
+    {
+        if let Some(opts) = options {
+            record.data.base_color = opts.base_color;
+            record.surface_type = opts.surface_type;
         }
+        record.mark_dirty();
     }
 
     window_state.is_dirty = true;
@@ -361,20 +227,13 @@ pub fn engine_cmd_material_dispose(
         };
     }
 
-    let removed_unlit = window_state
+    if window_state
         .render_state
         .scene
-        .materials_unlit
+        .materials_standard
         .remove(&args.material_id)
-        .is_some();
-    let removed_lambert = window_state
-        .render_state
-        .scene
-        .materials_lambert
-        .remove(&args.material_id)
-        .is_some();
-
-    if removed_unlit || removed_lambert {
+        .is_some()
+    {
         window_state.is_dirty = true;
         CmdResultMaterialDispose {
             success: true,

@@ -9,7 +9,7 @@ pub fn get_pipeline<'a>(
     library: &ResourceLibrary,
 ) -> &'a wgpu::RenderPipeline {
     let key = PipelineKey {
-        shader_id: ShaderId::ForwardLambert as u64,
+        shader_id: ShaderId::ForwardStandard as u64,
         color_format: wgpu::TextureFormat::Rgba32Float,
         depth_format: Some(wgpu::TextureFormat::Depth24Plus),
         sample_count: 1,
@@ -23,10 +23,10 @@ pub fn get_pipeline<'a>(
 
     cache.get_or_create(key, frame_index, || {
         device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Forward Lambert Pipeline"),
-            layout: Some(&library.forward_lambert_pipeline_layout),
+            label: Some("Forward Standard Pipeline"),
+            layout: Some(&library.forward_standard_pipeline_layout),
             vertex: wgpu::VertexState {
-                module: &library.forward_lambert_shader,
+                module: &library.forward_standard_shader,
                 entry_point: Some("vs_main"),
                 buffers: &[
                     // 0: Position
@@ -113,7 +113,7 @@ pub fn get_pipeline<'a>(
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
-                module: &library.forward_lambert_shader,
+                module: &library.forward_standard_shader,
                 entry_point: Some("fs_main"),
                 targets: &[Some(wgpu::ColorTargetState {
                     format: key.color_format,

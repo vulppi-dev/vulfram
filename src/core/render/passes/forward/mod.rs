@@ -1,7 +1,7 @@
 mod branches;
 
 use crate::core::render::RenderState;
-use crate::core::resources::MATERIAL_FALLBACK_ID;
+use crate::core::resources::{MATERIAL_FALLBACK_ID, SurfaceType};
 
 pub fn pass_forward(
     render_state: &mut RenderState,
@@ -10,6 +10,12 @@ pub fn pass_forward(
     encoder: &mut wgpu::CommandEncoder,
     frame_index: u64,
 ) {
+    struct DrawItem {
+        model_id: u32,
+        geometry_id: u32,
+        material_id: u32,
+    }
+
     let scene = &render_state.scene;
 
     let vertex_sys = match render_state.vertex.as_mut() {
@@ -33,8 +39,7 @@ pub fn pass_forward(
         Some(sys) => sys,
         None => return,
     };
-    let materials_lambert = &render_state.scene.materials_lambert;
-    let materials_unlit = &render_state.scene.materials_unlit;
+    let materials_standard = &render_state.scene.materials_standard;
 
     // 1. Sort cameras by order
 
@@ -93,51 +98,63 @@ pub fn pass_forward(
                 render_pass.set_bind_group(0, shared_group, &[camera_offset, light_offset]);
             }
 
-            // 5. Filter and draw models (Unlit/Lambert Opaque branches)
+            // 5. Filter and group models by surface type
+            let mut opaque = Vec::new();
+            let mut masked = Vec::new();
+            let mut transparent = Vec::new();
+
             for (model_id, model_record) in &scene.models {
-                // Check layer mask
                 if (model_record.layer_mask & camera_record.layer_mask) == 0 {
                     continue;
                 }
 
-                let unlit_material_id = model_record
+                let material_id = model_record
                     .material_id
-                    .filter(|id| materials_unlit.contains_key(id));
+                    .filter(|id| materials_standard.contains_key(id))
+                    .unwrap_or(MATERIAL_FALLBACK_ID);
 
-                if let Some(material_id) = unlit_material_id {
-                    if let Some(unlit_group) = bindings.unlit_group.as_ref() {
-                        let model_offset = bindings.model_pool.get_offset(*model_id) as u32;
-                        let material_offset =
-                            bindings.material_unlit_pool.get_offset(material_id) as u32;
-                        render_pass.set_bind_group(1, unlit_group, &[model_offset, material_offset]);
-                    }
-                    let pipeline =
-                        branches::unlit::get_pipeline(cache, frame_index, device, library);
-                    render_pass.set_pipeline(pipeline);
-                } else {
-                    let material_id = model_record
-                        .material_id
-                        .filter(|id| materials_lambert.contains_key(id))
-                        .unwrap_or(MATERIAL_FALLBACK_ID);
+                let surface_type = materials_standard
+                    .get(&material_id)
+                    .map(|record| record.surface_type)
+                    .unwrap_or(SurfaceType::Opaque);
 
-                    if let Some(lambert_group) = bindings.lambert_group.as_ref() {
-                        let model_offset = bindings.model_pool.get_offset(*model_id) as u32;
-                        let material_offset =
-                            bindings.material_lambert_pool.get_offset(material_id) as u32;
-                        render_pass.set_bind_group(1, lambert_group, &[model_offset, material_offset]);
-                    }
-                    let pipeline =
-                        branches::lambert::get_pipeline(cache, frame_index, device, library);
-                    render_pass.set_pipeline(pipeline);
-                }
+                let item = DrawItem {
+                    model_id: *model_id,
+                    geometry_id: model_record.geometry_id,
+                    material_id,
+                };
 
-                // Bind Geometry
-                if let Ok(Some(index_info)) = vertex_sys.index_info(model_record.geometry_id) {
-                    let _ = vertex_sys.bind(&mut render_pass, model_record.geometry_id);
-
-                    render_pass.draw_indexed(0..index_info.count, 0, 0..1);
+                match surface_type {
+                    SurfaceType::Opaque => opaque.push(item),
+                    SurfaceType::Masked => masked.push(item),
+                    SurfaceType::Transparent => transparent.push(item),
                 }
             }
+
+            let pipeline =
+                branches::standard::get_pipeline(cache, frame_index, device, library);
+            render_pass.set_pipeline(pipeline);
+
+            let mut draw_items = |items: Vec<DrawItem>| {
+                for item in items {
+                    if let Some(standard_group) = bindings.standard_group.as_ref() {
+                        let model_offset = bindings.model_pool.get_offset(item.model_id) as u32;
+                        let material_offset =
+                            bindings.material_standard_pool.get_offset(item.material_id) as u32;
+                        render_pass
+                            .set_bind_group(1, standard_group, &[model_offset, material_offset]);
+                    }
+
+                    if let Ok(Some(index_info)) = vertex_sys.index_info(item.geometry_id) {
+                        let _ = vertex_sys.bind(&mut render_pass, item.geometry_id);
+                        render_pass.draw_indexed(0..index_info.count, 0, 0..1);
+                    }
+                }
+            };
+
+            draw_items(opaque);
+            draw_items(masked);
+            draw_items(transparent);
         }
     }
 }

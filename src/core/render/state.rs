@@ -5,9 +5,8 @@ use crate::core::resources::MATERIAL_FALLBACK_ID;
 use crate::core::resources::shadow::ShadowManager;
 use crate::core::resources::{
     CameraComponent, CameraRecord, FrameComponent, LightComponent, LightRecord,
-    MaterialLambertComponent, MaterialLambertRecord, MaterialUnlitComponent, MaterialUnlitRecord,
-    ModelComponent, ModelRecord, RenderTarget, StorageBufferPool, UniformBufferPool,
-    VertexAllocatorConfig, VertexAllocatorSystem,
+    MaterialStandardComponent, MaterialStandardRecord, ModelComponent, ModelRecord, RenderTarget,
+    StorageBufferPool, UniformBufferPool, VertexAllocatorConfig, VertexAllocatorSystem,
 };
 
 fn perspective_rh_zo(fov_y: f32, aspect: f32, near: f32, far: f32) -> glam::Mat4 {
@@ -57,15 +56,12 @@ pub struct SamplerSet {
 pub struct ResourceLibrary {
     pub layout_shared: wgpu::BindGroupLayout,
     pub layout_object: wgpu::BindGroupLayout,
-    pub layout_object_unlit: wgpu::BindGroupLayout,
-    pub layout_object_lambert: wgpu::BindGroupLayout,
+    pub layout_object_standard: wgpu::BindGroupLayout,
     pub layout_target: wgpu::BindGroupLayout,
     pub layout_light_cull: wgpu::BindGroupLayout,
-    pub forward_unlit_pipeline_layout: wgpu::PipelineLayout,
-    pub forward_lambert_pipeline_layout: wgpu::PipelineLayout,
+    pub forward_standard_pipeline_layout: wgpu::PipelineLayout,
     pub shadow_pipeline_layout: wgpu::PipelineLayout,
-    pub forward_unlit_shader: wgpu::ShaderModule,
-    pub forward_lambert_shader: wgpu::ShaderModule,
+    pub forward_standard_shader: wgpu::ShaderModule,
     pub compose_shader: wgpu::ShaderModule,
     pub light_cull_shader: wgpu::ShaderModule,
     pub shadow_shader: wgpu::ShaderModule,
@@ -82,12 +78,10 @@ pub struct BindingSystem {
     pub frame_pool: UniformBufferPool<FrameComponent>,
     pub camera_pool: UniformBufferPool<CameraComponent>,
     pub model_pool: UniformBufferPool<ModelComponent>,
-    pub material_unlit_pool: UniformBufferPool<MaterialUnlitComponent>,
-    pub material_lambert_pool: UniformBufferPool<MaterialLambertComponent>,
+    pub material_standard_pool: UniformBufferPool<MaterialStandardComponent>,
     pub shared_group: Option<wgpu::BindGroup>,
     pub object_group: Option<wgpu::BindGroup>,
-    pub unlit_group: Option<wgpu::BindGroup>,
-    pub lambert_group: Option<wgpu::BindGroup>,
+    pub standard_group: Option<wgpu::BindGroup>,
 }
 
 #[repr(C)]
@@ -137,8 +131,7 @@ pub struct RenderScene {
     pub cameras: HashMap<u32, CameraRecord>,
     pub models: HashMap<u32, ModelRecord>,
     pub lights: HashMap<u32, LightRecord>,
-    pub materials_unlit: HashMap<u32, MaterialUnlitRecord>,
-    pub materials_lambert: HashMap<u32, MaterialLambertRecord>,
+    pub materials_standard: HashMap<u32, MaterialStandardRecord>,
 }
 
 // -----------------------------------------------------------------------------
@@ -164,15 +157,10 @@ impl RenderState {
 
     /// Create a new RenderState with empty systems
     pub fn new(_surface_format: wgpu::TextureFormat) -> Self {
-        let mut materials_unlit = HashMap::new();
-        materials_unlit.insert(
+        let mut materials_standard = HashMap::new();
+        materials_standard.insert(
             MATERIAL_FALLBACK_ID,
-            MaterialUnlitRecord::new(MaterialUnlitComponent::default()),
-        );
-        let mut materials_lambert = HashMap::new();
-        materials_lambert.insert(
-            MATERIAL_FALLBACK_ID,
-            MaterialLambertRecord::new(MaterialLambertComponent::default()),
+            MaterialStandardRecord::new(MaterialStandardComponent::default()),
         );
 
         Self {
@@ -180,8 +168,7 @@ impl RenderState {
                 cameras: HashMap::new(),
                 models: HashMap::new(),
                 lights: HashMap::new(),
-                materials_unlit,
-                materials_lambert,
+                materials_standard,
             },
             bindings: None,
             library: None,
@@ -198,15 +185,10 @@ impl RenderState {
         self.scene.cameras.clear();
         self.scene.models.clear();
         self.scene.lights.clear();
-        self.scene.materials_unlit.clear();
-        self.scene.materials_unlit.insert(
+        self.scene.materials_standard.clear();
+        self.scene.materials_standard.insert(
             MATERIAL_FALLBACK_ID,
-            MaterialUnlitRecord::new(MaterialUnlitComponent::default()),
-        );
-        self.scene.materials_lambert.clear();
-        self.scene.materials_lambert.insert(
-            MATERIAL_FALLBACK_ID,
-            MaterialLambertRecord::new(MaterialLambertComponent::default()),
+            MaterialStandardRecord::new(MaterialStandardComponent::default()),
         );
         self.bindings = None;
         self.library = None;
@@ -233,8 +215,7 @@ impl RenderState {
             bindings.frame_pool.begin_frame(frame_index);
             bindings.camera_pool.begin_frame(frame_index);
             bindings.model_pool.begin_frame(frame_index);
-            bindings.material_unlit_pool.begin_frame(frame_index);
-            bindings.material_lambert_pool.begin_frame(frame_index);
+            bindings.material_standard_pool.begin_frame(frame_index);
         }
         if let Some(light_system) = self.light_system.as_mut() {
             light_system.lights.begin_frame(frame_index);
@@ -332,15 +313,9 @@ impl RenderState {
             }
         }
 
-        for (id, record) in &mut self.scene.materials_unlit {
+        for (id, record) in &mut self.scene.materials_standard {
             if record.is_dirty {
-                bindings.material_unlit_pool.write(*id, &record.data);
-                record.clear_dirty();
-            }
-        }
-        for (id, record) in &mut self.scene.materials_lambert {
-            if record.is_dirty {
-                bindings.material_lambert_pool.write(*id, &record.data);
+                bindings.material_standard_pool.write(*id, &record.data);
                 record.clear_dirty();
             }
         }
@@ -499,10 +474,10 @@ impl RenderState {
             }),
         );
 
-        bindings.unlit_group = Some(
+        bindings.standard_group = Some(
             device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("BindGroup Unlit (Model + Material)"),
-                layout: &library.layout_object_unlit,
+                label: Some("BindGroup Standard (Model + Material)"),
+                layout: &library.layout_object_standard,
                 entries: &[
                     wgpu::BindGroupEntry {
                         binding: 0,
@@ -520,48 +495,12 @@ impl RenderState {
                     wgpu::BindGroupEntry {
                         binding: 1,
                         resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: bindings.material_unlit_pool.buffer(),
+                            buffer: bindings.material_standard_pool.buffer(),
                             offset: 0,
                             size: Some(
                                 std::num::NonZeroU64::new(
-                                    std::mem::size_of::<MaterialUnlitComponent>() as u64,
+                                    std::mem::size_of::<MaterialStandardComponent>() as u64
                                 )
-                                .unwrap(),
-                            ),
-                        }),
-                    },
-                ],
-            }),
-        );
-
-        bindings.lambert_group = Some(
-            device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("BindGroup Lambert (Model + Material)"),
-                layout: &library.layout_object_lambert,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: bindings.model_pool.buffer(),
-                            offset: 0,
-                            size: Some(
-                                std::num::NonZeroU64::new(
-                                    std::mem::size_of::<ModelComponent>() as u64
-                                )
-                                .unwrap(),
-                            ),
-                        }),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: bindings.material_lambert_pool.buffer(),
-                            offset: 0,
-                            size: Some(
-                                std::num::NonZeroU64::new(std::mem::size_of::<
-                                    MaterialLambertComponent,
-                                >()
-                                    as u64)
                                 .unwrap(),
                             ),
                         }),
@@ -586,12 +525,10 @@ impl RenderState {
             frame_pool: UniformBufferPool::new(device, queue, Some(1), alignment),
             camera_pool: UniformBufferPool::new(device, queue, Some(128), alignment),
             model_pool: UniformBufferPool::new(device, queue, Some(2048), alignment),
-            material_unlit_pool: UniformBufferPool::new(device, queue, Some(256), alignment),
-            material_lambert_pool: UniformBufferPool::new(device, queue, Some(256), alignment),
+            material_standard_pool: UniformBufferPool::new(device, queue, Some(256), alignment),
             shared_group: None,
             object_group: None,
-            unlit_group: None,
-            lambert_group: None,
+            standard_group: None,
         });
 
         self.light_system = Some(LightCullingSystem {
@@ -896,9 +833,9 @@ impl RenderState {
             }],
         });
 
-        let layout_object_unlit =
+        let layout_object_standard =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("BindGroupLayout Object Unlit"),
+                label: Some("BindGroupLayout Object Standard"),
                 entries: &[
                     wgpu::BindGroupLayoutEntry {
                         binding: 0,
@@ -923,46 +860,8 @@ impl RenderState {
                             has_dynamic_offset: true,
                             min_binding_size: Some(
                                 std::num::NonZeroU64::new(
-                                    std::mem::size_of::<MaterialUnlitComponent>() as u64,
+                                    std::mem::size_of::<MaterialStandardComponent>() as u64
                                 )
-                                .unwrap(),
-                            ),
-                        },
-                        count: None,
-                    },
-                ],
-            });
-
-        let layout_object_lambert =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("BindGroupLayout Object Lambert"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: true,
-                            min_binding_size: Some(
-                                std::num::NonZeroU64::new(
-                                    std::mem::size_of::<ModelComponent>() as u64
-                                )
-                                .unwrap(),
-                            ),
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: true,
-                            min_binding_size: Some(
-                                std::num::NonZeroU64::new(std::mem::size_of::<
-                                    MaterialLambertComponent,
-                                >()
-                                    as u64)
                                 .unwrap(),
                             ),
                         },
@@ -1052,17 +951,10 @@ impl RenderState {
             ],
         });
 
-        let forward_unlit_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Forward Unlit Shader"),
+        let forward_standard_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Forward Standard Shader"),
             source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(include_str!(
-                "passes/forward/branches/forward_unlit.wgsl"
-            ))),
-        });
-
-        let forward_lambert_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Forward Lambert Shader"),
-            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(include_str!(
-                "passes/forward/branches/forward_lambert.wgsl"
+                "passes/forward/branches/forward_standard.wgsl"
             ))),
         });
 
@@ -1087,17 +979,10 @@ impl RenderState {
             ))),
         });
 
-        let forward_unlit_pipeline_layout =
+        let forward_standard_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Forward Unlit Pipeline Layout"),
-                bind_group_layouts: &[&layout_shared, &layout_object_unlit],
-                push_constant_ranges: &[],
-            });
-
-        let forward_lambert_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Forward Lambert Pipeline Layout"),
-                bind_group_layouts: &[&layout_shared, &layout_object_lambert],
+                label: Some("Forward Standard Pipeline Layout"),
+                bind_group_layouts: &[&layout_shared, &layout_object_standard],
                 push_constant_ranges: &[],
             });
 
@@ -1118,14 +1003,11 @@ impl RenderState {
         self.library = Some(ResourceLibrary {
             layout_shared,
             layout_object,
-            layout_object_unlit,
-            layout_object_lambert,
+            layout_object_standard,
             layout_target,
             layout_light_cull,
-            forward_unlit_shader,
-            forward_unlit_pipeline_layout,
-            forward_lambert_shader,
-            forward_lambert_pipeline_layout,
+            forward_standard_shader,
+            forward_standard_pipeline_layout,
             shadow_pipeline_layout,
             compose_shader,
             light_cull_shader,

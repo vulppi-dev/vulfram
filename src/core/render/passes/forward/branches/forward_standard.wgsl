@@ -67,7 +67,7 @@ struct Model {
     flags: vec4<u32>,
 }
 
-struct MaterialLambert {
+struct MaterialStandard {
     base_color: vec4<f32>,
 }
 
@@ -92,7 +92,7 @@ struct MaterialLambert {
 @group(0) @binding(14) var<storage, read> point_light_vp: array<mat4x4<f32>>;
 
 @group(1) @binding(0) var<uniform> model: Model;
-@group(1) @binding(1) var<uniform> material: MaterialLambert;
+@group(1) @binding(1) var<uniform> material: MaterialStandard;
 
 // -----------------------------------------------------------------------------
 // Vertex I/O
@@ -264,7 +264,7 @@ fn get_shadow_factor(light: Light, world_pos: vec3<f32>, ndotl: f32) -> f32 {
 }
 
 // -----------------------------------------------------------------------------
-// Lighting (Lambert)
+// Lighting (Standard: Lambert + Phong)
 // -----------------------------------------------------------------------------
 
 fn calculate_directional_light(light: Light, normal: vec3<f32>, world_pos: vec3<f32>) -> vec3<f32> {

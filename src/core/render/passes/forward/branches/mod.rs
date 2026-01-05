@@ -1,2 +1,1 @@
-pub mod lambert;
-pub mod unlit;
+pub mod standard;

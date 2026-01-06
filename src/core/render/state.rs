@@ -490,18 +490,7 @@ impl RenderState {
 
             let mut views: [Option<&wgpu::TextureView>; 8] = [None; 8];
             for i in 0..8 {
-                let vec_index = i / 4;
-                let lane = i % 4;
-                let slot = match (vec_index, lane) {
-                    (0, 0) => record.data.texture_slots[0].x,
-                    (0, 1) => record.data.texture_slots[0].y,
-                    (0, 2) => record.data.texture_slots[0].z,
-                    (0, 3) => record.data.texture_slots[0].w,
-                    (1, 0) => record.data.texture_slots[1].x,
-                    (1, 1) => record.data.texture_slots[1].y,
-                    (1, 2) => record.data.texture_slots[1].z,
-                    _ => record.data.texture_slots[1].w,
-                };
+                let slot = record.texture_ids[i];
 
                 if slot == crate::core::resources::STANDARD_INVALID_SLOT {
                     views[i] = Some(fallback_view);

@@ -67,6 +67,7 @@ impl Default for MaterialStandardParams {
 pub struct MaterialStandardRecord {
     pub data: MaterialStandardParams,
     pub inputs: Vec<Vec4>,
+    pub texture_ids: [u32; STANDARD_TEXTURE_SLOTS],
     pub surface_type: SurfaceType,
     pub is_dirty: bool,
     pub bind_group: Option<wgpu::BindGroup>,
@@ -81,6 +82,7 @@ impl MaterialStandardRecord {
         Self {
             data,
             inputs,
+            texture_ids: [STANDARD_INVALID_SLOT; STANDARD_TEXTURE_SLOTS],
             surface_type: SurfaceType::Opaque,
             is_dirty: true,
             bind_group: None,

@@ -241,6 +241,7 @@ fn pack_standard_material(
 
     let mut texture_slots = [glam::UVec4::splat(STANDARD_INVALID_SLOT); 2];
     let mut sampler_indices = [glam::UVec4::ZERO; 2];
+    record.texture_ids = [STANDARD_INVALID_SLOT; STANDARD_TEXTURE_SLOTS];
 
     let assign_slot = |slots: &mut [glam::UVec4; 2], index: usize, value: u32| {
         let vec_index = index / 4;
@@ -268,9 +269,11 @@ fn pack_standard_material(
         samplers[vec_index] = vec;
     };
 
-    if let Some(slot) = opts.base_tex_id {
-        if (slot as usize) < STANDARD_TEXTURE_SLOTS {
-            assign_slot(&mut texture_slots, 0, slot);
+    if let Some(tex_id) = opts.base_tex_id {
+        let slot = 0;
+        if slot < STANDARD_TEXTURE_SLOTS {
+            record.texture_ids[slot] = tex_id;
+            assign_slot(&mut texture_slots, 0, slot as u32);
             assign_sampler(
                 &mut sampler_indices,
                 0,
@@ -279,9 +282,11 @@ fn pack_standard_material(
             );
         }
     }
-    if let Some(slot) = opts.spec_tex_id {
-        if (slot as usize) < STANDARD_TEXTURE_SLOTS {
-            assign_slot(&mut texture_slots, 1, slot);
+    if let Some(tex_id) = opts.spec_tex_id {
+        let slot = 1;
+        if slot < STANDARD_TEXTURE_SLOTS {
+            record.texture_ids[slot] = tex_id;
+            assign_slot(&mut texture_slots, 1, slot as u32);
             assign_sampler(
                 &mut sampler_indices,
                 1,
@@ -290,9 +295,11 @@ fn pack_standard_material(
             );
         }
     }
-    if let Some(slot) = opts.normal_tex_id {
-        if (slot as usize) < STANDARD_TEXTURE_SLOTS {
-            assign_slot(&mut texture_slots, 2, slot);
+    if let Some(tex_id) = opts.normal_tex_id {
+        let slot = 2;
+        if slot < STANDARD_TEXTURE_SLOTS {
+            record.texture_ids[slot] = tex_id;
+            assign_slot(&mut texture_slots, 2, slot as u32);
             assign_sampler(
                 &mut sampler_indices,
                 2,
@@ -301,9 +308,11 @@ fn pack_standard_material(
             );
         }
     }
-    if let Some(slot) = opts.toon_ramp_slot {
-        if (slot as usize) < STANDARD_TEXTURE_SLOTS {
-            assign_slot(&mut texture_slots, 3, slot);
+    if let Some(tex_id) = opts.toon_ramp_slot {
+        let slot = 3;
+        if slot < STANDARD_TEXTURE_SLOTS {
+            record.texture_ids[slot] = tex_id;
+            assign_slot(&mut texture_slots, 3, slot as u32);
             assign_sampler(
                 &mut sampler_indices,
                 3,

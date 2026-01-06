@@ -67,8 +67,12 @@ struct Model {
     flags: vec4<u32>,
 }
 
-struct MaterialStandard {
-    base_color: vec4<f32>,
+struct MaterialStandardParams {
+    input_indices: vec4<u32>,
+    inputs_offset_count: vec2<u32>,
+    surface_flags: vec2<u32>,
+    texture_slots: array<vec4<u32>, 2>,
+    sampler_indices: array<vec4<u32>, 2>,
 }
 
 // -----------------------------------------------------------------------------
@@ -84,15 +88,100 @@ struct MaterialStandard {
 @group(0) @binding(6) var<uniform> shadow_params: ShadowParams;
 @group(0) @binding(7) var shadow_atlas: texture_depth_2d_array;
 @group(0) @binding(8) var<storage, read> shadow_page_table: array<ShadowPageEntry>;
-@group(0) @binding(9) var point_clamp_sampler: sampler;
-@group(0) @binding(10) var linear_clamp_sampler: sampler;
-@group(0) @binding(11) var point_repeat_sampler: sampler;
-@group(0) @binding(12) var linear_repeat_sampler: sampler;
-@group(0) @binding(13) var shadow_sampler: sampler_comparison;
-@group(0) @binding(14) var<storage, read> point_light_vp: array<mat4x4<f32>>;
+@group(0) @binding(9) var<storage, read> point_light_vp: array<mat4x4<f32>>;
+@group(0) @binding(10) var point_clamp_sampler: sampler;
+@group(0) @binding(11) var linear_clamp_sampler: sampler;
+@group(0) @binding(12) var point_repeat_sampler: sampler;
+@group(0) @binding(13) var linear_repeat_sampler: sampler;
+@group(0) @binding(14) var shadow_sampler: sampler_comparison;
 
 @group(1) @binding(0) var<uniform> model: Model;
-@group(1) @binding(1) var<uniform> material: MaterialStandard;
+@group(1) @binding(1) var<uniform> material: MaterialStandardParams;
+@group(1) @binding(2) var<storage, read> material_inputs: array<vec4<f32>>;
+@group(1) @binding(3) var material_tex0: texture_2d<f32>;
+@group(1) @binding(4) var material_tex1: texture_2d<f32>;
+@group(1) @binding(5) var material_tex2: texture_2d<f32>;
+@group(1) @binding(6) var material_tex3: texture_2d<f32>;
+@group(1) @binding(7) var material_tex4: texture_2d<f32>;
+@group(1) @binding(8) var material_tex5: texture_2d<f32>;
+@group(1) @binding(9) var material_tex6: texture_2d<f32>;
+@group(1) @binding(10) var material_tex7: texture_2d<f32>;
+
+const STANDARD_INVALID_SLOT: u32 = 0xFFFFFFFFu;
+const TEX_BASE: u32 = 0u;
+const TEX_SPEC: u32 = 1u;
+const TEX_NORMAL: u32 = 2u;
+const TEX_TOON: u32 = 3u;
+const STANDARD_FLAG_SPECULAR: u32 = 1u;
+
+fn get_slot(slots: array<vec4<u32>, 2>, index: u32) -> u32 {
+    let vec_index = index / 4u;
+    let lane = index % 4u;
+    let v = slots[vec_index];
+    if (lane == 0u) { return v.x; }
+    if (lane == 1u) { return v.y; }
+    if (lane == 2u) { return v.z; }
+    return v.w;
+}
+
+fn input_at(index: u32) -> vec4<f32> {
+    return material_inputs[material.inputs_offset_count.x + index];
+}
+
+fn sample_color(tex_slot: u32, sampler_index: u32, uv: vec2<f32>) -> vec4<f32> {
+    if (tex_slot == STANDARD_INVALID_SLOT) {
+        return vec4<f32>(1.0);
+    }
+    if (tex_slot == 0u) {
+        if (sampler_index == 0u) { return textureSample(material_tex0, point_clamp_sampler, uv); }
+        if (sampler_index == 1u) { return textureSample(material_tex0, linear_clamp_sampler, uv); }
+        if (sampler_index == 2u) { return textureSample(material_tex0, point_repeat_sampler, uv); }
+        return textureSample(material_tex0, linear_repeat_sampler, uv);
+    }
+    if (tex_slot == 1u) {
+        if (sampler_index == 0u) { return textureSample(material_tex1, point_clamp_sampler, uv); }
+        if (sampler_index == 1u) { return textureSample(material_tex1, linear_clamp_sampler, uv); }
+        if (sampler_index == 2u) { return textureSample(material_tex1, point_repeat_sampler, uv); }
+        return textureSample(material_tex1, linear_repeat_sampler, uv);
+    }
+    if (tex_slot == 2u) {
+        if (sampler_index == 0u) { return textureSample(material_tex2, point_clamp_sampler, uv); }
+        if (sampler_index == 1u) { return textureSample(material_tex2, linear_clamp_sampler, uv); }
+        if (sampler_index == 2u) { return textureSample(material_tex2, point_repeat_sampler, uv); }
+        return textureSample(material_tex2, linear_repeat_sampler, uv);
+    }
+    if (tex_slot == 3u) {
+        if (sampler_index == 0u) { return textureSample(material_tex3, point_clamp_sampler, uv); }
+        if (sampler_index == 1u) { return textureSample(material_tex3, linear_clamp_sampler, uv); }
+        if (sampler_index == 2u) { return textureSample(material_tex3, point_repeat_sampler, uv); }
+        return textureSample(material_tex3, linear_repeat_sampler, uv);
+    }
+    if (tex_slot == 4u) {
+        if (sampler_index == 0u) { return textureSample(material_tex4, point_clamp_sampler, uv); }
+        if (sampler_index == 1u) { return textureSample(material_tex4, linear_clamp_sampler, uv); }
+        if (sampler_index == 2u) { return textureSample(material_tex4, point_repeat_sampler, uv); }
+        return textureSample(material_tex4, linear_repeat_sampler, uv);
+    }
+    if (tex_slot == 5u) {
+        if (sampler_index == 0u) { return textureSample(material_tex5, point_clamp_sampler, uv); }
+        if (sampler_index == 1u) { return textureSample(material_tex5, linear_clamp_sampler, uv); }
+        if (sampler_index == 2u) { return textureSample(material_tex5, point_repeat_sampler, uv); }
+        return textureSample(material_tex5, linear_repeat_sampler, uv);
+    }
+    if (tex_slot == 6u) {
+        if (sampler_index == 0u) { return textureSample(material_tex6, point_clamp_sampler, uv); }
+        if (sampler_index == 1u) { return textureSample(material_tex6, linear_clamp_sampler, uv); }
+        if (sampler_index == 2u) { return textureSample(material_tex6, point_repeat_sampler, uv); }
+        return textureSample(material_tex6, linear_repeat_sampler, uv);
+    }
+    if (tex_slot == 7u) {
+        if (sampler_index == 0u) { return textureSample(material_tex7, point_clamp_sampler, uv); }
+        if (sampler_index == 1u) { return textureSample(material_tex7, linear_clamp_sampler, uv); }
+        if (sampler_index == 2u) { return textureSample(material_tex7, point_repeat_sampler, uv); }
+        return textureSample(material_tex7, linear_repeat_sampler, uv);
+    }
+    return vec4<f32>(1.0);
+}
 
 // -----------------------------------------------------------------------------
 // Vertex I/O
@@ -101,6 +190,7 @@ struct MaterialStandard {
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) normal: vec3<f32>,
+    @location(4) uv0: vec2<f32>,
     @location(3) color0: vec4<f32>,
 }
 
@@ -108,7 +198,8 @@ struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) world_position: vec3<f32>,
     @location(1) normal: vec3<f32>,
-    @location(2) color0: vec4<f32>,
+    @location(2) uv0: vec2<f32>,
+    @location(3) color0: vec4<f32>,
 }
 
 // -----------------------------------------------------------------------------
@@ -327,6 +418,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     out.clip_position = camera.view_projection * world_pos;
     out.world_position = world_pos.xyz;
     out.normal = (model.transform * vec4<f32>(in.normal, 0.0)).xyz;
+    out.uv0 = in.uv0;
     out.color0 = in.color0;
     return out;
 }
@@ -338,7 +430,15 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let n = normalize(in.normal);
-    var color = material.base_color.rgb * in.color0.rgb;
+    let base_color = input_at(material.input_indices.x);
+    let spec_color = input_at(material.input_indices.y);
+    let spec_power = input_at(material.input_indices.z).x;
+
+    let base_tex_slot = get_slot(material.texture_slots, TEX_BASE);
+    let base_sampler = get_slot(material.sampler_indices, TEX_BASE);
+    let base_tex = sample_color(base_tex_slot, base_sampler, in.uv0);
+
+    var color = base_color.rgb * base_tex.rgb * in.color0.rgb;
 
     let cam = light_params.camera_index;
     let base = cam * light_params.max_lights_per_camera;
@@ -346,6 +446,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     if (count > 0u) {
         var lighting = vec3<f32>(0.0);
+        var specular = vec3<f32>(0.0);
         for (var i = 0u; i < count; i++) {
             let idx = visible_indices[base + i];
             let light = lights[idx];
@@ -357,11 +458,20 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 case 4u: { lighting += calculate_hemisphere_light(light, n); }
                 default: { }
             }
+
+            if ((material.surface_flags.y & STANDARD_FLAG_SPECULAR) != 0u) {
+                let view_dir = normalize(camera.position.xyz - in.world_position);
+                let light_dir = normalize(light.position.xyz - in.world_position);
+                let reflect_dir = reflect(-light_dir, n);
+                let spec = pow(max(dot(view_dir, reflect_dir), 0.0), spec_power);
+                specular += spec_color.rgb * spec * light.intensity_range.x;
+            }
         }
         color *= (lighting + vec3<f32>(0.001));
+        color += specular;
     } else {
         color *= vec3<f32>(0.001);
     }
 
-    return vec4<f32>(color, material.base_color.a);
+    return vec4<f32>(color, base_color.a);
 }

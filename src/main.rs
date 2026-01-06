@@ -4,8 +4,9 @@ use crate::core::VulframResult;
 use crate::core::cmd::{CommandResponse, CommandResponseEnvelope, EngineCmd, EngineCmdEnvelope};
 use crate::core::resources::shadow::{CmdShadowConfigureArgs, ShadowConfig};
 use crate::core::resources::{
-    CameraKind, CmdCameraCreateArgs, CmdLightCreateArgs, CmdModelCreateArgs,
-    CmdPrimitiveGeometryCreateArgs, LightKind, PrimitiveShape,
+    CameraKind, CmdCameraCreateArgs, CmdLightCreateArgs, CmdMaterialCreateArgs, CmdModelCreateArgs,
+    CmdPrimitiveGeometryCreateArgs, LightKind, MaterialKind, MaterialOptions, PrimitiveShape,
+    StandardOptions,
 };
 use crate::core::window::{CmdWindowCloseArgs, CmdWindowCreateArgs};
 use glam::{Mat4, Vec2, Vec3, Vec4};
@@ -42,6 +43,7 @@ fn main() {
     let model_cube: u32 = 1;
     let model_plane: u32 = 2;
     let model_light_marker: u32 = 3;
+    let material_pink: u32 = 10;
 
     let setup_cmds = vec![
         // 1. Create geometries
@@ -152,12 +154,24 @@ fn main() {
             layer_mask: 0xFFFFFFFF,
             cast_shadow: true,
         }),
+        // 3.7 Create a soft pink standard material for the cube
+        EngineCmd::CmdMaterialCreate(CmdMaterialCreateArgs {
+            window_id,
+            material_id: material_pink,
+            kind: MaterialKind::Standard,
+            options: Some(MaterialOptions::Standard(StandardOptions {
+                base_color: Vec4::new(1.0, 1.0, 1.0, 1.0),
+                spec_color: Some(Vec4::new(0.0, 1.0, 0.0, 1.0)),
+                spec_power: Some(64.0),
+                ..Default::default()
+            })),
+        }),
         // 4. Create models
         EngineCmd::CmdModelCreate(CmdModelCreateArgs {
             window_id,
             model_id: model_cube,
             geometry_id: geometry_cube,
-            material_id: None,
+            material_id: Some(material_pink),
             transform: Mat4::from_translation(Vec3::new(0.0, 1.0, 0.0)),
             layer_mask: 0xFFFFFFFF,
             cast_shadow: true,
@@ -167,7 +181,7 @@ fn main() {
             window_id,
             model_id: model_plane,
             geometry_id: geometry_plane,
-            material_id: None,
+            material_id: Some(material_pink),
             transform: Mat4::from_rotation_x(-std::f32::consts::FRAC_PI_2)
                 * Mat4::from_scale(Vec3::new(20.0, 20.0, 1.0)),
             layer_mask: 0xFFFFFFFF,

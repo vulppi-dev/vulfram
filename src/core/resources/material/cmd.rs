@@ -2,7 +2,8 @@ use glam::Vec4;
 use serde::{Deserialize, Serialize};
 
 use crate::core::resources::{
-    MaterialStandardComponent, MaterialStandardRecord, SurfaceType, MATERIAL_FALLBACK_ID,
+    MaterialStandardParams, MaterialStandardRecord, SurfaceType, STANDARD_INPUTS_PER_MATERIAL,
+    STANDARD_INVALID_SLOT, STANDARD_TEXTURE_SLOTS, MATERIAL_FALLBACK_ID,
 };
 use crate::core::state::EngineState;
 
@@ -12,11 +13,33 @@ pub enum MaterialKind {
     Standard,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
+#[repr(u32)]
+pub enum MaterialSampler {
+    PointClamp = 0,
+    LinearClamp = 1,
+    PointRepeat = 2,
+    LinearRepeat = 3,
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct StandardOptions {
     pub base_color: Vec4,
     pub surface_type: SurfaceType,
+    pub spec_color: Option<Vec4>,
+    pub spec_power: Option<f32>,
+    pub base_tex_id: Option<u32>,
+    pub base_sampler: Option<MaterialSampler>,
+    pub spec_tex_id: Option<u32>,
+    pub spec_sampler: Option<MaterialSampler>,
+    pub normal_tex_id: Option<u32>,
+    pub normal_sampler: Option<MaterialSampler>,
+    pub toon_ramp_slot: Option<u32>,
+    pub toon_ramp_sampler: Option<MaterialSampler>,
+    pub flags: u32,
+    pub toon_params: Option<Vec4>,
 }
 
 impl Default for StandardOptions {
@@ -24,6 +47,18 @@ impl Default for StandardOptions {
         Self {
             base_color: Vec4::ONE,
             surface_type: SurfaceType::Opaque,
+            spec_color: None,
+            spec_power: None,
+            base_tex_id: None,
+            base_sampler: None,
+            spec_tex_id: None,
+            spec_sampler: None,
+            normal_tex_id: None,
+            normal_sampler: None,
+            toon_ramp_slot: None,
+            toon_ramp_sampler: None,
+            flags: 0,
+            toon_params: None,
         }
     }
 }
@@ -91,11 +126,8 @@ pub fn engine_cmd_material_create(
         None => StandardOptions::default(),
     };
 
-    let component = MaterialStandardComponent {
-        base_color: opts.base_color,
-    };
-    let mut record = MaterialStandardRecord::new(component);
-    record.surface_type = opts.surface_type;
+    let mut record = MaterialStandardRecord::new(MaterialStandardParams::default());
+    pack_standard_material(args.material_id, &opts, &mut record);
     window_state
         .render_state
         .scene
@@ -176,8 +208,7 @@ pub fn engine_cmd_material_update(
         .get_mut(&args.material_id)
     {
         if let Some(opts) = options {
-            record.data.base_color = opts.base_color;
-            record.surface_type = opts.surface_type;
+            pack_standard_material(args.material_id, &opts, record);
         }
         record.mark_dirty();
     }
@@ -187,6 +218,111 @@ pub fn engine_cmd_material_update(
     CmdResultMaterialUpdate {
         success: true,
         message: "Material updated successfully".into(),
+    }
+}
+
+fn pack_standard_material(
+    material_id: u32,
+    opts: &StandardOptions,
+    record: &mut MaterialStandardRecord,
+) {
+    let inputs_offset = material_id.saturating_mul(STANDARD_INPUTS_PER_MATERIAL);
+
+    record.data = MaterialStandardParams::default();
+    record.data.inputs_offset_count =
+        glam::UVec2::new(inputs_offset, STANDARD_INPUTS_PER_MATERIAL);
+    let mut flags = opts.flags;
+    if opts.spec_color.is_some() || opts.spec_power.is_some() {
+        flags |= 1;
+    }
+    record.data.surface_flags = glam::UVec2::new(opts.surface_type as u32, flags);
+
+    let mut texture_slots = [glam::UVec4::splat(STANDARD_INVALID_SLOT); 2];
+    let mut sampler_indices = [glam::UVec4::ZERO; 2];
+
+    let assign_slot = |slots: &mut [glam::UVec4; 2], index: usize, value: u32| {
+        let vec_index = index / 4;
+        let lane = index % 4;
+        let mut vec = slots[vec_index];
+        match lane {
+            0 => vec.x = value,
+            1 => vec.y = value,
+            2 => vec.z = value,
+            _ => vec.w = value,
+        }
+        slots[vec_index] = vec;
+    };
+
+    let assign_sampler = |samplers: &mut [glam::UVec4; 2], index: usize, value: u32| {
+        let vec_index = index / 4;
+        let lane = index % 4;
+        let mut vec = samplers[vec_index];
+        match lane {
+            0 => vec.x = value,
+            1 => vec.y = value,
+            2 => vec.z = value,
+            _ => vec.w = value,
+        }
+        samplers[vec_index] = vec;
+    };
+
+    if let Some(slot) = opts.base_tex_id {
+        if (slot as usize) < STANDARD_TEXTURE_SLOTS {
+            assign_slot(&mut texture_slots, 0, slot);
+            assign_sampler(
+                &mut sampler_indices,
+                0,
+                opts.base_sampler
+                    .unwrap_or(MaterialSampler::LinearClamp) as u32,
+            );
+        }
+    }
+    if let Some(slot) = opts.spec_tex_id {
+        if (slot as usize) < STANDARD_TEXTURE_SLOTS {
+            assign_slot(&mut texture_slots, 1, slot);
+            assign_sampler(
+                &mut sampler_indices,
+                1,
+                opts.spec_sampler
+                    .unwrap_or(MaterialSampler::LinearClamp) as u32,
+            );
+        }
+    }
+    if let Some(slot) = opts.normal_tex_id {
+        if (slot as usize) < STANDARD_TEXTURE_SLOTS {
+            assign_slot(&mut texture_slots, 2, slot);
+            assign_sampler(
+                &mut sampler_indices,
+                2,
+                opts.normal_sampler
+                    .unwrap_or(MaterialSampler::LinearClamp) as u32,
+            );
+        }
+    }
+    if let Some(slot) = opts.toon_ramp_slot {
+        if (slot as usize) < STANDARD_TEXTURE_SLOTS {
+            assign_slot(&mut texture_slots, 3, slot);
+            assign_sampler(
+                &mut sampler_indices,
+                3,
+                opts.toon_ramp_sampler
+                    .unwrap_or(MaterialSampler::LinearClamp) as u32,
+            );
+        }
+    }
+
+    record.data.texture_slots = texture_slots;
+    record.data.sampler_indices = sampler_indices;
+
+    record.surface_type = opts.surface_type;
+    if record.inputs.len() != STANDARD_INPUTS_PER_MATERIAL as usize {
+        record.inputs = vec![Vec4::ZERO; STANDARD_INPUTS_PER_MATERIAL as usize];
+    }
+    record.inputs[0] = opts.base_color;
+    record.inputs[1] = opts.spec_color.unwrap_or(Vec4::ONE);
+    record.inputs[2] = Vec4::new(opts.spec_power.unwrap_or(32.0), 0.0, 0.0, 0.0);
+    if let Some(toon_params) = opts.toon_params {
+        record.inputs[3] = toon_params;
     }
 }
 

@@ -69,6 +69,7 @@ pub struct MaterialStandardRecord {
     pub inputs: Vec<Vec4>,
     pub surface_type: SurfaceType,
     pub is_dirty: bool,
+    pub bind_group: Option<wgpu::BindGroup>,
 }
 
 impl MaterialStandardRecord {
@@ -82,6 +83,7 @@ impl MaterialStandardRecord {
             inputs,
             surface_type: SurfaceType::Opaque,
             is_dirty: true,
+            bind_group: None,
         }
     }
 

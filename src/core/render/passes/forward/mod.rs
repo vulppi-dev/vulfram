@@ -137,12 +137,14 @@ pub fn pass_forward(
 
             let mut draw_items = |items: Vec<DrawItem>| {
                 for item in items {
-                    if let Some(standard_group) = bindings.standard_group.as_ref() {
-                        let model_offset = bindings.model_pool.get_offset(item.model_id) as u32;
-                        let material_offset =
-                            bindings.material_standard_pool.get_offset(item.material_id) as u32;
-                        render_pass
-                            .set_bind_group(1, standard_group, &[model_offset, material_offset]);
+                    if let Some(material) = scene.materials_standard.get(&item.material_id) {
+                        if let Some(group) = material.bind_group.as_ref() {
+                            let model_offset = bindings.model_pool.get_offset(item.model_id) as u32;
+                            let material_offset =
+                                bindings.material_standard_pool.get_offset(item.material_id) as u32;
+                            render_pass
+                                .set_bind_group(1, group, &[model_offset, material_offset]);
+                        }
                     }
 
                     if let Ok(Some(index_info)) = vertex_sys.index_info(item.geometry_id) {

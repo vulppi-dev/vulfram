@@ -48,6 +48,9 @@ pub enum EngineCmd {
     CmdMaterialCreate(res::CmdMaterialCreateArgs),
     CmdMaterialUpdate(res::CmdMaterialUpdateArgs),
     CmdMaterialDispose(res::CmdMaterialDisposeArgs),
+    CmdTextureCreateFromBuffer(res::CmdTextureCreateFromBufferArgs),
+    CmdTextureCreateSolidColor(res::CmdTextureCreateSolidColorArgs),
+    CmdTextureDispose(res::CmdTextureDisposeArgs),
     CmdGeometryCreate(res::CmdGeometryCreateArgs),
     CmdGeometryUpdate(res::CmdGeometryUpdateArgs),
     CmdGeometryDispose(res::CmdGeometryDisposeArgs),
@@ -103,6 +106,9 @@ pub enum CommandResponse {
     MaterialCreate(res::CmdResultMaterialCreate),
     MaterialUpdate(res::CmdResultMaterialUpdate),
     MaterialDispose(res::CmdResultMaterialDispose),
+    TextureCreateFromBuffer(res::CmdResultTextureCreateFromBuffer),
+    TextureCreateSolidColor(res::CmdResultTextureCreateSolidColor),
+    TextureDispose(res::CmdResultTextureDispose),
     GeometryCreate(res::CmdResultGeometryCreate),
     GeometryUpdate(res::CmdResultGeometryUpdate),
     GeometryDispose(res::CmdResultGeometryDispose),
@@ -363,6 +369,27 @@ pub fn engine_process_batch(
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::MaterialDispose(result),
+                });
+            }
+            EngineCmd::CmdTextureCreateFromBuffer(args) => {
+                let result = res::engine_cmd_texture_create_from_buffer(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::TextureCreateFromBuffer(result),
+                });
+            }
+            EngineCmd::CmdTextureCreateSolidColor(args) => {
+                let result = res::engine_cmd_texture_create_solid_color(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::TextureCreateSolidColor(result),
+                });
+            }
+            EngineCmd::CmdTextureDispose(args) => {
+                let result = res::engine_cmd_texture_dispose(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::TextureDispose(result),
                 });
             }
             EngineCmd::CmdGeometryCreate(args) => {

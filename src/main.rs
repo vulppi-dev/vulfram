@@ -1,16 +1,18 @@
 mod core;
 
 use crate::core::VulframResult;
+use crate::core::buffers::state::UploadType;
 use crate::core::cmd::{CommandResponse, CommandResponseEnvelope, EngineCmd, EngineCmdEnvelope};
 use crate::core::resources::shadow::{CmdShadowConfigureArgs, ShadowConfig};
 use crate::core::resources::{
-    CameraKind, CmdCameraCreateArgs, CmdLightCreateArgs, CmdMaterialCreateArgs, CmdModelCreateArgs,
-    CmdPrimitiveGeometryCreateArgs, LightKind, MaterialKind, MaterialOptions, PrimitiveShape,
-    StandardOptions,
+    CameraKind, CmdCameraCreateArgs, CmdLightCreateArgs, CmdMaterialCreateArgs,
+    CmdModelCreateArgs, CmdPrimitiveGeometryCreateArgs, CmdTextureCreateFromBufferArgs, LightKind,
+    MaterialKind, MaterialOptions, MaterialSampler, PrimitiveShape, StandardOptions,
 };
 use crate::core::window::{CmdWindowCloseArgs, CmdWindowCreateArgs};
 use glam::{Mat4, Vec2, Vec3, Vec4};
 use rmp_serde::{from_slice, to_vec_named};
+use std::fs;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -44,6 +46,20 @@ fn main() {
     let model_plane: u32 = 2;
     let model_light_marker: u32 = 3;
     let material_pink: u32 = 10;
+    let texture_test: u32 = 20;
+    let texture_buffer: u64 = 1;
+
+    let texture_bytes =
+        fs::read("assets/texture-test.png").expect("failed to read assets/texture-test.png");
+    assert_eq!(
+        core::vulfram_upload_buffer(
+            texture_buffer,
+            UploadType::ImageData as u32,
+            texture_bytes.as_ptr(),
+            texture_bytes.len()
+        ),
+        VulframResult::Success
+    );
 
     let setup_cmds = vec![
         // 1. Create geometries
@@ -154,13 +170,21 @@ fn main() {
             layer_mask: 0xFFFFFFFF,
             cast_shadow: true,
         }),
+        EngineCmd::CmdTextureCreateFromBuffer(CmdTextureCreateFromBufferArgs {
+            window_id,
+            texture_id: texture_test,
+            buffer_id: texture_buffer,
+            srgb: Some(true),
+        }),
         // 3.7 Create a soft pink standard material for the cube
         EngineCmd::CmdMaterialCreate(CmdMaterialCreateArgs {
             window_id,
             material_id: material_pink,
             kind: MaterialKind::Standard,
             options: Some(MaterialOptions::Standard(StandardOptions {
-                base_color: Vec4::new(1.0, 1.0, 1.0, 1.0),
+                base_color: Vec4::ONE,
+                base_tex_id: Some(texture_test),
+                base_sampler: Some(MaterialSampler::LinearClamp),
                 spec_color: Some(Vec4::new(0.0, 1.0, 0.0, 1.0)),
                 spec_power: Some(64.0),
                 ..Default::default()

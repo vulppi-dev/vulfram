@@ -6,7 +6,8 @@ use crate::core::resources::shadow::ShadowManager;
 use crate::core::resources::{
     CameraComponent, CameraRecord, FrameComponent, LightComponent, LightRecord,
     MaterialStandardParams, MaterialStandardRecord, ModelComponent, ModelRecord, RenderTarget,
-    StorageBufferPool, UniformBufferPool, VertexAllocatorConfig, VertexAllocatorSystem,
+    StorageBufferPool, TextureRecord, UniformBufferPool, VertexAllocatorConfig,
+    VertexAllocatorSystem,
 };
 
 fn perspective_rh_zo(fov_y: f32, aspect: f32, near: f32, far: f32) -> glam::Mat4 {
@@ -82,7 +83,6 @@ pub struct BindingSystem {
     pub material_standard_inputs: StorageBufferPool<glam::Vec4>,
     pub shared_group: Option<wgpu::BindGroup>,
     pub object_group: Option<wgpu::BindGroup>,
-    pub standard_group: Option<wgpu::BindGroup>,
 }
 
 #[repr(C)]
@@ -133,6 +133,7 @@ pub struct RenderScene {
     pub models: HashMap<u32, ModelRecord>,
     pub lights: HashMap<u32, LightRecord>,
     pub materials_standard: HashMap<u32, MaterialStandardRecord>,
+    pub textures: HashMap<u32, TextureRecord>,
 }
 
 // -----------------------------------------------------------------------------
@@ -170,6 +171,7 @@ impl RenderState {
                 models: HashMap::new(),
                 lights: HashMap::new(),
                 materials_standard,
+                textures: HashMap::new(),
             },
             bindings: None,
             library: None,
@@ -191,6 +193,7 @@ impl RenderState {
             MATERIAL_FALLBACK_ID,
             MaterialStandardRecord::new(MaterialStandardParams::default()),
         );
+        self.scene.textures.clear();
         self.bindings = None;
         self.library = None;
         self.vertex = None;
@@ -315,6 +318,7 @@ impl RenderState {
             }
         }
 
+        let fallback_view = &library._fallback_view;
         for (id, record) in &mut self.scene.materials_standard {
             if record.is_dirty {
                 bindings.material_standard_pool.write(*id, &record.data);
@@ -479,80 +483,115 @@ impl RenderState {
             }),
         );
 
-        bindings.standard_group = Some(
-            device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("BindGroup Standard (Model + Material)"),
+        for (material_id, record) in &mut self.scene.materials_standard {
+            if record.bind_group.is_some() && !record.is_dirty {
+                continue;
+            }
+
+            let mut views: [Option<&wgpu::TextureView>; 8] = [None; 8];
+            for i in 0..8 {
+                let vec_index = i / 4;
+                let lane = i % 4;
+                let slot = match (vec_index, lane) {
+                    (0, 0) => record.data.texture_slots[0].x,
+                    (0, 1) => record.data.texture_slots[0].y,
+                    (0, 2) => record.data.texture_slots[0].z,
+                    (0, 3) => record.data.texture_slots[0].w,
+                    (1, 0) => record.data.texture_slots[1].x,
+                    (1, 1) => record.data.texture_slots[1].y,
+                    (1, 2) => record.data.texture_slots[1].z,
+                    _ => record.data.texture_slots[1].w,
+                };
+
+                if slot == crate::core::resources::STANDARD_INVALID_SLOT {
+                    views[i] = Some(fallback_view);
+                } else {
+                    let view = self
+                        .scene
+                        .textures
+                        .get(&slot)
+                        .map(|tex| &tex.view)
+                        .unwrap_or(fallback_view);
+                    views[i] = Some(view);
+                }
+            }
+
+            let entries = [
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: bindings.model_pool.buffer(),
+                        offset: 0,
+                        size: Some(
+                            std::num::NonZeroU64::new(
+                                std::mem::size_of::<ModelComponent>() as u64
+                            )
+                            .unwrap(),
+                        ),
+                    }),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: bindings.material_standard_pool.buffer(),
+                        offset: 0,
+                        size: Some(
+                            std::num::NonZeroU64::new(
+                                std::mem::size_of::<MaterialStandardParams>() as u64
+                            )
+                            .unwrap(),
+                        ),
+                    }),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: bindings.material_standard_inputs.buffer(),
+                        offset: 0,
+                        size: None,
+                    }),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::TextureView(views[0].unwrap()),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: wgpu::BindingResource::TextureView(views[1].unwrap()),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 5,
+                    resource: wgpu::BindingResource::TextureView(views[2].unwrap()),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 6,
+                    resource: wgpu::BindingResource::TextureView(views[3].unwrap()),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 7,
+                    resource: wgpu::BindingResource::TextureView(views[4].unwrap()),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 8,
+                    resource: wgpu::BindingResource::TextureView(views[5].unwrap()),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 9,
+                    resource: wgpu::BindingResource::TextureView(views[6].unwrap()),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 10,
+                    resource: wgpu::BindingResource::TextureView(views[7].unwrap()),
+                },
+            ];
+
+            record.bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some(&format!("BindGroup Standard (Material {})", material_id)),
                 layout: &library.layout_object_standard,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: bindings.model_pool.buffer(),
-                            offset: 0,
-                            size: Some(
-                                std::num::NonZeroU64::new(
-                                    std::mem::size_of::<ModelComponent>() as u64
-                                )
-                                .unwrap(),
-                            ),
-                        }),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: bindings.material_standard_pool.buffer(),
-                            offset: 0,
-                            size: Some(
-                                std::num::NonZeroU64::new(
-                                    std::mem::size_of::<MaterialStandardParams>() as u64
-                                )
-                                .unwrap(),
-                            ),
-                        }),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 2,
-                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: bindings.material_standard_inputs.buffer(),
-                            offset: 0,
-                            size: None,
-                        }),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 3,
-                        resource: wgpu::BindingResource::TextureView(&library._fallback_view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 4,
-                        resource: wgpu::BindingResource::TextureView(&library._fallback_view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 5,
-                        resource: wgpu::BindingResource::TextureView(&library._fallback_view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 6,
-                        resource: wgpu::BindingResource::TextureView(&library._fallback_view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 7,
-                        resource: wgpu::BindingResource::TextureView(&library._fallback_view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 8,
-                        resource: wgpu::BindingResource::TextureView(&library._fallback_view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 9,
-                        resource: wgpu::BindingResource::TextureView(&library._fallback_view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 10,
-                        resource: wgpu::BindingResource::TextureView(&library._fallback_view),
-                    },
-                ],
-            }),
-        );
+                entries: &entries,
+            }));
+        }
+
     }
 
     pub(crate) fn init_fallback_resources(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
@@ -574,7 +613,6 @@ impl RenderState {
             material_standard_inputs: StorageBufferPool::new(device, queue, Some(256), 0),
             shared_group: None,
             object_group: None,
-            standard_group: None,
         });
 
         self.light_system = Some(LightCullingSystem {

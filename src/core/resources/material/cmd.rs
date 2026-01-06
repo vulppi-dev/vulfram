@@ -128,6 +128,7 @@ pub fn engine_cmd_material_create(
 
     let mut record = MaterialStandardRecord::new(MaterialStandardParams::default());
     pack_standard_material(args.material_id, &opts, &mut record);
+    record.bind_group = None;
     window_state
         .render_state
         .scene
@@ -210,6 +211,7 @@ pub fn engine_cmd_material_update(
         if let Some(opts) = options {
             pack_standard_material(args.material_id, &opts, record);
         }
+        record.bind_group = None;
         record.mark_dirty();
     }
 

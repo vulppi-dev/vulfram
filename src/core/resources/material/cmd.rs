@@ -36,7 +36,7 @@ pub struct StandardOptions {
     pub spec_sampler: Option<MaterialSampler>,
     pub normal_tex_id: Option<u32>,
     pub normal_sampler: Option<MaterialSampler>,
-    pub toon_ramp_slot: Option<u32>,
+    pub toon_ramp_tex_id: Option<u32>,
     pub toon_ramp_sampler: Option<MaterialSampler>,
     pub flags: u32,
     pub toon_params: Option<Vec4>,
@@ -55,7 +55,7 @@ impl Default for StandardOptions {
             spec_sampler: None,
             normal_tex_id: None,
             normal_sampler: None,
-            toon_ramp_slot: None,
+            toon_ramp_tex_id: None,
             toon_ramp_sampler: None,
             flags: 0,
             toon_params: None,
@@ -125,6 +125,12 @@ pub fn engine_cmd_material_create(
         Some(MaterialOptions::Standard(opts)) => opts.clone(),
         None => StandardOptions::default(),
     };
+    if let Some(message) = validate_texture_ids(&window_state.render_state.scene, &opts) {
+        return CmdResultMaterialCreate {
+            success: false,
+            message,
+        };
+    }
 
     let mut record = MaterialStandardRecord::new(MaterialStandardParams::default());
     pack_standard_material(args.material_id, &opts, &mut record);
@@ -202,17 +208,23 @@ pub fn engine_cmd_material_update(
         None => None,
     };
 
-    if let Some(record) = window_state
-        .render_state
-        .scene
-        .materials_standard
-        .get_mut(&args.material_id)
-    {
-        if let Some(opts) = options {
-            pack_standard_material(args.material_id, &opts, record);
+    if let Some(opts) = options {
+        if let Some(message) = validate_texture_ids(&window_state.render_state.scene, &opts) {
+            return CmdResultMaterialUpdate {
+                success: false,
+                message,
+            };
         }
-        record.bind_group = None;
-        record.mark_dirty();
+        if let Some(record) = window_state
+            .render_state
+            .scene
+            .materials_standard
+            .get_mut(&args.material_id)
+        {
+            pack_standard_material(args.material_id, &opts, record);
+            record.bind_group = None;
+            record.mark_dirty();
+        }
     }
 
     window_state.is_dirty = true;
@@ -308,7 +320,7 @@ fn pack_standard_material(
             );
         }
     }
-    if let Some(tex_id) = opts.toon_ramp_slot {
+    if let Some(tex_id) = opts.toon_ramp_tex_id {
         let slot = 3;
         if slot < STANDARD_TEXTURE_SLOTS {
             record.texture_ids[slot] = tex_id;
@@ -334,6 +346,34 @@ fn pack_standard_material(
     record.inputs[2] = Vec4::new(opts.spec_power.unwrap_or(32.0), 0.0, 0.0, 0.0);
     if let Some(toon_params) = opts.toon_params {
         record.inputs[3] = toon_params;
+    }
+}
+
+fn validate_texture_ids(
+    scene: &crate::core::render::state::RenderScene,
+    opts: &StandardOptions,
+) -> Option<String> {
+    let mut missing = Vec::new();
+    let mut check = |label: &str, id: Option<u32>| {
+        if let Some(tex_id) = id {
+            if !scene.textures.contains_key(&tex_id) {
+                missing.push(format!("{label}={tex_id}"));
+            }
+        }
+    };
+
+    check("base_tex_id", opts.base_tex_id);
+    check("spec_tex_id", opts.spec_tex_id);
+    check("normal_tex_id", opts.normal_tex_id);
+    check("toon_ramp_tex_id", opts.toon_ramp_tex_id);
+
+    if missing.is_empty() {
+        None
+    } else {
+        Some(format!(
+            "Texture id(s) not found for material: {}",
+            missing.join(", ")
+        ))
     }
 }
 

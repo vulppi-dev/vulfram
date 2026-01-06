@@ -144,6 +144,7 @@ pub fn engine_cmd_texture_create_from_buffer(
             _format: format,
         },
     );
+    mark_materials_dirty(&mut window_state.render_state.scene, args.texture_id);
     window_state.is_dirty = true;
 
     CmdResultTextureCreateFromBuffer {
@@ -274,6 +275,7 @@ pub fn engine_cmd_texture_create_solid_color(
             _format: format,
         },
     );
+    mark_materials_dirty(&mut window_state.render_state.scene, args.texture_id);
     window_state.is_dirty = true;
 
     CmdResultTextureCreateSolidColor {
@@ -317,6 +319,7 @@ pub fn engine_cmd_texture_dispose(
         .remove(&args.texture_id)
         .is_some()
     {
+        mark_materials_dirty(&mut window_state.render_state.scene, args.texture_id);
         window_state.is_dirty = true;
         CmdResultTextureDispose {
             success: true,
@@ -326,6 +329,18 @@ pub fn engine_cmd_texture_dispose(
         CmdResultTextureDispose {
             success: false,
             message: format!("Texture with id {} not found", args.texture_id),
+        }
+    }
+}
+
+fn mark_materials_dirty(
+    scene: &mut crate::core::render::state::RenderScene,
+    texture_id: u32,
+) {
+    for record in scene.materials_standard.values_mut() {
+        if record.texture_ids.iter().any(|id| *id == texture_id) {
+            record.bind_group = None;
+            record.mark_dirty();
         }
     }
 }

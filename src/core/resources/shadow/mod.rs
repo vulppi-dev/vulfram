@@ -7,7 +7,7 @@ use wgpu::{Device, Queue, TextureFormat, TextureUsages};
 
 mod atlas;
 pub mod cmd;
-pub use atlas::{AtlasDesc, AtlasHandle, AtlasRelocation, AtlasSystem};
+pub use atlas::{ShadowAtlasDesc, ShadowAtlasHandle, ShadowAtlasRelocation, ShadowAtlasSystem};
 pub use cmd::*;
 
 /// Configuration for the Shadow Manager
@@ -60,7 +60,7 @@ pub struct ShadowPageKey {
 /// State of an allocated shadow page
 #[derive(Debug, Clone)]
 pub struct ShadowPageRecord {
-    pub atlas_handle: AtlasHandle,
+    pub atlas_handle: ShadowAtlasHandle,
     pub last_frame_used: u64,
     pub is_dirty: bool,
 }
@@ -89,7 +89,7 @@ impl Default for ShadowPageEntry {
 
 /// Manages Virtual Shadow Maps paging and atlas allocation
 pub struct ShadowManager {
-    pub atlas: AtlasSystem,
+    pub atlas: ShadowAtlasSystem,
     pub page_table: StorageBufferPool<ShadowPageEntry>,
     pub point_light_vp: StorageBufferPool<glam::Mat4>,
     pub params_pool: UniformBufferPool<ShadowParams>,
@@ -105,7 +105,7 @@ pub struct ShadowManager {
 impl ShadowManager {
     pub fn new(device: &Device, queue: &Queue, table_capacity: u32) -> Self {
         let config = ShadowConfig::default();
-        let atlas_desc = AtlasDesc {
+        let atlas_desc = ShadowAtlasDesc {
             label: Some("Shadow Atlas"),
             format: TextureFormat::Depth32Float,
             usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
@@ -115,7 +115,7 @@ impl ShadowManager {
             layers: config.atlas_layers,
         };
 
-        let atlas = AtlasSystem::new(device, atlas_desc);
+        let atlas = ShadowAtlasSystem::new(device, atlas_desc);
         let alignment = device.limits().min_uniform_buffer_offset_alignment as u64;
         let storage_alignment = 0; // Tight packing: no dynamic offsets for storage buffers.
 
@@ -173,7 +173,7 @@ impl ShadowManager {
         );
 
         if needs_atlas_rebuild {
-            let atlas_desc = AtlasDesc {
+            let atlas_desc = ShadowAtlasDesc {
                 label: Some("Shadow Atlas"),
                 format: TextureFormat::Depth32Float,
                 usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
@@ -182,7 +182,7 @@ impl ShadowManager {
                 tiles_h: config.atlas_tiles_h,
                 layers: config.atlas_layers,
             };
-            self.atlas = AtlasSystem::new(device, atlas_desc);
+            self.atlas = ShadowAtlasSystem::new(device, atlas_desc);
             self.cache.clear();
             self.is_dirty = true;
         }
@@ -337,7 +337,7 @@ impl ShadowManager {
         x: u32,
         y: u32,
         frame_index: u64,
-    ) -> Option<AtlasHandle> {
+    ) -> Option<ShadowAtlasHandle> {
         let key = ShadowPageKey {
             light_id,
             face,
@@ -372,7 +372,7 @@ impl ShadowManager {
         None
     }
 
-    fn update_cache_after_relocation(&mut self, relocation: AtlasRelocation) {
+    fn update_cache_after_relocation(&mut self, relocation: ShadowAtlasRelocation) {
         for record in self.cache.values_mut() {
             if record.atlas_handle == relocation.handle {
                 record.is_dirty = true; // Must re-render since it moved
@@ -415,7 +415,7 @@ impl ShadowManager {
     }
 
     pub fn free_light(&mut self, light_id: u32) {
-        let mut to_remove: Vec<(ShadowPageKey, AtlasHandle)> = Vec::new();
+        let mut to_remove: Vec<(ShadowPageKey, ShadowAtlasHandle)> = Vec::new();
 
         for (key, record) in &self.cache {
             if key.light_id == light_id {

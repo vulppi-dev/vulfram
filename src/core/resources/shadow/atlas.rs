@@ -1,13 +1,13 @@
 /// Handle to an allocated region in the atlas
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct AtlasHandle {
+pub struct ShadowAtlasHandle {
     pub(crate) index: u32,
     pub(crate) generation: u32,
 }
 
 /// Description for creating an AtlasSystem
 #[derive(Debug, Clone)]
-pub struct AtlasDesc {
+pub struct ShadowAtlasDesc {
     pub label: Option<&'static str>,
     pub format: wgpu::TextureFormat,
     pub usage: wgpu::TextureUsages,
@@ -19,8 +19,8 @@ pub struct AtlasDesc {
 
 /// Information about a relocation after a repack
 #[derive(Debug, Clone)]
-pub struct AtlasRelocation {
-    pub handle: AtlasHandle,
+pub struct ShadowAtlasRelocation {
+    pub handle: ShadowAtlasHandle,
     pub _old_layer: u32,
     pub _old_rect_tiles: (u32, u32, u32, u32),
     pub _new_layer: u32,
@@ -28,7 +28,7 @@ pub struct AtlasRelocation {
 }
 
 #[derive(Debug, Clone)]
-struct AtlasSlot {
+struct ShadowAtlasSlot {
     generation: u32,
     alive: bool,
     layer: u32,
@@ -36,7 +36,7 @@ struct AtlasSlot {
 }
 
 /// A sub-allocator for a 2D Texture Array divided into tiles with internal guards
-pub struct AtlasSystem {
+pub struct ShadowAtlasSystem {
     _texture: wgpu::Texture,
     view: wgpu::TextureView,
     layer_views: Vec<wgpu::TextureView>, // Cached views for each layer
@@ -51,7 +51,7 @@ pub struct AtlasSystem {
     format: wgpu::TextureFormat,
 
     // State
-    slots: Vec<AtlasSlot>,
+    slots: Vec<ShadowAtlasSlot>,
     free_slots: Vec<u32>,
     layers_occupied: Vec<Vec<bool>>, // [layer][y * tiles_w + x]
     free_tiles_total: u32,
@@ -60,10 +60,10 @@ pub struct AtlasSystem {
     repack_count: u64,
 }
 
-impl AtlasSystem {
+impl ShadowAtlasSystem {
     pub const GUARD_PX: u32 = 8;
 
-    pub fn new(device: &wgpu::Device, desc: AtlasDesc) -> Self {
+    pub fn new(device: &wgpu::Device, desc: ShadowAtlasDesc) -> Self {
         let guard_px = Self::GUARD_PX;
         let pitch_px = desc.tile_px + (guard_px * 2);
 
@@ -143,7 +143,11 @@ impl AtlasSystem {
 
     /// Allocate a region of tiles. Returns None if capacity is insufficient or if fragmentation
     /// occurs and repack cannot solve it.
-    pub fn alloc(&mut self, w: u32, h: u32) -> Option<(AtlasHandle, Vec<AtlasRelocation>)> {
+    pub fn alloc(
+        &mut self,
+        w: u32,
+        h: u32,
+    ) -> Option<(ShadowAtlasHandle, Vec<ShadowAtlasRelocation>)> {
         if w == 0 || h == 0 || w > self.tiles_w || h > self.tiles_h {
             return None;
         }
@@ -172,7 +176,7 @@ impl AtlasSystem {
     }
 
     /// Free an allocated region
-    pub fn free(&mut self, handle: AtlasHandle) -> bool {
+    pub fn free(&mut self, handle: ShadowAtlasHandle) -> bool {
         let (alive, layer, rect_tiles) = if let Some(slot) = self.slots.get(handle.index as usize) {
             if slot.generation == handle.generation {
                 (slot.alive, slot.layer, slot.rect_tiles)
@@ -204,7 +208,7 @@ impl AtlasSystem {
     }
 
     /// Global repack of all alive slots. Returns a list of relocations.
-    pub fn repack(&mut self) -> Vec<AtlasRelocation> {
+    pub fn repack(&mut self) -> Vec<ShadowAtlasRelocation> {
         // 1. Collect all alive slots and their data
         let mut items: Vec<(u32, u32, u32, u32, (u32, u32, u32, u32))> = self
             .slots
@@ -241,8 +245,8 @@ impl AtlasSystem {
                 let moved = new_layer != old_layer || (new_x, new_y, w, h) != old_rect;
 
                 if moved {
-                    relocations.push(AtlasRelocation {
-                        handle: AtlasHandle {
+                    relocations.push(ShadowAtlasRelocation {
+                        handle: ShadowAtlasHandle {
                             index,
                             generation: slot.generation,
                         },
@@ -270,7 +274,7 @@ impl AtlasSystem {
     // Queries
     // -------------------------------------------------------------------------
 
-    pub fn get_uv_transform(&self, handle: AtlasHandle) -> Option<(f32, f32, f32, f32, u32)> {
+    pub fn get_uv_transform(&self, handle: ShadowAtlasHandle) -> Option<(f32, f32, f32, f32, u32)> {
         let slot = self.slots.get(handle.index as usize)?;
         if !slot.alive || slot.generation != handle.generation {
             return None;
@@ -298,8 +302,8 @@ impl AtlasSystem {
         &self.view
     }
 
-    pub fn info(&self) -> AtlasInfo {
-        AtlasInfo {
+    pub fn info(&self) -> ShadowAtlasInfo {
+        ShadowAtlasInfo {
             tiles_w: self.tiles_w,
             tiles_h: self.tiles_h,
             _layers: self.layers,
@@ -352,7 +356,7 @@ impl AtlasSystem {
         }
     }
 
-    fn create_slot(&mut self, layer: u32, x: u32, y: u32, w: u32, h: u32) -> AtlasHandle {
+    fn create_slot(&mut self, layer: u32, x: u32, y: u32, w: u32, h: u32) -> ShadowAtlasHandle {
         self.mark_region(layer, x, y, w, h, true);
         self.free_tiles_total -= w * h;
 
@@ -362,19 +366,19 @@ impl AtlasSystem {
             slot.alive = true;
             slot.layer = layer;
             slot.rect_tiles = (x, y, w, h);
-            AtlasHandle {
+            ShadowAtlasHandle {
                 index,
                 generation: slot.generation,
             }
         } else {
             let index = self.slots.len() as u32;
-            self.slots.push(AtlasSlot {
+            self.slots.push(ShadowAtlasSlot {
                 generation: 0,
                 alive: true,
                 layer,
                 rect_tiles: (x, y, w, h),
             });
-            AtlasHandle {
+            ShadowAtlasHandle {
                 index,
                 generation: 0,
             }
@@ -382,7 +386,7 @@ impl AtlasSystem {
     }
 }
 
-pub struct AtlasInfo {
+pub struct ShadowAtlasInfo {
     pub tiles_w: u32,
     pub tiles_h: u32,
     pub _layers: u32,

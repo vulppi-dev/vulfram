@@ -246,7 +246,7 @@ fn pack_standard_material(
     record.data.inputs_offset_count =
         glam::UVec2::new(inputs_offset, STANDARD_INPUTS_PER_MATERIAL);
     let mut flags = opts.flags;
-    if opts.spec_color.is_some() || opts.spec_power.is_some() {
+    if opts.spec_color.is_some() || opts.spec_power.is_some() || opts.spec_tex_id.is_some() {
         flags |= 1;
     }
     record.data.surface_flags = glam::UVec2::new(opts.surface_type as u32, flags);

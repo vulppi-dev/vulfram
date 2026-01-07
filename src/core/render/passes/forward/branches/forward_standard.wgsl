@@ -217,6 +217,36 @@ fn sample_material(tex_slot: u32, sampler_index: u32, uv: vec2<f32>) -> vec4<f32
     return sample_color(tex_slot, sampler_index, uv);
 }
 
+fn diffuse_term(ndotl: f32, toon_slot: u32, toon_sampler: u32) -> vec3<f32> {
+    if (toon_slot == STANDARD_INVALID_SLOT) {
+        return vec3<f32>(ndotl);
+    }
+    let ramp = sample_material(toon_slot, toon_sampler, vec2<f32>(ndotl, 0.5));
+    return ramp.rgb;
+}
+
+fn apply_normal_map(
+    normal: vec3<f32>,
+    world_pos: vec3<f32>,
+    uv: vec2<f32>,
+    normal_slot: u32,
+    normal_sampler: u32,
+) -> vec3<f32> {
+    if (normal_slot == STANDARD_INVALID_SLOT) {
+        return normalize(normal);
+    }
+    let n = normalize(normal);
+    let dp1 = dpdx(world_pos);
+    let dp2 = dpdy(world_pos);
+    let duv1 = dpdx(uv);
+    let duv2 = dpdy(uv);
+    let t = normalize(dp1 * duv2.y - dp2 * duv1.y);
+    let b = normalize(-dp1 * duv2.x + dp2 * duv1.x);
+    let map = sample_material(normal_slot, normal_sampler, uv).xyz * 2.0 - 1.0;
+    let tbn = mat3x3<f32>(t, b, n);
+    return normalize(tbn * map);
+}
+
 // -----------------------------------------------------------------------------
 // Vertex I/O
 // -----------------------------------------------------------------------------
@@ -392,12 +422,19 @@ fn get_shadow_factor(light: Light, world_pos: vec3<f32>, ndotl: f32) -> f32 {
 // Lighting (Standard: Lambert + Phong)
 // -----------------------------------------------------------------------------
 
-fn calculate_directional_light(light: Light, normal: vec3<f32>, world_pos: vec3<f32>) -> vec3<f32> {
+fn calculate_directional_light(
+    light: Light,
+    normal: vec3<f32>,
+    world_pos: vec3<f32>,
+    toon_slot: u32,
+    toon_sampler: u32,
+) -> vec3<f32> {
     let l = normalize(-light.direction.xyz);
     let ndotl = max(dot(normal, l), 0.0);
     if (ndotl <= 0.0) { return vec3<f32>(0.0); }
     let shadow = get_shadow_factor(light, world_pos, ndotl);
-    return light.color.rgb * light.intensity_range.x * ndotl * shadow;
+    let diffuse = diffuse_term(ndotl, toon_slot, toon_sampler);
+    return light.color.rgb * light.intensity_range.x * diffuse * shadow;
 }
 
 fn calculate_ambient_light(light: Light) -> vec3<f32> {
@@ -410,7 +447,13 @@ fn calculate_hemisphere_light(light: Light, normal: vec3<f32>) -> vec3<f32> {
     return mix(light.ground_color.rgb, light.color.rgb, w) * light.intensity_range.x;
 }
 
-fn calculate_spot_light(light: Light, normal: vec3<f32>, world_pos: vec3<f32>) -> vec3<f32> {
+fn calculate_spot_light(
+    light: Light,
+    normal: vec3<f32>,
+    world_pos: vec3<f32>,
+    toon_slot: u32,
+    toon_sampler: u32,
+) -> vec3<f32> {
     let light_to_pos = world_pos - light.position.xyz;
     let dist = length(light_to_pos);
     let l = normalize(-light_to_pos);
@@ -425,10 +468,17 @@ fn calculate_spot_light(light: Light, normal: vec3<f32>, world_pos: vec3<f32>) -
     let ndotl = max(dot(normal, l), 0.0);
     if (ndotl <= 0.0) { return vec3<f32>(0.0); }
     let shadow = get_shadow_factor(light, world_pos, ndotl);
-    return light.color.rgb * light.intensity_range.x * ndotl * attenuation * spot_intensity * shadow;
+    let diffuse = diffuse_term(ndotl, toon_slot, toon_sampler);
+    return light.color.rgb * light.intensity_range.x * diffuse * attenuation * spot_intensity * shadow;
 }
 
-fn calculate_point_light(light: Light, normal: vec3<f32>, world_pos: vec3<f32>) -> vec3<f32> {
+fn calculate_point_light(
+    light: Light,
+    normal: vec3<f32>,
+    world_pos: vec3<f32>,
+    toon_slot: u32,
+    toon_sampler: u32,
+) -> vec3<f32> {
     let light_to_pos = world_pos - light.position.xyz;
     let dist = length(light_to_pos);
     let l = normalize(-light_to_pos);
@@ -438,7 +488,8 @@ fn calculate_point_light(light: Light, normal: vec3<f32>, world_pos: vec3<f32>) 
     let ndotl = max(dot(normal, l), 0.0);
     if (ndotl <= 0.0) { return vec3<f32>(0.0); }
     let shadow = get_shadow_factor(light, world_pos, ndotl);
-    return light.color.rgb * light.intensity_range.x * ndotl * attenuation * shadow;
+    let diffuse = diffuse_term(ndotl, toon_slot, toon_sampler);
+    return light.color.rgb * light.intensity_range.x * diffuse * attenuation * shadow;
 }
 
 // -----------------------------------------------------------------------------
@@ -463,14 +514,22 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let n = normalize(in.normal);
+    let normal_slot = get_slot(material.texture_slots, TEX_NORMAL);
+    let normal_sampler = get_slot(material.sampler_indices, TEX_NORMAL);
+    let n = apply_normal_map(in.normal, in.world_position, in.uv0, normal_slot, normal_sampler);
     let base_color = input_at(material.input_indices.x);
     let spec_color = input_at(material.input_indices.y);
     let spec_power = input_at(material.input_indices.z).x;
+    let spec_slot = get_slot(material.texture_slots, TEX_SPEC);
+    let spec_sampler = get_slot(material.sampler_indices, TEX_SPEC);
+    let spec_tex = sample_material(spec_slot, spec_sampler, in.uv0);
+    let spec_color_final = spec_color.rgb * spec_tex.rgb;
 
     let base_tex_slot = get_slot(material.texture_slots, TEX_BASE);
     let base_sampler = get_slot(material.sampler_indices, TEX_BASE);
     let base_tex = sample_material(base_tex_slot, base_sampler, in.uv0);
+    let toon_slot = get_slot(material.texture_slots, TEX_TOON);
+    let toon_sampler = get_slot(material.sampler_indices, TEX_TOON);
 
     var color = base_color.rgb * base_tex.rgb * in.color0.rgb;
 
@@ -485,9 +544,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             let idx = visible_indices[base + i];
             let light = lights[idx];
             switch (light.kind_flags.x) {
-                case 0u: { lighting += calculate_directional_light(light, n, in.world_position); }
-                case 1u: { lighting += calculate_point_light(light, n, in.world_position); }
-                case 2u: { lighting += calculate_spot_light(light, n, in.world_position); }
+                case 0u: { lighting += calculate_directional_light(light, n, in.world_position, toon_slot, toon_sampler); }
+                case 1u: { lighting += calculate_point_light(light, n, in.world_position, toon_slot, toon_sampler); }
+                case 2u: { lighting += calculate_spot_light(light, n, in.world_position, toon_slot, toon_sampler); }
                 case 3u: { lighting += calculate_ambient_light(light); }
                 case 4u: { lighting += calculate_hemisphere_light(light, n); }
                 default: { }
@@ -498,7 +557,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                 let light_dir = normalize(light.position.xyz - in.world_position);
                 let reflect_dir = reflect(-light_dir, n);
                 let spec = pow(max(dot(view_dir, reflect_dir), 0.0), spec_power);
-                specular += spec_color.rgb * spec * light.intensity_range.x;
+                specular += spec_color_final * spec * light.intensity_range.x;
             }
         }
         color *= (lighting + vec3<f32>(0.001));

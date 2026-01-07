@@ -50,11 +50,15 @@ fn main() {
     let material_plane: u32 = 11;
     let texture_test: u32 = 20;
     let texture_atlas: u32 = 21;
+    let texture_normal: u32 = 22;
     let texture_buffer: u64 = 1;
     let texture_atlas_buffer: u64 = 2;
+    let texture_normal_buffer: u64 = 3;
 
     let texture_bytes =
         fs::read("assets/texture-test.png").expect("failed to read assets/texture-test.png");
+    let normal_bytes =
+        fs::read("assets/texture-normal.png").expect("failed to read assets/texture-normal.png");
     assert_eq!(
         core::vulfram_upload_buffer(
             texture_buffer,
@@ -70,6 +74,15 @@ fn main() {
             UploadType::ImageData as u32,
             texture_bytes.as_ptr(),
             texture_bytes.len()
+        ),
+        VulframResult::Success
+    );
+    assert_eq!(
+        core::vulfram_upload_buffer(
+            texture_normal_buffer,
+            UploadType::ImageData as u32,
+            normal_bytes.as_ptr(),
+            normal_bytes.len()
         ),
         VulframResult::Success
     );
@@ -202,6 +215,14 @@ fn main() {
                 layers: 1,
             }),
         }),
+        EngineCmd::CmdTextureCreateFromBuffer(CmdTextureCreateFromBufferArgs {
+            window_id,
+            texture_id: texture_normal,
+            buffer_id: texture_normal_buffer,
+            srgb: Some(false),
+            mode: TextureCreateMode::Standalone,
+            atlas_options: None,
+        }),
         // 3.7 Create a soft pink standard material for the cube
         EngineCmd::CmdMaterialCreate(CmdMaterialCreateArgs {
             window_id,
@@ -224,6 +245,8 @@ fn main() {
                 base_sampler: Some(MaterialSampler::LinearClamp),
                 spec_color: Some(Vec4::new(0.0, 1.0, 0.0, 1.0)),
                 spec_power: Some(64.0),
+                normal_tex_id: Some(texture_normal),
+                normal_sampler: Some(MaterialSampler::LinearClamp),
                 ..Default::default()
             })),
         }),

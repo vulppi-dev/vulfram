@@ -199,6 +199,11 @@ impl VertexAllocatorSystem {
         self.bind_cache.reset();
     }
 
+    pub fn begin_pass(&mut self) {
+        // Render passes do not carry vertex bindings; reset cache to force rebinds.
+        self.bind_cache.reset();
+    }
+
     pub fn create_geometry(
         &mut self,
         id: u32,

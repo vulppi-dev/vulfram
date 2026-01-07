@@ -46,19 +46,25 @@ fn main() {
     let model_cube: u32 = 1;
     let model_plane: u32 = 2;
     let model_light_marker: u32 = 3;
-    let material_pink: u32 = 10;
+    let material_cube: u32 = 10;
     let material_plane: u32 = 11;
+    let material_masked: u32 = 12;
+    let material_transparent: u32 = 13;
     let texture_test: u32 = 20;
     let texture_atlas: u32 = 21;
     let texture_normal: u32 = 22;
+    let texture_alpha: u32 = 23;
     let texture_buffer: u64 = 1;
     let texture_atlas_buffer: u64 = 2;
     let texture_normal_buffer: u64 = 3;
+    let texture_alpha_buffer: u64 = 4;
 
-    let texture_bytes =
-        fs::read("assets/texture-test.png").expect("failed to read assets/texture-test.png");
-    let normal_bytes = fs::read("assets/texture-normal2.jpeg")
-        .expect("failed to read assets/texture-normal2.jpeg");
+    let texture_bytes = fs::read("assets/colo_test_texture.png")
+        .expect("failed to read assets/colo_test_texture.png");
+    let normal_bytes = fs::read("assets/normal_test_texture.png")
+        .expect("failed to read assets/normal_test_texture.png");
+    let alpha_bytes = fs::read("assets/alpha_test_texture.png")
+        .expect("failed to read assets/alpha_test_texture.png");
     assert_eq!(
         core::vulfram_upload_buffer(
             texture_buffer,
@@ -83,6 +89,15 @@ fn main() {
             UploadType::ImageData as u32,
             normal_bytes.as_ptr(),
             normal_bytes.len()
+        ),
+        VulframResult::Success
+    );
+    assert_eq!(
+        core::vulfram_upload_buffer(
+            texture_alpha_buffer,
+            UploadType::ImageData as u32,
+            alpha_bytes.as_ptr(),
+            alpha_bytes.len()
         ),
         VulframResult::Success
     );
@@ -133,8 +148,8 @@ fn main() {
             direction: None,
             color: Some(Vec4::new(1.0, 1.0, 1.0, 1.0)),
             ground_color: None,
-            intensity: Some(2.0),
-            range: Some(20.0),
+            intensity: Some(10.0),
+            range: Some(100.0),
             spot_inner_outer: None,
             layer_mask: 0xFFFFFFFF,
             cast_shadow: true,
@@ -223,10 +238,18 @@ fn main() {
             mode: TextureCreateMode::Standalone,
             atlas_options: None,
         }),
+        EngineCmd::CmdTextureCreateFromBuffer(CmdTextureCreateFromBufferArgs {
+            window_id,
+            texture_id: texture_alpha,
+            buffer_id: texture_alpha_buffer,
+            srgb: Some(true),
+            mode: TextureCreateMode::Standalone,
+            atlas_options: None,
+        }),
         // 3.7 Create a soft pink standard material for the cube
         EngineCmd::CmdMaterialCreate(CmdMaterialCreateArgs {
             window_id,
-            material_id: material_pink,
+            material_id: material_cube,
             kind: MaterialKind::Standard,
             options: Some(MaterialOptions::Standard(StandardOptions {
                 base_color: Vec4::ONE,
@@ -254,12 +277,34 @@ fn main() {
                 ..Default::default()
             })),
         }),
+        EngineCmd::CmdMaterialCreate(CmdMaterialCreateArgs {
+            window_id,
+            material_id: material_masked,
+            kind: MaterialKind::Standard,
+            options: Some(MaterialOptions::Standard(StandardOptions {
+                base_color: Vec4::ONE,
+                surface_type: SurfaceType::Masked,
+                base_tex_id: Some(texture_alpha),
+                base_sampler: Some(MaterialSampler::LinearClamp),
+                ..Default::default()
+            })),
+        }),
+        EngineCmd::CmdMaterialCreate(CmdMaterialCreateArgs {
+            window_id,
+            material_id: material_transparent,
+            kind: MaterialKind::Standard,
+            options: Some(MaterialOptions::Standard(StandardOptions {
+                base_color: Vec4::new(1.0, 1.0, 1.0, 0.5),
+                surface_type: SurfaceType::Transparent,
+                ..Default::default()
+            })),
+        }),
         // 4. Create models
         EngineCmd::CmdModelCreate(CmdModelCreateArgs {
             window_id,
             model_id: model_cube,
             geometry_id: geometry_cube,
-            material_id: Some(material_pink),
+            material_id: Some(material_cube),
             transform: Mat4::from_translation(Vec3::new(0.0, 1.0, 0.0)),
             layer_mask: 0xFFFFFFFF,
             cast_shadow: true,
@@ -270,10 +315,35 @@ fn main() {
             model_id: model_plane,
             geometry_id: geometry_plane,
             material_id: Some(material_plane),
-            transform: Mat4::from_rotation_x(-std::f32::consts::FRAC_PI_2)
-                * Mat4::from_scale(Vec3::new(20.0, 20.0, 1.0)),
+            transform: Mat4::from_translation(Vec3::new(0.0, 0.0, 0.0))
+                * Mat4::from_rotation_x(-std::f32::consts::FRAC_PI_2)
+                * Mat4::from_scale(Vec3::new(12.0, 12.0, 1.0)),
             layer_mask: 0xFFFFFFFF,
             cast_shadow: true,
+            receive_shadow: true,
+        }),
+        EngineCmd::CmdModelCreate(CmdModelCreateArgs {
+            window_id,
+            model_id: 4,
+            geometry_id: geometry_plane,
+            material_id: Some(material_masked),
+            transform: Mat4::from_translation(Vec3::new(-6.0, 1.0, 0.0))
+                * Mat4::from_rotation_x(-std::f32::consts::FRAC_PI_2)
+                * Mat4::from_scale(Vec3::new(4.0, 4.0, 1.0)),
+            layer_mask: 0xFFFFFFFF,
+            cast_shadow: true,
+            receive_shadow: true,
+        }),
+        EngineCmd::CmdModelCreate(CmdModelCreateArgs {
+            window_id,
+            model_id: 5,
+            geometry_id: geometry_plane,
+            material_id: Some(material_transparent),
+            transform: Mat4::from_translation(Vec3::new(6.0, 1.0, 0.0))
+                * Mat4::from_rotation_x(-std::f32::consts::FRAC_PI_2)
+                * Mat4::from_scale(Vec3::new(4.0, 4.0, 1.0)),
+            layer_mask: 0xFFFFFFFF,
+            cast_shadow: false,
             receive_shadow: true,
         }),
         EngineCmd::CmdModelCreate(CmdModelCreateArgs {
@@ -347,8 +417,8 @@ fn main() {
         });
 
         // Update point light position
-        let light_x = (total_ms as f32 / 4000.0).cos() * 5.0;
-        let light_z = (total_ms as f32 / 4000.0).sin() * 5.0;
+        let light_x = (total_ms as f32 / 1000.0).cos() * 5.0;
+        let light_z = (total_ms as f32 / 1000.0).sin() * 5.0;
         let light_update = EngineCmd::CmdLightUpdate(crate::core::resources::CmdLightUpdateArgs {
             window_id,
             light_id: 2,

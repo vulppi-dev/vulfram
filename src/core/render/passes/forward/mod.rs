@@ -14,6 +14,7 @@ pub fn pass_forward(
         model_id: u32,
         geometry_id: u32,
         material_id: u32,
+        depth: f32,
     }
 
     let scene = &render_state.scene;
@@ -91,6 +92,7 @@ pub fn pass_forward(
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
+            vertex_sys.begin_pass();
 
             // 4. Bind Shared (Group 0: Frame + Camera)
             if let Some(shared_group) = bindings.shared_group.as_ref() {
@@ -114,11 +116,21 @@ pub fn pass_forward(
 
                 let material_id = model_record.material_id.unwrap_or(MATERIAL_FALLBACK_ID);
 
+                let model_depth = {
+                    let clip = camera_record.data.view_projection * model_record.data.translation;
+                    if clip.w.abs() > 1e-5 {
+                        clip.z / clip.w
+                    } else {
+                        0.0
+                    }
+                };
+
                 if let Some(record) = materials_pbr.get(&material_id) {
                     let item = DrawItem {
                         model_id: *model_id,
                         geometry_id: model_record.geometry_id,
                         material_id,
+                        depth: model_depth,
                     };
                     match record.surface_type {
                         SurfaceType::Opaque => pbr_opaque.push(item),
@@ -142,6 +154,7 @@ pub fn pass_forward(
                     model_id: *model_id,
                     geometry_id: model_record.geometry_id,
                     material_id,
+                    depth: model_depth,
                 };
 
                 match surface_type {
@@ -151,62 +164,142 @@ pub fn pass_forward(
                 }
             }
 
-            let pipeline =
-                branches::standard::get_pipeline(cache, frame_index, device, library);
-            render_pass.set_pipeline(pipeline);
+            standard_transparent.sort_by(|a, b| {
+                b.depth
+                    .partial_cmp(&a.depth)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+            pbr_transparent.sort_by(|a, b| {
+                b.depth
+                    .partial_cmp(&a.depth)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
 
-            let mut draw_items = |items: Vec<DrawItem>| {
-                for item in items {
-                    if let Some(material) = scene.materials_standard.get(&item.material_id) {
-                        if let Some(group) = material.bind_group.as_ref() {
-                            let model_offset = bindings.model_pool.get_offset(item.model_id) as u32;
-                            let material_offset =
-                                bindings.material_standard_pool.get_offset(item.material_id) as u32;
-                            render_pass
-                                .set_bind_group(1, group, &[model_offset, material_offset]);
-                        }
-                    }
-
-                    if let Ok(Some(index_info)) = vertex_sys.index_info(item.geometry_id) {
-                        if vertex_sys.bind(&mut render_pass, item.geometry_id).is_err() {
-                            continue;
-                        }
-                        render_pass.draw_indexed(0..index_info.count, 0, 0..1);
-                    }
-                }
-            };
-
-            draw_items(standard_opaque);
-            draw_items(standard_masked);
-            draw_items(standard_transparent);
-
-            let pbr_pipeline = branches::pbr::get_pipeline(cache, frame_index, device, library);
+            let pbr_pipeline =
+                branches::pbr::get_pipeline(cache, frame_index, device, library, SurfaceType::Opaque);
             render_pass.set_pipeline(pbr_pipeline);
-
-            let mut draw_pbr_items = |items: Vec<DrawItem>| {
-                for item in items {
-                    if let Some(material) = scene.materials_pbr.get(&item.material_id) {
-                        if let Some(group) = material.bind_group.as_ref() {
-                            let model_offset = bindings.model_pool.get_offset(item.model_id) as u32;
-                            let material_offset =
-                                bindings.material_pbr_pool.get_offset(item.material_id) as u32;
-                            render_pass
-                                .set_bind_group(1, group, &[model_offset, material_offset]);
-                        }
-                    }
-
-                    if let Ok(Some(index_info)) = vertex_sys.index_info(item.geometry_id) {
-                        if vertex_sys.bind(&mut render_pass, item.geometry_id).is_err() {
-                            continue;
-                        }
-                        render_pass.draw_indexed(0..index_info.count, 0, 0..1);
+            for item in pbr_opaque {
+                if let Some(material) = scene.materials_pbr.get(&item.material_id) {
+                    if let Some(group) = material.bind_group.as_ref() {
+                        let model_offset = bindings.model_pool.get_offset(item.model_id) as u32;
+                        let material_offset =
+                            bindings.material_pbr_pool.get_offset(item.material_id) as u32;
+                        render_pass.set_bind_group(1, group, &[model_offset, material_offset]);
                     }
                 }
-            };
 
-            draw_pbr_items(pbr_opaque);
-            draw_pbr_items(pbr_masked);
-            draw_pbr_items(pbr_transparent);
+                if let Ok(Some(index_info)) = vertex_sys.index_info(item.geometry_id) {
+                    if vertex_sys.bind(&mut render_pass, item.geometry_id).is_err() {
+                        continue;
+                    }
+                    render_pass.draw_indexed(0..index_info.count, 0, 0..1);
+                }
+            }
+
+            let pbr_pipeline =
+                branches::pbr::get_pipeline(cache, frame_index, device, library, SurfaceType::Masked);
+            render_pass.set_pipeline(pbr_pipeline);
+            for item in pbr_masked {
+                if let Some(material) = scene.materials_pbr.get(&item.material_id) {
+                    if let Some(group) = material.bind_group.as_ref() {
+                        let model_offset = bindings.model_pool.get_offset(item.model_id) as u32;
+                        let material_offset =
+                            bindings.material_pbr_pool.get_offset(item.material_id) as u32;
+                        render_pass.set_bind_group(1, group, &[model_offset, material_offset]);
+                    }
+                }
+
+                if let Ok(Some(index_info)) = vertex_sys.index_info(item.geometry_id) {
+                    if vertex_sys.bind(&mut render_pass, item.geometry_id).is_err() {
+                        continue;
+                    }
+                    render_pass.draw_indexed(0..index_info.count, 0, 0..1);
+                }
+            }
+
+            let pipeline =
+                branches::standard::get_pipeline(cache, frame_index, device, library, SurfaceType::Opaque);
+            render_pass.set_pipeline(pipeline);
+            for item in standard_opaque {
+                if let Some(material) = scene.materials_standard.get(&item.material_id) {
+                    if let Some(group) = material.bind_group.as_ref() {
+                        let model_offset = bindings.model_pool.get_offset(item.model_id) as u32;
+                        let material_offset =
+                            bindings.material_standard_pool.get_offset(item.material_id) as u32;
+                        render_pass.set_bind_group(1, group, &[model_offset, material_offset]);
+                    }
+                }
+
+                if let Ok(Some(index_info)) = vertex_sys.index_info(item.geometry_id) {
+                    if vertex_sys.bind(&mut render_pass, item.geometry_id).is_err() {
+                        continue;
+                    }
+                    render_pass.draw_indexed(0..index_info.count, 0, 0..1);
+                }
+            }
+
+            let pipeline =
+                branches::standard::get_pipeline(cache, frame_index, device, library, SurfaceType::Masked);
+            render_pass.set_pipeline(pipeline);
+            for item in standard_masked {
+                if let Some(material) = scene.materials_standard.get(&item.material_id) {
+                    if let Some(group) = material.bind_group.as_ref() {
+                        let model_offset = bindings.model_pool.get_offset(item.model_id) as u32;
+                        let material_offset =
+                            bindings.material_standard_pool.get_offset(item.material_id) as u32;
+                        render_pass.set_bind_group(1, group, &[model_offset, material_offset]);
+                    }
+                }
+
+                if let Ok(Some(index_info)) = vertex_sys.index_info(item.geometry_id) {
+                    if vertex_sys.bind(&mut render_pass, item.geometry_id).is_err() {
+                        continue;
+                    }
+                    render_pass.draw_indexed(0..index_info.count, 0, 0..1);
+                }
+            }
+
+            let pbr_pipeline =
+                branches::pbr::get_pipeline(cache, frame_index, device, library, SurfaceType::Transparent);
+            render_pass.set_pipeline(pbr_pipeline);
+            for item in pbr_transparent {
+                if let Some(material) = scene.materials_pbr.get(&item.material_id) {
+                    if let Some(group) = material.bind_group.as_ref() {
+                        let model_offset = bindings.model_pool.get_offset(item.model_id) as u32;
+                        let material_offset =
+                            bindings.material_pbr_pool.get_offset(item.material_id) as u32;
+                        render_pass.set_bind_group(1, group, &[model_offset, material_offset]);
+                    }
+                }
+
+                if let Ok(Some(index_info)) = vertex_sys.index_info(item.geometry_id) {
+                    if vertex_sys.bind(&mut render_pass, item.geometry_id).is_err() {
+                        continue;
+                    }
+                    render_pass.draw_indexed(0..index_info.count, 0, 0..1);
+                }
+            }
+
+            let pipeline =
+                branches::standard::get_pipeline(cache, frame_index, device, library, SurfaceType::Transparent);
+            render_pass.set_pipeline(pipeline);
+            for item in standard_transparent {
+                if let Some(material) = scene.materials_standard.get(&item.material_id) {
+                    if let Some(group) = material.bind_group.as_ref() {
+                        let model_offset = bindings.model_pool.get_offset(item.model_id) as u32;
+                        let material_offset =
+                            bindings.material_standard_pool.get_offset(item.material_id) as u32;
+                        render_pass.set_bind_group(1, group, &[model_offset, material_offset]);
+                    }
+                }
+
+                if let Ok(Some(index_info)) = vertex_sys.index_info(item.geometry_id) {
+                    if vertex_sys.bind(&mut render_pass, item.geometry_id).is_err() {
+                        continue;
+                    }
+                    render_pass.draw_indexed(0..index_info.count, 0, 0..1);
+                }
+            }
         }
     }
 }

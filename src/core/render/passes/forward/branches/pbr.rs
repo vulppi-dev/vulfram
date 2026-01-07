@@ -1,24 +1,33 @@
 use crate::core::render::cache::{PipelineKey, RenderCache, ShaderId};
 use crate::core::render::state::ResourceLibrary;
-use crate::core::resources::VertexStream;
+use crate::core::resources::{SurfaceType, VertexStream};
 
 pub fn get_pipeline<'a>(
     cache: &'a mut RenderCache,
     frame_index: u64,
     device: &wgpu::Device,
     library: &ResourceLibrary,
+    surface: SurfaceType,
 ) -> &'a wgpu::RenderPipeline {
+    let (blend, depth_write, depth_compare) = match surface {
+        SurfaceType::Transparent => (
+            Some(wgpu::BlendState::ALPHA_BLENDING),
+            false,
+            wgpu::CompareFunction::LessEqual,
+        ),
+        _ => (None, true, wgpu::CompareFunction::Less),
+    };
     let key = PipelineKey {
         shader_id: ShaderId::ForwardPbr as u64,
-        color_format: wgpu::TextureFormat::Rgba32Float,
+        color_format: wgpu::TextureFormat::Rgba16Float,
         depth_format: Some(wgpu::TextureFormat::Depth24Plus),
         sample_count: 1,
         topology: wgpu::PrimitiveTopology::TriangleList,
         cull_mode: Some(wgpu::Face::Back),
         front_face: wgpu::FrontFace::Ccw,
-        depth_write_enabled: true,
-        depth_compare: wgpu::CompareFunction::Less,
-        blend: None,
+        depth_write_enabled: depth_write,
+        depth_compare,
+        blend,
     };
 
     cache.get_or_create(key, frame_index, || {

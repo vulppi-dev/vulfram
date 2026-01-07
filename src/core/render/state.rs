@@ -272,7 +272,7 @@ impl RenderState {
                 .render_target
                 .as_ref()
                 .map(|rt| rt.format)
-                .unwrap_or(wgpu::TextureFormat::Rgba32Float);
+                .unwrap_or(wgpu::TextureFormat::Rgba16Float);
 
             // Clear old render target before creating new one
             record.clear_render_target();

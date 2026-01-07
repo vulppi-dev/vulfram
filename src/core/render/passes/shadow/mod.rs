@@ -233,6 +233,7 @@ pub fn pass_shadow_update(
             timestamp_writes: None,
             occlusion_query_set: None,
         });
+        vertex_sys.begin_pass();
 
         while i < render_pages.len() && render_pages[i].layer == layer {
             let page = &render_pages[i];

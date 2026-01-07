@@ -112,6 +112,8 @@ struct MaterialStandardParams {
 @group(1) @binding(10) var material_tex7: texture_2d<f32>;
 
 const STANDARD_INVALID_SLOT: u32 = 0xFFFFFFFFu;
+const SURFACE_MASKED: u32 = 1u;
+const ALPHA_CUTOFF: f32 = 0.5;
 const TEX_BASE: u32 = 0u;
 const TEX_SPEC: u32 = 1u;
 const TEX_NORMAL: u32 = 2u;
@@ -532,6 +534,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let toon_sampler = get_slot(material.sampler_indices, TEX_TOON);
 
     var color = base_color.rgb * base_tex.rgb * in.color0.rgb;
+    let alpha = base_color.a * base_tex.a;
 
     let cam = light_params.camera_index;
     let base = cam * light_params.max_lights_per_camera;
@@ -566,5 +569,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         color *= vec3<f32>(0.001);
     }
 
-    return vec4<f32>(color, base_color.a);
+    if (material.surface_flags.x == SURFACE_MASKED && alpha < ALPHA_CUTOFF) {
+        discard;
+    }
+    return vec4<f32>(color, alpha);
 }

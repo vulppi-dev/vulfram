@@ -85,7 +85,7 @@ pub fn engine_cmd_camera_create(
                 height: target_height,
                 depth_or_array_layers: 1,
             };
-            let target = RenderTarget::new(device, size, wgpu::TextureFormat::Rgba32Float);
+            let target = RenderTarget::new(device, size, wgpu::TextureFormat::Rgba16Float);
             record.set_render_target(target);
         }
         window_state

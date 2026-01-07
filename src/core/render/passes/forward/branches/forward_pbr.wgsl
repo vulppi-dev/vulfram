@@ -112,6 +112,8 @@ struct MaterialPbrParams {
 @group(1) @binding(10) var material_tex7: texture_2d<f32>;
 
 const PBR_INVALID_SLOT: u32 = 0xFFFFFFFFu;
+const SURFACE_MASKED: u32 = 1u;
+const ALPHA_CUTOFF: f32 = 0.5;
 const TEX_BASE: u32 = 0u;
 const TEX_NORMAL: u32 = 1u;
 const TEX_METAL_ROUGH: u32 = 2u;
@@ -521,7 +523,9 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let base_color = input_at(material.input_indices.x).rgb;
+    let base_param = input_at(material.input_indices.x);
+    let base_color = base_param.rgb;
+    let base_alpha = base_param.a;
     let emissive_color = input_at(material.input_indices.y).rgb;
     let mra = input_at(material.input_indices.z);
     let normal_scale = input_at(material.input_indices.w).x;
@@ -530,6 +534,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let base_sampler = get_slot(material.sampler_indices, TEX_BASE);
     let base_tex = sample_material(base_slot, base_sampler, in.uv0);
     let albedo = base_color * base_tex.rgb * in.color0.rgb;
+    let alpha = base_alpha * base_tex.a;
 
     let mr_slot = get_slot(material.texture_slots, TEX_METAL_ROUGH);
     let mr_sampler = get_slot(material.sampler_indices, TEX_METAL_ROUGH);
@@ -580,5 +585,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
 
     let color = lighting + ambient * ao + emissive;
-    return vec4<f32>(color, base_tex.a);
+    if (material.surface_flags.x == SURFACE_MASKED && alpha < ALPHA_CUTOFF) {
+        discard;
+    }
+    return vec4<f32>(color, alpha);
 }

@@ -6,8 +6,8 @@ use crate::core::resources::shadow::ShadowManager;
 use crate::core::resources::{
     CameraComponent, CameraRecord, FrameComponent, LightComponent, LightRecord,
     MaterialStandardParams, MaterialStandardRecord, ModelComponent, ModelRecord, RenderTarget,
-    StorageBufferPool, TextureRecord, UniformBufferPool, VertexAllocatorConfig,
-    VertexAllocatorSystem,
+    StorageBufferPool, TextureRecord, ForwardAtlasEntry, ForwardAtlasSystem, UniformBufferPool,
+    VertexAllocatorConfig, VertexAllocatorSystem, STANDARD_INVALID_SLOT, STANDARD_TEXTURE_SLOTS,
 };
 
 fn perspective_rh_zo(fov_y: f32, aspect: f32, near: f32, far: f32) -> glam::Mat4 {
@@ -70,6 +70,8 @@ pub struct ResourceLibrary {
     pub samplers: SamplerSet,
     pub _fallback_texture: wgpu::Texture,
     pub _fallback_view: wgpu::TextureView,
+    pub _fallback_forward_atlas_texture: wgpu::Texture,
+    pub fallback_forward_atlas_view: wgpu::TextureView,
     pub _fallback_shadow_texture: wgpu::Texture,
     pub fallback_shadow_view: wgpu::TextureView,
 }
@@ -134,6 +136,7 @@ pub struct RenderScene {
     pub lights: HashMap<u32, LightRecord>,
     pub materials_standard: HashMap<u32, MaterialStandardRecord>,
     pub textures: HashMap<u32, TextureRecord>,
+    pub forward_atlas_entries: HashMap<u32, ForwardAtlasEntry>,
 }
 
 // -----------------------------------------------------------------------------
@@ -147,6 +150,7 @@ pub struct RenderState {
     pub vertex: Option<VertexAllocatorSystem>,
     pub light_system: Option<LightCullingSystem>,
     pub shadow: Option<ShadowManager>,
+    pub forward_atlas: Option<ForwardAtlasSystem>,
     pub cache: RenderCache,
     pub forward_depth_target: Option<RenderTarget>,
 }
@@ -172,12 +176,14 @@ impl RenderState {
                 lights: HashMap::new(),
                 materials_standard,
                 textures: HashMap::new(),
+                forward_atlas_entries: HashMap::new(),
             },
             bindings: None,
             library: None,
             vertex: None,
             light_system: None,
             shadow: None,
+            forward_atlas: None,
             cache: RenderCache::new(),
             forward_depth_target: None,
         }
@@ -194,11 +200,13 @@ impl RenderState {
             MaterialStandardRecord::new(MaterialStandardParams::default()),
         );
         self.scene.textures.clear();
+        self.scene.forward_atlas_entries.clear();
         self.bindings = None;
         self.library = None;
         self.vertex = None;
         self.light_system = None;
         self.shadow = None;
+        self.forward_atlas = None;
         self.cache.clear();
         self.forward_depth_target = None;
     }
@@ -320,12 +328,80 @@ impl RenderState {
 
         let fallback_view = &library._fallback_view;
         for (id, record) in &mut self.scene.materials_standard {
-            if record.is_dirty {
+            let mut atlas_changed = false;
+            let set_uvec4_lane = |vecs: &mut [glam::UVec4; 2], index: usize, value: u32| {
+                let vec_index = index / 4;
+                let lane = index % 4;
+                let mut v = vecs[vec_index];
+                match lane {
+                    0 => v.x = value,
+                    1 => v.y = value,
+                    2 => v.z = value,
+                    _ => v.w = value,
+                }
+                vecs[vec_index] = v;
+            };
+
+            for slot in 0..STANDARD_TEXTURE_SLOTS {
+                let tex_id = record.texture_ids[slot];
+                let mut desired_source = 2u32;
+                let mut desired_layer = 0u32;
+                let mut desired_scale_bias = glam::Vec4::new(1.0, 1.0, 0.0, 0.0);
+
+                if tex_id != STANDARD_INVALID_SLOT {
+                    if let Some(entry) = self.scene.forward_atlas_entries.get(&tex_id) {
+                        desired_source = 1;
+                        desired_layer = entry.layer;
+                        desired_scale_bias = entry.uv_scale_bias;
+                    } else {
+                        desired_source = 0;
+                    }
+                }
+
+                let current_source = match (slot / 4, slot % 4) {
+                    (0, 0) => record.data.tex_sources[0].x,
+                    (0, 1) => record.data.tex_sources[0].y,
+                    (0, 2) => record.data.tex_sources[0].z,
+                    (0, 3) => record.data.tex_sources[0].w,
+                    (1, 0) => record.data.tex_sources[1].x,
+                    (1, 1) => record.data.tex_sources[1].y,
+                    (1, 2) => record.data.tex_sources[1].z,
+                    _ => record.data.tex_sources[1].w,
+                };
+                let current_layer = match (slot / 4, slot % 4) {
+                    (0, 0) => record.data.atlas_layers[0].x,
+                    (0, 1) => record.data.atlas_layers[0].y,
+                    (0, 2) => record.data.atlas_layers[0].z,
+                    (0, 3) => record.data.atlas_layers[0].w,
+                    (1, 0) => record.data.atlas_layers[1].x,
+                    (1, 1) => record.data.atlas_layers[1].y,
+                    (1, 2) => record.data.atlas_layers[1].z,
+                    _ => record.data.atlas_layers[1].w,
+                };
+                let current_scale_bias = record.data.atlas_scale_bias[slot];
+
+                if current_source != desired_source {
+                    set_uvec4_lane(&mut record.data.tex_sources, slot, desired_source);
+                    atlas_changed = true;
+                }
+                if current_layer != desired_layer {
+                    set_uvec4_lane(&mut record.data.atlas_layers, slot, desired_layer);
+                    atlas_changed = true;
+                }
+                if current_scale_bias != desired_scale_bias {
+                    record.data.atlas_scale_bias[slot] = desired_scale_bias;
+                    atlas_changed = true;
+                }
+            }
+
+            if record.is_dirty || atlas_changed {
                 bindings.material_standard_pool.write(*id, &record.data);
-                bindings
-                    .material_standard_inputs
-                    .write_slice(record.data.inputs_offset_count.x, &record.inputs);
-                record.clear_dirty();
+                if record.is_dirty {
+                    bindings
+                        .material_standard_inputs
+                        .write_slice(record.data.inputs_offset_count.x, &record.inputs);
+                    record.clear_dirty();
+                }
             }
         }
 
@@ -336,6 +412,11 @@ impl RenderState {
 
         // 2. Create Shared Bind Group (Consolidated Group 0)
         let shadow_manager = self.shadow.as_ref().expect("ShadowManager missing");
+
+        let forward_atlas_view = match self.forward_atlas.as_ref() {
+            Some(atlas) => atlas.view(),
+            None => &library.fallback_forward_atlas_view,
+        };
 
         bindings.shared_group = Some(
             device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -459,6 +540,10 @@ impl RenderState {
                     wgpu::BindGroupEntry {
                         binding: 14,
                         resource: wgpu::BindingResource::Sampler(&library.samplers.comparison),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 15,
+                        resource: wgpu::BindingResource::TextureView(forward_atlas_view),
                     },
                 ],
             }),
@@ -658,6 +743,49 @@ impl RenderState {
         );
 
         let fallback_view = fallback_texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        let fallback_forward_atlas_texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Fallback Forward Atlas 1x1"),
+            size: wgpu::Extent3d {
+                width: 1,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
+        queue.write_texture(
+            fallback_forward_atlas_texture.as_image_copy(),
+            &white_pixel,
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(4),
+                rows_per_image: Some(1),
+            },
+            wgpu::Extent3d {
+                width: 1,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        let fallback_forward_atlas_view =
+            fallback_forward_atlas_texture.create_view(&wgpu::TextureViewDescriptor {
+                label: Some("Fallback Forward Atlas View"),
+                format: Some(wgpu::TextureFormat::Rgba8UnormSrgb),
+                dimension: Some(wgpu::TextureViewDimension::D2Array),
+                aspect: wgpu::TextureAspect::All,
+                base_mip_level: 0,
+                mip_level_count: None,
+                base_array_layer: 0,
+                array_layer_count: Some(1),
+                usage: None,
+            });
 
         let fallback_shadow_texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Fallback Shadow Texture 1x1"),
@@ -884,6 +1012,16 @@ impl RenderState {
                     binding: 14,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 15,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2Array,
+                        multisampled: false,
+                    },
                     count: None,
                 },
             ],
@@ -1179,6 +1317,8 @@ impl RenderState {
             samplers,
             _fallback_texture: fallback_texture,
             _fallback_view: fallback_view,
+            _fallback_forward_atlas_texture: fallback_forward_atlas_texture,
+            fallback_forward_atlas_view,
             _fallback_shadow_texture: fallback_shadow_texture,
             fallback_shadow_view,
         });

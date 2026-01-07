@@ -73,6 +73,9 @@ struct MaterialStandardParams {
     surface_flags: vec2<u32>,
     texture_slots: array<vec4<u32>, 2>,
     sampler_indices: array<vec4<u32>, 2>,
+    tex_sources: array<vec4<u32>, 2>,
+    atlas_layers: array<vec4<u32>, 2>,
+    atlas_scale_bias: array<vec4<f32>, 8>,
 }
 
 // -----------------------------------------------------------------------------
@@ -94,6 +97,7 @@ struct MaterialStandardParams {
 @group(0) @binding(12) var point_repeat_sampler: sampler;
 @group(0) @binding(13) var linear_repeat_sampler: sampler;
 @group(0) @binding(14) var shadow_sampler: sampler_comparison;
+@group(0) @binding(15) var forward_atlas: texture_2d_array<f32>;
 
 @group(1) @binding(0) var<uniform> model: Model;
 @group(1) @binding(1) var<uniform> material: MaterialStandardParams;
@@ -113,6 +117,9 @@ const TEX_SPEC: u32 = 1u;
 const TEX_NORMAL: u32 = 2u;
 const TEX_TOON: u32 = 3u;
 const STANDARD_FLAG_SPECULAR: u32 = 1u;
+const TEX_SOURCE_STANDALONE: u32 = 0u;
+const TEX_SOURCE_ATLAS: u32 = 1u;
+const TEX_SOURCE_INVALID: u32 = 2u;
 
 fn get_slot(slots: array<vec4<u32>, 2>, index: u32) -> u32 {
     let vec_index = index / 4u;
@@ -181,6 +188,33 @@ fn sample_color(tex_slot: u32, sampler_index: u32, uv: vec2<f32>) -> vec4<f32> {
         return textureSample(material_tex7, linear_repeat_sampler, uv);
     }
     return vec4<f32>(1.0);
+}
+
+fn sample_atlas(sampler_index: u32, uv: vec2<f32>, layer: u32) -> vec4<f32> {
+    let layer_i = i32(layer);
+    if (sampler_index == 0u) { return textureSample(forward_atlas, point_clamp_sampler, uv, layer_i); }
+    if (sampler_index == 1u) { return textureSample(forward_atlas, linear_clamp_sampler, uv, layer_i); }
+    if (sampler_index == 2u) { return textureSample(forward_atlas, point_repeat_sampler, uv, layer_i); }
+    return textureSample(forward_atlas, linear_repeat_sampler, uv, layer_i);
+}
+
+fn sample_material(tex_slot: u32, sampler_index: u32, uv: vec2<f32>) -> vec4<f32> {
+    if (tex_slot == STANDARD_INVALID_SLOT) {
+        return vec4<f32>(1.0);
+    }
+
+    let source = get_slot(material.tex_sources, tex_slot);
+    if (source == TEX_SOURCE_ATLAS) {
+        let scale_bias = material.atlas_scale_bias[tex_slot];
+        let atlas_uv = uv * scale_bias.xy + scale_bias.zw;
+        let layer = get_slot(material.atlas_layers, tex_slot);
+        return sample_atlas(sampler_index, atlas_uv, layer);
+    }
+    if (source == TEX_SOURCE_INVALID) {
+        return vec4<f32>(1.0);
+    }
+
+    return sample_color(tex_slot, sampler_index, uv);
 }
 
 // -----------------------------------------------------------------------------
@@ -436,7 +470,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     let base_tex_slot = get_slot(material.texture_slots, TEX_BASE);
     let base_sampler = get_slot(material.sampler_indices, TEX_BASE);
-    let base_tex = sample_color(base_tex_slot, base_sampler, in.uv0);
+    let base_tex = sample_material(base_tex_slot, base_sampler, in.uv0);
 
     var color = base_color.rgb * base_tex.rgb * in.color0.rgb;
 

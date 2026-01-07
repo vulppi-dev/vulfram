@@ -1,9 +1,12 @@
 use glam::{UVec2, Vec4};
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::core::buffers::state::UploadType;
 use crate::core::image::ImageDecoder;
-use crate::core::resources::texture::TextureRecord;
+use crate::core::resources::texture::{
+    ForwardAtlasDesc, ForwardAtlasEntry, ForwardAtlasSystem, TextureRecord,
+};
 use crate::core::state::EngineState;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -14,6 +17,10 @@ pub struct CmdTextureCreateFromBufferArgs {
     pub buffer_id: u64,
     #[serde(default)]
     pub srgb: Option<bool>,
+    #[serde(default)]
+    pub mode: TextureCreateMode,
+    #[serde(default)]
+    pub atlas_options: Option<ForwardAtlasOptions>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -21,6 +28,35 @@ pub struct CmdTextureCreateFromBufferArgs {
 pub struct CmdResultTextureCreateFromBuffer {
     pub success: bool,
     pub message: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ForwardAtlasOptions {
+    pub tile_px: u32,
+    pub layers: u32,
+}
+
+impl Default for ForwardAtlasOptions {
+    fn default() -> Self {
+        Self {
+            tile_px: 256,
+            layers: 1,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize_repr, Serialize_repr, Clone, Copy)]
+#[repr(u32)]
+pub enum TextureCreateMode {
+    Standalone = 0,
+    ForwardAtlas = 1,
+}
+
+impl Default for TextureCreateMode {
+    fn default() -> Self {
+        TextureCreateMode::Standalone
+    }
 }
 
 pub fn engine_cmd_texture_create_from_buffer(
@@ -42,6 +78,11 @@ pub fn engine_cmd_texture_create_from_buffer(
         .scene
         .textures
         .contains_key(&args.texture_id)
+        || window_state
+            .render_state
+            .scene
+            .forward_atlas_entries
+            .contains_key(&args.texture_id)
     {
         return CmdResultTextureCreateFromBuffer {
             success: false,
@@ -111,39 +152,168 @@ pub fn engine_cmd_texture_create_from_buffer(
         depth_or_array_layers: 1,
     };
 
-    let texture = device.create_texture(&wgpu::TextureDescriptor {
-        label: Some("Texture From Buffer"),
-        size,
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: wgpu::TextureDimension::D2,
-        format,
-        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-        view_formats: &[],
-    });
+    match &args.mode {
+        TextureCreateMode::Standalone => {
+            let texture = device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("Texture From Buffer"),
+                size,
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                view_formats: &[],
+            });
 
-    queue.write_texture(
-        texture.as_image_copy(),
-        &image.data,
-        wgpu::TexelCopyBufferLayout {
-            offset: 0,
-            bytes_per_row: Some(4 * image.width),
-            rows_per_image: Some(image.height),
-        },
-        size,
-    );
+            queue.write_texture(
+                texture.as_image_copy(),
+                &image.data,
+                wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(4 * image.width),
+                    rows_per_image: Some(image.height),
+                },
+                size,
+            );
 
-    let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+            let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-    window_state.render_state.scene.textures.insert(
-        args.texture_id,
-        TextureRecord {
-            _texture: texture,
-            view,
-            _size: size,
-            _format: format,
-        },
-    );
+            window_state.render_state.scene.textures.insert(
+                args.texture_id,
+                TextureRecord {
+                    _texture: texture,
+                    view,
+                    _size: size,
+                    _format: format,
+                },
+            );
+        }
+        TextureCreateMode::ForwardAtlas => {
+            let options = args.atlas_options.clone().unwrap_or_default();
+            let atlas_desc = ForwardAtlasDesc {
+                label: Some("Forward Atlas"),
+                format,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING
+                    | wgpu::TextureUsages::COPY_DST
+                    | wgpu::TextureUsages::COPY_SRC,
+                tile_px: options.tile_px,
+                layers: options.layers,
+            };
+            let (handle, transform, relocation_transforms) = {
+                let atlas =
+                    match ensure_forward_atlas(
+                        &mut window_state.render_state,
+                        device,
+                        queue,
+                        &atlas_desc,
+                    )
+                    {
+                        Ok(atlas) => atlas,
+                        Err(message) => {
+                            return CmdResultTextureCreateFromBuffer {
+                                success: false,
+                                message,
+                            };
+                        }
+                    };
+                let tiles_x = (image.width + options.tile_px - 1) / options.tile_px;
+                let tiles_y = (image.height + options.tile_px - 1) / options.tile_px;
+                let (handle, relocations) = match atlas.alloc(tiles_x, tiles_y) {
+                    Some(result) => result,
+                    None => {
+                        return CmdResultTextureCreateFromBuffer {
+                            success: false,
+                            message: "Forward atlas allocation failed".into(),
+                        };
+                    }
+                };
+                let (x, y, _, _, layer) = match atlas.get_copy_rect(handle) {
+                    Some(rect) => rect,
+                    None => {
+                        return CmdResultTextureCreateFromBuffer {
+                            success: false,
+                            message: "Forward atlas allocation invalid".into(),
+                        };
+                    }
+                };
+                queue.write_texture(
+                    wgpu::TexelCopyTextureInfo {
+                        texture: atlas.texture(),
+                        mip_level: 0,
+                        origin: wgpu::Origin3d {
+                            x,
+                            y,
+                            z: layer,
+                        },
+                        aspect: wgpu::TextureAspect::All,
+                    },
+                    &image.data,
+                    wgpu::TexelCopyBufferLayout {
+                        offset: 0,
+                        bytes_per_row: Some(4 * image.width),
+                        rows_per_image: Some(image.height),
+                    },
+                    wgpu::Extent3d {
+                        width: image.width,
+                        height: image.height,
+                        depth_or_array_layers: 1,
+                    },
+                );
+                let transform = match atlas.get_uv_transform(handle) {
+                    Some(t) => t,
+                    None => {
+                        return CmdResultTextureCreateFromBuffer {
+                            success: false,
+                            message: "Forward atlas transform missing".into(),
+                        };
+                    }
+                };
+                let relocation_transforms: Vec<_> = relocations
+                    .iter()
+                    .map(|r| (r.handle, atlas.get_uv_transform(r.handle)))
+                    .collect();
+                (handle, transform, relocation_transforms)
+            };
+
+            for (handle, transform) in relocation_transforms {
+                let mut affected_ids = Vec::new();
+                if let Some(transform) = transform {
+                    for (tex_id, entry) in window_state
+                        .render_state
+                        .scene
+                        .forward_atlas_entries
+                        .iter_mut()
+                    {
+                        if entry.handle == handle {
+                            entry.uv_scale_bias = Vec4::new(
+                                transform.0,
+                                transform.1,
+                                transform.2,
+                                transform.3,
+                            );
+                            entry.layer = transform.4;
+                            affected_ids.push(*tex_id);
+                        }
+                    }
+                }
+                for tex_id in affected_ids {
+                    mark_materials_dirty(&mut window_state.render_state.scene, tex_id);
+                }
+            }
+
+            window_state.render_state.scene.forward_atlas_entries.insert(
+                args.texture_id,
+                ForwardAtlasEntry {
+                    handle,
+                    size: UVec2::new(image.width, image.height),
+                    uv_scale_bias: Vec4::new(transform.0, transform.1, transform.2, transform.3),
+                    layer: transform.4,
+                    format,
+                },
+            );
+        }
+    }
+
     mark_materials_dirty(&mut window_state.render_state.scene, args.texture_id);
     window_state.is_dirty = true;
 
@@ -162,6 +332,10 @@ pub struct CmdTextureCreateSolidColorArgs {
     pub size: UVec2,
     #[serde(default)]
     pub srgb: Option<bool>,
+    #[serde(default)]
+    pub mode: TextureCreateMode,
+    #[serde(default)]
+    pub atlas_options: Option<ForwardAtlasOptions>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -190,6 +364,11 @@ pub fn engine_cmd_texture_create_solid_color(
         .scene
         .textures
         .contains_key(&args.texture_id)
+        || window_state
+            .render_state
+            .scene
+            .forward_atlas_entries
+            .contains_key(&args.texture_id)
     {
         return CmdResultTextureCreateSolidColor {
             success: false,
@@ -229,17 +408,6 @@ pub fn engine_cmd_texture_create_solid_color(
         depth_or_array_layers: 1,
     };
 
-    let texture = device.create_texture(&wgpu::TextureDescriptor {
-        label: Some("Texture Solid Color"),
-        size,
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: wgpu::TextureDimension::D2,
-        format,
-        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-        view_formats: &[],
-    });
-
     let color = args.color.clamp(Vec4::ZERO, Vec4::ONE);
     let rgba = [
         (color.x * 255.0) as u8,
@@ -253,28 +421,169 @@ pub fn engine_cmd_texture_create_solid_color(
     for _ in 0..pixel_count {
         data.extend_from_slice(&rgba);
     }
-    queue.write_texture(
-        texture.as_image_copy(),
-        &data,
-        wgpu::TexelCopyBufferLayout {
-            offset: 0,
-            bytes_per_row: Some(4 * size.width),
-            rows_per_image: Some(size.height),
-        },
-        size,
-    );
 
-    let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+    match &args.mode {
+        TextureCreateMode::Standalone => {
+            let texture = device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("Texture Solid Color"),
+                size,
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                view_formats: &[],
+            });
 
-    window_state.render_state.scene.textures.insert(
-        args.texture_id,
-        TextureRecord {
-            _texture: texture,
-            view,
-            _size: size,
-            _format: format,
-        },
-    );
+            queue.write_texture(
+                texture.as_image_copy(),
+                &data,
+                wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(4 * size.width),
+                    rows_per_image: Some(size.height),
+                },
+                size,
+            );
+
+            let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+            window_state.render_state.scene.textures.insert(
+                args.texture_id,
+                TextureRecord {
+                    _texture: texture,
+                    view,
+                    _size: size,
+                    _format: format,
+                },
+            );
+        }
+        TextureCreateMode::ForwardAtlas => {
+            let options = args.atlas_options.clone().unwrap_or_default();
+            let atlas_desc = ForwardAtlasDesc {
+                label: Some("Forward Atlas"),
+                format,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING
+                    | wgpu::TextureUsages::COPY_DST
+                    | wgpu::TextureUsages::COPY_SRC,
+                tile_px: options.tile_px,
+                layers: options.layers,
+            };
+            let (handle, transform, relocation_transforms) = {
+                let atlas =
+                    match ensure_forward_atlas(
+                        &mut window_state.render_state,
+                        device,
+                        queue,
+                        &atlas_desc,
+                    )
+                    {
+                        Ok(atlas) => atlas,
+                        Err(message) => {
+                            return CmdResultTextureCreateSolidColor {
+                                success: false,
+                                message,
+                            };
+                        }
+                    };
+                let tiles_x = (size.width + options.tile_px - 1) / options.tile_px;
+                let tiles_y = (size.height + options.tile_px - 1) / options.tile_px;
+                let (handle, relocations) = match atlas.alloc(tiles_x, tiles_y) {
+                    Some(result) => result,
+                    None => {
+                        return CmdResultTextureCreateSolidColor {
+                            success: false,
+                            message: "Forward atlas allocation failed".into(),
+                        };
+                    }
+                };
+                let (x, y, _, _, layer) = match atlas.get_copy_rect(handle) {
+                    Some(rect) => rect,
+                    None => {
+                        return CmdResultTextureCreateSolidColor {
+                            success: false,
+                            message: "Forward atlas allocation invalid".into(),
+                        };
+                    }
+                };
+                queue.write_texture(
+                    wgpu::TexelCopyTextureInfo {
+                        texture: atlas.texture(),
+                        mip_level: 0,
+                        origin: wgpu::Origin3d {
+                            x,
+                            y,
+                            z: layer,
+                        },
+                        aspect: wgpu::TextureAspect::All,
+                    },
+                    &data,
+                    wgpu::TexelCopyBufferLayout {
+                        offset: 0,
+                        bytes_per_row: Some(4 * size.width),
+                        rows_per_image: Some(size.height),
+                    },
+                    wgpu::Extent3d {
+                        width: size.width,
+                        height: size.height,
+                        depth_or_array_layers: 1,
+                    },
+                );
+                let transform = match atlas.get_uv_transform(handle) {
+                    Some(t) => t,
+                    None => {
+                        return CmdResultTextureCreateSolidColor {
+                            success: false,
+                            message: "Forward atlas transform missing".into(),
+                        };
+                    }
+                };
+                let relocation_transforms: Vec<_> = relocations
+                    .iter()
+                    .map(|r| (r.handle, atlas.get_uv_transform(r.handle)))
+                    .collect();
+                (handle, transform, relocation_transforms)
+            };
+
+            for (handle, transform) in relocation_transforms {
+                let mut affected_ids = Vec::new();
+                if let Some(transform) = transform {
+                    for (tex_id, entry) in window_state
+                        .render_state
+                        .scene
+                        .forward_atlas_entries
+                        .iter_mut()
+                    {
+                        if entry.handle == handle {
+                            entry.uv_scale_bias = Vec4::new(
+                                transform.0,
+                                transform.1,
+                                transform.2,
+                                transform.3,
+                            );
+                            entry.layer = transform.4;
+                            affected_ids.push(*tex_id);
+                        }
+                    }
+                }
+                for tex_id in affected_ids {
+                    mark_materials_dirty(&mut window_state.render_state.scene, tex_id);
+                }
+            }
+
+            window_state.render_state.scene.forward_atlas_entries.insert(
+                args.texture_id,
+                ForwardAtlasEntry {
+                    handle,
+                    size: UVec2::new(size.width, size.height),
+                    uv_scale_bias: Vec4::new(transform.0, transform.1, transform.2, transform.3),
+                    layer: transform.4,
+                    format,
+                },
+            );
+        }
+    }
+
     mark_materials_dirty(&mut window_state.render_state.scene, args.texture_id);
     window_state.is_dirty = true;
 
@@ -321,15 +630,58 @@ pub fn engine_cmd_texture_dispose(
     {
         mark_materials_dirty(&mut window_state.render_state.scene, args.texture_id);
         window_state.is_dirty = true;
-        CmdResultTextureDispose {
+        return CmdResultTextureDispose {
             success: true,
             message: "Texture disposed successfully".into(),
+        };
+    }
+
+    if let Some(entry) = window_state
+        .render_state
+        .scene
+        .forward_atlas_entries
+        .remove(&args.texture_id)
+    {
+        if let Some(atlas) = window_state.render_state.forward_atlas.as_mut() {
+            let _ = atlas.free(entry.handle);
         }
+        mark_materials_dirty(&mut window_state.render_state.scene, args.texture_id);
+        window_state.is_dirty = true;
+        return CmdResultTextureDispose {
+            success: true,
+            message: "Texture disposed successfully".into(),
+        };
+    }
+
+    CmdResultTextureDispose {
+        success: false,
+        message: format!("Texture with id {} not found", args.texture_id),
+    }
+}
+
+fn ensure_forward_atlas<'a>(
+    render_state: &'a mut crate::core::render::state::RenderState,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    desc: &ForwardAtlasDesc,
+) -> Result<&'a mut ForwardAtlasSystem, String> {
+    if render_state.forward_atlas.is_none() {
+        render_state.forward_atlas = Some(ForwardAtlasSystem::new(device, desc.clone()));
+    }
+
+    let atlas = render_state.forward_atlas.as_mut().expect("atlas just created");
+    let info = atlas.info();
+    let config_matches = info.0 == desc.tile_px
+        && info.5 == desc.format;
+
+    if config_matches {
+        let desired_layers = desc.layers.min(device.limits().max_texture_array_layers);
+        if desired_layers > info.4 {
+            let _ = atlas.grow_layers(device, queue, desired_layers);
+        }
+        Ok(atlas)
     } else {
-        CmdResultTextureDispose {
-            success: false,
-            message: format!("Texture with id {} not found", args.texture_id),
-        }
+        Err("Forward atlas already initialized with different config".into())
     }
 }
 

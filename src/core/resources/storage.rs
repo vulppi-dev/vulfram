@@ -91,7 +91,6 @@ impl<T: Pod> StorageBufferPool<T> {
         self.write_bytes(index, data);
     }
 
-    #[allow(dead_code)]
     pub fn write_slice(&mut self, start_index: u32, values: &[T]) {
         if values.is_empty() {
             return;

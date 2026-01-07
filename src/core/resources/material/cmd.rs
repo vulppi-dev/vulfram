@@ -253,6 +253,10 @@ fn pack_standard_material(
 
     let mut texture_slots = [glam::UVec4::splat(STANDARD_INVALID_SLOT); 2];
     let mut sampler_indices = [glam::UVec4::ZERO; 2];
+    let mut tex_sources = [glam::UVec4::splat(2); 2];
+    let atlas_layers = [glam::UVec4::ZERO; 2];
+    let atlas_scale_bias =
+        [glam::Vec4::new(1.0, 1.0, 0.0, 0.0); STANDARD_TEXTURE_SLOTS];
     record.texture_ids = [STANDARD_INVALID_SLOT; STANDARD_TEXTURE_SLOTS];
 
     let assign_slot = |slots: &mut [glam::UVec4; 2], index: usize, value: u32| {
@@ -286,6 +290,7 @@ fn pack_standard_material(
         if slot < STANDARD_TEXTURE_SLOTS {
             record.texture_ids[slot] = tex_id;
             assign_slot(&mut texture_slots, 0, slot as u32);
+            assign_slot(&mut tex_sources, 0, 0);
             assign_sampler(
                 &mut sampler_indices,
                 0,
@@ -299,6 +304,7 @@ fn pack_standard_material(
         if slot < STANDARD_TEXTURE_SLOTS {
             record.texture_ids[slot] = tex_id;
             assign_slot(&mut texture_slots, 1, slot as u32);
+            assign_slot(&mut tex_sources, 1, 0);
             assign_sampler(
                 &mut sampler_indices,
                 1,
@@ -312,6 +318,7 @@ fn pack_standard_material(
         if slot < STANDARD_TEXTURE_SLOTS {
             record.texture_ids[slot] = tex_id;
             assign_slot(&mut texture_slots, 2, slot as u32);
+            assign_slot(&mut tex_sources, 2, 0);
             assign_sampler(
                 &mut sampler_indices,
                 2,
@@ -325,6 +332,7 @@ fn pack_standard_material(
         if slot < STANDARD_TEXTURE_SLOTS {
             record.texture_ids[slot] = tex_id;
             assign_slot(&mut texture_slots, 3, slot as u32);
+            assign_slot(&mut tex_sources, 3, 0);
             assign_sampler(
                 &mut sampler_indices,
                 3,
@@ -336,6 +344,9 @@ fn pack_standard_material(
 
     record.data.texture_slots = texture_slots;
     record.data.sampler_indices = sampler_indices;
+    record.data.tex_sources = tex_sources;
+    record.data.atlas_layers = atlas_layers;
+    record.data.atlas_scale_bias = atlas_scale_bias;
 
     record.surface_type = opts.surface_type;
     if record.inputs.len() != STANDARD_INPUTS_PER_MATERIAL as usize {
@@ -356,7 +367,9 @@ fn validate_texture_ids(
     let mut missing = Vec::new();
     let mut check = |label: &str, id: Option<u32>| {
         if let Some(tex_id) = id {
-            if !scene.textures.contains_key(&tex_id) {
+            if !scene.textures.contains_key(&tex_id)
+                && !scene.forward_atlas_entries.contains_key(&tex_id)
+            {
                 missing.push(format!("{label}={tex_id}"));
             }
         }

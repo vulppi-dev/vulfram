@@ -49,6 +49,9 @@ pub struct MaterialStandardParams {
     pub surface_flags: glam::UVec2,
     pub texture_slots: [glam::UVec4; 2],
     pub sampler_indices: [glam::UVec4; 2],
+    pub tex_sources: [glam::UVec4; 2],
+    pub atlas_layers: [glam::UVec4; 2],
+    pub atlas_scale_bias: [glam::Vec4; STANDARD_TEXTURE_SLOTS],
 }
 
 impl Default for MaterialStandardParams {
@@ -59,6 +62,9 @@ impl Default for MaterialStandardParams {
             surface_flags: glam::UVec2::new(SurfaceType::Opaque as u32, 0),
             texture_slots: [glam::UVec4::splat(STANDARD_INVALID_SLOT); 2],
             sampler_indices: [glam::UVec4::ZERO; 2],
+            tex_sources: [glam::UVec4::splat(2); 2],
+            atlas_layers: [glam::UVec4::ZERO; 2],
+            atlas_scale_bias: [glam::Vec4::new(1.0, 1.0, 0.0, 0.0); STANDARD_TEXTURE_SLOTS],
         }
     }
 }

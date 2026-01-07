@@ -5,9 +5,10 @@ use crate::core::buffers::state::UploadType;
 use crate::core::cmd::{CommandResponse, CommandResponseEnvelope, EngineCmd, EngineCmdEnvelope};
 use crate::core::resources::shadow::{CmdShadowConfigureArgs, ShadowConfig};
 use crate::core::resources::{
-    CameraKind, CmdCameraCreateArgs, CmdLightCreateArgs, CmdMaterialCreateArgs,
-    CmdModelCreateArgs, CmdPrimitiveGeometryCreateArgs, CmdTextureCreateFromBufferArgs, LightKind,
+    CameraKind, CmdCameraCreateArgs, CmdLightCreateArgs, CmdMaterialCreateArgs, CmdModelCreateArgs,
+    CmdPrimitiveGeometryCreateArgs, CmdTextureCreateFromBufferArgs, ForwardAtlasOptions, LightKind,
     MaterialKind, MaterialOptions, MaterialSampler, PrimitiveShape, StandardOptions,
+    TextureCreateMode,
 };
 use crate::core::window::{CmdWindowCloseArgs, CmdWindowCreateArgs};
 use glam::{Mat4, Vec2, Vec3, Vec4};
@@ -46,14 +47,26 @@ fn main() {
     let model_plane: u32 = 2;
     let model_light_marker: u32 = 3;
     let material_pink: u32 = 10;
+    let material_plane: u32 = 11;
     let texture_test: u32 = 20;
+    let texture_atlas: u32 = 21;
     let texture_buffer: u64 = 1;
+    let texture_atlas_buffer: u64 = 2;
 
     let texture_bytes =
         fs::read("assets/texture-test.png").expect("failed to read assets/texture-test.png");
     assert_eq!(
         core::vulfram_upload_buffer(
             texture_buffer,
+            UploadType::ImageData as u32,
+            texture_bytes.as_ptr(),
+            texture_bytes.len()
+        ),
+        VulframResult::Success
+    );
+    assert_eq!(
+        core::vulfram_upload_buffer(
+            texture_atlas_buffer,
             UploadType::ImageData as u32,
             texture_bytes.as_ptr(),
             texture_bytes.len()
@@ -175,6 +188,19 @@ fn main() {
             texture_id: texture_test,
             buffer_id: texture_buffer,
             srgb: Some(true),
+            mode: TextureCreateMode::Standalone,
+            atlas_options: None,
+        }),
+        EngineCmd::CmdTextureCreateFromBuffer(CmdTextureCreateFromBufferArgs {
+            window_id,
+            texture_id: texture_atlas,
+            buffer_id: texture_atlas_buffer,
+            srgb: Some(true),
+            mode: TextureCreateMode::ForwardAtlas,
+            atlas_options: Some(ForwardAtlasOptions {
+                tile_px: 256,
+                layers: 1,
+            }),
         }),
         // 3.7 Create a soft pink standard material for the cube
         EngineCmd::CmdMaterialCreate(CmdMaterialCreateArgs {
@@ -184,6 +210,17 @@ fn main() {
             options: Some(MaterialOptions::Standard(StandardOptions {
                 base_color: Vec4::ONE,
                 base_tex_id: Some(texture_test),
+                base_sampler: Some(MaterialSampler::LinearClamp),
+                ..Default::default()
+            })),
+        }),
+        EngineCmd::CmdMaterialCreate(CmdMaterialCreateArgs {
+            window_id,
+            material_id: material_plane,
+            kind: MaterialKind::Standard,
+            options: Some(MaterialOptions::Standard(StandardOptions {
+                base_color: Vec4::ONE,
+                base_tex_id: Some(texture_atlas),
                 base_sampler: Some(MaterialSampler::LinearClamp),
                 spec_color: Some(Vec4::new(0.0, 1.0, 0.0, 1.0)),
                 spec_power: Some(64.0),
@@ -205,7 +242,7 @@ fn main() {
             window_id,
             model_id: model_plane,
             geometry_id: geometry_plane,
-            material_id: Some(material_pink),
+            material_id: Some(material_plane),
             transform: Mat4::from_rotation_x(-std::f32::consts::FRAC_PI_2)
                 * Mat4::from_scale(Vec3::new(20.0, 20.0, 1.0)),
             layer_mask: 0xFFFFFFFF,

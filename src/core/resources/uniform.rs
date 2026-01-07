@@ -1,6 +1,6 @@
 // MARK: - Uniform Buffer Pool
 
-use bytemuck::{Pod, bytes_of, cast_slice};
+use bytemuck::{Pod, bytes_of};
 use std::marker::PhantomData;
 
 // -----------------------------------------------------------------------------
@@ -90,23 +90,6 @@ impl<T: Pod> UniformBufferPool<T> {
     pub fn write(&mut self, index: u32, value: &T) {
         let data = bytes_of(value);
         self.write_bytes(index, data);
-    }
-
-    #[allow(dead_code)]
-    pub fn write_slice(&mut self, start_index: u32, values: &[T]) {
-        if values.is_empty() {
-            return;
-        }
-
-        let end_index = start_index + values.len() as u32;
-        if end_index > self.capacity {
-            self.scale_to_capacity(end_index);
-        }
-
-        // Write all values in a single GPU call for efficiency
-        let offset = start_index as u64 * self.item_size;
-        let bytes = cast_slice(values);
-        self.queue.write_buffer(&self.buffer, offset, bytes);
     }
 
     pub fn buffer(&self) -> &wgpu::Buffer {

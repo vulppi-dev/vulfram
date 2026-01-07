@@ -9,13 +9,14 @@ pub fn get_pipeline<'a>(
     library: &ResourceLibrary,
     surface: SurfaceType,
 ) -> &'a wgpu::RenderPipeline {
-    let (blend, depth_write, depth_compare) = match surface {
+    let (blend, depth_write, depth_compare, cull_mode) = match surface {
         SurfaceType::Transparent => (
             Some(wgpu::BlendState::ALPHA_BLENDING),
             false,
-            wgpu::CompareFunction::LessEqual,
+            wgpu::CompareFunction::Always,
+            None,
         ),
-        _ => (None, true, wgpu::CompareFunction::Less),
+        _ => (None, true, wgpu::CompareFunction::Less, Some(wgpu::Face::Back)),
     };
     let key = PipelineKey {
         shader_id: ShaderId::ForwardPbr as u64,
@@ -23,7 +24,7 @@ pub fn get_pipeline<'a>(
         depth_format: Some(wgpu::TextureFormat::Depth24Plus),
         sample_count: 1,
         topology: wgpu::PrimitiveTopology::TriangleList,
-        cull_mode: Some(wgpu::Face::Back),
+        cull_mode,
         front_face: wgpu::FrontFace::Ccw,
         depth_write_enabled: depth_write,
         depth_compare,

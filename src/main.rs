@@ -255,6 +255,8 @@ fn main() {
                 base_color: Vec4::ONE,
                 base_tex_id: Some(texture_test),
                 base_sampler: Some(MaterialSampler::LinearClamp),
+                normal_tex_id: Some(texture_normal),
+                normal_sampler: Some(MaterialSampler::LinearClamp),
                 ..Default::default()
             })),
         }),
@@ -294,7 +296,7 @@ fn main() {
             material_id: material_transparent,
             kind: MaterialKind::Standard,
             options: Some(MaterialOptions::Standard(StandardOptions {
-                base_color: Vec4::new(1.0, 1.0, 1.0, 0.5),
+                base_color: Vec4::new(1.0, 0.2, 0.6, 0.2),
                 surface_type: SurfaceType::Transparent,
                 ..Default::default()
             })),
@@ -314,7 +316,7 @@ fn main() {
             window_id,
             model_id: model_plane,
             geometry_id: geometry_plane,
-            material_id: Some(material_plane),
+            material_id: Some(material_cube),
             transform: Mat4::from_translation(Vec3::new(0.0, 0.0, 0.0))
                 * Mat4::from_rotation_x(-std::f32::consts::FRAC_PI_2)
                 * Mat4::from_scale(Vec3::new(12.0, 12.0, 1.0)),

@@ -57,7 +57,7 @@ pub fn pass_compose(
         front_face: wgpu::FrontFace::Ccw,
         depth_write_enabled: false,
         depth_compare: wgpu::CompareFunction::Always,
-        blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+        blend: None,
     };
 
     let pipeline = cache.get_or_create(key, frame_index, || {

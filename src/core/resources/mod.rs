@@ -1,6 +1,5 @@
 pub mod common;
 
-mod atlas;
 mod camera;
 mod geometry;
 mod light;
@@ -13,7 +12,6 @@ mod storage;
 mod uniform;
 mod vertex;
 
-pub use atlas::*;
 pub use camera::*;
 pub use geometry::*;
 pub use light::*;

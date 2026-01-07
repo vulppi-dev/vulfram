@@ -1,13 +1,13 @@
-use crate::core::resources::{
-    AtlasDesc, AtlasHandle, AtlasSystem, StorageBufferPool, UniformBufferPool,
-};
+use crate::core::resources::{StorageBufferPool, UniformBufferPool};
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec4Swizzles};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use wgpu::{Device, Queue, TextureFormat, TextureUsages};
 
+mod atlas;
 pub mod cmd;
+pub use atlas::{AtlasDesc, AtlasHandle, AtlasRelocation, AtlasSystem};
 pub use cmd::*;
 
 /// Configuration for the Shadow Manager
@@ -372,10 +372,7 @@ impl ShadowManager {
         None
     }
 
-    fn update_cache_after_relocation(
-        &mut self,
-        relocation: crate::core::resources::AtlasRelocation,
-    ) {
+    fn update_cache_after_relocation(&mut self, relocation: AtlasRelocation) {
         for record in self.cache.values_mut() {
             if record.atlas_handle == relocation.handle {
                 record.is_dirty = true; // Must re-render since it moved

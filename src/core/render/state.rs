@@ -4,10 +4,11 @@ use crate::core::render::cache::RenderCache;
 use crate::core::resources::MATERIAL_FALLBACK_ID;
 use crate::core::resources::shadow::ShadowManager;
 use crate::core::resources::{
-    CameraComponent, CameraRecord, FrameComponent, LightComponent, LightRecord,
-    MaterialStandardParams, MaterialStandardRecord, ModelComponent, ModelRecord, RenderTarget,
-    StorageBufferPool, TextureRecord, ForwardAtlasEntry, ForwardAtlasSystem, UniformBufferPool,
-    VertexAllocatorConfig, VertexAllocatorSystem, STANDARD_INVALID_SLOT, STANDARD_TEXTURE_SLOTS,
+    CameraComponent, CameraRecord, FrameComponent, LightComponent, LightRecord, MaterialPbrParams,
+    MaterialPbrRecord, MaterialStandardParams, MaterialStandardRecord, ModelComponent, ModelRecord,
+    RenderTarget, StorageBufferPool, TextureRecord, ForwardAtlasEntry, ForwardAtlasSystem,
+    UniformBufferPool, VertexAllocatorConfig, VertexAllocatorSystem, PBR_INVALID_SLOT,
+    PBR_TEXTURE_SLOTS, STANDARD_INVALID_SLOT, STANDARD_TEXTURE_SLOTS,
 };
 
 fn perspective_rh_zo(fov_y: f32, aspect: f32, near: f32, far: f32) -> glam::Mat4 {
@@ -58,11 +59,14 @@ pub struct ResourceLibrary {
     pub layout_shared: wgpu::BindGroupLayout,
     pub layout_object: wgpu::BindGroupLayout,
     pub layout_object_standard: wgpu::BindGroupLayout,
+    pub layout_object_pbr: wgpu::BindGroupLayout,
     pub layout_target: wgpu::BindGroupLayout,
     pub layout_light_cull: wgpu::BindGroupLayout,
     pub forward_standard_pipeline_layout: wgpu::PipelineLayout,
+    pub forward_pbr_pipeline_layout: wgpu::PipelineLayout,
     pub shadow_pipeline_layout: wgpu::PipelineLayout,
     pub forward_standard_shader: wgpu::ShaderModule,
+    pub forward_pbr_shader: wgpu::ShaderModule,
     pub compose_shader: wgpu::ShaderModule,
     pub light_cull_shader: wgpu::ShaderModule,
     pub shadow_shader: wgpu::ShaderModule,
@@ -83,6 +87,8 @@ pub struct BindingSystem {
     pub model_pool: UniformBufferPool<ModelComponent>,
     pub material_standard_pool: UniformBufferPool<MaterialStandardParams>,
     pub material_standard_inputs: StorageBufferPool<glam::Vec4>,
+    pub material_pbr_pool: UniformBufferPool<MaterialPbrParams>,
+    pub material_pbr_inputs: StorageBufferPool<glam::Vec4>,
     pub shared_group: Option<wgpu::BindGroup>,
     pub object_group: Option<wgpu::BindGroup>,
 }
@@ -135,6 +141,7 @@ pub struct RenderScene {
     pub models: HashMap<u32, ModelRecord>,
     pub lights: HashMap<u32, LightRecord>,
     pub materials_standard: HashMap<u32, MaterialStandardRecord>,
+    pub materials_pbr: HashMap<u32, MaterialPbrRecord>,
     pub textures: HashMap<u32, TextureRecord>,
     pub forward_atlas_entries: HashMap<u32, ForwardAtlasEntry>,
 }
@@ -175,6 +182,7 @@ impl RenderState {
                 models: HashMap::new(),
                 lights: HashMap::new(),
                 materials_standard,
+                materials_pbr: HashMap::new(),
                 textures: HashMap::new(),
                 forward_atlas_entries: HashMap::new(),
             },
@@ -199,6 +207,7 @@ impl RenderState {
             MATERIAL_FALLBACK_ID,
             MaterialStandardRecord::new(MaterialStandardParams::default()),
         );
+        self.scene.materials_pbr.clear();
         self.scene.textures.clear();
         self.scene.forward_atlas_entries.clear();
         self.bindings = None;
@@ -229,6 +238,8 @@ impl RenderState {
             bindings.model_pool.begin_frame(frame_index);
             bindings.material_standard_pool.begin_frame(frame_index);
             bindings.material_standard_inputs.begin_frame(frame_index);
+            bindings.material_pbr_pool.begin_frame(frame_index);
+            bindings.material_pbr_inputs.begin_frame(frame_index);
         }
         if let Some(light_system) = self.light_system.as_mut() {
             light_system.lights.begin_frame(frame_index);
@@ -399,6 +410,84 @@ impl RenderState {
                 if record.is_dirty {
                     bindings
                         .material_standard_inputs
+                        .write_slice(record.data.inputs_offset_count.x, &record.inputs);
+                    record.clear_dirty();
+                }
+            }
+        }
+
+        for (id, record) in &mut self.scene.materials_pbr {
+            let mut atlas_changed = false;
+            let set_uvec4_lane = |vecs: &mut [glam::UVec4; 2], index: usize, value: u32| {
+                let vec_index = index / 4;
+                let lane = index % 4;
+                let mut v = vecs[vec_index];
+                match lane {
+                    0 => v.x = value,
+                    1 => v.y = value,
+                    2 => v.z = value,
+                    _ => v.w = value,
+                }
+                vecs[vec_index] = v;
+            };
+
+            for slot in 0..PBR_TEXTURE_SLOTS {
+                let tex_id = record.texture_ids[slot];
+                let mut desired_source = 2u32;
+                let mut desired_layer = 0u32;
+                let mut desired_scale_bias = glam::Vec4::new(1.0, 1.0, 0.0, 0.0);
+
+                if tex_id != PBR_INVALID_SLOT {
+                    if let Some(entry) = self.scene.forward_atlas_entries.get(&tex_id) {
+                        desired_source = 1;
+                        desired_layer = entry.layer;
+                        desired_scale_bias = entry.uv_scale_bias;
+                    } else {
+                        desired_source = 0;
+                    }
+                }
+
+                let current_source = match (slot / 4, slot % 4) {
+                    (0, 0) => record.data.tex_sources[0].x,
+                    (0, 1) => record.data.tex_sources[0].y,
+                    (0, 2) => record.data.tex_sources[0].z,
+                    (0, 3) => record.data.tex_sources[0].w,
+                    (1, 0) => record.data.tex_sources[1].x,
+                    (1, 1) => record.data.tex_sources[1].y,
+                    (1, 2) => record.data.tex_sources[1].z,
+                    _ => record.data.tex_sources[1].w,
+                };
+                let current_layer = match (slot / 4, slot % 4) {
+                    (0, 0) => record.data.atlas_layers[0].x,
+                    (0, 1) => record.data.atlas_layers[0].y,
+                    (0, 2) => record.data.atlas_layers[0].z,
+                    (0, 3) => record.data.atlas_layers[0].w,
+                    (1, 0) => record.data.atlas_layers[1].x,
+                    (1, 1) => record.data.atlas_layers[1].y,
+                    (1, 2) => record.data.atlas_layers[1].z,
+                    _ => record.data.atlas_layers[1].w,
+                };
+                let current_scale_bias = record.data.atlas_scale_bias[slot];
+
+                if current_source != desired_source {
+                    set_uvec4_lane(&mut record.data.tex_sources, slot, desired_source);
+                    atlas_changed = true;
+                }
+                if current_layer != desired_layer {
+                    set_uvec4_lane(&mut record.data.atlas_layers, slot, desired_layer);
+                    atlas_changed = true;
+                }
+                if current_scale_bias != desired_scale_bias {
+                    record.data.atlas_scale_bias[slot] = desired_scale_bias;
+                    atlas_changed = true;
+                }
+            }
+
+            if record.is_dirty || atlas_changed {
+                bindings.material_pbr_pool.write(*id, &record.data);
+                if record.is_dirty {
+                    bindings
+                        .material_pbr_inputs
                         .write_slice(record.data.inputs_offset_count.x, &record.inputs);
                     record.clear_dirty();
                 }
@@ -666,6 +755,104 @@ impl RenderState {
             }));
         }
 
+        for (material_id, record) in &mut self.scene.materials_pbr {
+            if record.bind_group.is_some() && !record.is_dirty {
+                continue;
+            }
+
+            let mut views: [Option<&wgpu::TextureView>; 8] = [None; 8];
+            for i in 0..8 {
+                let slot = record.texture_ids[i];
+
+                if slot == crate::core::resources::PBR_INVALID_SLOT {
+                    views[i] = Some(fallback_view);
+                } else {
+                    let view = self
+                        .scene
+                        .textures
+                        .get(&slot)
+                        .map(|tex| &tex.view)
+                        .unwrap_or(fallback_view);
+                    views[i] = Some(view);
+                }
+            }
+
+            let entries = [
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: bindings.model_pool.buffer(),
+                        offset: 0,
+                        size: Some(
+                            std::num::NonZeroU64::new(
+                                std::mem::size_of::<ModelComponent>() as u64
+                            )
+                            .unwrap(),
+                        ),
+                    }),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: bindings.material_pbr_pool.buffer(),
+                        offset: 0,
+                        size: Some(
+                            std::num::NonZeroU64::new(
+                                std::mem::size_of::<MaterialPbrParams>() as u64
+                            )
+                            .unwrap(),
+                        ),
+                    }),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: bindings.material_pbr_inputs.buffer(),
+                        offset: 0,
+                        size: None,
+                    }),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::TextureView(views[0].unwrap()),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: wgpu::BindingResource::TextureView(views[1].unwrap()),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 5,
+                    resource: wgpu::BindingResource::TextureView(views[2].unwrap()),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 6,
+                    resource: wgpu::BindingResource::TextureView(views[3].unwrap()),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 7,
+                    resource: wgpu::BindingResource::TextureView(views[4].unwrap()),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 8,
+                    resource: wgpu::BindingResource::TextureView(views[5].unwrap()),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 9,
+                    resource: wgpu::BindingResource::TextureView(views[6].unwrap()),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 10,
+                    resource: wgpu::BindingResource::TextureView(views[7].unwrap()),
+                },
+            ];
+
+            record.bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some(&format!("BindGroup PBR (Material {})", material_id)),
+                layout: &library.layout_object_pbr,
+                entries: &entries,
+            }));
+        }
+
     }
 
     pub(crate) fn init_fallback_resources(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
@@ -685,6 +872,8 @@ impl RenderState {
             model_pool: UniformBufferPool::new(device, queue, Some(2048), alignment),
             material_standard_pool: UniformBufferPool::new(device, queue, Some(256), alignment),
             material_standard_inputs: StorageBufferPool::new(device, queue, Some(256), 0),
+            material_pbr_pool: UniformBufferPool::new(device, queue, Some(256), alignment),
+            material_pbr_inputs: StorageBufferPool::new(device, queue, Some(256), 0),
             shared_group: None,
             object_group: None,
         });
@@ -1171,6 +1360,132 @@ impl RenderState {
                 ],
             });
 
+        let layout_object_pbr = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("BindGroupLayout Object PBR"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: true,
+                        min_binding_size: Some(
+                            std::num::NonZeroU64::new(
+                                std::mem::size_of::<ModelComponent>() as u64
+                            )
+                            .unwrap(),
+                        ),
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: true,
+                        min_binding_size: Some(
+                            std::num::NonZeroU64::new(
+                                std::mem::size_of::<MaterialPbrParams>() as u64
+                            )
+                            .unwrap(),
+                        ),
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 5,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 6,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 7,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 8,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 9,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 10,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+            ],
+        });
+
         let layout_target = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("BindGroupLayout Target"),
             entries: &[
@@ -1259,6 +1574,13 @@ impl RenderState {
             ))),
         });
 
+        let forward_pbr_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Forward PBR Shader"),
+            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(include_str!(
+                "passes/forward/branches/forward_pbr.wgsl"
+            ))),
+        });
+
         let compose_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Compose Shader"),
             source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(include_str!(
@@ -1287,6 +1609,13 @@ impl RenderState {
                 push_constant_ranges: &[],
             });
 
+        let forward_pbr_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Forward PBR Pipeline Layout"),
+                bind_group_layouts: &[&layout_shared, &layout_object_pbr],
+                push_constant_ranges: &[],
+            });
+
         let shadow_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Shadow Pipeline Layout"),
@@ -1305,10 +1634,13 @@ impl RenderState {
             layout_shared,
             layout_object,
             layout_object_standard,
+            layout_object_pbr,
             layout_target,
             layout_light_cull,
             forward_standard_shader,
             forward_standard_pipeline_layout,
+            forward_pbr_shader,
+            forward_pbr_pipeline_layout,
             shadow_pipeline_layout,
             compose_shader,
             light_cull_shader,

@@ -40,6 +40,7 @@ pub fn pass_forward(
         None => return,
     };
     let materials_standard = &render_state.scene.materials_standard;
+    let materials_pbr = &render_state.scene.materials_pbr;
 
     // 1. Sort cameras by order
 
@@ -99,12 +100,31 @@ pub fn pass_forward(
             }
 
             // 5. Filter and group models by surface type
-            let mut opaque = Vec::new();
-            let mut masked = Vec::new();
-            let mut transparent = Vec::new();
+            let mut standard_opaque = Vec::new();
+            let mut standard_masked = Vec::new();
+            let mut standard_transparent = Vec::new();
+            let mut pbr_opaque = Vec::new();
+            let mut pbr_masked = Vec::new();
+            let mut pbr_transparent = Vec::new();
 
             for (model_id, model_record) in &scene.models {
                 if (model_record.layer_mask & camera_record.layer_mask) == 0 {
+                    continue;
+                }
+
+                let material_id = model_record.material_id.unwrap_or(MATERIAL_FALLBACK_ID);
+
+                if let Some(record) = materials_pbr.get(&material_id) {
+                    let item = DrawItem {
+                        model_id: *model_id,
+                        geometry_id: model_record.geometry_id,
+                        material_id,
+                    };
+                    match record.surface_type {
+                        SurfaceType::Opaque => pbr_opaque.push(item),
+                        SurfaceType::Masked => pbr_masked.push(item),
+                        SurfaceType::Transparent => pbr_transparent.push(item),
+                    }
                     continue;
                 }
 
@@ -125,9 +145,9 @@ pub fn pass_forward(
                 };
 
                 match surface_type {
-                    SurfaceType::Opaque => opaque.push(item),
-                    SurfaceType::Masked => masked.push(item),
-                    SurfaceType::Transparent => transparent.push(item),
+                    SurfaceType::Opaque => standard_opaque.push(item),
+                    SurfaceType::Masked => standard_masked.push(item),
+                    SurfaceType::Transparent => standard_transparent.push(item),
                 }
             }
 
@@ -148,15 +168,45 @@ pub fn pass_forward(
                     }
 
                     if let Ok(Some(index_info)) = vertex_sys.index_info(item.geometry_id) {
-                        let _ = vertex_sys.bind(&mut render_pass, item.geometry_id);
+                        if vertex_sys.bind(&mut render_pass, item.geometry_id).is_err() {
+                            continue;
+                        }
                         render_pass.draw_indexed(0..index_info.count, 0, 0..1);
                     }
                 }
             };
 
-            draw_items(opaque);
-            draw_items(masked);
-            draw_items(transparent);
+            draw_items(standard_opaque);
+            draw_items(standard_masked);
+            draw_items(standard_transparent);
+
+            let pbr_pipeline = branches::pbr::get_pipeline(cache, frame_index, device, library);
+            render_pass.set_pipeline(pbr_pipeline);
+
+            let mut draw_pbr_items = |items: Vec<DrawItem>| {
+                for item in items {
+                    if let Some(material) = scene.materials_pbr.get(&item.material_id) {
+                        if let Some(group) = material.bind_group.as_ref() {
+                            let model_offset = bindings.model_pool.get_offset(item.model_id) as u32;
+                            let material_offset =
+                                bindings.material_pbr_pool.get_offset(item.material_id) as u32;
+                            render_pass
+                                .set_bind_group(1, group, &[model_offset, material_offset]);
+                        }
+                    }
+
+                    if let Ok(Some(index_info)) = vertex_sys.index_info(item.geometry_id) {
+                        if vertex_sys.bind(&mut render_pass, item.geometry_id).is_err() {
+                            continue;
+                        }
+                        render_pass.draw_indexed(0..index_info.count, 0, 0..1);
+                    }
+                }
+            };
+
+            draw_pbr_items(pbr_opaque);
+            draw_pbr_items(pbr_masked);
+            draw_pbr_items(pbr_transparent);
         }
     }
 }

@@ -7,6 +7,7 @@ pub enum ShaderId {
     Shadow,
     LightCull,
     ForwardStandard,
+    ForwardPbr,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

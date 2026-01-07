@@ -695,4 +695,10 @@ fn mark_materials_dirty(
             record.mark_dirty();
         }
     }
+    for record in scene.materials_pbr.values_mut() {
+        if record.texture_ids.iter().any(|id| *id == texture_id) {
+            record.bind_group = None;
+            record.mark_dirty();
+        }
+    }
 }

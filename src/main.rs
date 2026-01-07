@@ -7,8 +7,8 @@ use crate::core::resources::shadow::{CmdShadowConfigureArgs, ShadowConfig};
 use crate::core::resources::{
     CameraKind, CmdCameraCreateArgs, CmdLightCreateArgs, CmdMaterialCreateArgs, CmdModelCreateArgs,
     CmdPrimitiveGeometryCreateArgs, CmdTextureCreateFromBufferArgs, ForwardAtlasOptions, LightKind,
-    MaterialKind, MaterialOptions, MaterialSampler, PrimitiveShape, StandardOptions,
-    TextureCreateMode,
+    MaterialKind, MaterialOptions, MaterialSampler, PbrOptions, PrimitiveShape, StandardOptions,
+    SurfaceType, TextureCreateMode,
 };
 use crate::core::window::{CmdWindowCloseArgs, CmdWindowCreateArgs};
 use glam::{Mat4, Vec2, Vec3, Vec4};
@@ -238,13 +238,17 @@ fn main() {
         EngineCmd::CmdMaterialCreate(CmdMaterialCreateArgs {
             window_id,
             material_id: material_plane,
-            kind: MaterialKind::Standard,
-            options: Some(MaterialOptions::Standard(StandardOptions {
+            kind: MaterialKind::Pbr,
+            options: Some(MaterialOptions::Pbr(PbrOptions {
                 base_color: Vec4::ONE,
+                emissive_color: Vec4::ZERO,
+                metallic: 0.8,
+                roughness: 0.1,
+                ao: 1.0,
+                normal_scale: 1.0,
+                surface_type: SurfaceType::Opaque,
                 base_tex_id: Some(texture_atlas),
                 base_sampler: Some(MaterialSampler::LinearClamp),
-                spec_color: Some(Vec4::new(0.0, 1.0, 0.0, 1.0)),
-                spec_power: Some(64.0),
                 normal_tex_id: Some(texture_normal),
                 normal_sampler: Some(MaterialSampler::LinearClamp),
                 ..Default::default()

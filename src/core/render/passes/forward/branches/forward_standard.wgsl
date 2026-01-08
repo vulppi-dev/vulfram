@@ -427,6 +427,7 @@ fn get_shadow_factor(light: Light, world_pos: vec3<f32>, ndotl: f32) -> f32 {
 fn calculate_directional_light(
     light: Light,
     normal: vec3<f32>,
+    shadow_normal: vec3<f32>,
     world_pos: vec3<f32>,
     toon_slot: u32,
     toon_sampler: u32,
@@ -434,7 +435,8 @@ fn calculate_directional_light(
     let l = normalize(-light.direction.xyz);
     let ndotl = max(dot(normal, l), 0.0);
     if (ndotl <= 0.0) { return vec3<f32>(0.0); }
-    let shadow = get_shadow_factor(light, world_pos, ndotl);
+    let ndotl_shadow = max(dot(shadow_normal, l), 0.0);
+    let shadow = get_shadow_factor(light, world_pos, ndotl_shadow);
     let diffuse = diffuse_term(ndotl, toon_slot, toon_sampler);
     return light.color.rgb * light.intensity_range.x * diffuse * shadow;
 }
@@ -452,6 +454,7 @@ fn calculate_hemisphere_light(light: Light, normal: vec3<f32>) -> vec3<f32> {
 fn calculate_spot_light(
     light: Light,
     normal: vec3<f32>,
+    shadow_normal: vec3<f32>,
     world_pos: vec3<f32>,
     toon_slot: u32,
     toon_sampler: u32,
@@ -469,7 +472,8 @@ fn calculate_spot_light(
     let spot_intensity = clamp((theta - outer) / epsilon, 0.0, 1.0);
     let ndotl = max(dot(normal, l), 0.0);
     if (ndotl <= 0.0) { return vec3<f32>(0.0); }
-    let shadow = get_shadow_factor(light, world_pos, ndotl);
+    let ndotl_shadow = max(dot(shadow_normal, l), 0.0);
+    let shadow = get_shadow_factor(light, world_pos, ndotl_shadow);
     let diffuse = diffuse_term(ndotl, toon_slot, toon_sampler);
     return light.color.rgb * light.intensity_range.x * diffuse * attenuation * spot_intensity * shadow;
 }
@@ -477,6 +481,7 @@ fn calculate_spot_light(
 fn calculate_point_light(
     light: Light,
     normal: vec3<f32>,
+    shadow_normal: vec3<f32>,
     world_pos: vec3<f32>,
     toon_slot: u32,
     toon_sampler: u32,
@@ -489,7 +494,8 @@ fn calculate_point_light(
     let attenuation = pow(clamp(1.0 - dist / range, 0.0, 1.0), 2.0);
     let ndotl = max(dot(normal, l), 0.0);
     if (ndotl <= 0.0) { return vec3<f32>(0.0); }
-    let shadow = get_shadow_factor(light, world_pos, ndotl);
+    let ndotl_shadow = max(dot(shadow_normal, l), 0.0);
+    let shadow = get_shadow_factor(light, world_pos, ndotl_shadow);
     let diffuse = diffuse_term(ndotl, toon_slot, toon_sampler);
     return light.color.rgb * light.intensity_range.x * diffuse * attenuation * shadow;
 }
@@ -518,6 +524,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let normal_slot = get_slot(material.texture_slots, TEX_NORMAL);
     let normal_sampler = get_slot(material.sampler_indices, TEX_NORMAL);
+    let n_geom = normalize(in.normal);
     let n = apply_normal_map(in.normal, in.world_position, in.uv0, normal_slot, normal_sampler);
     let base_color = input_at(material.input_indices.x);
     let spec_color = input_at(material.input_indices.y);
@@ -547,9 +554,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             let idx = visible_indices[base + i];
             let light = lights[idx];
             switch (light.kind_flags.x) {
-                case 0u: { lighting += calculate_directional_light(light, n, in.world_position, toon_slot, toon_sampler); }
-                case 1u: { lighting += calculate_point_light(light, n, in.world_position, toon_slot, toon_sampler); }
-                case 2u: { lighting += calculate_spot_light(light, n, in.world_position, toon_slot, toon_sampler); }
+                case 0u: { lighting += calculate_directional_light(light, n, n_geom, in.world_position, toon_slot, toon_sampler); }
+                case 1u: { lighting += calculate_point_light(light, n, n_geom, in.world_position, toon_slot, toon_sampler); }
+                case 2u: { lighting += calculate_spot_light(light, n, n_geom, in.world_position, toon_slot, toon_sampler); }
                 case 3u: { lighting += calculate_ambient_light(light); }
                 case 4u: { lighting += calculate_hemisphere_light(light, n); }
                 default: { }

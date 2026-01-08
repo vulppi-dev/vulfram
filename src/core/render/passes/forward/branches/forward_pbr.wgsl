@@ -445,6 +445,7 @@ fn apply_normal_map(
 fn pbr_lighting(
     light: Light,
     n: vec3<f32>,
+    shadow_normal: vec3<f32>,
     v: vec3<f32>,
     world_pos: vec3<f32>,
     albedo: vec3<f32>,
@@ -480,7 +481,8 @@ fn pbr_lighting(
 
     let n_dot_l = max(dot(n, l), 0.0);
     if (n_dot_l <= 0.0) { return vec3<f32>(0.0); }
-    let shadow = get_shadow_factor(light, world_pos, n_dot_l);
+    let n_dot_l_shadow = max(dot(shadow_normal, l), 0.0);
+    let shadow = get_shadow_factor(light, world_pos, n_dot_l_shadow);
 
     let h = normalize(v + l);
     let n_dot_v = max(dot(n, v), 0.0);
@@ -556,6 +558,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     let normal_slot = get_slot(material.texture_slots, TEX_NORMAL);
     let normal_sampler = get_slot(material.sampler_indices, TEX_NORMAL);
+    let n_geom = normalize(in.normal);
     let n = apply_normal_map(in.normal, in.world_position, in.uv0, normal_slot, normal_sampler, normal_scale);
     let v = normalize(camera.position.xyz - in.world_position);
 
@@ -570,9 +573,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             let idx = visible_indices[base + i];
             let light = lights[idx];
             switch (light.kind_flags.x) {
-                case 0u: { lighting += pbr_lighting(light, n, v, in.world_position, albedo, metallic, roughness); }
-                case 1u: { lighting += pbr_lighting(light, n, v, in.world_position, albedo, metallic, roughness); }
-                case 2u: { lighting += pbr_lighting(light, n, v, in.world_position, albedo, metallic, roughness); }
+                case 0u: { lighting += pbr_lighting(light, n, n_geom, v, in.world_position, albedo, metallic, roughness); }
+                case 1u: { lighting += pbr_lighting(light, n, n_geom, v, in.world_position, albedo, metallic, roughness); }
+                case 2u: { lighting += pbr_lighting(light, n, n_geom, v, in.world_position, albedo, metallic, roughness); }
                 case 3u: { ambient += light.color.rgb * light.intensity_range.x; }
                 case 4u: {
                     let up = normalize(light.direction.xyz);

@@ -316,7 +316,7 @@ fn main() {
             window_id,
             model_id: model_plane,
             geometry_id: geometry_plane,
-            material_id: Some(material_cube),
+            material_id: Some(material_plane),
             transform: Mat4::from_translation(Vec3::new(0.0, 0.0, 0.0))
                 * Mat4::from_rotation_x(-std::f32::consts::FRAC_PI_2)
                 * Mat4::from_scale(Vec3::new(12.0, 12.0, 1.0)),
@@ -388,7 +388,7 @@ fn main() {
 
         // Update cube rotation and position to see shadow moving
         let angle = (total_ms as f32 / 1000.0) * 1.0;
-        let x_pos = (total_ms as f32 / 1000.0).sin() * 2.0;
+        let x_pos = (total_ms as f32 / 1000.0).sin() * 4.0;
         let rotation = Mat4::from_translation(Vec3::new(x_pos, 1.5, 0.0))
             * Mat4::from_euler(glam::EulerRot::XYZ, angle, angle * 0.5, 0.0);
         let update_cmd = EngineCmd::CmdModelUpdate(crate::core::resources::CmdModelUpdateArgs {

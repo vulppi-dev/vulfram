@@ -2,9 +2,9 @@ use glam::Vec4;
 use serde::{Deserialize, Serialize};
 
 use crate::core::resources::{
-    MaterialPbrParams, MaterialPbrRecord, MaterialStandardParams, MaterialStandardRecord,
-    SurfaceType, MATERIAL_FALLBACK_ID, PBR_INPUTS_PER_MATERIAL, PBR_INVALID_SLOT,
-    PBR_TEXTURE_SLOTS, STANDARD_INPUTS_PER_MATERIAL, STANDARD_INVALID_SLOT, STANDARD_TEXTURE_SLOTS,
+    MATERIAL_FALLBACK_ID, MaterialPbrParams, MaterialPbrRecord, MaterialStandardParams,
+    MaterialStandardRecord, PBR_INPUTS_PER_MATERIAL, PBR_INVALID_SLOT, PBR_TEXTURE_SLOTS,
+    STANDARD_INPUTS_PER_MATERIAL, STANDARD_INVALID_SLOT, STANDARD_TEXTURE_SLOTS, SurfaceType,
 };
 use crate::core::state::EngineState;
 
@@ -203,8 +203,7 @@ pub fn engine_cmd_material_create(
                 None => PbrOptions::default(),
                 _ => PbrOptions::default(),
             };
-            if let Some(message) =
-                validate_pbr_texture_ids(&window_state.render_state.scene, &opts)
+            if let Some(message) = validate_pbr_texture_ids(&window_state.render_state.scene, &opts)
             {
                 return CmdResultMaterialCreate {
                     success: false,
@@ -352,8 +351,7 @@ fn pack_standard_material(
     let inputs_offset = material_id.saturating_mul(STANDARD_INPUTS_PER_MATERIAL);
 
     record.data = MaterialStandardParams::default();
-    record.data.inputs_offset_count =
-        glam::UVec2::new(inputs_offset, STANDARD_INPUTS_PER_MATERIAL);
+    record.data.inputs_offset_count = glam::UVec2::new(inputs_offset, STANDARD_INPUTS_PER_MATERIAL);
     let mut flags = opts.flags;
     if opts.spec_color.is_some() || opts.spec_power.is_some() || opts.spec_tex_id.is_some() {
         flags |= 1;
@@ -364,8 +362,7 @@ fn pack_standard_material(
     let mut sampler_indices = [glam::UVec4::ZERO; 2];
     let mut tex_sources = [glam::UVec4::splat(2); 2];
     let atlas_layers = [glam::UVec4::ZERO; 2];
-    let atlas_scale_bias =
-        [glam::Vec4::new(1.0, 1.0, 0.0, 0.0); STANDARD_TEXTURE_SLOTS];
+    let atlas_scale_bias = [glam::Vec4::new(1.0, 1.0, 0.0, 0.0); STANDARD_TEXTURE_SLOTS];
     record.texture_ids = [STANDARD_INVALID_SLOT; STANDARD_TEXTURE_SLOTS];
 
     let assign_slot = |slots: &mut [glam::UVec4; 2], index: usize, value: u32| {
@@ -403,8 +400,7 @@ fn pack_standard_material(
             assign_sampler(
                 &mut sampler_indices,
                 0,
-                opts.base_sampler
-                    .unwrap_or(MaterialSampler::LinearClamp) as u32,
+                opts.base_sampler.unwrap_or(MaterialSampler::LinearClamp) as u32,
             );
         }
     }
@@ -417,8 +413,7 @@ fn pack_standard_material(
             assign_sampler(
                 &mut sampler_indices,
                 1,
-                opts.spec_sampler
-                    .unwrap_or(MaterialSampler::LinearClamp) as u32,
+                opts.spec_sampler.unwrap_or(MaterialSampler::LinearClamp) as u32,
             );
         }
     }
@@ -431,8 +426,7 @@ fn pack_standard_material(
             assign_sampler(
                 &mut sampler_indices,
                 2,
-                opts.normal_sampler
-                    .unwrap_or(MaterialSampler::LinearClamp) as u32,
+                opts.normal_sampler.unwrap_or(MaterialSampler::LinearClamp) as u32,
             );
         }
     }
@@ -480,8 +474,7 @@ fn pack_pbr_material(material_id: u32, opts: &PbrOptions, record: &mut MaterialP
     let mut sampler_indices = [glam::UVec4::ZERO; 2];
     let mut tex_sources = [glam::UVec4::splat(2); 2];
     let atlas_layers = [glam::UVec4::ZERO; 2];
-    let atlas_scale_bias =
-        [glam::Vec4::new(1.0, 1.0, 0.0, 0.0); PBR_TEXTURE_SLOTS];
+    let atlas_scale_bias = [glam::Vec4::new(1.0, 1.0, 0.0, 0.0); PBR_TEXTURE_SLOTS];
     record.texture_ids = [PBR_INVALID_SLOT; PBR_TEXTURE_SLOTS];
 
     let assign_slot = |slots: &mut [glam::UVec4; 2], index: usize, value: u32| {
@@ -532,8 +525,7 @@ fn pack_pbr_material(material_id: u32, opts: &PbrOptions, record: &mut MaterialP
             assign_sampler(
                 &mut sampler_indices,
                 1,
-                opts.normal_sampler
-                    .unwrap_or(MaterialSampler::LinearClamp) as u32,
+                opts.normal_sampler.unwrap_or(MaterialSampler::LinearClamp) as u32,
             );
         }
     }
@@ -574,8 +566,7 @@ fn pack_pbr_material(material_id: u32, opts: &PbrOptions, record: &mut MaterialP
             assign_sampler(
                 &mut sampler_indices,
                 4,
-                opts.ao_sampler
-                    .unwrap_or(MaterialSampler::LinearClamp) as u32,
+                opts.ao_sampler.unwrap_or(MaterialSampler::LinearClamp) as u32,
             );
         }
     }

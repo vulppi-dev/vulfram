@@ -3,17 +3,6 @@ use crate::core::render::cache::PipelineKey;
 use crate::core::resources::{CameraComponent, VertexStream};
 use glam::Vec4Swizzles;
 
-fn perspective_rh_zo(fov_y: f32, aspect: f32, near: f32, far: f32) -> glam::Mat4 {
-    let f = 1.0 / (fov_y * 0.5).tan();
-    let nf = 1.0 / (near - far);
-    glam::Mat4::from_cols(
-        glam::vec4(f / aspect, 0.0, 0.0, 0.0),
-        glam::vec4(0.0, f, 0.0, 0.0),
-        glam::vec4(0.0, 0.0, far * nf, -1.0),
-        glam::vec4(0.0, 0.0, near * far * nf, 0.0),
-    )
-}
-
 pub fn pass_shadow_update(
     render_state: &mut RenderState,
     device: &wgpu::Device,
@@ -87,11 +76,13 @@ pub fn pass_shadow_update(
                 // Point Light (6 faces)
                 let pos = light_record.data.position.xyz();
                 let range = light_record.data.intensity_range.y;
-                let near = 0.1;
+
+                let near = 0.1; // Smaller near plane to match state.rs and avoid clipping
                 let far = range;
 
-                // FOV 90 degrees, aspect 1.0, WGPU depth range [0, 1].
-                let projection = perspective_rh_zo(std::f32::consts::FRAC_PI_2, 1.0, near, far);
+                // Reverse Z: far and near are swapped in the projection call
+                let projection =
+                    glam::Mat4::perspective_rh(std::f32::consts::FRAC_PI_2, 1.0, far, near);
 
                 // Cubemap face directions and up vectors (standard cubemap convention)
                 let targets = [
@@ -225,7 +216,7 @@ pub fn pass_shadow_update(
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: &atlas_layer_view,
                 depth_ops: Some(wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(1.0),
+                    load: wgpu::LoadOp::Clear(0.0), // Reverse Z clear value
                     store: wgpu::StoreOp::Store,
                 }),
                 stencil_ops: None,
@@ -282,7 +273,7 @@ pub fn pass_shadow_update(
                         cull_mode: None,
                         front_face: wgpu::FrontFace::Ccw,
                         depth_write_enabled: true,
-                        depth_compare: wgpu::CompareFunction::Less,
+                        depth_compare: wgpu::CompareFunction::Greater, // Reverse Z
                         blend: None,
                     };
 
@@ -314,11 +305,11 @@ pub fn pass_shadow_update(
                             depth_stencil: Some(wgpu::DepthStencilState {
                                 format: wgpu::TextureFormat::Depth32Float,
                                 depth_write_enabled: true,
-                                depth_compare: wgpu::CompareFunction::Less,
+                                depth_compare: wgpu::CompareFunction::Greater, // Reverse Z
                                 stencil: wgpu::StencilState::default(),
                                 bias: wgpu::DepthBiasState {
-                                    constant: 2,
-                                    slope_scale: 2.0,
+                                    constant: -2, // Reverse Z: negative bias to push occluder farther (closer to 0.0)
+                                    slope_scale: -2.0,
                                     clamp: 0.0,
                                 },
                             }),

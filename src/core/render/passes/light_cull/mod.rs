@@ -19,11 +19,7 @@ const PLANES_PER_CAMERA: u32 = 6;
 fn normalize_plane(plane: glam::Vec4) -> glam::Vec4 {
     let normal = plane.truncate();
     let len = normal.length();
-    if len > 0.0 {
-        plane / len
-    } else {
-        plane
-    }
+    if len > 0.0 { plane / len } else { plane }
 }
 
 fn extract_frustum_planes(view_projection: glam::Mat4) -> [FrustumPlane; 6] {
@@ -47,11 +43,11 @@ fn extract_frustum_planes(view_projection: glam::Mat4) -> [FrustumPlane; 6] {
             data: normalize_plane(row3 - row1),
         }, // top
         FrustumPlane {
-            data: normalize_plane(row2),
-        }, // near (WebGPU z 0..1)
-        FrustumPlane {
             data: normalize_plane(row3 - row2),
-        }, // far
+        }, // near (Reverse Z: Z <= W)
+        FrustumPlane {
+            data: normalize_plane(row2),
+        }, // far (Reverse Z: Z >= 0)
     ]
 }
 

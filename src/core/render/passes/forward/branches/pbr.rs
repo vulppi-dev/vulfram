@@ -13,15 +13,20 @@ pub fn get_pipeline<'a>(
         SurfaceType::Transparent => (
             Some(wgpu::BlendState::ALPHA_BLENDING),
             false,
-            wgpu::CompareFunction::Always,
+            wgpu::CompareFunction::Greater,
             None,
         ),
-        _ => (None, true, wgpu::CompareFunction::Less, Some(wgpu::Face::Back)),
+        _ => (
+            None,
+            true,
+            wgpu::CompareFunction::Greater, // Reverse Z
+            Some(wgpu::Face::Back),
+        ),
     };
     let key = PipelineKey {
         shader_id: ShaderId::ForwardPbr as u64,
         color_format: wgpu::TextureFormat::Rgba16Float,
-        depth_format: Some(wgpu::TextureFormat::Depth24Plus),
+        depth_format: Some(wgpu::TextureFormat::Depth32Float), // Reverse Z
         sample_count: 1,
         topology: wgpu::PrimitiveTopology::TriangleList,
         cull_mode,

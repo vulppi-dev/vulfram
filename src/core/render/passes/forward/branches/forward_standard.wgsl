@@ -329,7 +329,7 @@ fn sample_shadow_page_at(
             shadow_sampler,
             uv,
             i32(page.layer_index),
-            light_depth - bias
+            saturate(light_depth + bias) // Reverse Z: add bias (larger Z is closer)
         );
     }
 
@@ -346,7 +346,7 @@ fn sample_shadow_page_at(
                 shadow_sampler,
                 uv,
                 i32(page.layer_index),
-                light_depth - bias
+                saturate(light_depth + bias) // Reverse Z: add bias
             );
             samples += 1.0;
         }

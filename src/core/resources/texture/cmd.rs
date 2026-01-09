@@ -200,22 +200,20 @@ pub fn engine_cmd_texture_create_from_buffer(
                 layers: options.layers,
             };
             let (handle, transform, relocation_transforms) = {
-                let atlas =
-                    match ensure_forward_atlas(
-                        &mut window_state.render_state,
-                        device,
-                        queue,
-                        &atlas_desc,
-                    )
-                    {
-                        Ok(atlas) => atlas,
-                        Err(message) => {
-                            return CmdResultTextureCreateFromBuffer {
-                                success: false,
-                                message,
-                            };
-                        }
-                    };
+                let atlas = match ensure_forward_atlas(
+                    &mut window_state.render_state,
+                    device,
+                    queue,
+                    &atlas_desc,
+                ) {
+                    Ok(atlas) => atlas,
+                    Err(message) => {
+                        return CmdResultTextureCreateFromBuffer {
+                            success: false,
+                            message,
+                        };
+                    }
+                };
                 let tiles_x = (image.width + options.tile_px - 1) / options.tile_px;
                 let tiles_y = (image.height + options.tile_px - 1) / options.tile_px;
                 let (handle, relocations) = match atlas.alloc(tiles_x, tiles_y) {
@@ -240,11 +238,7 @@ pub fn engine_cmd_texture_create_from_buffer(
                     wgpu::TexelCopyTextureInfo {
                         texture: atlas.texture(),
                         mip_level: 0,
-                        origin: wgpu::Origin3d {
-                            x,
-                            y,
-                            z: layer,
-                        },
+                        origin: wgpu::Origin3d { x, y, z: layer },
                         aspect: wgpu::TextureAspect::All,
                     },
                     &image.data,
@@ -285,12 +279,8 @@ pub fn engine_cmd_texture_create_from_buffer(
                         .iter_mut()
                     {
                         if entry.handle == handle {
-                            entry.uv_scale_bias = Vec4::new(
-                                transform.0,
-                                transform.1,
-                                transform.2,
-                                transform.3,
-                            );
+                            entry.uv_scale_bias =
+                                Vec4::new(transform.0, transform.1, transform.2, transform.3);
                             entry.layer = transform.4;
                             affected_ids.push(*tex_id);
                         }
@@ -301,16 +291,25 @@ pub fn engine_cmd_texture_create_from_buffer(
                 }
             }
 
-            window_state.render_state.scene.forward_atlas_entries.insert(
-                args.texture_id,
-                ForwardAtlasEntry {
-                    handle,
-                    size: UVec2::new(image.width, image.height),
-                    uv_scale_bias: Vec4::new(transform.0, transform.1, transform.2, transform.3),
-                    layer: transform.4,
-                    format,
-                },
-            );
+            window_state
+                .render_state
+                .scene
+                .forward_atlas_entries
+                .insert(
+                    args.texture_id,
+                    ForwardAtlasEntry {
+                        handle,
+                        size: UVec2::new(image.width, image.height),
+                        uv_scale_bias: Vec4::new(
+                            transform.0,
+                            transform.1,
+                            transform.2,
+                            transform.3,
+                        ),
+                        layer: transform.4,
+                        format,
+                    },
+                );
         }
     }
 
@@ -470,22 +469,20 @@ pub fn engine_cmd_texture_create_solid_color(
                 layers: options.layers,
             };
             let (handle, transform, relocation_transforms) = {
-                let atlas =
-                    match ensure_forward_atlas(
-                        &mut window_state.render_state,
-                        device,
-                        queue,
-                        &atlas_desc,
-                    )
-                    {
-                        Ok(atlas) => atlas,
-                        Err(message) => {
-                            return CmdResultTextureCreateSolidColor {
-                                success: false,
-                                message,
-                            };
-                        }
-                    };
+                let atlas = match ensure_forward_atlas(
+                    &mut window_state.render_state,
+                    device,
+                    queue,
+                    &atlas_desc,
+                ) {
+                    Ok(atlas) => atlas,
+                    Err(message) => {
+                        return CmdResultTextureCreateSolidColor {
+                            success: false,
+                            message,
+                        };
+                    }
+                };
                 let tiles_x = (size.width + options.tile_px - 1) / options.tile_px;
                 let tiles_y = (size.height + options.tile_px - 1) / options.tile_px;
                 let (handle, relocations) = match atlas.alloc(tiles_x, tiles_y) {
@@ -510,11 +507,7 @@ pub fn engine_cmd_texture_create_solid_color(
                     wgpu::TexelCopyTextureInfo {
                         texture: atlas.texture(),
                         mip_level: 0,
-                        origin: wgpu::Origin3d {
-                            x,
-                            y,
-                            z: layer,
-                        },
+                        origin: wgpu::Origin3d { x, y, z: layer },
                         aspect: wgpu::TextureAspect::All,
                     },
                     &data,
@@ -555,12 +548,8 @@ pub fn engine_cmd_texture_create_solid_color(
                         .iter_mut()
                     {
                         if entry.handle == handle {
-                            entry.uv_scale_bias = Vec4::new(
-                                transform.0,
-                                transform.1,
-                                transform.2,
-                                transform.3,
-                            );
+                            entry.uv_scale_bias =
+                                Vec4::new(transform.0, transform.1, transform.2, transform.3);
                             entry.layer = transform.4;
                             affected_ids.push(*tex_id);
                         }
@@ -571,16 +560,25 @@ pub fn engine_cmd_texture_create_solid_color(
                 }
             }
 
-            window_state.render_state.scene.forward_atlas_entries.insert(
-                args.texture_id,
-                ForwardAtlasEntry {
-                    handle,
-                    size: UVec2::new(size.width, size.height),
-                    uv_scale_bias: Vec4::new(transform.0, transform.1, transform.2, transform.3),
-                    layer: transform.4,
-                    format,
-                },
-            );
+            window_state
+                .render_state
+                .scene
+                .forward_atlas_entries
+                .insert(
+                    args.texture_id,
+                    ForwardAtlasEntry {
+                        handle,
+                        size: UVec2::new(size.width, size.height),
+                        uv_scale_bias: Vec4::new(
+                            transform.0,
+                            transform.1,
+                            transform.2,
+                            transform.3,
+                        ),
+                        layer: transform.4,
+                        format,
+                    },
+                );
         }
     }
 
@@ -669,10 +667,12 @@ fn ensure_forward_atlas<'a>(
         render_state.forward_atlas = Some(ForwardAtlasSystem::new(device, desc.clone()));
     }
 
-    let atlas = render_state.forward_atlas.as_mut().expect("atlas just created");
+    let atlas = render_state
+        .forward_atlas
+        .as_mut()
+        .expect("atlas just created");
     let info = atlas.info();
-    let config_matches = info.0 == desc.tile_px
-        && info.5 == desc.format;
+    let config_matches = info.0 == desc.tile_px && info.5 == desc.format;
 
     if config_matches {
         let desired_layers = desc.layers.min(device.limits().max_texture_array_layers);
@@ -685,10 +685,7 @@ fn ensure_forward_atlas<'a>(
     }
 }
 
-fn mark_materials_dirty(
-    scene: &mut crate::core::render::state::RenderScene,
-    texture_id: u32,
-) {
+fn mark_materials_dirty(scene: &mut crate::core::render::state::RenderScene, texture_id: u32) {
     for record in scene.materials_standard.values_mut() {
         if record.texture_ids.iter().any(|id| *id == texture_id) {
             record.bind_group = None;

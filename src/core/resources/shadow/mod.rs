@@ -130,10 +130,10 @@ impl ShadowManager {
                 virtual_grid_size: config.virtual_grid_size as f32,
                 pcf_range: config.smoothing as i32,
                 table_capacity,
-                bias_min: 0.0001,
-                bias_slope: 0.001,
-                point_bias_min: 0.002,
-                point_bias_slope: 0.01,
+                bias_min: 0.00001, // Very small default for Reverse Z + Float32
+                bias_slope: 0.0001,
+                point_bias_min: 0.0001,
+                point_bias_slope: 0.0005,
                 _padding: 0.0,
             },
         );
@@ -164,10 +164,10 @@ impl ShadowManager {
                 virtual_grid_size: config.virtual_grid_size as f32,
                 pcf_range: config.smoothing as i32,
                 table_capacity: self.table_capacity,
-                bias_min: 0.0001,
-                bias_slope: 0.001,
-                point_bias_min: 0.002,
-                point_bias_slope: 0.01,
+                bias_min: 0.00001,
+                bias_slope: 0.0001,
+                point_bias_min: 0.0001,
+                point_bias_slope: 0.0005,
                 _padding: 0.0,
             },
         );
@@ -194,22 +194,20 @@ impl ShadowManager {
 
     pub fn identify_required_pages(
         &self,
-
         light_view_proj: Mat4,
-
         camera_inv_view_proj: Mat4,
     ) -> Vec<(u32, u32)> {
         // 1. Get camera frustum corners in world space (NDC cube -> World).
-        // Camera uses OpenGL-style clip depth (z in [-1, 1]).
+        // WGPU uses depth range [0, 1]. In Reverse Z, near is 1.0 and far is 0.0.
         let ndc_corners = [
-            glam::vec3(-1.0, -1.0, -1.0), // Near bottom left
-            glam::vec3(1.0, -1.0, -1.0),  // Near bottom right
-            glam::vec3(-1.0, 1.0, -1.0),  // Near top left
-            glam::vec3(1.0, 1.0, -1.0),   // Near top right
-            glam::vec3(-1.0, -1.0, 1.0),  // Far bottom left
-            glam::vec3(1.0, -1.0, 1.0),   // Far bottom right
-            glam::vec3(-1.0, 1.0, 1.0),   // Far top left
-            glam::vec3(1.0, 1.0, 1.0),    // Far top right
+            glam::vec3(-1.0, -1.0, 1.0), // Near bottom left
+            glam::vec3(1.0, -1.0, 1.0),  // Near bottom right
+            glam::vec3(-1.0, 1.0, 1.0),  // Near top left
+            glam::vec3(1.0, 1.0, 1.0),   // Near top right
+            glam::vec3(-1.0, -1.0, 0.0), // Far bottom left
+            glam::vec3(1.0, -1.0, 0.0),  // Far bottom right
+            glam::vec3(-1.0, 1.0, 0.0),  // Far top left
+            glam::vec3(1.0, 1.0, 0.0),   // Far top right
         ];
 
         let mut world_corners = [glam::Vec3::ZERO; 8];

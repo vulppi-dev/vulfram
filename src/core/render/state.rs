@@ -4,42 +4,12 @@ use crate::core::render::cache::RenderCache;
 use crate::core::resources::MATERIAL_FALLBACK_ID;
 use crate::core::resources::shadow::ShadowManager;
 use crate::core::resources::{
-    CameraComponent, CameraRecord, FrameComponent, LightComponent, LightRecord, MaterialPbrParams,
-    MaterialPbrRecord, MaterialStandardParams, MaterialStandardRecord, ModelComponent, ModelRecord,
-    RenderTarget, StorageBufferPool, TextureRecord, ForwardAtlasEntry, ForwardAtlasSystem,
-    UniformBufferPool, VertexAllocatorConfig, VertexAllocatorSystem, PBR_INVALID_SLOT,
-    PBR_TEXTURE_SLOTS, STANDARD_INVALID_SLOT, STANDARD_TEXTURE_SLOTS,
+    CameraComponent, CameraRecord, ForwardAtlasEntry, ForwardAtlasSystem, FrameComponent,
+    LightComponent, LightRecord, MaterialPbrParams, MaterialPbrRecord, MaterialStandardParams,
+    MaterialStandardRecord, ModelComponent, ModelRecord, PBR_INVALID_SLOT, PBR_TEXTURE_SLOTS,
+    RenderTarget, STANDARD_INVALID_SLOT, STANDARD_TEXTURE_SLOTS, StorageBufferPool, TextureRecord,
+    UniformBufferPool, VertexAllocatorConfig, VertexAllocatorSystem,
 };
-
-fn perspective_rh_zo(fov_y: f32, aspect: f32, near: f32, far: f32) -> glam::Mat4 {
-    let f = 1.0 / (fov_y * 0.5).tan();
-    let nf = 1.0 / (near - far);
-    glam::Mat4::from_cols(
-        glam::vec4(f / aspect, 0.0, 0.0, 0.0),
-        glam::vec4(0.0, f, 0.0, 0.0),
-        glam::vec4(0.0, 0.0, far * nf, -1.0),
-        glam::vec4(0.0, 0.0, near * far * nf, 0.0),
-    )
-}
-
-fn orthographic_rh_zo(
-    left: f32,
-    right: f32,
-    bottom: f32,
-    top: f32,
-    near: f32,
-    far: f32,
-) -> glam::Mat4 {
-    let rl = 1.0 / (right - left);
-    let tb = 1.0 / (top - bottom);
-    let nf = 1.0 / (near - far);
-    glam::Mat4::from_cols(
-        glam::vec4(2.0 * rl, 0.0, 0.0, 0.0),
-        glam::vec4(0.0, 2.0 * tb, 0.0, 0.0),
-        glam::vec4(0.0, 0.0, nf, 0.0),
-        glam::vec4(-(right + left) * rl, -(top + bottom) * tb, near * nf, 1.0),
-    )
-}
 
 // -----------------------------------------------------------------------------
 // Sub-systems
@@ -295,7 +265,7 @@ impl RenderState {
         self.forward_depth_target = Some(RenderTarget::new(
             device,
             depth_size,
-            wgpu::TextureFormat::Depth24Plus,
+            wgpu::TextureFormat::Depth32Float, // Reverse Z: Float for better precision distribution
         ));
     }
 
@@ -686,10 +656,8 @@ impl RenderState {
                         buffer: bindings.model_pool.buffer(),
                         offset: 0,
                         size: Some(
-                            std::num::NonZeroU64::new(
-                                std::mem::size_of::<ModelComponent>() as u64
-                            )
-                            .unwrap(),
+                            std::num::NonZeroU64::new(std::mem::size_of::<ModelComponent>() as u64)
+                                .unwrap(),
                         ),
                     }),
                 },
@@ -700,7 +668,7 @@ impl RenderState {
                         offset: 0,
                         size: Some(
                             std::num::NonZeroU64::new(
-                                std::mem::size_of::<MaterialStandardParams>() as u64
+                                std::mem::size_of::<MaterialStandardParams>() as u64,
                             )
                             .unwrap(),
                         ),
@@ -784,10 +752,8 @@ impl RenderState {
                         buffer: bindings.model_pool.buffer(),
                         offset: 0,
                         size: Some(
-                            std::num::NonZeroU64::new(
-                                std::mem::size_of::<ModelComponent>() as u64
-                            )
-                            .unwrap(),
+                            std::num::NonZeroU64::new(std::mem::size_of::<ModelComponent>() as u64)
+                                .unwrap(),
                         ),
                     }),
                 },
@@ -852,7 +818,6 @@ impl RenderState {
                 entries: &entries,
             }));
         }
-
     }
 
     pub(crate) fn init_fallback_resources(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
@@ -1049,7 +1014,7 @@ impl RenderState {
                 address_mode_w: wgpu::AddressMode::ClampToEdge,
                 mag_filter: wgpu::FilterMode::Linear,
                 min_filter: wgpu::FilterMode::Linear,
-                compare: Some(wgpu::CompareFunction::LessEqual),
+                compare: Some(wgpu::CompareFunction::GreaterEqual), // Reverse Z
                 ..Default::default()
             }),
         };
@@ -1260,7 +1225,7 @@ impl RenderState {
                             has_dynamic_offset: true,
                             min_binding_size: Some(
                                 std::num::NonZeroU64::new(
-                                    std::mem::size_of::<MaterialStandardParams>() as u64
+                                    std::mem::size_of::<MaterialStandardParams>() as u64,
                                 )
                                 .unwrap(),
                             ),
@@ -1370,10 +1335,8 @@ impl RenderState {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: true,
                         min_binding_size: Some(
-                            std::num::NonZeroU64::new(
-                                std::mem::size_of::<ModelComponent>() as u64
-                            )
-                            .unwrap(),
+                            std::num::NonZeroU64::new(std::mem::size_of::<ModelComponent>() as u64)
+                                .unwrap(),
                         ),
                     },
                     count: None,
@@ -1689,13 +1652,19 @@ impl RenderState {
                 let light_dir = record.data.direction.truncate().normalize();
                 let light_pos = record.data.position.truncate();
 
-                // View matrix
-                record.data.view = glam::Mat4::look_to_rh(light_pos, light_dir, glam::Vec3::Y);
+                // View matrix - fix potential NaN if looking straight down/up
+                let up = if light_dir.abs().dot(glam::Vec3::Y) > 0.99 {
+                    glam::Vec3::Z
+                } else {
+                    glam::Vec3::Y
+                };
+                record.data.view = glam::Mat4::look_to_rh(light_pos, light_dir, up);
 
                 match record.data.kind_flags.x {
                     0 => {
-                        // Directional
-                        let ortho = orthographic_rh_zo(-20.0, 20.0, -20.0, 20.0, 0.1, 100.0);
+                        // Directional - Increased volume and adjusted near for better coverage
+                        let ortho =
+                            glam::Mat4::orthographic_rh(-100.0, 100.0, -100.0, 100.0, 0.01, 500.0);
                         record.data.projection = ortho;
                     }
                     2 => {
@@ -1703,7 +1672,7 @@ impl RenderState {
                         let outer_angle = record.data.spot_inner_outer.y;
                         let fov = outer_angle * 2.0;
                         let range = record.data.intensity_range.y;
-                        let persp = perspective_rh_zo(fov, 1.0, 0.1, range);
+                        let persp = glam::Mat4::perspective_rh(fov, 1.0, 0.01, range);
                         record.data.projection = persp;
                     }
                     _ => {

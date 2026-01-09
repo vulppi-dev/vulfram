@@ -25,29 +25,6 @@ pub struct CameraComponent {
     pub view_projection: Mat4,
 }
 
-fn perspective_rh_zo(fov_y: f32, aspect: f32, near: f32, far: f32) -> Mat4 {
-    let f = 1.0 / (fov_y * 0.5).tan();
-    let nf = 1.0 / (near - far);
-    Mat4::from_cols(
-        glam::vec4(f / aspect, 0.0, 0.0, 0.0),
-        glam::vec4(0.0, f, 0.0, 0.0),
-        glam::vec4(0.0, 0.0, far * nf, -1.0),
-        glam::vec4(0.0, 0.0, near * far * nf, 0.0),
-    )
-}
-
-fn orthographic_rh_zo(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32) -> Mat4 {
-    let rl = 1.0 / (right - left);
-    let tb = 1.0 / (top - bottom);
-    let nf = 1.0 / (near - far);
-    Mat4::from_cols(
-        glam::vec4(2.0 * rl, 0.0, 0.0, 0.0),
-        glam::vec4(0.0, 2.0 * tb, 0.0, 0.0),
-        glam::vec4(0.0, 0.0, nf, 0.0),
-        glam::vec4(-(right + left) * rl, -(top + bottom) * tb, near * nf, 1.0),
-    )
-}
-
 impl CameraComponent {
     /// Create from raw input data
     ///
@@ -73,12 +50,12 @@ impl CameraComponent {
         let projection = match kind {
             CameraKind::Perspective => {
                 let fov_y = 45.0_f32.to_radians();
-                perspective_rh_zo(fov_y, aspect_ratio, near_far.x, near_far.y)
+                Mat4::perspective_rh(fov_y, aspect_ratio, near_far.x, near_far.y)
             }
             CameraKind::Orthographic => {
                 let half_height = ortho_scale / 2.0;
                 let half_width = half_height * aspect_ratio;
-                orthographic_rh_zo(
+                Mat4::orthographic_rh(
                     -half_width,  // left
                     half_width,   // right
                     -half_height, // bottom

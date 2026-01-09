@@ -391,15 +391,14 @@ impl ForwardAtlasSystem {
 
         self.layer_views.clear();
         for i in 0..new_layers {
-            self.layer_views.push(
-                self._texture.create_view(&wgpu::TextureViewDescriptor {
+            self.layer_views
+                .push(self._texture.create_view(&wgpu::TextureViewDescriptor {
                     label: Some(&format!("Forward Atlas Layer View {i}")),
                     dimension: Some(wgpu::TextureViewDimension::D2),
                     base_array_layer: i,
                     array_layer_count: Some(1),
                     ..Default::default()
-                }),
-            );
+                }));
         }
 
         let layer_size = (self.tiles_w * self.tiles_h) as usize;

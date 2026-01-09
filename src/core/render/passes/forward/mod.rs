@@ -83,7 +83,7 @@ pub fn pass_forward(
                     wgpu::RenderPassDepthStencilAttachment {
                         view: &target.view,
                         depth_ops: Some(wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(1.0),
+                            load: wgpu::LoadOp::Clear(0.0), // Reverse Z
                             store: wgpu::StoreOp::Store,
                         }),
                         stencil_ops: None,
@@ -164,19 +164,26 @@ pub fn pass_forward(
                 }
             }
 
+            // Sort Far-to-Near (Painter's Algorithm)
+            // With Reverse Z: Far is 0.0, Near is 1.0. So we sort Ascending.
             standard_transparent.sort_by(|a, b| {
-                b.depth
-                    .partial_cmp(&a.depth)
+                a.depth
+                    .partial_cmp(&b.depth)
                     .unwrap_or(std::cmp::Ordering::Equal)
             });
             pbr_transparent.sort_by(|a, b| {
-                b.depth
-                    .partial_cmp(&a.depth)
+                a.depth
+                    .partial_cmp(&b.depth)
                     .unwrap_or(std::cmp::Ordering::Equal)
             });
 
-            let pbr_pipeline =
-                branches::pbr::get_pipeline(cache, frame_index, device, library, SurfaceType::Opaque);
+            let pbr_pipeline = branches::pbr::get_pipeline(
+                cache,
+                frame_index,
+                device,
+                library,
+                SurfaceType::Opaque,
+            );
             render_pass.set_pipeline(pbr_pipeline);
             for item in pbr_opaque {
                 if let Some(material) = scene.materials_pbr.get(&item.material_id) {
@@ -196,8 +203,13 @@ pub fn pass_forward(
                 }
             }
 
-            let pbr_pipeline =
-                branches::pbr::get_pipeline(cache, frame_index, device, library, SurfaceType::Masked);
+            let pbr_pipeline = branches::pbr::get_pipeline(
+                cache,
+                frame_index,
+                device,
+                library,
+                SurfaceType::Masked,
+            );
             render_pass.set_pipeline(pbr_pipeline);
             for item in pbr_masked {
                 if let Some(material) = scene.materials_pbr.get(&item.material_id) {
@@ -217,8 +229,13 @@ pub fn pass_forward(
                 }
             }
 
-            let pipeline =
-                branches::standard::get_pipeline(cache, frame_index, device, library, SurfaceType::Opaque);
+            let pipeline = branches::standard::get_pipeline(
+                cache,
+                frame_index,
+                device,
+                library,
+                SurfaceType::Opaque,
+            );
             render_pass.set_pipeline(pipeline);
             for item in standard_opaque {
                 if let Some(material) = scene.materials_standard.get(&item.material_id) {
@@ -238,8 +255,13 @@ pub fn pass_forward(
                 }
             }
 
-            let pipeline =
-                branches::standard::get_pipeline(cache, frame_index, device, library, SurfaceType::Masked);
+            let pipeline = branches::standard::get_pipeline(
+                cache,
+                frame_index,
+                device,
+                library,
+                SurfaceType::Masked,
+            );
             render_pass.set_pipeline(pipeline);
             for item in standard_masked {
                 if let Some(material) = scene.materials_standard.get(&item.material_id) {
@@ -259,8 +281,13 @@ pub fn pass_forward(
                 }
             }
 
-            let pbr_pipeline =
-                branches::pbr::get_pipeline(cache, frame_index, device, library, SurfaceType::Transparent);
+            let pbr_pipeline = branches::pbr::get_pipeline(
+                cache,
+                frame_index,
+                device,
+                library,
+                SurfaceType::Transparent,
+            );
             render_pass.set_pipeline(pbr_pipeline);
             for item in pbr_transparent {
                 if let Some(material) = scene.materials_pbr.get(&item.material_id) {
@@ -280,8 +307,13 @@ pub fn pass_forward(
                 }
             }
 
-            let pipeline =
-                branches::standard::get_pipeline(cache, frame_index, device, library, SurfaceType::Transparent);
+            let pipeline = branches::standard::get_pipeline(
+                cache,
+                frame_index,
+                device,
+                library,
+                SurfaceType::Transparent,
+            );
             render_pass.set_pipeline(pipeline);
             for item in standard_transparent {
                 if let Some(material) = scene.materials_standard.get(&item.material_id) {

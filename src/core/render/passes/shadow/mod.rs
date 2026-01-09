@@ -223,6 +223,7 @@ pub fn pass_shadow_update(
             }),
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
         vertex_sys.begin_pass();
 
@@ -314,7 +315,7 @@ pub fn pass_shadow_update(
                                 },
                             }),
                             multisample: wgpu::MultisampleState::default(),
-                            multiview: None,
+                            multiview_mask: None,
                             cache: None,
                         })
                     });

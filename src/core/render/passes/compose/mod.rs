@@ -64,7 +64,7 @@ pub fn pass_compose(
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Compose Pipeline Layout"),
             bind_group_layouts: &[&library.layout_target],
-            push_constant_ranges: &[],
+            ..Default::default()
         });
 
         device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -89,7 +89,7 @@ pub fn pass_compose(
             primitive: wgpu::PrimitiveState::default(),
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         })
     });
@@ -109,6 +109,7 @@ pub fn pass_compose(
         depth_stencil_attachment: None,
         timestamp_writes: None,
         occlusion_query_set: None,
+        multiview_mask: None,
     });
 
     render_pass.set_pipeline(pipeline);

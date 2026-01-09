@@ -91,6 +91,7 @@ pub fn pass_forward(
                 }),
                 timestamp_writes: None,
                 occlusion_query_set: None,
+                multiview_mask: None,
             });
             vertex_sys.begin_pass();
 

@@ -1569,28 +1569,28 @@ impl RenderState {
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Forward Standard Pipeline Layout"),
                 bind_group_layouts: &[&layout_shared, &layout_object_standard],
-                push_constant_ranges: &[],
+                ..Default::default()
             });
 
         let forward_pbr_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Forward PBR Pipeline Layout"),
                 bind_group_layouts: &[&layout_shared, &layout_object_pbr],
-                push_constant_ranges: &[],
+                ..Default::default()
             });
 
         let shadow_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Shadow Pipeline Layout"),
                 bind_group_layouts: &[&layout_shared, &layout_object],
-                push_constant_ranges: &[],
+                ..Default::default()
             });
 
         let light_cull_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Light Cull Pipeline Layout"),
                 bind_group_layouts: &[&layout_light_cull],
-                push_constant_ranges: &[],
+                ..Default::default()
             });
 
         self.library = Some(ResourceLibrary {

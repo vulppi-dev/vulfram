@@ -1,0 +1,119 @@
+name: Build Bindings
+
+on:
+  push:
+    branches: [build]
+  pull_request:
+    branches: [build]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ${{ matrix.binding }} - ${{ matrix.os }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        arch: [x64, arm64]
+        binding: [ffi, napi, python, lua]
+        exclude:
+          # Currently exclude ARM cross-builds for Python/Lua due to complex header dependencies
+          # We can re-add them as we refine the cross-compilation environment
+          - os: ubuntu-latest
+            arch: arm64
+            binding: python
+          - os: ubuntu-latest
+            arch: arm64
+            binding: lua
+          - os: windows-latest
+            arch: arm64
+            binding: python
+          - os: windows-latest
+            arch: arm64
+            binding: lua
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ (matrix.os == 'ubuntu-latest' && matrix.arch == 'arm64' && 'aarch64-unknown-linux-gnu') || (matrix.os == 'windows-latest' && matrix.arch == 'arm64' && 'aarch64-pc-windows-msvc') || (matrix.os == 'macos-latest' && matrix.arch == 'arm64' && 'aarch64-apple-darwin') || (matrix.os == 'macos-latest' && matrix.arch == 'x64' && 'x86_64-apple-darwin') || (matrix.os == 'windows-latest' && matrix.arch == 'x64' && 'x86_64-pc-windows-msvc') || 'x86_64-unknown-linux-gnu' }}
+
+      - name: Install Dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwayland-dev libx11-dev libxkbcommon-dev libasound2-dev libdbus-1-dev
+          if [ "${{ matrix.binding }}" == "lua" ]; then
+            sudo apt-get install -y liblua5.4-dev
+          fi
+          if [ "${{ matrix.arch }}" == "arm64" ]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu
+          fi
+
+      - name: Build
+        shell: bash
+        run: |
+          # Determine target triple
+          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+            TARGET="${{ (matrix.arch == 'arm64' && 'aarch64-unknown-linux-gnu') || 'x86_64-unknown-linux-gnu' }}"
+          elif [ "${{ matrix.os }}" == "windows-latest" ]; then
+            TARGET="${{ (matrix.arch == 'arm64' && 'aarch64-pc-windows-msvc') || 'x86_64-pc-windows-msvc' }}"
+          else
+            TARGET="${{ (matrix.arch == 'arm64' && 'aarch64-apple-darwin') || 'x86_64-apple-darwin' }}"
+          fi
+
+          echo "Building for target: $TARGET with feature: ${{ matrix.binding }}"
+
+          # Use cross for Linux ARM64 cross-compilation
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
+            cargo install cross --git https://github.com/cross-rs/cross
+            cross build --release --target $TARGET --no-default-features --features ${{ matrix.binding }}
+          else
+            # Set Python environment if needed for PyO3
+            if [ "${{ matrix.binding }}" == "python" ]; then
+              export PYO3_PRINT_CONFIG=1
+            fi
+            cargo build --release --target $TARGET --no-default-features --features ${{ matrix.binding }}
+          fi
+
+      - name: Prepare Artifact
+        shell: bash
+        run: |
+          mkdir -p dist
+          # Find the resulting library
+          EXTENSION=""
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then EXTENSION="dll"; else EXTENSION="so"; fi
+          if [ "${{ matrix.os }}" == "macos-latest" ]; then EXTENSION="dylib"; fi
+
+          # Target directory detection
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
+            SEARCH_PATH="target/aarch64-unknown-linux-gnu/release"
+          elif [ "${{ matrix.os }}" == "windows-latest" ]; then
+            SEARCH_PATH="target/${{ (matrix.arch == 'arm64' && 'aarch64-pc-windows-msvc') || 'x86_64-pc-windows-msvc' }}/release"
+          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+            SEARCH_PATH="target/${{ (matrix.arch == 'arm64' && 'aarch64-apple-darwin') || 'x86_64-apple-darwin' }}/release"
+          else
+            SEARCH_PATH="target/x86_64-unknown-linux-gnu/release"
+          fi
+
+          # Copy files
+          cp ${SEARCH_PATH}/*.${EXTENSION} dist/ 2>/dev/null || true
+          cp target/release/*.${EXTENSION} dist/ 2>/dev/null || true
+
+          # For N-API, rename to .node
+          if [ "${{ matrix.binding }}" == "napi" ]; then
+            # Find the actual file (might be libvulfram_core.so or similar)
+            for f in dist/*.${EXTENSION}; do
+              [ -e "$f" ] || continue
+              mv "$f" dist/vulfram_core.node
+            done
+          fi
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulfram-${{ matrix.binding }}-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/*

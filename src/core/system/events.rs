@@ -15,4 +15,10 @@ pub enum SystemEvent {
 
     /// Application is about to exit
     OnExit,
+
+    /// Notification was clicked
+    OnNotificationClicked { id: String },
+
+    /// Notification was dismissed or expired
+    OnNotificationDismissed { id: String },
 }

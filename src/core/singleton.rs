@@ -10,6 +10,7 @@ use super::window::CmdWindowCreateArgs;
 /// Custom events sent through the event loop
 pub enum EngineCustomEvents {
     CreateWindow(u64, CmdWindowCreateArgs),
+    NotificationInteraction(super::system::SystemEvent),
 }
 
 /// Singleton container for engine state and event loop

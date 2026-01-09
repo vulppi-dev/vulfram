@@ -10,11 +10,13 @@ use crate::core::system::SystemEvent;
 use crate::core::window::WindowEvent;
 
 pub use crate::core::resources as res;
+pub use crate::core::system as sys;
 pub use crate::core::window as win;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(tag = "type", content = "content", rename_all = "kebab-case")]
 pub enum EngineCmd {
+    CmdNotificationSend(sys::CmdNotificationSendArgs),
     CmdWindowCreate(win::CmdWindowCreateArgs),
     CmdWindowClose(win::CmdWindowCloseArgs),
     CmdWindowSetTitle(win::CmdWindowSetTitleArgs),
@@ -73,6 +75,7 @@ pub enum EngineEvent {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "type", content = "content", rename_all = "kebab-case")]
 pub enum CommandResponse {
+    NotificationSend(sys::CmdResultNotificationSend),
     WindowCreate(win::CmdResultWindowCreate),
     WindowClose(win::CmdResultWindowClose),
     WindowSetTitle(win::CmdResultWindowSetTitle),
@@ -143,6 +146,13 @@ pub fn engine_process_batch(
 ) -> VulframResult {
     for pack in batch {
         match pack.cmd {
+            EngineCmd::CmdNotificationSend(args) => {
+                let result = sys::engine_cmd_notification_send(engine, loop_proxy, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::NotificationSend(result),
+                });
+            }
             EngineCmd::CmdWindowCreate(args) => {
                 let _ =
                     loop_proxy.send_event(EngineCustomEvents::CreateWindow(pack.id, args.clone()));

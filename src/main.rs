@@ -10,6 +10,7 @@ use crate::core::resources::{
     MaterialKind, MaterialOptions, MaterialSampler, PbrOptions, PrimitiveShape, StandardOptions,
     SurfaceType, TextureCreateMode,
 };
+use crate::core::system::{CmdNotificationSendArgs, NotificationLevel};
 use crate::core::window::{CmdWindowCloseArgs, CmdWindowCreateArgs};
 use glam::{Mat4, Vec2, Vec3, Vec4};
 use rmp_serde::{from_slice, to_vec_named};
@@ -348,6 +349,20 @@ fn main() {
     assert_eq!(send_commands(setup_cmds), VulframResult::Success);
     let _ = receive_responses();
 
+    // Test notification
+    let notification_cmd = EngineCmd::CmdNotificationSend(CmdNotificationSendArgs {
+        id: Some("test-notif".into()),
+        title: "🦊 Vulfram Core".into(),
+        body: "Notificações implementadas com sucesso! Clique para testar o evento.".into(),
+        level: NotificationLevel::Success,
+        timeout: Some(5000),
+    });
+    assert_eq!(
+        send_commands(vec![notification_cmd]),
+        VulframResult::Success
+    );
+    let _ = receive_responses();
+
     let start_time = Instant::now();
     let mut last_frame_time = Instant::now();
     let mut total_ms: u64 = 0;
@@ -431,6 +446,12 @@ fn main() {
 
         // Process any responses or events (optional for this test)
         let _ = receive_responses();
+        let events = receive_events();
+        for event in events {
+            if let crate::core::cmd::EngineEvent::System(sys_event) = event {
+                println!("Received system event: {:?}", sys_event);
+            }
+        }
 
         std::thread::sleep(Duration::from_millis(16)); // ~60 FPS
     }
@@ -498,4 +519,19 @@ fn receive_responses() -> Vec<CommandResponseEnvelope> {
     let bytes = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, len)) };
     let responses = from_slice(&bytes).expect("failed to deserialize responses");
     responses
+}
+
+fn receive_events() -> Vec<crate::core::cmd::EngineEvent> {
+    let mut ptr = std::ptr::null();
+    let mut len: usize = 0;
+    let result = core::vulfram_receive_events(&mut ptr, &mut len);
+
+    if result != VulframResult::Success || len == 0 {
+        return Vec::new();
+    }
+
+    // Reclaim the buffer allocated by the core
+    let bytes = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, len)) };
+    let events = from_slice(&bytes).expect("failed to deserialize events");
+    events
 }

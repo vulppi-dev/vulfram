@@ -26,7 +26,7 @@ winit = "0.30"
 gilrs = "0.11"
 
 # Notifications
-notifica = "3.0"
+notify-rust = "4.11"
 
 # Image decoding
 image = { version = "0.25", default-features = false, features = ["bmp", "png", "jpeg", "webp", "avif"] }

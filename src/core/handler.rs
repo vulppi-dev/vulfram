@@ -510,6 +510,10 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
                     response: CommandResponse::WindowCreate(result),
                 });
             }
+
+            EngineCustomEvents::NotificationInteraction(event) => {
+                self.event_queue.push(EngineEvent::System(event));
+            }
         }
 
         // Track time spent in custom events to exclude from profiling

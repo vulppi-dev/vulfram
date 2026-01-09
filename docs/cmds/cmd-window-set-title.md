@@ -1,0 +1,19 @@
+# CmdWindowSetTitle
+
+Sets the title of an existing window.
+
+## Arguments
+
+| Field    | Type   | Description      |
+| -------- | ------ | ---------------- |
+| windowId | u32    | ID of the window |
+| title    | String | New title        |
+
+## Response
+
+Returns `CmdResultWindowSetTitle`:
+
+| Field   | Type   | Description               |
+| ------- | ------ | ------------------------- |
+| success | bool   | Whether the title was set |
+| message | String | Status or error message   |

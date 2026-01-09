@@ -84,15 +84,16 @@ pub struct EngineState {
 
 ## 3. Resources (Current)
 
-At the moment, the core focuses on **geometry** and **uniform buffers**:
+The core manages several first-class resources:
 
-- **Geometry** is managed by `VertexAllocatorSystem`, which owns pooled or
+- **Geometry**: Managed by `VertexAllocatorSystem`, which owns pooled or
   dedicated vertex/index buffers and validates incoming streams.
-- **Uniform buffers** use `UniformBufferPool<T>` with deferred drop.
-- **Render targets** are per-camera textures (`RenderTarget`) used by passes.
-
-Texture/material/shader resources are planned but not yet implemented as
-first-class resource tables.
+- **Textures**: Loaded from buffers or created as solid colors.
+- **Materials**: Define the appearance of meshes.
+- **Lights**: Point, directional, and spot lights.
+- **Cameras**: View and projection matrices with layer masking support.
+- **Models**: Instances that link geometry and transform (materials pending full implementation).
+- **Shadows**: Global shadow mapping configuration.
 
 ---
 
@@ -101,6 +102,7 @@ first-class resource tables.
 The render state keeps a **scene** with camera/model records:
 
 - `CameraRecord`
+
   - `data: CameraComponent` (projection/view matrices)
   - `layer_mask`, `order`
   - `view_position` (optional, relative/absolute)
@@ -137,11 +139,15 @@ then decoded into internal Rust enums.
 
 Current command enum (`EngineCmd`) includes:
 
-- Window: create/close/size/position/state/etc.
-- Camera: create/update/dispose
-- Model: create/update/dispose
-- Geometry: create/update/dispose
-- Primitive geometry: create
+- **Window**: Create, Close, SetTitle, SetPosition, GetPosition, SetSize, GetSize, GetOuterSize, GetSurfaceSize, SetState, GetState, SetIcon, SetDecorations, HasDecorations, SetResizable, IsResizable, RequestAttention, Focus, SetCursorVisible, SetCursorGrab, SetCursorIcon.
+- **Camera**: Create, Update, Dispose.
+- **Model**: Create, Update, Dispose.
+- **Light**: Create, Update, Dispose.
+- **Material**: Create, Update, Dispose.
+- **Texture**: CreateFromBuffer, CreateSolidColor, Dispose.
+- **Geometry**: Create, Update, Dispose.
+- **Primitive Geometry**: Create (Capsule, Cube, Cylinder, Plane, Sphere, Torus, Quad, Cone).
+- **Shadow**: Configure.
 
 ### 5.3 Command Execution
 
@@ -202,12 +208,15 @@ the draw passes.
 Current GPU buffers:
 
 - `FrameUniformBuffer`
+
   - Time, delta time, frame index.
 
 - `CameraUniformBuffer`
+
   - Camera matrices and parameters.
 
 - `ModelUniformBuffer`
+
   - Model transforms and derived TRS.
 
 - Vertex / index buffers for geometries (managed by `VertexAllocatorSystem`).

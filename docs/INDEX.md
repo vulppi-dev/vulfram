@@ -46,7 +46,11 @@ If you're building a language binding (Node.js, Lua, Python, etc.) or integratin
    - Host responsibilities
    - Upload system
 
-4. **[GLOSSARY.md](GLOSSARY.md)** - _Terminology reference_
+4. **[cmds/](cmds/)** - _Command Reference_
+
+   - Detailed documentation for every engine command (Window, Camera, Model, Light, etc.)
+
+5. **[GLOSSARY.md](GLOSSARY.md)** - _Terminology reference_
    - Core concepts (Host, Core, ABI)
    - Components vs Resources
    - IDs and handles

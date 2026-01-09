@@ -41,12 +41,14 @@ Vulfram is designed to be **host-agnostic** and driven by external runtimes via 
 
 ### Core Features
 
-- 🚀 **High Performance**: GPU-accelerated rendering with WGPU
+- 🚀 **High Performance**: GPU-accelerated rendering with WGPU (WebGPU)
 - 🔄 **Cross-Platform**: Native support for Windows, macOS, and Linux
-- 🎮 **Complete Input System**: Keyboard, mouse, touch, and gamepads
-- 🪟 **Advanced Window Management**: Full control over multiple windows
-- 🔌 **Language Bindings**: N-API, Lua, Python, and more (via feature flags). With C-ABI, `bun:ffi` is also possible.
-- ⚡ **MessagePack Communication**: Fast binary serialization
+- 🎮 **Complete Input System**: Keyboard, mouse, touch, and gamepads (via Gilrs)
+- 🪟 **Advanced Window Management**: Full control over multiple windows (via Winit)
+- 💡 **Lighting & Shadows**: Support for various light types and shadow mapping
+- 🎨 **Materials & Textures**: Flexible resource management for rendering
+- 🔌 **Language Bindings**: N-API (Node.js), Lua, Python, and more. With C-ABI, `bun:ffi` is also possible.
+- ⚡ **MessagePack Communication**: Fast binary serialization for commands and events
 - 🎯 **Host-Agnostic Design**: No assumptions about ECS, OOP, or game framework
 
 ---
@@ -214,6 +216,7 @@ cargo run
 ```
 
 The test harness lives in `src/main.rs` and exercises:
+
 - window creation
 - primitive geometry creation
 - camera + model setup

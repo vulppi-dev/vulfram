@@ -40,7 +40,7 @@ The core is the Rust dynamic library that implements Vulfram.
 It uses:
 
 - `winit` for window + OS events
-- `wgpu` for rendering
+- `wgpu` for rendering (WebGPU)
 - `gilrs` for gamepad input
 - `image` for texture decoding
 - `glam` + `bytemuck` for math and buffer packing
@@ -49,7 +49,7 @@ It uses:
 Core responsibilities:
 
 - Keep track of **resources**:
-  - Shaders, geometries, materials, textures, samplers…
+  - Geometries, materials, textures, lights, cameras (and shadows).
 - Keep track of **instances** (components) per `ComponentId`:
   - Cameras, models, etc.
 - Manage GPU buffers, textures, pipelines, and render passes.
@@ -66,8 +66,8 @@ Components represent high-level logic and are attached to entities:
 
 - `CameraComponent`
 - `ModelComponent` (mesh instance)
-- (future) `LightComponent`
-- (future) `EnvironmentComponent`
+- `LightComponent`
+- `EnvironmentComponent` (future)
 
 They are created and updated via commands in `send_queue`.
 Each component is associated with an `ComponentId` chosen by the host.
@@ -76,15 +76,15 @@ Each component is associated with an `ComponentId` chosen by the host.
 
 Resources are reusable data assets such as:
 
-- Shaders
 - Geometries
 - Textures
 - Materials
-- Samplers
+- Lights (point, directional, spot)
+- Cameras
 
 They are referenced from components via **logical IDs**:
 
-- `ShaderId`, `GeometryId`, `MaterialId`, `TextureId`, etc.
+- `GeometryId`, `MaterialId`, `TextureId`, `LightId`, `CameraId`, etc.
 
 Some data (static, per-component values like local colors or viewports) live inside
 the component and are **not** standalone resources.

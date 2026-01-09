@@ -57,26 +57,18 @@ higher-level, language-friendly APIs.
 ### Component
 
 A **component** is a high-level structure describing some behavior or
-participation in the scene, usually attached to an `ComponentId`.
+participation in the scene, usually attached to a `ComponentId`.
 
 Examples:
 
-- `CameraComponent`
-
-  - Projection type, FOV, near/far plane.
-  - View transform or transform reference.
-  - Viewport information.
-  - Layer mask.
-
-- `ModelComponent`
-  - References to geometry and material resources.
-  - Transform (model matrix).
-  - Layer mask.
+- `CameraComponent`: Projection, view matrices, viewport, layer mask.
+- `ModelComponent`: References to geometry/material, world transform, shadow flags.
+- `LightComponent`: Color, intensity, range, type (point, directional, spot).
 
 Characteristics:
 
 - Components are created/updated via commands (MessagePack).
-- They can embed **static data** (local colors, matrices).
+- They can embed **static data**.
 - They reference **sharable resources** by logical ID.
 
 ### Resource
@@ -85,16 +77,15 @@ A **resource** is a reusable asset or configuration used by components.
 
 Examples:
 
-- `ShaderResource`
-- `GeometryResource`
-- `MaterialResource`
-- `TextureResource`
-- `SamplerResource`
-- (future) `FontResource`, `SoundResource`, etc.
+- `GeometryResource`: Vertex and index data.
+- `MaterialResource`: Surface properties (Standard or PBR).
+- `TextureResource`: Image data (decodded or raw).
+- `LightResource`: (Implicitly managed via LightComponent IDs).
+- `CameraResource`: (Implicitly managed via CameraComponent IDs).
 
 Resources are identified by logical IDs such as:
 
-- `ShaderId`, `GeometryId`, `MaterialId`, `TextureId`.
+- `GeometryId`, `MaterialId`, `TextureId`.
 
 #### Sharable Resources
 

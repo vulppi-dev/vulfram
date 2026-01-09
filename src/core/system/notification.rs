@@ -1,4 +1,6 @@
-use notify_rust::{Notification, Timeout, Urgency};
+#[cfg(target_os = "linux")]
+use notify_rust::Urgency;
+use notify_rust::{Notification, Timeout};
 use serde::{Deserialize, Serialize};
 use winit::event_loop::EventLoopProxy;
 
@@ -39,6 +41,7 @@ pub fn engine_cmd_notification_send(
     let mut notification = Notification::new();
     notification.summary(&args.title).body(&args.body);
 
+    #[cfg(target_os = "linux")]
     match args.level {
         NotificationLevel::Info | NotificationLevel::Success => {
             notification.urgency(Urgency::Low);
@@ -51,6 +54,9 @@ pub fn engine_cmd_notification_send(
         }
     }
 
+    #[cfg(not(target_os = "linux"))]
+    let _ = &args.level;
+
     if let Some(ms) = args.timeout {
         notification.timeout(Timeout::Milliseconds(ms));
     } else {
@@ -58,6 +64,7 @@ pub fn engine_cmd_notification_send(
     }
 
     // Add a default action to capture clicks on platforms that support it
+    #[cfg(target_os = "linux")]
     notification.action("default", "Clicked");
 
     let proxy = loop_proxy.clone();
@@ -65,6 +72,7 @@ pub fn engine_cmd_notification_send(
 
     std::thread::spawn(move || match notification.show() {
         Ok(handle) => {
+            #[cfg(target_os = "linux")]
             handle.wait_for_action(|action| match action {
                 "default" => {
                     let _ = proxy.send_event(EngineCustomEvents::NotificationInteraction(
@@ -78,6 +86,9 @@ pub fn engine_cmd_notification_send(
                 }
                 _ => {}
             });
+
+            #[cfg(not(target_os = "linux"))]
+            let _ = handle; // Handle is () or different on other platforms
         }
         Err(e) => {
             log::error!("Failed to show notification: {}", e);

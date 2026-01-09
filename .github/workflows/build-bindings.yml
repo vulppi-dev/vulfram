@@ -92,8 +92,14 @@ jobs:
 
           # Use cross for Linux ARM64 cross-compilation
           if [[ "${{ matrix.os }}" == "ubuntu-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
-            # Use pre-built cross binary to save time
             curl -L https://github.com/cross-rs/cross/releases/latest/download/cross-x86_64-unknown-linux-musl.tar.gz | tar xz -C /usr/local/bin
+            
+            # Ensure libudev-dev is available for some crates that need it
+            export PKG_CONFIG_ALLOW_CROSS=1
+            cross build --release --target $TARGET --no-default-features --features ${{ matrix.binding }}
+          else
+            # Set Python environment if needed for PyO3
+            if [ "${{ matrix.binding }}" == "python" ]; then
               export PYO3_PRINT_CONFIG=1
             fi
             cargo build --release --target $TARGET --no-default-features --features ${{ matrix.binding }}

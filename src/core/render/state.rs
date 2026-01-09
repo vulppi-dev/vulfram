@@ -1662,17 +1662,17 @@ impl RenderState {
 
                 match record.data.kind_flags.x {
                     0 => {
-                        // Directional - Increased volume and adjusted near for better coverage
+                        // Directional - Increased volume and Reverse Z (swap near/far)
                         let ortho =
-                            glam::Mat4::orthographic_rh(-100.0, 100.0, -100.0, 100.0, 0.01, 500.0);
+                            glam::Mat4::orthographic_rh(-100.0, 100.0, -100.0, 100.0, 500.0, 0.01);
                         record.data.projection = ortho;
                     }
                     2 => {
-                        // Spot
+                        // Spot - Reverse Z (swap near/far)
                         let outer_angle = record.data.spot_inner_outer.y;
                         let fov = outer_angle * 2.0;
                         let range = record.data.intensity_range.y;
-                        let persp = glam::Mat4::perspective_rh(fov, 1.0, 0.01, range);
+                        let persp = glam::Mat4::perspective_rh(fov, 1.0, range, 0.01);
                         record.data.projection = persp;
                     }
                     _ => {

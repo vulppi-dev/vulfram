@@ -1,0 +1,45 @@
+# 🦊 Vulfram Engine — Roadmap & TODO (Lean Core Architecture)
+
+Plano de evolução focado em um Core minimalista e performático. Lógica complexa e parsing de arquivos são delegados para o **Host**.
+
+## 🟢 Fase 1: Fundamentos & Visibilidade (Core)
+
+_Otimização do fluxo de dados e ferramentas de debug._
+
+- [ ] **Geometry Frustum Culling**: Descarte de draw calls no Core para objetos fora da visão (Performance).
+- [ ] **Visual Debugger (Gizmos)**: Sistema no Core para desenhar linhas/shapes de debug via comandos simples.
+- [ ] **Instancing**: Suporte a renderização instanciada para otimizar milhares de objetos repetidos.
+
+## 🟡 Fase 2: Arquitetura de Renderização (Core)
+
+_Refatoração para suportar efeitos avançados._
+
+- [ ] **Render Graph**: Substituir o `Compose` por um grafo real para encadeamento de efeitos.
+- [ ] **Advanced Profiler**: Exportar métricas detalhadas de GPU para o Host via MessagePack.
+- [ ] **Skeletal Animation (Skinning)**: Implementar interpolação de ossos via GPU (Shader).
+
+## 🟠 Fase 3: Efeitos & Simulação (Core)
+
+_Features que dependem de acesso a buffers e transformações espaciais._
+
+- [ ] **Áudio 3D (Core System)**: Integração com a crate `kira`. Suporte a emissores amarrados a `Models` e cálculo de atenuação/doppler sincronizado com as transformações do Core.
+- [ ] **Bloom & HDR**: Pipeline de alta dinâmica com tonemapping.
+- [ ] **Decals (Decalques)**: Projeção de texturas via shader.
+- [ ] **SSAO**: Oclusão de ambiente em screen-space.
+- [ ] **GPU Particles**: Sistemas de partículas simulados na GPU.
+
+## 🔵 Fase 4: Responsabilidades do Host (Plugins & Lógica)
+
+_Funcionalidades que serão implementadas como bibliotecas/plugins no lado do Host._
+
+- [ ] **GLTF Loader (Host)**: Crate/Lib no Host para parsear GLTF e enviar `upload_buffer` para o Core.
+- [ ] **Physics Engine (Host)**: Integração com motores como Rapier no Host, enviando `ModelUpdate` a cada frame.
+- [ ] **Spatial Audio (Host)**: Gerenciamento de áudio 3D direto no Host.
+- [ ] **LOD System (Host)**: Lógica de troca de meshes baseada em distância rodando no Host.
+- [ ] **Input Mapping (Host)**: Abstração de input bruto para ações complexas.
+
+## 🔴 Fase 5: Especialização Final (Core)
+
+- [ ] **Custom Materials via Graph Nodes**: Sistema no Core que recebe estruturas de "nós" e gera shaders dinâmicos.
+- [ ] **Projective Spot Lights**: Luzes com projeção de textura.
+- [ ] **Occlusion Culling**: Otimização avançada baseada em visibilidade de pixels.

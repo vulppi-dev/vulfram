@@ -46,7 +46,6 @@ pkg/
 # test
 coverage/
 .nyc_output/
-TODO.md
 
 # typescript
 *.tsbuildinfo

@@ -93,15 +93,14 @@ jobs:
           # Use cross for Linux ARM64 cross-compilation
           if [[ "${{ matrix.os }}" == "ubuntu-latest" && "${{ matrix.arch }}" == "arm64" ]]; then
             curl -L https://github.com/cross-rs/cross/releases/latest/download/cross-x86_64-unknown-linux-musl.tar.gz | tar xz -C /usr/local/bin
-            export PKG_CONFIG_ALLOW_CROSS=1
-            # Link against the target's pkgconfig
-            export PKG_CONFIG_PATH_aarch64_unknown_linux_gnu=/usr/lib/aarch64-linux-gnu/pkgconfig
+            
+            # Use a custom cross configuration to install libudev-dev inside the container
+            echo '[target.aarch64-unknown-linux-gnu]' > Cross.toml
+            echo 'pre-build = ["apt-get update && apt-get install -y libudev-dev:arm64"]' >> Cross.toml
+            
             cross build --release --target $TARGET --no-default-features --features ${{ matrix.binding }}
           else
-            # Set Python environment if needed for PyO3
-            if [ "${{ matrix.binding }}" == "python" ]; then
-              export PYO3_PRINT_CONFIG=1
-            fi
+            # Build
             cargo build --release --target $TARGET --no-default-features --features ${{ matrix.binding }}
           fi
 

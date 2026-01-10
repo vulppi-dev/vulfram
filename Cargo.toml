@@ -34,7 +34,7 @@ image = { version = "0.25", default-features = false, features = ["bmp", "png", 
 # Binding dependencies (optional)
 napi = { version = "3.8", optional = true }
 napi-derive = { version = "3.5", optional = true }
-mlua = { version = "0.11", features = ["lua54", "module"], optional = true }
+mlua = { version = "0.11", features = ["lua54", "vendored", "module"], optional = true }
 pyo3 = { version = "0.27", features = ["extension-module"], optional = true }
 
 [lib]

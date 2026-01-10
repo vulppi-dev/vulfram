@@ -437,8 +437,38 @@ fn main() {
             receive_shadow: None,
         });
 
-        let _ = send_commands(vec![update_cmd, plane_update, light_update, marker_update]);
+        // Demo Gizmos
+        let mut gizmo_cmds = vec![
+            // Axis at origin
+            EngineCmd::CmdGizmoDrawLine(crate::core::cmd::gizmo::CmdGizmoDrawLineArgs {
+                start: Vec3::ZERO,
+                end: Vec3::X * 3.0,
+                color: Vec4::new(1.0, 0.2, 0.2, 1.0), // Soft Red
+            }),
+            EngineCmd::CmdGizmoDrawLine(crate::core::cmd::gizmo::CmdGizmoDrawLineArgs {
+                start: Vec3::ZERO,
+                end: Vec3::Y * 3.0,
+                color: Vec4::new(0.2, 1.0, 0.2, 1.0), // Soft Green
+            }),
+            EngineCmd::CmdGizmoDrawLine(crate::core::cmd::gizmo::CmdGizmoDrawLineArgs {
+                start: Vec3::ZERO,
+                end: Vec3::Z * 3.0,
+                color: Vec4::new(0.2, 0.2, 1.0, 1.0), // Soft Blue
+            }),
+            // AABB around the moving cube
+            EngineCmd::CmdGizmoDrawAabb(crate::core::cmd::gizmo::CmdGizmoDrawAabbArgs {
+                min: Vec3::new(x_pos - 0.6, 1.0 - 0.6, -0.6),
+                max: Vec3::new(x_pos + 0.6, 2.0 + 0.6, 0.6),
+                color: Vec4::new(1.0, 1.0, 0.0, 1.0), // Yellow
+            }),
+        ];
 
+        let mut all_cmds = vec![update_cmd, plane_update, light_update, marker_update];
+        all_cmds.append(&mut gizmo_cmds);
+
+        let _ = send_commands(all_cmds);
+
+        let start_time = Instant::now();
         assert_eq!(
             core::vulfram_tick(total_ms, delta_ms),
             VulframResult::Success
@@ -453,7 +483,11 @@ fn main() {
             }
         }
 
-        std::thread::sleep(Duration::from_millis(16)); // ~60 FPS
+        let elapsed = start_time.elapsed();
+        let target_frame_time = Duration::from_millis(16);
+        if elapsed < target_frame_time {
+            std::thread::sleep(target_frame_time - elapsed);
+        }
     }
 
     let close_cmd = EngineCmd::CmdWindowClose(CmdWindowCloseArgs { window_id });

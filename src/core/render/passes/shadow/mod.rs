@@ -269,9 +269,9 @@ pub fn pass_shadow_update(
                     }
                 }
 
-                if let Some(object_group) = bindings.object_group.as_ref() {
+                if let Some(model_bind_group) = bindings.model_bind_group.as_ref() {
                     let offset = bindings.model_pool.get_offset(*model_id) as u32;
-                    rpass.set_bind_group(1, object_group, &[offset]);
+                    rpass.set_bind_group(1, model_bind_group, &[offset]);
                 }
 
                 if let Ok(Some(index_info)) = vertex_sys.index_info(model_record.geometry_id) {

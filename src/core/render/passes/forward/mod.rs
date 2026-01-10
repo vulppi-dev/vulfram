@@ -26,7 +26,7 @@ pub fn pass_forward(
         None => return,
     };
 
-    let bindings = match render_state.bindings.as_ref() {
+    let bindings = match render_state.bindings.as_mut() {
         Some(b) => b,
         None => return,
     };
@@ -45,6 +45,24 @@ pub fn pass_forward(
     render_state.gizmos.prepare(device, queue);
     let materials_standard = &render_state.scene.materials_standard;
     let materials_pbr = &render_state.scene.materials_pbr;
+
+    // Pre-cache Gizmo Pipeline once per pass if needed
+    let gizmo_pipeline_key = if !render_state.gizmos.is_empty() {
+        Some(PipelineKey {
+            shader_id: ShaderId::Gizmo as u64,
+            color_format: wgpu::TextureFormat::Rgba16Float,
+            depth_format: depth_target.map(|t| t.format),
+            sample_count: 1,
+            topology: wgpu::PrimitiveTopology::LineList,
+            cull_mode: None,
+            front_face: wgpu::FrontFace::Ccw,
+            depth_write_enabled: false,
+            depth_compare: wgpu::CompareFunction::Greater,
+            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+        })
+    } else {
+        None
+    };
 
     // 1. Sort cameras by order
 
@@ -98,7 +116,7 @@ pub fn pass_forward(
             });
             vertex_sys.begin_pass();
 
-            // 4. Bind Shared (Group 0: Frame + Camera)
+            // 4. Bind Shared (Group 0: Frame + Camera + ModelPool)
             if let Some(shared_group) = bindings.shared_group.as_ref() {
                 let camera_offset = bindings.camera_pool.get_offset(*camera_id) as u32;
                 let light_offset = light_system.draw_params_offset(camera_index as u32) as u32;
@@ -201,10 +219,10 @@ pub fn pass_forward(
             for item in pbr_opaque {
                 if let Some(material) = scene.materials_pbr.get(&item.material_id) {
                     if let Some(group) = material.bind_group.as_ref() {
-                        let model_offset = bindings.model_pool.get_offset(item.model_id) as u32;
+                        let instance_offset = bindings.model_pool.get_offset(item.model_id) as u32;
                         let material_offset =
                             bindings.material_pbr_pool.get_offset(item.material_id) as u32;
-                        render_pass.set_bind_group(1, group, &[model_offset, material_offset]);
+                        render_pass.set_bind_group(1, group, &[instance_offset, material_offset]);
                     }
                 }
 
@@ -227,10 +245,10 @@ pub fn pass_forward(
             for item in pbr_masked {
                 if let Some(material) = scene.materials_pbr.get(&item.material_id) {
                     if let Some(group) = material.bind_group.as_ref() {
-                        let model_offset = bindings.model_pool.get_offset(item.model_id) as u32;
+                        let instance_offset = bindings.model_pool.get_offset(item.model_id) as u32;
                         let material_offset =
                             bindings.material_pbr_pool.get_offset(item.material_id) as u32;
-                        render_pass.set_bind_group(1, group, &[model_offset, material_offset]);
+                        render_pass.set_bind_group(1, group, &[instance_offset, material_offset]);
                     }
                 }
 
@@ -253,10 +271,10 @@ pub fn pass_forward(
             for item in standard_opaque {
                 if let Some(material) = scene.materials_standard.get(&item.material_id) {
                     if let Some(group) = material.bind_group.as_ref() {
-                        let model_offset = bindings.model_pool.get_offset(item.model_id) as u32;
+                        let instance_offset = bindings.model_pool.get_offset(item.model_id) as u32;
                         let material_offset =
                             bindings.material_standard_pool.get_offset(item.material_id) as u32;
-                        render_pass.set_bind_group(1, group, &[model_offset, material_offset]);
+                        render_pass.set_bind_group(1, group, &[instance_offset, material_offset]);
                     }
                 }
 
@@ -279,10 +297,10 @@ pub fn pass_forward(
             for item in standard_masked {
                 if let Some(material) = scene.materials_standard.get(&item.material_id) {
                     if let Some(group) = material.bind_group.as_ref() {
-                        let model_offset = bindings.model_pool.get_offset(item.model_id) as u32;
+                        let instance_offset = bindings.model_pool.get_offset(item.model_id) as u32;
                         let material_offset =
                             bindings.material_standard_pool.get_offset(item.material_id) as u32;
-                        render_pass.set_bind_group(1, group, &[model_offset, material_offset]);
+                        render_pass.set_bind_group(1, group, &[instance_offset, material_offset]);
                     }
                 }
 
@@ -305,10 +323,10 @@ pub fn pass_forward(
             for item in pbr_transparent {
                 if let Some(material) = scene.materials_pbr.get(&item.material_id) {
                     if let Some(group) = material.bind_group.as_ref() {
-                        let model_offset = bindings.model_pool.get_offset(item.model_id) as u32;
+                        let instance_offset = bindings.model_pool.get_offset(item.model_id) as u32;
                         let material_offset =
                             bindings.material_pbr_pool.get_offset(item.material_id) as u32;
-                        render_pass.set_bind_group(1, group, &[model_offset, material_offset]);
+                        render_pass.set_bind_group(1, group, &[instance_offset, material_offset]);
                     }
                 }
 
@@ -331,10 +349,10 @@ pub fn pass_forward(
             for item in standard_transparent {
                 if let Some(material) = scene.materials_standard.get(&item.material_id) {
                     if let Some(group) = material.bind_group.as_ref() {
-                        let model_offset = bindings.model_pool.get_offset(item.model_id) as u32;
+                        let instance_offset = bindings.model_pool.get_offset(item.model_id) as u32;
                         let material_offset =
                             bindings.material_standard_pool.get_offset(item.material_id) as u32;
-                        render_pass.set_bind_group(1, group, &[model_offset, material_offset]);
+                        render_pass.set_bind_group(1, group, &[instance_offset, material_offset]);
                     }
                 }
 
@@ -347,77 +365,61 @@ pub fn pass_forward(
             }
 
             // Draw Gizmos
-            if !render_state.gizmos.is_empty() {
-                let gizmo_pipeline = cache.get_or_create(
-                    PipelineKey {
-                        shader_id: ShaderId::Gizmo as u64,
-                        color_format: wgpu::TextureFormat::Rgba16Float,
-                        depth_format: depth_target.map(|t| t.format),
-                        sample_count: 1,
-                        topology: wgpu::PrimitiveTopology::LineList,
-                        cull_mode: None,
-                        front_face: wgpu::FrontFace::Ccw,
-                        depth_write_enabled: false,
-                        depth_compare: wgpu::CompareFunction::Greater,
-                        blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                    },
-                    frame_index,
-                    || {
-                        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                            label: Some("Gizmo Pipeline"),
-                            layout: Some(&library.gizmo_pipeline_layout),
-                            vertex: wgpu::VertexState {
-                                module: &library.gizmo_shader,
-                                entry_point: Some("vs_main"),
-                                buffers: &[wgpu::VertexBufferLayout {
-                                    array_stride: std::mem::size_of::<
-                                        crate::core::render::gizmos::GizmoVertex,
-                                    >() as u64,
-                                    step_mode: wgpu::VertexStepMode::Vertex,
-                                    attributes: &[
-                                        wgpu::VertexAttribute {
-                                            format: wgpu::VertexFormat::Float32x3,
-                                            offset: 0,
-                                            shader_location: 0,
-                                        },
-                                        wgpu::VertexAttribute {
-                                            format: wgpu::VertexFormat::Float32x4,
-                                            offset: 16, // Changed from 12 to 16 due to padding
-                                            shader_location: 1,
-                                        },
-                                    ],
-                                }],
-                                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                            },
-                            fragment: Some(wgpu::FragmentState {
-                                module: &library.gizmo_shader,
-                                entry_point: Some("fs_main"),
-                                targets: &[Some(wgpu::ColorTargetState {
-                                    format: wgpu::TextureFormat::Rgba16Float,
-                                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                                    write_mask: wgpu::ColorWrites::ALL,
-                                })],
-                                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                            }),
-                            primitive: wgpu::PrimitiveState {
-                                topology: wgpu::PrimitiveTopology::LineList,
-                                ..Default::default()
-                            },
-                            depth_stencil: depth_target.map(|target| wgpu::DepthStencilState {
-                                format: target.format,
-                                depth_write_enabled: false,
-                                depth_compare: wgpu::CompareFunction::Greater,
-                                stencil: wgpu::StencilState::default(),
-                                bias: wgpu::DepthBiasState::default(),
-                            }),
-                            multisample: wgpu::MultisampleState::default(),
-                            multiview_mask: None,
-                            cache: None,
-                        })
-                    },
-                );
-
-                render_pass.set_pipeline(gizmo_pipeline);
+            if let Some(key) = gizmo_pipeline_key {
+                let pipeline = cache.get_or_create(key, frame_index, || {
+                    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                        label: Some("Gizmo Pipeline"),
+                        layout: Some(&library.gizmo_pipeline_layout),
+                        vertex: wgpu::VertexState {
+                            module: &library.gizmo_shader,
+                            entry_point: Some("vs_main"),
+                            buffers: &[wgpu::VertexBufferLayout {
+                                array_stride: std::mem::size_of::<
+                                    crate::core::render::gizmos::GizmoVertex,
+                                >() as u64,
+                                step_mode: wgpu::VertexStepMode::Vertex,
+                                attributes: &[
+                                    wgpu::VertexAttribute {
+                                        format: wgpu::VertexFormat::Float32x3,
+                                        offset: 0,
+                                        shader_location: 0,
+                                    },
+                                    wgpu::VertexAttribute {
+                                        format: wgpu::VertexFormat::Float32x4,
+                                        offset: 16, // Changed from 12 to 16 due to padding
+                                        shader_location: 1,
+                                    },
+                                ],
+                            }],
+                            compilation_options: wgpu::PipelineCompilationOptions::default(),
+                        },
+                        fragment: Some(wgpu::FragmentState {
+                            module: &library.gizmo_shader,
+                            entry_point: Some("fs_main"),
+                            targets: &[Some(wgpu::ColorTargetState {
+                                format: wgpu::TextureFormat::Rgba16Float,
+                                blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                                write_mask: wgpu::ColorWrites::ALL,
+                            })],
+                            compilation_options: wgpu::PipelineCompilationOptions::default(),
+                        }),
+                        primitive: wgpu::PrimitiveState {
+                            topology: wgpu::PrimitiveTopology::LineList,
+                            ..Default::default()
+                        },
+                        depth_stencil: depth_target.map(|target| wgpu::DepthStencilState {
+                            format: target.format,
+                            depth_write_enabled: false,
+                            depth_compare: wgpu::CompareFunction::Greater,
+                            stencil: wgpu::StencilState::default(),
+                            bias: wgpu::DepthBiasState::default(),
+                        }),
+                        multisample: wgpu::MultisampleState::default(),
+                        multiview_mask: None,
+                        cache: None,
+                    })
+                });
+                render_pass.set_pipeline(pipeline);
                 render_state.gizmos.draw(&mut render_pass);
             }
         }

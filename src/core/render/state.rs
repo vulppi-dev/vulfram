@@ -63,7 +63,7 @@ pub struct BindingSystem {
     pub material_pbr_pool: UniformBufferPool<MaterialPbrParams>,
     pub material_pbr_inputs: StorageBufferPool<glam::Vec4>,
     pub shared_group: Option<wgpu::BindGroup>,
-    pub object_group: Option<wgpu::BindGroup>,
+    pub model_bind_group: Option<wgpu::BindGroup>,
 }
 
 #[repr(C)]
@@ -614,24 +614,28 @@ impl RenderState {
             }),
         );
 
-        // 3. Create Object Bind Group (Group 1: Model B0 dynamic)
-        bindings.object_group = Some(
-            device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("BindGroup Object (Model)"),
-                layout: &library.layout_object,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                        buffer: bindings.model_pool.buffer(),
-                        offset: 0,
-                        size: Some(
-                            std::num::NonZeroU64::new(std::mem::size_of::<ModelComponent>() as u64)
+        // 3. Create Model Bind Group (Group 1: Model B0 dynamic)
+        if bindings.model_bind_group.is_none() {
+            bindings.model_bind_group = Some(
+                device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("BindGroup Model"),
+                    layout: &library.layout_object,
+                    entries: &[wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                            buffer: bindings.model_pool.buffer(),
+                            offset: 0,
+                            size: Some(
+                                std::num::NonZeroU64::new(
+                                    std::mem::size_of::<ModelComponent>() as u64
+                                )
                                 .unwrap(),
-                        ),
-                    }),
-                }],
-            }),
-        );
+                            ),
+                        }),
+                    }],
+                }),
+            );
+        }
 
         for (material_id, record) in &mut self.scene.materials_standard {
             if record.bind_group.is_some() && !record.is_dirty {
@@ -834,7 +838,7 @@ impl RenderState {
         ));
 
         let alignment = device.limits().min_uniform_buffer_offset_alignment as u64;
-        let storage_alignment = 0; // Tight packing: no dynamic offsets for storage buffers.
+        let storage_alignment = device.limits().min_storage_buffer_offset_alignment as u64;
 
         // Initialize bindings
         self.bindings = Some(BindingSystem {
@@ -846,7 +850,7 @@ impl RenderState {
             material_pbr_pool: UniformBufferPool::new(device, queue, Some(256), alignment),
             material_pbr_inputs: StorageBufferPool::new(device, queue, Some(256), 0),
             shared_group: None,
-            object_group: None,
+            model_bind_group: None,
         });
 
         self.light_system = Some(LightCullingSystem {

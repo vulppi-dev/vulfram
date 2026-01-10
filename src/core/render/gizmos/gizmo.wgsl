@@ -1,11 +1,24 @@
+struct FrameUniform {
+    time: f32,
+    delta_time: f32,
+    frame_index: u32,
+    _padding: u32,
+};
+
 struct CameraUniform {
-    view_proj: mat4x4<f32>,
-    view: mat4x4<f32>,
-    proj: mat4x4<f32>,
     position: vec4<f32>,
+    direction: vec4<f32>,
+    up: vec4<f32>,
+    near_far: vec2<f32>,
+    kind_flags: vec2<u32>,
+    projection: mat4x4<f32>,
+    view: mat4x4<f32>,
+    view_proj: mat4x4<f32>,
 };
 
 @group(0) @binding(0)
+var<uniform> frame: FrameUniform;
+@group(0) @binding(1)
 var<uniform> camera: CameraUniform;
 
 struct VertexInput {

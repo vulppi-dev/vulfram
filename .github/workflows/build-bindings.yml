@@ -116,7 +116,13 @@ jobs:
       - name: Prepare Artifact
         shell: bash
         run: |
-          mkdir -p dist
+          OS_NAME=""
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then OS_NAME="windows"; fi
+          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then OS_NAME="linux"; fi
+          if [ "${{ matrix.os }}" == "macos-latest" ]; then OS_NAME="macos"; fi
+
+          mkdir -p "dist/${OS_NAME}-${{ matrix.arch }}"
+
           # Find the resulting library
           EXTENSION=""
           if [ "${{ matrix.os }}" == "windows-latest" ]; then EXTENSION="dll"; else EXTENSION="so"; fi
@@ -133,16 +139,38 @@ jobs:
             SEARCH_PATH="target/x86_64-unknown-linux-gnu/release"
           fi
 
-          # Copy files
-          cp ${SEARCH_PATH}/*.${EXTENSION} dist/ 2>/dev/null || cp target/release/*.${EXTENSION} dist/ 2>/dev/null || true
+          # Copy to specific subfolder
+          cp ${SEARCH_PATH}/*.${EXTENSION} "dist/${OS_NAME}-${{ matrix.arch }}/" 2>/dev/null || cp target/release/*.${EXTENSION} "dist/${OS_NAME}-${{ matrix.arch }}/" 2>/dev/null || true
 
           # For N-API, rename to .node
           if [ "${{ matrix.binding }}" == "napi" ]; then
-            find dist -name "*.${EXTENSION}" -exec mv {} dist/vulfram_core.node \;
+            find "dist/${OS_NAME}-${{ matrix.arch }}" -name "*.${EXTENSION}" -exec mv {} "dist/${OS_NAME}-${{ matrix.arch }}/vulfram_core.node" \;
           fi
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vulfram-${{ matrix.binding }}-${{ matrix.os }}-${{ matrix.arch }}
+          name: vulfram-tmp-${{ matrix.binding }}-${{ matrix.os }}-${{ matrix.arch }}
           path: dist/*
+          retention-days: 1
+
+  merge:
+    name: Merge Artifacts - ${{ matrix.binding }}
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        binding: [ffi, napi, python, lua]
+    steps:
+      - name: Download all temporary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: vulfram-tmp-${{ matrix.binding }}-*
+          path: merged-dist/
+          merge-multiple: true
+
+      - name: Upload Unified Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulfram-${{ matrix.binding }}
+          path: merged-dist/

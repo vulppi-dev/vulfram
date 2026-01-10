@@ -1,7 +1,7 @@
 pub mod common;
 
 mod camera;
-mod geometry;
+pub mod geometry;
 mod light;
 mod material;
 mod model;

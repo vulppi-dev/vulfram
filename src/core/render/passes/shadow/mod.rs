@@ -1,5 +1,6 @@
 use crate::core::render::RenderState;
 use crate::core::render::cache::PipelineKey;
+use crate::core::resources::geometry::Frustum;
 use crate::core::resources::{CameraComponent, VertexStream};
 use glam::Vec4Swizzles;
 
@@ -248,9 +249,24 @@ pub fn pass_shadow_update(
                 rpass.set_bind_group(0, shared_group, &[camera_offset, 0]);
             }
 
+            let frustum_opt = render_state
+                .scene
+                .cameras
+                .get(&page.shadow_cam_id)
+                .map(|c| Frustum::from_view_projection(c.data.view_projection));
+
             for (model_id, model_record) in &render_state.scene.models {
                 if !model_record.cast_shadow {
                     continue;
+                }
+
+                if let Some(frustum) = frustum_opt {
+                    if let Some(aabb) = vertex_sys.aabb(model_record.geometry_id) {
+                        let world_aabb = aabb.transform(&model_record.data.transform);
+                        if !frustum.intersects_aabb(world_aabb.min, world_aabb.max) {
+                            continue;
+                        }
+                    }
                 }
 
                 if let Some(object_group) = bindings.object_group.as_ref() {

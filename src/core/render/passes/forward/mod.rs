@@ -1,12 +1,14 @@
 mod branches;
 
 use crate::core::render::RenderState;
+use crate::core::render::cache::{PipelineKey, ShaderId};
+use crate::core::resources::geometry::Frustum;
 use crate::core::resources::{MATERIAL_FALLBACK_ID, SurfaceType};
 
 pub fn pass_forward(
     render_state: &mut RenderState,
     device: &wgpu::Device,
-    _queue: &wgpu::Queue,
+    queue: &wgpu::Queue,
     encoder: &mut wgpu::CommandEncoder,
     frame_index: u64,
 ) {
@@ -40,6 +42,7 @@ pub fn pass_forward(
         Some(sys) => sys,
         None => return,
     };
+    render_state.gizmos.prepare(device, queue);
     let materials_standard = &render_state.scene.materials_standard;
     let materials_pbr = &render_state.scene.materials_pbr;
 
@@ -110,9 +113,18 @@ pub fn pass_forward(
             let mut pbr_masked = Vec::new();
             let mut pbr_transparent = Vec::new();
 
+            let frustum = Frustum::from_view_projection(camera_record.data.view_projection);
+
             for (model_id, model_record) in &scene.models {
                 if (model_record.layer_mask & camera_record.layer_mask) == 0 {
                     continue;
+                }
+
+                if let Some(aabb) = vertex_sys.aabb(model_record.geometry_id) {
+                    let world_aabb = aabb.transform(&model_record.data.transform);
+                    if !frustum.intersects_aabb(world_aabb.min, world_aabb.max) {
+                        continue;
+                    }
                 }
 
                 let material_id = model_record.material_id.unwrap_or(MATERIAL_FALLBACK_ID);
@@ -332,6 +344,81 @@ pub fn pass_forward(
                     }
                     render_pass.draw_indexed(0..index_info.count, 0, 0..1);
                 }
+            }
+
+            // Draw Gizmos
+            if !render_state.gizmos.is_empty() {
+                let gizmo_pipeline = cache.get_or_create(
+                    PipelineKey {
+                        shader_id: ShaderId::Gizmo as u64,
+                        color_format: wgpu::TextureFormat::Rgba16Float,
+                        depth_format: depth_target.map(|t| t.format),
+                        sample_count: 1,
+                        topology: wgpu::PrimitiveTopology::LineList,
+                        cull_mode: None,
+                        front_face: wgpu::FrontFace::Ccw,
+                        depth_write_enabled: false,
+                        depth_compare: wgpu::CompareFunction::Greater,
+                        blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    },
+                    frame_index,
+                    || {
+                        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                            label: Some("Gizmo Pipeline"),
+                            layout: Some(&library.gizmo_pipeline_layout),
+                            vertex: wgpu::VertexState {
+                                module: &library.gizmo_shader,
+                                entry_point: Some("vs_main"),
+                                buffers: &[wgpu::VertexBufferLayout {
+                                    array_stride: std::mem::size_of::<
+                                        crate::core::render::gizmos::GizmoVertex,
+                                    >() as u64,
+                                    step_mode: wgpu::VertexStepMode::Vertex,
+                                    attributes: &[
+                                        wgpu::VertexAttribute {
+                                            format: wgpu::VertexFormat::Float32x3,
+                                            offset: 0,
+                                            shader_location: 0,
+                                        },
+                                        wgpu::VertexAttribute {
+                                            format: wgpu::VertexFormat::Float32x4,
+                                            offset: 16, // Changed from 12 to 16 due to padding
+                                            shader_location: 1,
+                                        },
+                                    ],
+                                }],
+                                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                            },
+                            fragment: Some(wgpu::FragmentState {
+                                module: &library.gizmo_shader,
+                                entry_point: Some("fs_main"),
+                                targets: &[Some(wgpu::ColorTargetState {
+                                    format: wgpu::TextureFormat::Rgba16Float,
+                                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                                    write_mask: wgpu::ColorWrites::ALL,
+                                })],
+                                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                            }),
+                            primitive: wgpu::PrimitiveState {
+                                topology: wgpu::PrimitiveTopology::LineList,
+                                ..Default::default()
+                            },
+                            depth_stencil: depth_target.map(|target| wgpu::DepthStencilState {
+                                format: target.format,
+                                depth_write_enabled: false,
+                                depth_compare: wgpu::CompareFunction::Greater,
+                                stencil: wgpu::StencilState::default(),
+                                bias: wgpu::DepthBiasState::default(),
+                            }),
+                            multisample: wgpu::MultisampleState::default(),
+                            multiview_mask: None,
+                            cache: None,
+                        })
+                    },
+                );
+
+                render_pass.set_pipeline(gizmo_pipeline);
+                render_state.gizmos.draw(&mut render_pass);
             }
         }
     }

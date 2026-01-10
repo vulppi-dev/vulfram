@@ -8,6 +8,7 @@ pub enum ShaderId {
     LightCull,
     ForwardStandard,
     ForwardPbr,
+    Gizmo,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

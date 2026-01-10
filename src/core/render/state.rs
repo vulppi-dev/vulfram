@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::core::render::cache::RenderCache;
+use crate::core::render::gizmos::GizmoSystem;
 use crate::core::resources::MATERIAL_FALLBACK_ID;
 use crate::core::resources::shadow::ShadowManager;
 use crate::core::resources::{
@@ -40,10 +41,12 @@ pub struct ResourceLibrary {
     pub compose_shader: wgpu::ShaderModule,
     pub light_cull_shader: wgpu::ShaderModule,
     pub shadow_shader: wgpu::ShaderModule,
+    pub gizmo_shader: wgpu::ShaderModule,
     pub light_cull_pipeline_layout: wgpu::PipelineLayout,
+    pub gizmo_pipeline_layout: wgpu::PipelineLayout,
     pub samplers: SamplerSet,
     pub _fallback_texture: wgpu::Texture,
-    pub _fallback_view: wgpu::TextureView,
+    pub fallback_view: wgpu::TextureView,
     pub _fallback_forward_atlas_texture: wgpu::Texture,
     pub fallback_forward_atlas_view: wgpu::TextureView,
     pub _fallback_shadow_texture: wgpu::Texture,
@@ -126,6 +129,7 @@ pub struct RenderState {
     pub library: Option<ResourceLibrary>,
     pub vertex: Option<VertexAllocatorSystem>,
     pub light_system: Option<LightCullingSystem>,
+    pub gizmos: GizmoSystem,
     pub shadow: Option<ShadowManager>,
     pub forward_atlas: Option<ForwardAtlasSystem>,
     pub cache: RenderCache,
@@ -160,6 +164,7 @@ impl RenderState {
             library: None,
             vertex: None,
             light_system: None,
+            gizmos: GizmoSystem::new(),
             shadow: None,
             forward_atlas: None,
             cache: RenderCache::new(),
@@ -221,6 +226,7 @@ impl RenderState {
         if let Some(shadow) = self.shadow.as_mut() {
             shadow.begin_frame(frame_index);
         }
+        self.gizmos.clear();
         self.cache.gc(frame_index);
     }
 
@@ -307,7 +313,7 @@ impl RenderState {
             }
         }
 
-        let fallback_view = &library._fallback_view;
+        let fallback_view = &library.fallback_view;
         for (id, record) in &mut self.scene.materials_standard {
             let mut atlas_changed = false;
             let set_uvec4_lane = |vecs: &mut [glam::UVec4; 2], index: usize, value: u32| {
@@ -1565,6 +1571,13 @@ impl RenderState {
             ))),
         });
 
+        let gizmo_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Gizmo Shader"),
+            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(include_str!(
+                "gizmos/gizmo.wgsl"
+            ))),
+        });
+
         let forward_standard_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Forward Standard Pipeline Layout"),
@@ -1593,6 +1606,13 @@ impl RenderState {
                 ..Default::default()
             });
 
+        let gizmo_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Gizmo Pipeline Layout"),
+                bind_group_layouts: &[&layout_shared],
+                ..Default::default()
+            });
+
         self.library = Some(ResourceLibrary {
             layout_shared,
             layout_object,
@@ -1608,10 +1628,12 @@ impl RenderState {
             compose_shader,
             light_cull_shader,
             shadow_shader,
+            gizmo_shader,
             light_cull_pipeline_layout,
+            gizmo_pipeline_layout,
             samplers,
             _fallback_texture: fallback_texture,
-            _fallback_view: fallback_view,
+            fallback_view: fallback_view,
             _fallback_forward_atlas_texture: fallback_forward_atlas_texture,
             fallback_forward_atlas_view,
             _fallback_shadow_texture: fallback_shadow_texture,

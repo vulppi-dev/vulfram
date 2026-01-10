@@ -34,7 +34,6 @@ struct ForwardAtlasSlot {
 }
 
 /// A sub-allocator for a 2D Texture Array divided into tiles with internal guards
-#[allow(dead_code)]
 pub struct ForwardAtlasSystem {
     _texture: wgpu::Texture,
     view: wgpu::TextureView,
@@ -131,18 +130,12 @@ impl ForwardAtlasSystem {
         }
     }
 
-    #[allow(dead_code)]
     pub fn view(&self) -> &wgpu::TextureView {
         &self.view
     }
 
     pub fn texture(&self) -> &wgpu::Texture {
         &self._texture
-    }
-
-    #[allow(dead_code)]
-    pub fn layer_view(&self, layer: u32) -> Option<&wgpu::TextureView> {
-        self.layer_views.get(layer as usize)
     }
 
     /// Allocate a region of tiles. Returns None if capacity is insufficient or if fragmentation

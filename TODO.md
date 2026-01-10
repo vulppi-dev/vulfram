@@ -6,8 +6,8 @@ Plano de evolução focado em um Core minimalista e performático. Lógica compl
 
 _Otimização do fluxo de dados e ferramentas de debug._
 
-- [ ] **Geometry Frustum Culling**: Descarte de draw calls no Core para objetos fora da visão (Performance).
-- [ ] **Visual Debugger (Gizmos)**: Sistema no Core para desenhar linhas/shapes de debug via comandos simples.
+- [x] **Geometry Frustum Culling**: Descarte de draw calls no Core para objetos fora da visão (Performance).
+- [x] **Visual Debugger (Gizmos)**: Sistema no Core para desenhar linhas/shapes de debug via comandos simples.
 - [ ] **Instancing**: Suporte a renderização instanciada para otimizar milhares de objetos repetidos.
 
 ## 🟡 Fase 2: Arquitetura de Renderização (Core)

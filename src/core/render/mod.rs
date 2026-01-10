@@ -1,4 +1,5 @@
 pub mod cache;
+pub mod gizmos;
 mod passes;
 pub mod state;
 

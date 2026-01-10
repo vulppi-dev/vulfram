@@ -9,6 +9,7 @@ use crate::core::state::EngineState;
 use crate::core::system::SystemEvent;
 use crate::core::window::WindowEvent;
 
+pub use crate::core::render::gizmos as gizmo;
 pub use crate::core::resources as res;
 pub use crate::core::system as sys;
 pub use crate::core::window as win;
@@ -58,6 +59,8 @@ pub enum EngineCmd {
     CmdGeometryDispose(res::CmdGeometryDisposeArgs),
     CmdPrimitiveGeometryCreate(res::CmdPrimitiveGeometryCreateArgs),
     CmdShadowConfigure(res::shadow::CmdShadowConfigureArgs),
+    CmdGizmoDrawLine(gizmo::CmdGizmoDrawLineArgs),
+    CmdGizmoDrawAabb(gizmo::CmdGizmoDrawAabbArgs),
 }
 
 /// Spontaneous engine events (input, window changes, system events)
@@ -117,6 +120,8 @@ pub enum CommandResponse {
     GeometryDispose(res::CmdResultGeometryDispose),
     PrimitiveGeometryCreate(res::CmdResultPrimitiveGeometryCreate),
     ShadowConfigure(res::shadow::CmdResultShadowConfigure),
+    GizmoDrawLine(gizmo::CmdResultGizmoDraw),
+    GizmoDrawAabb(gizmo::CmdResultGizmoDraw),
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -435,6 +440,36 @@ pub fn engine_process_batch(
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::ShadowConfigure(result),
+                });
+            }
+            EngineCmd::CmdGizmoDrawLine(args) => {
+                for window_state in engine.window.states.values_mut() {
+                    window_state
+                        .render_state
+                        .gizmos
+                        .add_line(args.start, args.end, args.color);
+                    window_state.is_dirty = true;
+                }
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::GizmoDrawLine(gizmo::CmdResultGizmoDraw {
+                        status: 0,
+                    }),
+                });
+            }
+            EngineCmd::CmdGizmoDrawAabb(args) => {
+                for window_state in engine.window.states.values_mut() {
+                    window_state
+                        .render_state
+                        .gizmos
+                        .add_aabb(args.min, args.max, args.color);
+                    window_state.is_dirty = true;
+                }
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::GizmoDrawAabb(gizmo::CmdResultGizmoDraw {
+                        status: 0,
+                    }),
                 });
             }
         }

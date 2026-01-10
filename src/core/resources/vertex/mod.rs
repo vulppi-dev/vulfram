@@ -14,6 +14,8 @@ use defaults::*;
 use storage::*;
 use types::*;
 
+use crate::core::resources::geometry::Aabb;
+
 pub use types::{
     GeometryPrimitiveType, IndexInfo, STREAM_COUNT, VertexAllocError, VertexAllocatorConfig,
     VertexStream,
@@ -294,6 +296,8 @@ impl VertexAllocatorSystem {
             .as_ref()
             .ok_or(VertexAllocError::MissingPosition)?;
 
+        let aabb = Aabb::from_bytes(pos);
+
         let vertex_count = {
             let stride = VertexStream::Position.stride_bytes();
             if pos.len() % stride as usize != 0 {
@@ -384,12 +388,14 @@ impl VertexAllocatorSystem {
             }
             rec.alive = true;
             rec.storage = storage;
+            rec.aabb = aabb;
         } else {
             self.records.insert(
                 id,
                 GeometryRecord {
                     alive: true,
                     storage,
+                    aabb,
                 },
             );
         }
@@ -708,6 +714,10 @@ impl VertexAllocatorSystem {
             GeometryStorage::Pooled { vertex_count, .. } => *vertex_count,
             GeometryStorage::Dedicated { vertex_count, .. } => *vertex_count,
         })
+    }
+
+    pub fn aabb(&self, id: u32) -> Option<Aabb> {
+        self.records.get(&id).filter(|r| r.alive).map(|r| r.aabb)
     }
 
     pub fn maybe_compact_all(

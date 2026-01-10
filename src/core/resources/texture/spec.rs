@@ -10,12 +10,11 @@ pub struct TextureRecord {
     pub view: wgpu::TextureView,
 }
 
-#[allow(dead_code)]
 #[derive(Debug)]
 pub struct ForwardAtlasEntry {
     pub handle: ForwardAtlasHandle,
-    pub size: UVec2,
+    pub _size: UVec2,
     pub uv_scale_bias: Vec4,
     pub layer: u32,
-    pub format: wgpu::TextureFormat,
+    pub _format: wgpu::TextureFormat,
 }

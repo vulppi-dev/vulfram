@@ -299,7 +299,7 @@ pub fn engine_cmd_texture_create_from_buffer(
                     args.texture_id,
                     ForwardAtlasEntry {
                         handle,
-                        size: UVec2::new(image.width, image.height),
+                        _size: UVec2::new(image.width, image.height),
                         uv_scale_bias: Vec4::new(
                             transform.0,
                             transform.1,
@@ -307,7 +307,7 @@ pub fn engine_cmd_texture_create_from_buffer(
                             transform.3,
                         ),
                         layer: transform.4,
-                        format,
+                        _format: format,
                     },
                 );
         }
@@ -568,7 +568,7 @@ pub fn engine_cmd_texture_create_solid_color(
                     args.texture_id,
                     ForwardAtlasEntry {
                         handle,
-                        size: UVec2::new(size.width, size.height),
+                        _size: UVec2::new(size.width, size.height),
                         uv_scale_bias: Vec4::new(
                             transform.0,
                             transform.1,
@@ -576,7 +576,7 @@ pub fn engine_cmd_texture_create_solid_color(
                             transform.3,
                         ),
                         layer: transform.4,
-                        format,
+                        _format: format,
                     },
                 );
         }

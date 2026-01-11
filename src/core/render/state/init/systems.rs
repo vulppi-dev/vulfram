@@ -1,11 +1,9 @@
-use std::collections::HashMap;
-use crate::core::resources::{
-    VertexAllocatorSystem, VertexAllocatorConfig, UniformBufferPool, StorageBufferPool,
-};
+use super::super::{BindingSystem, LightCullingSystem, RenderState, SamplerSet};
 use crate::core::resources::shadow::ShadowManager;
-use super::super::{
-    RenderState, BindingSystem, LightCullingSystem, SamplerSet
+use crate::core::resources::{
+    StorageBufferPool, UniformBufferPool, VertexAllocatorConfig, VertexAllocatorSystem,
 };
+use std::collections::HashMap;
 
 impl RenderState {
     pub(crate) fn init_core_systems(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {

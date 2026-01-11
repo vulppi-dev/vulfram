@@ -12,11 +12,11 @@ Lists all geometries registered in a specific window.
 
 Returns `CmdResultGeometryList`:
 
-| Field     | Type               | Description                    |
-| --------- | ------------------ | ------------------------------ |
-| success   | bool               | Whether the list was retrieved |
-| message   | String             | Status or error message        |
-| resources | Vec<ResourceEntry> | List of geometry metadata      |
+| Field      | Type               | Description                    |
+| ---------- | ------------------ | ------------------------------ |
+| success    | bool               | Whether the list was retrieved |
+| message    | String             | Status or error message        |
+| geometries | Vec<ResourceEntry> | List of geometry metadata      |
 
 ### ResourceEntry
 

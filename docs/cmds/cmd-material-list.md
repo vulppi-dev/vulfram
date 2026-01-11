@@ -16,7 +16,7 @@ Returns `CmdResultMaterialList`:
 | --------- | ------------------ | ------------------------------ |
 | success   | bool               | Whether the list was retrieved |
 | message   | String             | Status or error message        |
-| resources | Vec<ResourceEntry> | List of material metadata      |
+| materials | Vec<ResourceEntry> | List of material metadata      |
 
 ### ResourceEntry
 

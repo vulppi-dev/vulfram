@@ -149,6 +149,25 @@ pub fn engine_cmd_material_update(
         }
     }
 
+    if let Some(label) = &args.label {
+        if let Some(record) = window_state
+            .render_state
+            .scene
+            .materials_standard
+            .get_mut(&args.material_id)
+        {
+            record.label = Some(label.clone());
+        }
+        if let Some(record) = window_state
+            .render_state
+            .scene
+            .materials_pbr
+            .get_mut(&args.material_id)
+        {
+            record.label = Some(label.clone());
+        }
+    }
+
     if let Some(opts) = &args.options {
         match opts {
             MaterialOptions::Standard(opts) => {

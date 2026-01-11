@@ -4,16 +4,18 @@ Creates a new window and initializes its WGPU surface.
 
 ## Arguments
 
-| Field        | Type              | Description                                                                              |
-| ------------ | ----------------- | ---------------------------------------------------------------------------------------- |
-| windowId     | u32               | Unique ID for the new window                                                             |
-| title        | String            | Window title                                                                             |
-| size         | UVec2             | Initial size (default: 800x600)                                                          |
-| position     | IVec2             | Initial position                                                                         |
-| borderless   | bool              | Whether to hide decorations                                                              |
-| resizable    | bool              | Whether the window can be resized                                                        |
-| transparent  | bool              | Whether the window background is transparent                                             |
-| initialState | EngineWindowState | Initial state (Minimized=0, Maximized=1, Windowed=2, Fullscreen=3, WindowedFullscreen=4) |
+| Field        | Type              | Description                                                              |
+| ------------ | ----------------- | ------------------------------------------------------------------------ |
+| windowId     | u32               | Unique ID for the new window                                             |
+| title        | String            | (Optional) Window title (default: "")                                    |
+| size         | UVec2             | (Optional) Initial size (default: 800x600)                               |
+| position     | IVec2             | (Optional) Initial position (default: 100x100)                           |
+| borderless   | bool              | (Optional) Whether to hide decorations (default: false)                  |
+| resizable    | bool              | (Optional) Whether the window can be resized (default: false)            |
+| transparent  | bool              | (Optional) Whether the window background is transparent (default: false) |
+| initialState | EngineWindowState | (Optional) Initial state (default: Windowed=2)                           |
+
+Initial State mapping: Minimized=0, Maximized=1, Windowed=2, Fullscreen=3, WindowedFullscreen=4.
 
 ## Response
 

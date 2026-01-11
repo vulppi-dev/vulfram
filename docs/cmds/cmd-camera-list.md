@@ -1,20 +1,22 @@
 # CmdCameraList
 
-Lists all cameras currently registered in the engine.
+Lists all cameras registered in a specific window.
 
 ## Arguments
 
-This command takes no arguments.
+| Field    | Type | Description      |
+| -------- | ---- | ---------------- |
+| windowId | u32  | ID of the window |
 
 ## Response
 
 Returns `CmdResultCameraList`:
 
-| Field     | Type               | Description                    |
-| --------- | ------------------ | ------------------------------ |
-| success   | bool               | Whether the list was retrieved |
-| message   | String             | Status or error message        |
-| resources | Vec<ResourceEntry> | List of camera metadata        |
+| Field   | Type               | Description                    |
+| ------- | ------------------ | ------------------------------ |
+| success | bool               | Whether the list was retrieved |
+| message | String             | Status or error message        |
+| cameras | Vec<ResourceEntry> | List of camera metadata        |
 
 ### ResourceEntry
 

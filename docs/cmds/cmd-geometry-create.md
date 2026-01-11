@@ -4,12 +4,12 @@ Creates a geometry resource from multiple uploaded vertex/index buffers.
 
 ## Arguments
 
-| Field      | Type                        | Description                                  |
-| ---------- | --------------------------- | -------------------------------------------- |
-| windowId   | u32                         | ID of the window                             |
-| geometryId | u32                         | Unique ID for the geometry                   |
-| label      | Option<String>              | Optional semantic name for debugging/listing |
-| entries    | Vec<GeometryPrimitiveEntry> | List of buffers and their primitive types    |
+| Field      | Type                        | Description                               |
+| ---------- | --------------------------- | ----------------------------------------- |
+| windowId   | u32                         | ID of the window                          |
+| geometryId | u32                         | Unique ID for the geometry                |
+| label      | Option<String>              | (Optional) Semantic name                  |
+| entries    | Vec<GeometryPrimitiveEntry> | List of buffers and their primitive types |
 
 ### GeometryPrimitiveEntry
 

@@ -87,6 +87,16 @@ Resources are identified by logical IDs such as:
 
 - `GeometryId`, `MaterialId`, `TextureId`.
 
+### Label
+
+A **label** is an optional semantic name (string) assigned to a resource or component.
+
+Characteristics:
+
+- Used primarily for debugging and scene discovery.
+- Displayed in tools (profiling, debug view) to help identify resources.
+- Not used for indexing or internal logic; logical IDs are the primary keys.
+
 #### Sharable Resources
 
 - May be shared between multiple components/entities.

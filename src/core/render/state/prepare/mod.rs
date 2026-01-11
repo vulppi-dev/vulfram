@@ -2,8 +2,8 @@ mod bindings;
 mod lights;
 mod materials;
 
-use crate::core::resources::FrameComponent;
 use super::RenderState;
+use crate::core::resources::FrameComponent;
 
 impl RenderState {
     pub fn prepare_render(

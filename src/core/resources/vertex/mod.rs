@@ -51,6 +51,10 @@ impl VertexAllocatorSystem {
     pub fn records(&self) -> &HashMap<u32, GeometryRecord> {
         &self.records
     }
+
+    pub fn records_mut(&mut self) -> &mut HashMap<u32, GeometryRecord> {
+        &mut self.records
+    }
 }
 
 impl VertexAllocatorSystem {

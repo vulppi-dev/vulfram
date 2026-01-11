@@ -12,11 +12,11 @@ Lists all models registered in a specific window.
 
 Returns `CmdResultModelList`:
 
-| Field     | Type               | Description                    |
-| --------- | ------------------ | ------------------------------ |
-| success   | bool               | Whether the list was retrieved |
-| message   | String             | Status or error message        |
-| resources | Vec<ResourceEntry> | List of model metadata         |
+| Field   | Type               | Description                    |
+| ------- | ------------------ | ------------------------------ |
+| success | bool               | Whether the list was retrieved |
+| message | String             | Status or error message        |
+| models  | Vec<ResourceEntry> | List of model metadata         |
 
 ### ResourceEntry
 

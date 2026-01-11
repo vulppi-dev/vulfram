@@ -12,11 +12,11 @@ Lists all textures registered in a specific window.
 
 Returns `CmdResultTextureList`:
 
-| Field     | Type               | Description                    |
-| --------- | ------------------ | ------------------------------ |
-| success   | bool               | Whether the list was retrieved |
-| message   | String             | Status or error message        |
-| resources | Vec<ResourceEntry> | List of texture metadata       |
+| Field    | Type               | Description                    |
+| -------- | ------------------ | ------------------------------ |
+| success  | bool               | Whether the list was retrieved |
+| message  | String             | Status or error message        |
+| textures | Vec<ResourceEntry> | List of texture metadata       |
 
 ### ResourceEntry
 

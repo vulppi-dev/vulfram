@@ -24,11 +24,12 @@ impl RenderState {
         let fallbacks = self.init_fallback_textures(device, queue);
 
         // 5. Initialize pipeline layouts
-        let gizmo_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Gizmo Pipeline Layout"),
-            bind_group_layouts: &[&layouts.shared],
-            immediate_size: 0,
-        });
+        let gizmo_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Gizmo Pipeline Layout"),
+                bind_group_layouts: &[&layouts.shared],
+                immediate_size: 0,
+            });
 
         let forward_standard_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {

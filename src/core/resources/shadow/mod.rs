@@ -12,6 +12,7 @@ pub use cmd::*;
 
 /// Configuration for the Shadow Manager
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct ShadowConfig {
     pub tile_resolution: u32,
     pub atlas_tiles_w: u32,

@@ -12,11 +12,11 @@ Lists all lights registered in a specific window.
 
 Returns `CmdResultLightList`:
 
-| Field     | Type               | Description                    |
-| --------- | ------------------ | ------------------------------ |
-| success   | bool               | Whether the list was retrieved |
-| message   | String             | Status or error message        |
-| resources | Vec<ResourceEntry> | List of light metadata         |
+| Field   | Type               | Description                    |
+| ------- | ------------------ | ------------------------------ |
+| success | bool               | Whether the list was retrieved |
+| message | String             | Status or error message        |
+| lights  | Vec<ResourceEntry> | List of light metadata         |
 
 ### ResourceEntry
 

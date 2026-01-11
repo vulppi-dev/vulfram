@@ -162,7 +162,7 @@ pub struct CmdGeometryUpdateArgs {
     pub window_id: u32,
     pub geometry_id: u32,
     pub label: Option<String>,
-    pub entries: Vec<GeometryPrimitiveEntry>,
+    pub entries: Option<Vec<GeometryPrimitiveEntry>>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -176,9 +176,6 @@ pub fn engine_cmd_geometry_update(
     engine: &mut EngineState,
     args: &CmdGeometryUpdateArgs,
 ) -> CmdResultGeometryUpdate {
-    // Update é idêntico ao create - o VertexAllocatorSystem
-    // já trata o replace automático
-
     // 1. Validar window
     let window_state = match engine.window.states.get_mut(&args.window_id) {
         Some(ws) => ws,
@@ -204,8 +201,32 @@ pub fn engine_cmd_geometry_update(
         }
     };
 
-    // 3. Validar buffers existem
-    for entry in &args.entries {
+    // 3. Se não houver novos dados, apenas atualizar o label se fornecido
+    if args.entries.is_none() {
+        if let Some(label) = &args.label {
+            if let Some(record) = vertex_allocator.records_mut().get_mut(&args.geometry_id) {
+                record.label = Some(label.clone());
+                return CmdResultGeometryUpdate {
+                    success: true,
+                    message: "Geometry label updated (no data changed)".into(),
+                };
+            } else {
+                return CmdResultGeometryUpdate {
+                    success: false,
+                    message: format!("Geometry {} not found", args.geometry_id),
+                };
+            }
+        }
+        return CmdResultGeometryUpdate {
+            success: true,
+            message: "Nothing to update".into(),
+        };
+    }
+
+    let entries = args.entries.as_ref().unwrap();
+
+    // 4. Validar buffers existem
+    for entry in entries {
         if !engine.buffers.uploads.contains_key(&entry.buffer_id) {
             return CmdResultGeometryUpdate {
                 success: false,
@@ -214,9 +235,8 @@ pub fn engine_cmd_geometry_update(
         }
     }
 
-    // 4. Validar tipos primitivos
-    let has_position = args
-        .entries
+    // 5. Validar tipos primitivos
+    let has_position = entries
         .iter()
         .any(|e| matches!(e.primitive_type, GeometryPrimitiveType::Position));
 
@@ -227,8 +247,7 @@ pub fn engine_cmd_geometry_update(
         };
     }
 
-    let uv_count = args
-        .entries
+    let uv_count = entries
         .iter()
         .filter(|e| matches!(e.primitive_type, GeometryPrimitiveType::UV))
         .count();
@@ -242,7 +261,7 @@ pub fn engine_cmd_geometry_update(
 
     // Verificar duplicatas (exceto UV)
     let mut seen_types = std::collections::HashSet::new();
-    for entry in &args.entries {
+    for entry in entries {
         if !matches!(entry.primitive_type, GeometryPrimitiveType::UV) {
             if !seen_types.insert(entry.primitive_type as u32) {
                 return CmdResultGeometryUpdate {
@@ -253,9 +272,9 @@ pub fn engine_cmd_geometry_update(
         }
     }
 
-    // 5. Montar dados
+    // 6. Montar dados
     let mut geometry_data = Vec::new();
-    for entry in &args.entries {
+    for entry in entries {
         let buffer = match engine.buffers.uploads.get(&entry.buffer_id) {
             Some(buffer) => buffer,
             None => {
@@ -268,11 +287,11 @@ pub fn engine_cmd_geometry_update(
         geometry_data.push((entry.primitive_type, buffer.data.clone()));
     }
 
-    // 6. Atualizar geometria (create_geometry já trata replace)
+    // 7. Atualizar geometria (create_geometry já trata replace)
     match vertex_allocator.create_geometry(args.geometry_id, args.label.clone(), geometry_data) {
         Ok(_) => {
-            // 7. Limpar buffers apenas em caso de sucesso
-            for entry in &args.entries {
+            // 8. Limpar buffers apenas em caso de sucesso
+            for entry in entries {
                 engine.buffers.uploads.remove(&entry.buffer_id);
             }
 

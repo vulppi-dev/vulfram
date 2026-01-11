@@ -141,6 +141,7 @@ pub struct CmdResultMaterialCreate {
 pub struct CmdMaterialUpdateArgs {
     pub window_id: u32,
     pub material_id: u32,
+    pub label: Option<String>,
     pub kind: Option<MaterialKind>,
     #[serde(default)]
     pub options: Option<MaterialOptions>,

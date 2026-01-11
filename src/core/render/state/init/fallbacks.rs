@@ -10,7 +10,11 @@ pub(crate) struct FallbackTextures {
 }
 
 impl RenderState {
-    pub(crate) fn init_fallback_textures(&self, device: &wgpu::Device, queue: &wgpu::Queue) -> FallbackTextures {
+    pub(crate) fn init_fallback_textures(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) -> FallbackTextures {
         let white_pixel: [u8; 4] = [255, 255, 255, 255];
 
         let fallback_texture = device.create_texture(&wgpu::TextureDescriptor {

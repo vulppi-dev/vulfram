@@ -270,14 +270,14 @@ Core responsibilities in `tick`:
 
   - messages (`receive_queue`)
   - events (`receive_events`)
-  - profiling data (`profiling`)
+  - profiling data (`get_profiling`)
 
 ---
 
 ### 2.7 Profiling
 
 ```c
-u32 vulfram_profiling(uint8_t** out_ptr, size_t* out_length);
+u32 vulfram_get_profiling(uint8_t** out_ptr, size_t* out_length);
 ```
 
 - Returns a MessagePack buffer containing **profiling information**:
@@ -343,7 +343,7 @@ per frame on the main thread:
 
 7. **Profiling (optional)**
 
-   - `vulfram_profiling(&ptr, &len)`
+   - `vulfram_get_profiling(&ptr, &len)`
    - If `len > 0`:
 
      - copy & free buffer

@@ -118,6 +118,7 @@ pub fn engine_cmd_light_create(
 pub struct CmdLightUpdateArgs {
     pub window_id: u32,
     pub light_id: u32,
+    pub label: Option<String>,
     pub kind: Option<LightKind>,
     pub position: Option<Vec4>,
     pub direction: Option<Vec4>,
@@ -157,7 +158,7 @@ pub fn engine_cmd_light_update(
         .lights
         .get_mut(&args.light_id)
     {
-        Some(record) => record,
+        Some(r) => r,
         None => {
             return CmdResultLightUpdate {
                 success: false,
@@ -165,6 +166,10 @@ pub fn engine_cmd_light_update(
             };
         }
     };
+
+    if args.label.is_some() {
+        record.label = args.label.clone();
+    }
 
     if let Some(kind) = args.kind {
         record.data.kind_flags.x = kind as u32;

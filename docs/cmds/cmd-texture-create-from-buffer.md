@@ -4,15 +4,15 @@ Creates a texture from an uploaded image buffer.
 
 ## Arguments
 
-| Field        | Type                        | Description                                     |
-| ------------ | --------------------------- | ----------------------------------------------- |
-| windowId     | u32                         | ID of the window                                |
-| textureId    | u32                         | Unique ID for the texture                       |
-| label        | Option<String>              | Optional semantic name for debugging/listing    |
-| bufferId     | u64                         | ID of the uploaded buffer containing image data |
-| srgb         | Option<bool>                | Whether to use sRGB format (default: true)      |
-| mode         | TextureCreateMode           | Standalone (0) or ForwardAtlas (1)              |
-| atlasOptions | Option<ForwardAtlasOptions> | Options for atlas allocation                    |
+| Field        | Type                        | Description                                         |
+| ------------ | --------------------------- | --------------------------------------------------- |
+| windowId     | u32                         | ID of the window                                    |
+| textureId    | u32                         | Unique ID for the texture                           |
+| label        | Option<String>              | (Optional) Semantic name                            |
+| bufferId     | u64                         | ID of the uploaded buffer containing image data     |
+| srgb         | Option<bool>                | (Optional) Use sRGB (default: true)                 |
+| mode         | TextureCreateMode           | (Optional) Standalone (0) or Atlas (1) (default: 0) |
+| atlasOptions | Option<ForwardAtlasOptions> | (Optional) Options for atlas allocation             |
 
 ## Response
 

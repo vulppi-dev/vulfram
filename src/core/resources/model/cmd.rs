@@ -111,6 +111,7 @@ pub fn engine_cmd_model_create(
 pub struct CmdModelUpdateArgs {
     pub window_id: u32,
     pub model_id: u32,
+    pub label: Option<String>,
     pub geometry_id: Option<u32>,
     #[serde(default)]
     pub material_id: Option<u32>,
@@ -147,7 +148,7 @@ pub fn engine_cmd_model_update(
         .models
         .get_mut(&args.model_id)
     {
-        Some(record) => record,
+        Some(r) => r,
         None => {
             return CmdResultModelUpdate {
                 success: false,
@@ -155,6 +156,10 @@ pub fn engine_cmd_model_update(
             };
         }
     };
+
+    if args.label.is_some() {
+        record.label = args.label.clone();
+    }
 
     if let Some(geometry_id) = args.geometry_id {
         let vertex_allocator = match window_state.render_state.vertex.as_mut() {

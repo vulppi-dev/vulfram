@@ -9,6 +9,8 @@ _Otimização do fluxo de dados e ferramentas de debug._
 - [x] **Geometry Frustum Culling**: Descarte de draw calls no Core para objetos fora da visão (Performance).
 - [x] **Visual Debugger (Gizmos)**: Sistema no Core para desenhar linhas/shapes de debug via comandos simples.
 - [x] **Instancing**: Suporte a renderização instanciada para otimizar milhares de objetos repetidos.
+- [x] **Semantic Labeling**: Labels amigáveis em todos os recursos para facilitar depuração no Host e Profiler.
+- [x] **Resource Discovery**: Comandos de `List` para Modelos, Câmeras, Luzes, Materiais, Geometrias e Texturas.
 
 ## 🟡 Fase 2: Arquitetura de Renderização (Core)
 

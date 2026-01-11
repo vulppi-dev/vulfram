@@ -1,10 +1,10 @@
-use glam::Vec4;
+use super::types::{MaterialSampler, PbrOptions, StandardOptions};
 use crate::core::resources::{
-    MaterialPbrParams, MaterialPbrRecord, MaterialStandardParams,
-    MaterialStandardRecord, PBR_INPUTS_PER_MATERIAL, PBR_INVALID_SLOT, PBR_TEXTURE_SLOTS,
-    STANDARD_INPUTS_PER_MATERIAL, STANDARD_INVALID_SLOT, STANDARD_TEXTURE_SLOTS,
+    MaterialPbrParams, MaterialPbrRecord, MaterialStandardParams, MaterialStandardRecord,
+    PBR_INPUTS_PER_MATERIAL, PBR_INVALID_SLOT, PBR_TEXTURE_SLOTS, STANDARD_INPUTS_PER_MATERIAL,
+    STANDARD_INVALID_SLOT, STANDARD_TEXTURE_SLOTS,
 };
-use super::types::{StandardOptions, PbrOptions, MaterialSampler};
+use glam::Vec4;
 
 pub(crate) fn pack_standard_material(
     material_id: u32,
@@ -126,7 +126,11 @@ pub(crate) fn pack_standard_material(
     }
 }
 
-pub(crate) fn pack_pbr_material(material_id: u32, opts: &PbrOptions, record: &mut MaterialPbrRecord) {
+pub(crate) fn pack_pbr_material(
+    material_id: u32,
+    opts: &PbrOptions,
+    record: &mut MaterialPbrRecord,
+) {
     let inputs_offset = material_id.saturating_mul(PBR_INPUTS_PER_MATERIAL);
 
     record.data = MaterialPbrParams::default();

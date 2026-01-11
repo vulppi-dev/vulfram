@@ -4,18 +4,18 @@ Updates an existing camera's properties. All fields are optional and only provid
 
 ## Arguments
 
-| Field        | Type                 | Description                      |
-| ------------ | -------------------- | -------------------------------- |
-| cameraId     | u32                  | ID of the camera to update       |
-| label        | Option<String>       | New semantic name for the camera |
-| transform    | Option<Mat4>         | New view transformation matrix   |
-| kind         | Option<CameraKind>   | New camera type                  |
-| flags        | Option<u32>          | New camera flags                 |
-| nearFar      | Option<Vec2>         | New clipping planes [near, far]  |
-| layerMask    | Option<u32>          | New visibility mask              |
-| order        | Option<i32>          | New rendering order              |
-| viewPosition | Option<ViewPosition> | New relative positioning         |
-| orthoScale   | Option<f32>          | New orthographic scale           |
+| Field        | Type                 | Description                       |
+| ------------ | -------------------- | --------------------------------- |
+| cameraId     | u32                  | ID of the camera to update        |
+| label        | Option<String>       | (Optional) New semantic name      |
+| transform    | Option<Mat4>         | (Optional) New view matrix        |
+| kind         | Option<CameraKind>   | (Optional) New camera type        |
+| flags        | Option<u32>          | (Optional) New camera flags       |
+| nearFar      | Option<Vec2>         | (Optional) New clipping planes    |
+| layerMask    | Option<u32>          | (Optional) New visibility mask    |
+| order        | Option<i32>          | (Optional) New rendering order    |
+| viewPosition | Option<ViewPosition> | (Optional) New screen positioning |
+| orthoScale   | Option<f32>          | (Optional) New ortho scale        |
 
 ## Response
 

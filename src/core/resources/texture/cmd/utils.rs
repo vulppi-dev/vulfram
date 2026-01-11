@@ -28,7 +28,10 @@ pub(crate) fn ensure_forward_atlas<'a>(
     }
 }
 
-pub(crate) fn mark_materials_dirty(scene: &mut crate::core::render::state::RenderScene, texture_id: u32) {
+pub(crate) fn mark_materials_dirty(
+    scene: &mut crate::core::render::state::RenderScene,
+    texture_id: u32,
+) {
     for record in scene.materials_standard.values_mut() {
         if record.texture_ids.iter().any(|id| *id == texture_id) {
             record.bind_group = None;

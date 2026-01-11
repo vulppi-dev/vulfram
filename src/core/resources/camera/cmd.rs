@@ -113,6 +113,7 @@ pub fn engine_cmd_camera_create(
 #[serde(rename_all = "camelCase")]
 pub struct CmdCameraUpdateArgs {
     pub camera_id: u32,
+    pub label: Option<String>,
     pub transform: Option<Mat4>,
     pub kind: Option<CameraKind>,
     pub flags: Option<u32>,
@@ -145,6 +146,10 @@ pub fn engine_cmd_camera_update(
             .get_mut(&args.camera_id)
         {
             found = true;
+
+            if args.label.is_some() {
+                record.label = args.label.clone();
+            }
 
             // Update view_position if provided
             if let Some(view_position) = args.view_position.clone() {

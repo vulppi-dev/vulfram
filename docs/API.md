@@ -92,7 +92,7 @@ The core manages several first-class resources:
 - **Materials**: Define the appearance of meshes.
 - **Lights**: Point, directional, and spot lights.
 - **Cameras**: View and projection matrices with layer masking support.
-- **Models**: Instances that link geometry and transform (materials pending full implementation).
+- **Models**: Instances that link geometry and material (includes transform).
 - **Shadows**: Global shadow mapping configuration.
 
 ---
@@ -103,15 +103,17 @@ The render state keeps a **scene** with camera/model records:
 
 - `CameraRecord`
 
+  - `label: Option<String>` (semantic name)
   - `data: CameraComponent` (projection/view matrices)
   - `layer_mask`, `order`
   - `view_position` (optional, relative/absolute)
   - `render_target` (per-camera texture)
 
 - `ModelRecord`
+  - `label: Option<String>` (semantic name)
   - `data: ModelComponent` (transform + derived TRS)
   - `geometry_id` (required)
-  - `material_id` (optional, future)
+  - `material_id` (optional)
   - `layer_mask`
 
 The visibility rule uses `layer_mask`:
@@ -140,14 +142,15 @@ then decoded into internal Rust enums.
 Current command enum (`EngineCmd`) includes:
 
 - **Window**: Create, Close, SetTitle, SetPosition, GetPosition, SetSize, GetSize, GetOuterSize, GetSurfaceSize, SetState, GetState, SetIcon, SetDecorations, HasDecorations, SetResizable, IsResizable, RequestAttention, Focus, SetCursorVisible, SetCursorGrab, SetCursorIcon.
-- **Camera**: Create, Update, Dispose.
-- **Model**: Create, Update, Dispose.
-- **Light**: Create, Update, Dispose.
-- **Material**: Create, Update, Dispose.
-- **Texture**: CreateFromBuffer, CreateSolidColor, Dispose.
-- **Geometry**: Create, Update, Dispose.
-- **Primitive Geometry**: Create (Capsule, Cube, Cylinder, Plane, Sphere, Torus, Quad, Cone).
+- **Camera**: Create, Update, Dispose, List.
+- **Model**: Create, Update, Dispose, List.
+- **Light**: Create, Update, Dispose, List.
+- **Material**: Create, Update, Dispose, List.
+- **Texture**: CreateFromBuffer, CreateSolidColor, Dispose, List.
+- **Geometry**: Create, Update, Dispose, List.
+- **Primitive Geometry**: Create (Cube, Plane, Sphere, Cylinder, Torus, Pyramid).
 - **Shadow**: Configure.
+- **Gizmo**: DrawLine, DrawAabb.
 
 ### 5.3 Command Execution
 

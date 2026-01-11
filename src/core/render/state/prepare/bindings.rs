@@ -1,5 +1,5 @@
 use super::super::RenderState;
-use crate::core::resources::{FrameComponent, CameraComponent};
+use crate::core::resources::{CameraComponent, FrameComponent};
 
 impl RenderState {
     pub(crate) fn update_bind_groups(&mut self, device: &wgpu::Device, with_shadows: bool) {
@@ -60,9 +60,11 @@ impl RenderState {
                                 buffer: light_system.light_params.buffer(),
                                 offset: 0,
                                 size: Some(
-                                    std::num::NonZeroU64::new(
-                                        std::mem::size_of::<super::super::light::LightDrawParams>() as u64,
+                                    std::num::NonZeroU64::new(std::mem::size_of::<
+                                        super::super::light::LightDrawParams,
+                                    >(
                                     )
+                                        as u64)
                                     .unwrap(),
                                 ),
                             }),
@@ -125,11 +127,15 @@ impl RenderState {
                         },
                         wgpu::BindGroupEntry {
                             binding: 11,
-                            resource: wgpu::BindingResource::Sampler(&library.samplers.linear_clamp),
+                            resource: wgpu::BindingResource::Sampler(
+                                &library.samplers.linear_clamp,
+                            ),
                         },
                         wgpu::BindGroupEntry {
                             binding: 12,
-                            resource: wgpu::BindingResource::Sampler(&library.samplers.point_repeat),
+                            resource: wgpu::BindingResource::Sampler(
+                                &library.samplers.point_repeat,
+                            ),
                         },
                         wgpu::BindGroupEntry {
                             binding: 13,
@@ -152,18 +158,19 @@ impl RenderState {
 
         // 3. Create Model Bind Group (Group 1)
         if bindings.model_bind_group.is_none() {
-            bindings.model_bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("BindGroup Object (Dynamic Instance Data)"),
-                layout: &library.layout_object,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                        buffer: bindings.instance_pool.buffer(),
-                        offset: 0,
-                        size: None,
-                    }),
-                }],
-            }));
+            bindings.model_bind_group =
+                Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("BindGroup Object (Dynamic Instance Data)"),
+                    layout: &library.layout_object,
+                    entries: &[wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                            buffer: bindings.instance_pool.buffer(),
+                            offset: 0,
+                            size: None,
+                        }),
+                    }],
+                }));
         }
 
         // 4. Create Shadow Model Bind Group (Group 1 for shadow pass)

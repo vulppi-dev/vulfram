@@ -1,9 +1,6 @@
+use super::{GeometryStorage, VertexAllocError, VertexAllocatorSystem, VertexStream, all_streams};
 use std::ops::Range;
 use wgpu::{Buffer, RenderPass};
-use super::{
-    VertexAllocatorSystem, VertexAllocError, VertexStream, all_streams, 
-    GeometryStorage
-};
 
 impl VertexAllocatorSystem {
     pub fn bind<'a>(&mut self, pass: &mut RenderPass<'a>, id: u32) -> Result<(), VertexAllocError> {

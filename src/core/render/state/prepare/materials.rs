@@ -1,8 +1,7 @@
 use super::super::RenderState;
 use crate::core::resources::{
-    MaterialStandardParams, MaterialPbrParams, 
-    STANDARD_TEXTURE_SLOTS, STANDARD_INVALID_SLOT, 
-    PBR_TEXTURE_SLOTS, PBR_INVALID_SLOT,
+    MaterialPbrParams, MaterialStandardParams, PBR_INVALID_SLOT, PBR_TEXTURE_SLOTS,
+    STANDARD_INVALID_SLOT, STANDARD_TEXTURE_SLOTS,
 };
 
 impl RenderState {
@@ -240,7 +239,7 @@ impl RenderState {
                         offset: 0,
                         size: Some(
                             std::num::NonZeroU64::new(
-                                std::mem::size_of::<MaterialPbrParams>() as u64,
+                                std::mem::size_of::<MaterialPbrParams>() as u64
                             )
                             .unwrap(),
                         ),

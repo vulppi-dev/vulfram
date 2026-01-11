@@ -241,6 +241,7 @@ fn main() {
             frame_cmds.push(EngineCmd::CmdModelUpdate(CmdModelUpdateArgs {
                 window_id,
                 model_id: cube.id,
+                label: None,
                 geometry_id: None,
                 material_id: None,
                 transform: Some(

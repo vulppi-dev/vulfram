@@ -59,12 +59,14 @@ pub struct BindingSystem {
     pub camera_pool: UniformBufferPool<CameraComponent>,
     pub model_pool: UniformBufferPool<ModelComponent>,
     pub instance_pool: StorageBufferPool<ModelComponent>,
+    pub shadow_instance_pool: StorageBufferPool<ModelComponent>,
     pub material_standard_pool: UniformBufferPool<MaterialStandardParams>,
     pub material_standard_inputs: StorageBufferPool<glam::Vec4>,
     pub material_pbr_pool: UniformBufferPool<MaterialPbrParams>,
     pub material_pbr_inputs: StorageBufferPool<glam::Vec4>,
     pub shared_group: Option<wgpu::BindGroup>,
     pub model_bind_group: Option<wgpu::BindGroup>,
+    pub shadow_model_bind_group: Option<wgpu::BindGroup>,
 }
 
 #[repr(C)]
@@ -616,7 +618,7 @@ impl RenderState {
             }),
         );
 
-        // 3. Create Model Bind Group (Group 1: Model B0 storage)
+        // 3. Create Model Bind Groups (Group 1: Model B0 storage)
         if bindings.model_bind_group.is_none() {
             bindings.model_bind_group =
                 Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -626,6 +628,22 @@ impl RenderState {
                         binding: 0,
                         resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
                             buffer: bindings.instance_pool.buffer(),
+                            offset: 0,
+                            size: None,
+                        }),
+                    }],
+                }));
+        }
+
+        if bindings.shadow_model_bind_group.is_none() {
+            bindings.shadow_model_bind_group =
+                Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("BindGroup Shadow Model"),
+                    layout: &library.layout_object,
+                    entries: &[wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                            buffer: bindings.shadow_instance_pool.buffer(),
                             offset: 0,
                             size: None,
                         }),
@@ -836,12 +854,14 @@ impl RenderState {
             camera_pool: UniformBufferPool::new(device, queue, Some(128), alignment),
             model_pool: UniformBufferPool::new(device, queue, Some(2048), alignment),
             instance_pool: StorageBufferPool::new(device, queue, Some(16384), 0),
+            shadow_instance_pool: StorageBufferPool::new(device, queue, Some(16384), 0),
             material_standard_pool: UniformBufferPool::new(device, queue, Some(256), alignment),
             material_standard_inputs: StorageBufferPool::new(device, queue, Some(256), 0),
             material_pbr_pool: UniformBufferPool::new(device, queue, Some(256), alignment),
             material_pbr_inputs: StorageBufferPool::new(device, queue, Some(256), 0),
             shared_group: None,
             model_bind_group: None,
+            shadow_model_bind_group: None,
         });
 
         self.light_system = Some(LightCullingSystem {

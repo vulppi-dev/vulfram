@@ -315,7 +315,7 @@ pub fn pass_shadow_update(
                 .get(&page.shadow_cam_id)
                 .map(|c| Frustum::from_view_projection(c.data.view_projection));
 
-            if let Some(model_bind_group) = bindings.model_bind_group.as_ref() {
+            if let Some(model_bind_group) = bindings.shadow_model_bind_group.as_ref() {
                 rpass.set_bind_group(1, model_bind_group, &[]);
             }
 
@@ -352,7 +352,9 @@ pub fn pass_shadow_update(
     }
 
     if !all_shadow_data.is_empty() {
-        bindings.instance_pool.write_slice(0, &all_shadow_data);
+        bindings
+            .shadow_instance_pool
+            .write_slice(0, &all_shadow_data);
     }
 
     shadow_manager.clear_dirty();

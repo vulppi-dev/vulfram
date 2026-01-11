@@ -70,7 +70,7 @@ impl LightComponent {
 }
 #[derive(Debug, Clone)]
 pub struct LightRecord {
-    pub label: Option<String>,
+    pub _label: Option<String>,
     pub data: LightComponent,
     pub layer_mask: u32,
     pub cast_shadow: bool,
@@ -79,13 +79,13 @@ pub struct LightRecord {
 
 impl LightRecord {
     pub fn new(
-        label: Option<String>,
+        _label: Option<String>,
         data: LightComponent,
         layer_mask: u32,
         cast_shadow: bool,
     ) -> Self {
         Self {
-            label,
+            _label,
             data,
             layer_mask,
             cast_shadow,
@@ -95,9 +95,5 @@ impl LightRecord {
 
     pub fn mark_dirty(&mut self) {
         self.is_dirty = true;
-    }
-
-    pub fn clear_dirty(&mut self) {
-        self.is_dirty = false;
     }
 }

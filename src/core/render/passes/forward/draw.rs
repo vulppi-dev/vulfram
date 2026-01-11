@@ -1,6 +1,5 @@
-use crate::core::render::RenderState;
-use crate::core::resources::SurfaceType;
 use super::branches;
+use crate::core::resources::SurfaceType;
 
 pub(crate) fn draw_batches(
     render_pass: &mut wgpu::RenderPass,
@@ -13,7 +12,6 @@ pub(crate) fn draw_batches(
     device: &wgpu::Device,
     cache: &mut crate::core::render::cache::RenderCache,
 ) {
-
     // 1. PBR Opaque
     draw_group(
         render_pass,

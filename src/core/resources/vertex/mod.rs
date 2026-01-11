@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-use std::ops::Range;
-use wgpu::{Device, Queue, RenderPass};
+use wgpu::{Device, Queue};
 
 mod alloc;
 mod arena;

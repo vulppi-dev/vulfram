@@ -1,7 +1,6 @@
-use crate::core::render::RenderState;
-use crate::core::resources::{MATERIAL_FALLBACK_ID, SurfaceType, CameraRecord};
-use crate::core::resources::geometry::Frustum;
 use crate::core::render::state::DrawItem;
+use crate::core::resources::geometry::Frustum;
+use crate::core::resources::{CameraRecord, MATERIAL_FALLBACK_ID, SurfaceType};
 
 pub(crate) fn collect_objects(
     scene: &crate::core::render::state::RenderScene,
@@ -12,7 +11,7 @@ pub(crate) fn collect_objects(
     let materials_standard = &scene.materials_standard;
     let materials_pbr = &scene.materials_pbr;
     let frustum = Frustum::from_view_projection(camera_record.data.view_projection);
-    
+
     let mut instance_cursor = 0;
 
     for (model_id, model_record) in &scene.models {
@@ -105,17 +104,29 @@ pub(crate) fn collect_objects(
 }
 
 fn sort_collector(collector: &mut crate::core::render::state::DrawCollector) {
-    collector.pbr_opaque.sort_by_key(|a| (a.material_id, a.geometry_id));
-    collector.standard_opaque.sort_by_key(|a| (a.material_id, a.geometry_id));
-    collector.pbr_masked.sort_by_key(|a| (a.material_id, a.geometry_id));
-    collector.standard_masked.sort_by_key(|a| (a.material_id, a.geometry_id));
+    collector
+        .pbr_opaque
+        .sort_by_key(|a| (a.material_id, a.geometry_id));
+    collector
+        .standard_opaque
+        .sort_by_key(|a| (a.material_id, a.geometry_id));
+    collector
+        .pbr_masked
+        .sort_by_key(|a| (a.material_id, a.geometry_id));
+    collector
+        .standard_masked
+        .sort_by_key(|a| (a.material_id, a.geometry_id));
 
     // Sort Far-to-Near (Painter's Algorithm)
     // With Reverse Z: Far is 0.0, Near is 1.0. So we sort Ascending.
     collector.standard_transparent.sort_by(|a, b| {
-        a.depth.partial_cmp(&b.depth).unwrap_or(std::cmp::Ordering::Equal)
+        a.depth
+            .partial_cmp(&b.depth)
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
     collector.pbr_transparent.sort_by(|a, b| {
-        a.depth.partial_cmp(&b.depth).unwrap_or(std::cmp::Ordering::Equal)
+        a.depth
+            .partial_cmp(&b.depth)
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
 }

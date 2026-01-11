@@ -208,7 +208,7 @@ impl RenderTarget {
 
 #[derive(Debug, Clone)]
 pub struct CameraRecord {
-    pub label: Option<String>,
+    pub _label: Option<String>,
     pub data: CameraComponent,
     pub layer_mask: u32,
     pub order: i32,
@@ -219,14 +219,14 @@ pub struct CameraRecord {
 
 impl CameraRecord {
     pub fn new(
-        label: Option<String>,
+        _label: Option<String>,
         data: CameraComponent,
         layer_mask: u32,
         order: i32,
         view_position: Option<ViewPosition>,
     ) -> Self {
         Self {
-            label,
+            _label,
             data,
             layer_mask,
             order,
@@ -246,9 +246,5 @@ impl CameraRecord {
 
     pub fn set_render_target(&mut self, target: RenderTarget) {
         self.render_target = Some(target);
-    }
-
-    pub fn clear_render_target(&mut self) {
-        self.render_target = None;
     }
 }

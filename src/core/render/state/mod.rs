@@ -1,25 +1,22 @@
 pub mod binding;
 pub mod collector;
+pub mod init;
 pub mod library;
+pub mod lifecycle;
 pub mod light;
 pub mod prepare;
 pub mod scene;
-pub mod lifecycle;
-pub mod init;
 
-use std::collections::HashMap;
-use crate::core::resources::{
-    VertexAllocatorSystem, FrameComponent,
-};
 use crate::core::render::cache::RenderCache;
 use crate::core::render::gizmos::GizmoSystem;
+use crate::core::resources::VertexAllocatorSystem;
 use crate::core::resources::shadow::ShadowManager;
 
 pub use self::binding::BindingSystem;
-pub use self::scene::RenderScene;
-pub use self::library::{ResourceLibrary, SamplerSet};
-pub use self::light::{LightCullingSystem, FrustumPlane};
 pub use self::collector::{DrawCollector, DrawItem};
+pub use self::library::{ResourceLibrary, SamplerSet};
+pub use self::light::{FrustumPlane, LightCullingSystem};
+pub use self::scene::RenderScene;
 
 pub struct RenderState {
     pub scene: RenderScene,
@@ -32,7 +29,7 @@ pub struct RenderState {
     pub forward_atlas: Option<crate::core::resources::ForwardAtlasSystem>,
     pub cache: RenderCache,
     pub forward_depth_target: Option<crate::core::resources::RenderTarget>,
-    
+
     /// Per-frame collector for draw calls, reused to avoid allocations.
     pub collector: DrawCollector,
 }

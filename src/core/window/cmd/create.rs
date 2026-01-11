@@ -10,7 +10,6 @@ use winit::{
 };
 
 use super::{EngineWindowState, window_size_default};
-use crate::core::resources::{VertexAllocatorConfig, VertexAllocatorSystem};
 use crate::core::state::EngineState;
 use crate::core::window::WindowState;
 

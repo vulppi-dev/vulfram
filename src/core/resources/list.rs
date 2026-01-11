@@ -222,3 +222,105 @@ pub fn engine_cmd_geometry_list(
         geometries,
     }
 }
+
+// -----------------------------------------------------------------------------
+// List Lights
+// -----------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CmdLightListArgs {
+    pub window_id: u32,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+#[serde(default, rename_all = "camelCase")]
+pub struct CmdResultLightList {
+    pub success: bool,
+    pub message: String,
+    pub lights: Vec<ResourceEntry>,
+}
+
+pub fn engine_cmd_light_list(
+    engine: &mut EngineState,
+    args: &CmdLightListArgs,
+) -> CmdResultLightList {
+    let window_state = match engine.window.states.get(&args.window_id) {
+        Some(ws) => ws,
+        None => {
+            return CmdResultLightList {
+                success: false,
+                message: format!("Window {} not found", args.window_id),
+                ..Default::default()
+            };
+        }
+    };
+
+    let lights = window_state
+        .render_state
+        .scene
+        .lights
+        .iter()
+        .map(|(&id, rec)| ResourceEntry {
+            id,
+            label: rec.label.clone(),
+        })
+        .collect();
+
+    CmdResultLightList {
+        success: true,
+        message: "Lights listed successfully".into(),
+        lights,
+    }
+}
+
+// -----------------------------------------------------------------------------
+// List Cameras
+// -----------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CmdCameraListArgs {
+    pub window_id: u32,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+#[serde(default, rename_all = "camelCase")]
+pub struct CmdResultCameraList {
+    pub success: bool,
+    pub message: String,
+    pub cameras: Vec<ResourceEntry>,
+}
+
+pub fn engine_cmd_camera_list(
+    engine: &mut EngineState,
+    args: &CmdCameraListArgs,
+) -> CmdResultCameraList {
+    let window_state = match engine.window.states.get(&args.window_id) {
+        Some(ws) => ws,
+        None => {
+            return CmdResultCameraList {
+                success: false,
+                message: format!("Window {} not found", args.window_id),
+                ..Default::default()
+            };
+        }
+    };
+
+    let cameras = window_state
+        .render_state
+        .scene
+        .cameras
+        .iter()
+        .map(|(&id, rec)| ResourceEntry {
+            id,
+            label: rec.label.clone(),
+        })
+        .collect();
+
+    CmdResultCameraList {
+        success: true,
+        message: "Cameras listed successfully".into(),
+        cameras,
+    }
+}

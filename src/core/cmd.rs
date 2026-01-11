@@ -63,6 +63,8 @@ pub enum EngineCmd {
     CmdMaterialList(res::CmdMaterialListArgs),
     CmdTextureList(res::CmdTextureListArgs),
     CmdGeometryList(res::CmdGeometryListArgs),
+    CmdLightList(res::CmdLightListArgs),
+    CmdCameraList(res::CmdCameraListArgs),
     CmdGizmoDrawLine(gizmo::CmdGizmoDrawLineArgs),
     CmdGizmoDrawAabb(gizmo::CmdGizmoDrawAabbArgs),
 }
@@ -128,6 +130,8 @@ pub enum CommandResponse {
     MaterialList(res::CmdResultMaterialList),
     TextureList(res::CmdResultTextureList),
     GeometryList(res::CmdResultGeometryList),
+    LightList(res::CmdResultLightList),
+    CameraList(res::CmdResultCameraList),
     GizmoDrawLine(gizmo::CmdResultGizmoDraw),
     GizmoDrawAabb(gizmo::CmdResultGizmoDraw),
 }
@@ -476,6 +480,20 @@ pub fn engine_process_batch(
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::GeometryList(result),
+                });
+            }
+            EngineCmd::CmdLightList(args) => {
+                let result = res::engine_cmd_light_list(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::LightList(result),
+                });
+            }
+            EngineCmd::CmdCameraList(args) => {
+                let result = res::engine_cmd_camera_list(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::CameraList(result),
                 });
             }
             EngineCmd::CmdGizmoDrawLine(args) => {

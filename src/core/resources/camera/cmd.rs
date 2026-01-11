@@ -13,6 +13,7 @@ use crate::core::state::EngineState;
 #[serde(rename_all = "camelCase")]
 pub struct CmdCameraCreateArgs {
     pub camera_id: u32,
+    pub label: Option<String>,
     pub transform: Mat4,
     pub kind: CameraKind,
     #[serde(default)]
@@ -74,6 +75,7 @@ pub fn engine_cmd_camera_create(
             args.ortho_scale,
         );
         let mut record = CameraRecord::new(
+            args.label.clone(),
             component,
             args.layer_mask,
             args.order,

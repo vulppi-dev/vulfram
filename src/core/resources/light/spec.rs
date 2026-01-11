@@ -70,6 +70,7 @@ impl LightComponent {
 }
 #[derive(Debug, Clone)]
 pub struct LightRecord {
+    pub label: Option<String>,
     pub data: LightComponent,
     pub layer_mask: u32,
     pub cast_shadow: bool,
@@ -77,8 +78,14 @@ pub struct LightRecord {
 }
 
 impl LightRecord {
-    pub fn new(data: LightComponent, layer_mask: u32, cast_shadow: bool) -> Self {
+    pub fn new(
+        label: Option<String>,
+        data: LightComponent,
+        layer_mask: u32,
+        cast_shadow: bool,
+    ) -> Self {
         Self {
+            label,
             data,
             layer_mask,
             cast_shadow,

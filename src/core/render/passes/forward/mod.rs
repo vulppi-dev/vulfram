@@ -30,11 +30,12 @@ pub fn pass_forward(
         if let Some((_, camera)) = scene.cameras.iter().next() {
             if let Some(target) = &camera.render_target {
                 let size = target._texture.size();
-                render_state.forward_depth_target = Some(crate::core::resources::RenderTarget::new(
-                    device,
-                    size,
-                    wgpu::TextureFormat::Depth32Float,
-                ));
+                render_state.forward_depth_target =
+                    Some(crate::core::resources::RenderTarget::new(
+                        device,
+                        size,
+                        wgpu::TextureFormat::Depth32Float,
+                    ));
             }
         }
     }

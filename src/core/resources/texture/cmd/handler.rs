@@ -1,12 +1,10 @@
-use glam::{UVec2, Vec4};
-use crate::core::buffers::state::UploadType;
-use crate::core::image::ImageDecoder;
-use crate::core::resources::texture::{
-    ForwardAtlasDesc, ForwardAtlasEntry, TextureRecord,
-};
-use crate::core::state::EngineState;
 use super::types::*;
 use super::utils::*;
+use crate::core::buffers::state::UploadType;
+use crate::core::image::ImageDecoder;
+use crate::core::resources::texture::{ForwardAtlasDesc, ForwardAtlasEntry, TextureRecord};
+use crate::core::state::EngineState;
+use glam::{UVec2, Vec4};
 
 pub fn engine_cmd_texture_create_from_buffer(
     engine: &mut EngineState,
@@ -104,7 +102,7 @@ pub fn engine_cmd_texture_create_from_buffer(
     match &args.mode {
         TextureCreateMode::Standalone => {
             let texture = device.create_texture(&wgpu::TextureDescriptor {
-                label: Some("Texture From Buffer"),
+                label: args.label.as_deref().or(Some("Texture From Buffer")),
                 size,
                 mip_level_count: 1,
                 sample_count: 1,
@@ -130,10 +128,11 @@ pub fn engine_cmd_texture_create_from_buffer(
             window_state.render_state.scene.textures.insert(
                 args.texture_id,
                 TextureRecord {
-                    _texture: texture,
+                    label: args.label.clone(),
+                    texture,
                     view,
-                    _size: size,
-                    _format: format,
+                    size,
+                    format,
                 },
             );
         }
@@ -247,8 +246,9 @@ pub fn engine_cmd_texture_create_from_buffer(
                 .insert(
                     args.texture_id,
                     ForwardAtlasEntry {
+                        label: args.label.clone(),
                         handle,
-                        _size: UVec2::new(image.width, image.height),
+                        size: UVec2::new(image.width, image.height),
                         uv_scale_bias: Vec4::new(
                             transform.0,
                             transform.1,
@@ -256,7 +256,7 @@ pub fn engine_cmd_texture_create_from_buffer(
                             transform.3,
                         ),
                         layer: transform.4,
-                        _format: format,
+                        format,
                     },
                 );
         }
@@ -343,7 +343,7 @@ pub fn engine_cmd_texture_create_solid_color(
     match &args.mode {
         TextureCreateMode::Standalone => {
             let texture = device.create_texture(&wgpu::TextureDescriptor {
-                label: Some("Solid Color Texture"),
+                label: args.label.as_deref().or(Some("Solid Color Texture")),
                 size,
                 mip_level_count: 1,
                 sample_count: 1,
@@ -369,10 +369,11 @@ pub fn engine_cmd_texture_create_solid_color(
             window_state.render_state.scene.textures.insert(
                 args.texture_id,
                 TextureRecord {
-                    _texture: texture,
+                    label: args.label.clone(),
+                    texture,
                     view,
-                    _size: size,
-                    _format: format,
+                    size,
+                    format,
                 },
             );
         }
@@ -486,8 +487,9 @@ pub fn engine_cmd_texture_create_solid_color(
                 .insert(
                     args.texture_id,
                     ForwardAtlasEntry {
+                        label: args.label.clone(),
                         handle,
-                        _size: UVec2::new(size.width, size.height),
+                        size: UVec2::new(size.width, size.height),
                         uv_scale_bias: Vec4::new(
                             transform.0,
                             transform.1,
@@ -495,7 +497,7 @@ pub fn engine_cmd_texture_create_solid_color(
                             transform.3,
                         ),
                         layer: transform.4,
-                        _format: format,
+                        format,
                     },
                 );
         }

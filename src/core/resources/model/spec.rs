@@ -43,6 +43,7 @@ impl ModelComponent {
 
 #[derive(Debug, Clone)]
 pub struct ModelRecord {
+    pub label: Option<String>,
     pub data: ModelComponent,
     pub geometry_id: u32,
     pub material_id: Option<u32>,
@@ -54,6 +55,7 @@ pub struct ModelRecord {
 
 impl ModelRecord {
     pub fn new(
+        label: Option<String>,
         data: ModelComponent,
         geometry_id: u32,
         material_id: Option<u32>,
@@ -62,6 +64,7 @@ impl ModelRecord {
         receive_shadow: bool,
     ) -> Self {
         Self {
+            label,
             data,
             geometry_id,
             material_id,

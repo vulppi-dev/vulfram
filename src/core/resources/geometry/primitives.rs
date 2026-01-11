@@ -128,6 +128,7 @@ pub enum PrimitiveOptions {
 pub struct CmdPrimitiveGeometryCreateArgs {
     pub window_id: u32,
     pub geometry_id: u32,
+    pub label: Option<String>,
     pub shape: PrimitiveShape,
     #[serde(default)]
     pub options: Option<PrimitiveOptions>,
@@ -220,7 +221,7 @@ pub fn engine_cmd_primitive_geometry_create(
     };
 
     // 4. Create geometry using the vertex allocator
-    match vertex_allocator.create_geometry(args.geometry_id, geometry_data) {
+    match vertex_allocator.create_geometry(args.geometry_id, args.label.clone(), geometry_data) {
         Ok(_) => {
             window_state.is_dirty = true;
             CmdResultPrimitiveGeometryCreate {

@@ -64,12 +64,14 @@ fn main() {
         EngineCmd::CmdPrimitiveGeometryCreate(CmdPrimitiveGeometryCreateArgs {
             window_id,
             geometry_id: geometry_cube,
+            label: Some("Default Cube".to_string()),
             shape: PrimitiveShape::Cube,
             options: None,
         }),
         // 2. Create a camera
         EngineCmd::CmdCameraCreate(CmdCameraCreateArgs {
             camera_id,
+            label: Some("Main Camera".to_string()),
             transform: Mat4::look_at_rh(
                 Vec3::new(0.0, 10.0, 15.0),
                 Vec3::new(0.0, 0.0, 0.0),
@@ -88,6 +90,7 @@ fn main() {
         EngineCmd::CmdLightCreate(CmdLightCreateArgs {
             window_id,
             light_id: 2,
+            label: Some("Point Light".to_string()),
             kind: Some(LightKind::Point),
             position: Some(Vec4::new(0.0, 8.0, 0.0, 1.0)),
             direction: None,
@@ -103,6 +106,7 @@ fn main() {
         EngineCmd::CmdTextureCreateFromBuffer(CmdTextureCreateFromBufferArgs {
             window_id,
             texture_id: texture_test,
+            label: Some("Test Texture".to_string()),
             buffer_id: texture_buffer,
             srgb: Some(true),
             mode: TextureCreateMode::Standalone,
@@ -111,6 +115,7 @@ fn main() {
         EngineCmd::CmdMaterialCreate(CmdMaterialCreateArgs {
             window_id,
             material_id: material_instance,
+            label: Some("Test Material".to_string()),
             kind: MaterialKind::Standard,
             options: Some(MaterialOptions::Standard(StandardOptions {
                 base_color: Vec4::ONE,
@@ -125,6 +130,7 @@ fn main() {
     setup_cmds.push(EngineCmd::CmdModelCreate(CmdModelCreateArgs {
         window_id,
         model_id: 2000,
+        label: Some("Floor".to_string()),
         geometry_id: geometry_cube,
         material_id: Some(material_instance),
         transform: Mat4::from_translation(Vec3::new(0.0, -6.0, 0.0))
@@ -161,6 +167,7 @@ fn main() {
         setup_cmds.push(EngineCmd::CmdModelCreate(CmdModelCreateArgs {
             window_id,
             model_id,
+            label: Some(format!("Cube {}", i)),
             geometry_id: geometry_cube,
             material_id: Some(material_instance),
             transform: Mat4::from_translation(Vec3::new(x, y, z))

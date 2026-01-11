@@ -76,6 +76,7 @@ impl Default for MaterialPbrParams {
 
 #[derive(Debug, Clone)]
 pub struct MaterialStandardRecord {
+    pub label: Option<String>,
     pub data: MaterialStandardParams,
     pub inputs: Vec<Vec4>,
     pub texture_ids: [u32; STANDARD_TEXTURE_SLOTS],
@@ -85,12 +86,13 @@ pub struct MaterialStandardRecord {
 }
 
 impl MaterialStandardRecord {
-    pub fn new(data: MaterialStandardParams) -> Self {
+    pub fn new(label: Option<String>, data: MaterialStandardParams) -> Self {
         let mut inputs = vec![Vec4::ZERO; STANDARD_INPUTS_PER_MATERIAL as usize];
         inputs[0] = Vec4::ONE;
         inputs[1] = Vec4::ONE;
         inputs[2] = Vec4::new(32.0, 0.0, 0.0, 0.0);
         Self {
+            label,
             data,
             inputs,
             texture_ids: [STANDARD_INVALID_SLOT; STANDARD_TEXTURE_SLOTS],
@@ -111,6 +113,7 @@ impl MaterialStandardRecord {
 
 #[derive(Debug, Clone)]
 pub struct MaterialPbrRecord {
+    pub label: Option<String>,
     pub data: MaterialPbrParams,
     pub inputs: Vec<Vec4>,
     pub texture_ids: [u32; PBR_TEXTURE_SLOTS],
@@ -120,13 +123,14 @@ pub struct MaterialPbrRecord {
 }
 
 impl MaterialPbrRecord {
-    pub fn new(data: MaterialPbrParams) -> Self {
+    pub fn new(label: Option<String>, data: MaterialPbrParams) -> Self {
         let mut inputs = vec![Vec4::ZERO; PBR_INPUTS_PER_MATERIAL as usize];
         inputs[0] = Vec4::ONE;
         inputs[1] = Vec4::ZERO;
         inputs[2] = Vec4::new(0.0, 1.0, 1.0, 0.0);
         inputs[3] = Vec4::new(1.0, 0.0, 0.0, 0.0);
         Self {
+            label,
             data,
             inputs,
             texture_ids: [PBR_INVALID_SLOT; PBR_TEXTURE_SLOTS],

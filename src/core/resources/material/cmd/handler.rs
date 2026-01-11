@@ -1,10 +1,10 @@
+use super::types::*;
+use super::utils::*;
 use crate::core::resources::{
     MATERIAL_FALLBACK_ID, MaterialPbrParams, MaterialPbrRecord, MaterialStandardParams,
     MaterialStandardRecord,
 };
 use crate::core::state::EngineState;
-use super::types::*;
-use super::utils::*;
 
 pub fn engine_cmd_material_create(
     engine: &mut EngineState,
@@ -60,7 +60,8 @@ pub fn engine_cmd_material_create(
                 };
             }
 
-            let mut record = MaterialStandardRecord::new(MaterialStandardParams::default());
+            let mut record =
+                MaterialStandardRecord::new(args.label.clone(), MaterialStandardParams::default());
             pack_standard_material(args.material_id, &opts, &mut record);
             record.bind_group = None;
             window_state
@@ -83,7 +84,8 @@ pub fn engine_cmd_material_create(
                 };
             }
 
-            let mut record = MaterialPbrRecord::new(MaterialPbrParams::default());
+            let mut record =
+                MaterialPbrRecord::new(args.label.clone(), MaterialPbrParams::default());
             pack_pbr_material(args.material_id, &opts, &mut record);
             record.bind_group = None;
             window_state

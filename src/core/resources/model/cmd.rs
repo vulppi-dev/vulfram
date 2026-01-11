@@ -12,6 +12,7 @@ use crate::core::state::EngineState;
 pub struct CmdModelCreateArgs {
     pub window_id: u32,
     pub model_id: u32,
+    pub label: Option<String>,
     pub geometry_id: u32,
     #[serde(default)]
     pub material_id: Option<u32>,
@@ -79,6 +80,7 @@ pub fn engine_cmd_model_create(
 
     let component = ModelComponent::new(args.transform, args.receive_shadow);
     let record = ModelRecord::new(
+        args.label.clone(),
         component,
         args.geometry_id,
         args.material_id,

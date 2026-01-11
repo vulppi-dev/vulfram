@@ -22,6 +22,7 @@ pub enum GeometryStorage {
 
 #[derive(Debug)]
 pub struct GeometryRecord {
+    pub label: Option<String>,
     pub alive: bool,
     pub storage: GeometryStorage,
     pub aabb: Aabb,

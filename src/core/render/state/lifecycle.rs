@@ -18,7 +18,10 @@ impl RenderState {
         let mut materials_standard = HashMap::new();
         materials_standard.insert(
             MATERIAL_FALLBACK_ID,
-            MaterialStandardRecord::new(MaterialStandardParams::default()),
+            MaterialStandardRecord::new(
+                Some("Fallback Material".into()),
+                MaterialStandardParams::default(),
+            ),
         );
 
         Self {
@@ -52,7 +55,10 @@ impl RenderState {
         self.scene.materials_standard.clear();
         self.scene.materials_standard.insert(
             MATERIAL_FALLBACK_ID,
-            MaterialStandardRecord::new(MaterialStandardParams::default()),
+            MaterialStandardRecord::new(
+                Some("Fallback Material".into()),
+                MaterialStandardParams::default(),
+            ),
         );
         self.scene.materials_pbr.clear();
         self.scene.textures.clear();

@@ -7,6 +7,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 pub struct CmdTextureCreateFromBufferArgs {
     pub window_id: u32,
     pub texture_id: u32,
+    pub label: Option<String>,
     pub buffer_id: u64,
     #[serde(default)]
     pub srgb: Option<bool>,
@@ -57,6 +58,7 @@ impl Default for TextureCreateMode {
 pub struct CmdTextureCreateSolidColorArgs {
     pub window_id: u32,
     pub texture_id: u32,
+    pub label: Option<String>,
     pub color: Vec4,
     #[serde(default)]
     pub srgb: Option<bool>,

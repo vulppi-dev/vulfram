@@ -1,6 +1,6 @@
+use crate::core::resources::SurfaceType;
 use glam::Vec4;
 use serde::{Deserialize, Serialize};
-use crate::core::resources::SurfaceType;
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -121,6 +121,7 @@ pub enum MaterialOptions {
 pub struct CmdMaterialCreateArgs {
     pub window_id: u32,
     pub material_id: u32,
+    pub label: Option<String>,
     pub kind: MaterialKind,
     #[serde(default)]
     pub options: Option<MaterialOptions>,

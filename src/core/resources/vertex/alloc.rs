@@ -1,17 +1,17 @@
+use super::{
+    AllocHandle, GeometryPrimitiveType, GeometryRecord, GeometryStorage, IndexAlloc, IndexInfo,
+    VertexAllocError, VertexAllocatorSystem, VertexStream, align4, all_streams, pad_to_4,
+};
+use crate::core::resources::geometry::Aabb;
 use std::collections::HashMap;
 use std::ops::Range;
-use wgpu::{BufferDescriptor};
-use crate::core::resources::geometry::Aabb;
-use super::{
-    VertexAllocatorSystem, VertexAllocError, GeometryPrimitiveType, 
-    VertexStream, all_streams, GeometryRecord, GeometryStorage, 
-    align4, pad_to_4, IndexInfo, AllocHandle, IndexAlloc
-};
+use wgpu::BufferDescriptor;
 
 impl VertexAllocatorSystem {
     pub fn create_geometry(
         &mut self,
         id: u32,
+        label: Option<String>,
         mut input: Vec<(GeometryPrimitiveType, Vec<u8>)>,
     ) -> Result<(), VertexAllocError> {
         let mut index_bytes: Option<Vec<u8>> = None;
@@ -190,12 +190,14 @@ impl VertexAllocatorSystem {
                 }
             }
             rec.alive = true;
+            rec.label = label;
             rec.storage = storage;
             rec.aabb = aabb;
         } else {
             self.records.insert(
                 id,
                 GeometryRecord {
+                    label,
                     alive: true,
                     storage,
                     aabb,
@@ -247,8 +249,7 @@ impl VertexAllocatorSystem {
 
         let mut cursor: u64 = 0;
         let mut index_range: Option<(Range<u64>, IndexInfo)> = None;
-        let mut stream_ranges: [Option<Range<u64>>; 8] =
-            [(); 8].map(|_| None);
+        let mut stream_ranges: [Option<Range<u64>>; 8] = [(); 8].map(|_| None);
 
         let mut index_bytes_opt = index_info.map(|(b, info)| (b, info));
 

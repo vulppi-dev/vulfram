@@ -12,6 +12,7 @@ use crate::core::state::EngineState;
 pub struct CmdLightCreateArgs {
     pub window_id: u32,
     pub light_id: u32,
+    pub label: Option<String>,
     #[serde(default)]
     pub kind: Option<LightKind>,
     #[serde(default)]
@@ -88,7 +89,12 @@ pub fn engine_cmd_light_create(
         args.cast_shadow,
     );
 
-    let record = LightRecord::new(component, args.layer_mask, args.cast_shadow);
+    let record = LightRecord::new(
+        args.label.clone(),
+        component,
+        args.layer_mask,
+        args.cast_shadow,
+    );
     window_state
         .render_state
         .scene

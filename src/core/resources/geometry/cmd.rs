@@ -23,6 +23,7 @@ pub struct GeometryPrimitiveEntry {
 pub struct CmdGeometryCreateArgs {
     pub window_id: u32,
     pub geometry_id: u32,
+    pub label: Option<String>,
     pub entries: Vec<GeometryPrimitiveEntry>,
 }
 
@@ -127,7 +128,7 @@ pub fn engine_cmd_geometry_create(
     }
 
     // 6. Criar geometria
-    match vertex_allocator.create_geometry(args.geometry_id, geometry_data) {
+    match vertex_allocator.create_geometry(args.geometry_id, args.label.clone(), geometry_data) {
         Ok(_) => {
             // 7. Limpar buffers apenas em caso de sucesso
             for entry in &args.entries {
@@ -160,6 +161,7 @@ pub fn engine_cmd_geometry_create(
 pub struct CmdGeometryUpdateArgs {
     pub window_id: u32,
     pub geometry_id: u32,
+    pub label: Option<String>,
     pub entries: Vec<GeometryPrimitiveEntry>,
 }
 
@@ -267,7 +269,7 @@ pub fn engine_cmd_geometry_update(
     }
 
     // 6. Atualizar geometria (create_geometry já trata replace)
-    match vertex_allocator.create_geometry(args.geometry_id, geometry_data) {
+    match vertex_allocator.create_geometry(args.geometry_id, args.label.clone(), geometry_data) {
         Ok(_) => {
             // 7. Limpar buffers apenas em caso de sucesso
             for entry in &args.entries {

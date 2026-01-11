@@ -2,13 +2,13 @@ use std::collections::HashMap;
 use std::ops::Range;
 use wgpu::{Device, Queue, RenderPass};
 
+mod alloc;
 mod arena;
+mod bind;
 mod bind_cache;
 mod defaults;
 mod storage;
 mod types;
-mod alloc;
-mod bind;
 
 use arena::*;
 use bind_cache::*;
@@ -46,6 +46,12 @@ pub struct VertexAllocatorSystem {
     records: HashMap<u32, GeometryRecord>,
 
     bind_cache: BindCache,
+}
+
+impl VertexAllocatorSystem {
+    pub fn records(&self) -> &HashMap<u32, GeometryRecord> {
+        &self.records
+    }
 }
 
 impl VertexAllocatorSystem {

@@ -59,6 +59,10 @@ pub enum EngineCmd {
     CmdGeometryDispose(res::CmdGeometryDisposeArgs),
     CmdPrimitiveGeometryCreate(res::CmdPrimitiveGeometryCreateArgs),
     CmdShadowConfigure(res::shadow::CmdShadowConfigureArgs),
+    CmdModelList(res::CmdModelListArgs),
+    CmdMaterialList(res::CmdMaterialListArgs),
+    CmdTextureList(res::CmdTextureListArgs),
+    CmdGeometryList(res::CmdGeometryListArgs),
     CmdGizmoDrawLine(gizmo::CmdGizmoDrawLineArgs),
     CmdGizmoDrawAabb(gizmo::CmdGizmoDrawAabbArgs),
 }
@@ -120,6 +124,10 @@ pub enum CommandResponse {
     GeometryDispose(res::CmdResultGeometryDispose),
     PrimitiveGeometryCreate(res::CmdResultPrimitiveGeometryCreate),
     ShadowConfigure(res::shadow::CmdResultShadowConfigure),
+    ModelList(res::CmdResultModelList),
+    MaterialList(res::CmdResultMaterialList),
+    TextureList(res::CmdResultTextureList),
+    GeometryList(res::CmdResultGeometryList),
     GizmoDrawLine(gizmo::CmdResultGizmoDraw),
     GizmoDrawAabb(gizmo::CmdResultGizmoDraw),
 }
@@ -440,6 +448,34 @@ pub fn engine_process_batch(
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::ShadowConfigure(result),
+                });
+            }
+            EngineCmd::CmdModelList(args) => {
+                let result = res::engine_cmd_model_list(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::ModelList(result),
+                });
+            }
+            EngineCmd::CmdMaterialList(args) => {
+                let result = res::engine_cmd_material_list(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::MaterialList(result),
+                });
+            }
+            EngineCmd::CmdTextureList(args) => {
+                let result = res::engine_cmd_texture_list(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::TextureList(result),
+                });
+            }
+            EngineCmd::CmdGeometryList(args) => {
+                let result = res::engine_cmd_geometry_list(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::GeometryList(result),
                 });
             }
             EngineCmd::CmdGizmoDrawLine(args) => {

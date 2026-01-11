@@ -204,6 +204,9 @@ pub fn pass_shadow_update(
     render_pages.sort_by_key(|page| page.layer);
 
     let mut i = 0;
+    let mut all_shadow_data = Vec::new();
+    let mut shadow_instance_cursor = 0u32;
+
     while i < render_pages.len() {
         let layer = render_pages[i].layer;
         let atlas_layer_view = shadow_manager
@@ -227,6 +230,63 @@ pub fn pass_shadow_update(
             multiview_mask: None,
         });
         vertex_sys.begin_pass();
+
+        let shadow_pipeline_key = PipelineKey {
+            shader_id: crate::core::render::cache::ShaderId::Shadow as u64,
+            color_format: wgpu::TextureFormat::Rgba8UnormSrgb, // Dummy, not used
+            depth_format: Some(wgpu::TextureFormat::Depth32Float),
+            sample_count: 1,
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            cull_mode: None,
+            front_face: wgpu::FrontFace::Ccw,
+            depth_write_enabled: true,
+            depth_compare: wgpu::CompareFunction::Greater, // Reverse Z
+            blend: None,
+        };
+
+        let shadow_pipeline = cache.get_or_create(shadow_pipeline_key, frame_index, || {
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("Shadow Pipeline"),
+                layout: Some(&library.shadow_pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &library.shadow_shader,
+                    entry_point: Some("vs_main"),
+                    buffers: &[wgpu::VertexBufferLayout {
+                        array_stride: VertexStream::Position.stride_bytes(),
+                        step_mode: wgpu::VertexStepMode::Vertex,
+                        attributes: &[wgpu::VertexAttribute {
+                            format: wgpu::VertexFormat::Float32x3,
+                            offset: 0,
+                            shader_location: 0,
+                        }],
+                    }],
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                },
+                fragment: None, // Depth only
+                primitive: wgpu::PrimitiveState {
+                    topology: shadow_pipeline_key.topology,
+                    front_face: shadow_pipeline_key.front_face,
+                    cull_mode: None,
+                    ..Default::default()
+                },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: wgpu::TextureFormat::Depth32Float,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::Greater, // Reverse Z
+                    stencil: wgpu::StencilState::default(),
+                    bias: wgpu::DepthBiasState {
+                        constant: -2, // Reverse Z: negative bias to push occluder farther (closer to 0.0)
+                        slope_scale: -2.0,
+                        clamp: 0.0,
+                    },
+                }),
+                multisample: wgpu::MultisampleState::default(),
+                multiview_mask: None,
+                cache: None,
+            })
+        });
+
+        rpass.set_pipeline(shadow_pipeline);
 
         while i < render_pages.len() && render_pages[i].layer == layer {
             let page = &render_pages[i];
@@ -255,7 +315,11 @@ pub fn pass_shadow_update(
                 .get(&page.shadow_cam_id)
                 .map(|c| Frustum::from_view_projection(c.data.view_projection));
 
-            for (model_id, model_record) in &render_state.scene.models {
+            if let Some(model_bind_group) = bindings.model_bind_group.as_ref() {
+                rpass.set_bind_group(1, model_bind_group, &[]);
+            }
+
+            for (_model_id, model_record) in &render_state.scene.models {
                 if !model_record.cast_shadow {
                     continue;
                 }
@@ -269,80 +333,26 @@ pub fn pass_shadow_update(
                     }
                 }
 
-                if let Some(model_bind_group) = bindings.model_bind_group.as_ref() {
-                    let offset = bindings.model_pool.get_offset(*model_id) as u32;
-                    rpass.set_bind_group(1, model_bind_group, &[offset]);
-                }
-
                 if let Ok(Some(index_info)) = vertex_sys.index_info(model_record.geometry_id) {
-                    let _ = vertex_sys.bind(&mut rpass, model_record.geometry_id);
+                    if vertex_sys
+                        .bind(&mut rpass, model_record.geometry_id)
+                        .is_ok()
+                    {
+                        let inst_idx = shadow_instance_cursor;
+                        all_shadow_data.push(model_record.data);
+                        shadow_instance_cursor += 1;
 
-                    // Log only once per frame/model to avoid spam, or just relying on "it runs".
-                    // For now, let's just draw.
-                    // println!("Drawing shadow model {}", model_id);
-
-                    let key = PipelineKey {
-                        shader_id: crate::core::render::cache::ShaderId::Shadow as u64,
-                        color_format: wgpu::TextureFormat::Rgba8UnormSrgb, // Dummy, not used
-                        depth_format: Some(wgpu::TextureFormat::Depth32Float),
-                        sample_count: 1,
-                        topology: wgpu::PrimitiveTopology::TriangleList,
-                        cull_mode: None,
-                        front_face: wgpu::FrontFace::Ccw,
-                        depth_write_enabled: true,
-                        depth_compare: wgpu::CompareFunction::Greater, // Reverse Z
-                        blend: None,
-                    };
-
-                    let pipeline = cache.get_or_create(key, frame_index, || {
-                        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                            label: Some("Shadow Pipeline"),
-                            layout: Some(&library.shadow_pipeline_layout),
-                            vertex: wgpu::VertexState {
-                                module: &library.shadow_shader,
-                                entry_point: Some("vs_main"),
-                                buffers: &[wgpu::VertexBufferLayout {
-                                    array_stride: VertexStream::Position.stride_bytes(),
-                                    step_mode: wgpu::VertexStepMode::Vertex,
-                                    attributes: &[wgpu::VertexAttribute {
-                                        format: wgpu::VertexFormat::Float32x3,
-                                        offset: 0,
-                                        shader_location: 0,
-                                    }],
-                                }],
-                                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                            },
-                            fragment: None, // Depth only
-                            primitive: wgpu::PrimitiveState {
-                                topology: key.topology,
-                                front_face: key.front_face,
-                                cull_mode: None,
-                                ..Default::default()
-                            },
-                            depth_stencil: Some(wgpu::DepthStencilState {
-                                format: wgpu::TextureFormat::Depth32Float,
-                                depth_write_enabled: true,
-                                depth_compare: wgpu::CompareFunction::Greater, // Reverse Z
-                                stencil: wgpu::StencilState::default(),
-                                bias: wgpu::DepthBiasState {
-                                    constant: -2, // Reverse Z: negative bias to push occluder farther (closer to 0.0)
-                                    slope_scale: -2.0,
-                                    clamp: 0.0,
-                                },
-                            }),
-                            multisample: wgpu::MultisampleState::default(),
-                            multiview_mask: None,
-                            cache: None,
-                        })
-                    });
-
-                    rpass.set_pipeline(pipeline);
-                    rpass.draw_indexed(0..index_info.count, 0, 0..1);
+                        rpass.draw_indexed(0..index_info.count, 0, inst_idx..(inst_idx + 1));
+                    }
                 }
             }
 
             i += 1;
         }
+    }
+
+    if !all_shadow_data.is_empty() {
+        bindings.instance_pool.write_slice(0, &all_shadow_data);
     }
 
     shadow_manager.clear_dirty();

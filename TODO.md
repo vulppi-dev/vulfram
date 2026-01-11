@@ -8,13 +8,14 @@ _Otimização do fluxo de dados e ferramentas de debug._
 
 - [x] **Geometry Frustum Culling**: Descarte de draw calls no Core para objetos fora da visão (Performance).
 - [x] **Visual Debugger (Gizmos)**: Sistema no Core para desenhar linhas/shapes de debug via comandos simples.
-- [ ] **Instancing**: Suporte a renderização instanciada para otimizar milhares de objetos repetidos.
+- [x] **Instancing**: Suporte a renderização instanciada para otimizar milhares de objetos repetidos.
 
 ## 🟡 Fase 2: Arquitetura de Renderização (Core)
 
 _Refatoração para suportar efeitos avançados._
 
 - [ ] **Render Graph**: Substituir o `Compose` por um grafo real para encadeamento de efeitos.
+- [ ] **Optional: Mega-Batching**: Migrar índices de textura para o buffer de instâncias para permitir batching de diferentes materiais.
 - [ ] **Advanced Profiler**: Exportar métricas detalhadas de GPU para o Host via MessagePack.
 - [ ] **Skeletal Animation (Skinning)**: Implementar interpolação de ossos via GPU (Shader).
 

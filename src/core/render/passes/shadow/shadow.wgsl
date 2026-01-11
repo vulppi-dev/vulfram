@@ -18,14 +18,15 @@ struct Model {
 }
 
 @group(0) @binding(1) var<uniform> camera: Camera;
-@group(1) @binding(0) var<uniform> model: Model;
+@group(1) @binding(0) var<storage, read> models: array<Model>;
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
 }
 
 @vertex
-fn vs_main(in: VertexInput) -> @builtin(position) vec4<f32> {
+fn vs_main(in: VertexInput, @builtin(instance_index) instance_id: u32) -> @builtin(position) vec4<f32> {
+    let model = models[instance_id];
     let world_pos = model.transform * vec4<f32>(in.position, 1.0);
     return camera.view_projection * world_pos;
 }

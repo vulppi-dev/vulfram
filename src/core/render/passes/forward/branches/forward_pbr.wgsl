@@ -99,7 +99,7 @@ struct MaterialPbrParams {
 @group(0) @binding(14) var shadow_sampler: sampler_comparison;
 @group(0) @binding(15) var forward_atlas: texture_2d_array<f32>;
 
-@group(1) @binding(0) var<uniform> model: Model;
+@group(1) @binding(0) var<storage, read> models: array<Model>;
 @group(1) @binding(1) var<uniform> material: MaterialPbrParams;
 @group(1) @binding(2) var<storage, read> material_inputs: array<vec4<f32>>;
 @group(1) @binding(3) var material_tex0: texture_2d<f32>;
@@ -237,6 +237,7 @@ struct VertexOutput {
     @location(1) normal: vec3<f32>,
     @location(2) uv0: vec2<f32>,
     @location(3) color0: vec4<f32>,
+    @location(4) @interpolate(flat) instance_id: u32,
 }
 
 // -----------------------------------------------------------------------------
@@ -374,7 +375,8 @@ fn point_shadow_factor(light: Light, world_pos: vec3<f32>, ndotl: f32) -> f32 {
     return min(s0, s1);
 }
 
-fn get_shadow_factor(light: Light, world_pos: vec3<f32>, ndotl: f32) -> f32 {
+fn get_shadow_factor(light: Light, world_pos: vec3<f32>, ndotl: f32, instance_id: u32) -> f32 {
+    let model = models[instance_id];
     let model_receive_shadow = (model.flags.x & 1u) != 0u;
     let light_cast_shadow = (light.kind_flags.y & 1u) != 0u;
     if (!model_receive_shadow || !light_cast_shadow) { return 1.0; }
@@ -451,6 +453,7 @@ fn pbr_lighting(
     albedo: vec3<f32>,
     metallic: f32,
     roughness: f32,
+    instance_id: u32,
 ) -> vec3<f32> {
     let light_to_pos = world_pos - light.position.xyz;
     var l = vec3<f32>(0.0);
@@ -482,7 +485,7 @@ fn pbr_lighting(
     let n_dot_l = max(dot(n, l), 0.0);
     if (n_dot_l <= 0.0) { return vec3<f32>(0.0); }
     let n_dot_l_shadow = max(dot(shadow_normal, l), 0.0);
-    let shadow = get_shadow_factor(light, world_pos, n_dot_l_shadow);
+    let shadow = get_shadow_factor(light, world_pos, n_dot_l_shadow, instance_id);
 
     let h = normalize(v + l);
     let n_dot_v = max(dot(n, v), 0.0);
@@ -508,14 +511,16 @@ fn pbr_lighting(
 // -----------------------------------------------------------------------------
 
 @vertex
-fn vs_main(in: VertexInput) -> VertexOutput {
+fn vs_main(in: VertexInput, @builtin(instance_index) instance_id: u32) -> VertexOutput {
     var out: VertexOutput;
+    let model = models[instance_id];
     let world_pos = model.transform * vec4<f32>(in.position, 1.0);
     out.clip_position = camera.view_projection * world_pos;
     out.world_position = world_pos.xyz;
     out.normal = (model.transform * vec4<f32>(in.normal, 0.0)).xyz;
     out.uv0 = in.uv0;
     out.color0 = in.color0;
+    out.instance_id = instance_id;
     return out;
 }
 
@@ -573,9 +578,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             let idx = visible_indices[base + i];
             let light = lights[idx];
             switch (light.kind_flags.x) {
-                case 0u: { lighting += pbr_lighting(light, n, n_geom, v, in.world_position, albedo, metallic, roughness); }
-                case 1u: { lighting += pbr_lighting(light, n, n_geom, v, in.world_position, albedo, metallic, roughness); }
-                case 2u: { lighting += pbr_lighting(light, n, n_geom, v, in.world_position, albedo, metallic, roughness); }
+                case 0u: { lighting += pbr_lighting(light, n, n_geom, v, in.world_position, albedo, metallic, roughness, in.instance_id); }
+                case 1u: { lighting += pbr_lighting(light, n, n_geom, v, in.world_position, albedo, metallic, roughness, in.instance_id); }
+                case 2u: { lighting += pbr_lighting(light, n, n_geom, v, in.world_position, albedo, metallic, roughness, in.instance_id); }
                 case 3u: { ambient += light.color.rgb * light.intensity_range.x; }
                 case 4u: {
                     let up = normalize(light.direction.xyz);

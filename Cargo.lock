@@ -3386,6 +3386,7 @@ dependencies = [
  "once_cell",
  "pollster",
  "pyo3",
+ "rand",
  "rmp-serde",
  "serde",
  "serde_repr",

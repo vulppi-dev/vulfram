@@ -17,7 +17,11 @@ pub fn pass_forward(
         geometry_id: u32,
         material_id: u32,
         depth: f32,
+        instance_idx: u32,
     }
+
+    let mut instance_data: Vec<crate::core::resources::ModelComponent> = Vec::new();
+    let mut instance_cursor: u32 = 0;
 
     let scene = &render_state.scene;
 
@@ -162,6 +166,7 @@ pub fn pass_forward(
                         geometry_id: model_record.geometry_id,
                         material_id,
                         depth: model_depth,
+                        instance_idx: 0,
                     };
                     match record.surface_type {
                         SurfaceType::Opaque => pbr_opaque.push(item),
@@ -186,6 +191,7 @@ pub fn pass_forward(
                     geometry_id: model_record.geometry_id,
                     material_id,
                     depth: model_depth,
+                    instance_idx: 0,
                 };
 
                 match surface_type {
@@ -194,6 +200,12 @@ pub fn pass_forward(
                     SurfaceType::Transparent => standard_transparent.push(item),
                 }
             }
+
+            // 6. Sort and prepare instance data per branch
+            pbr_opaque.sort_by_key(|a| (a.material_id, a.geometry_id));
+            standard_opaque.sort_by_key(|a| (a.material_id, a.geometry_id));
+            pbr_masked.sort_by_key(|a| (a.material_id, a.geometry_id));
+            standard_masked.sort_by_key(|a| (a.material_id, a.geometry_id));
 
             // Sort Far-to-Near (Painter's Algorithm)
             // With Reverse Z: Far is 0.0, Near is 1.0. So we sort Ascending.
@@ -208,6 +220,29 @@ pub fn pass_forward(
                     .unwrap_or(std::cmp::Ordering::Equal)
             });
 
+            let mut groups = [
+                &mut pbr_opaque,
+                &mut standard_opaque,
+                &mut pbr_masked,
+                &mut standard_masked,
+                &mut pbr_transparent,
+                &mut standard_transparent,
+            ];
+
+            for group in groups.iter_mut() {
+                for item in group.iter_mut() {
+                    item.instance_idx = instance_cursor;
+                    if let Some(record) = scene.models.get(&item.model_id) {
+                        instance_data.push(record.data);
+                        instance_cursor += 1;
+                    }
+                }
+            }
+
+            if !instance_data.is_empty() {
+                bindings.instance_pool.write_slice(0, &instance_data);
+            }
+
             let pbr_pipeline = branches::pbr::get_pipeline(
                 cache,
                 frame_index,
@@ -216,21 +251,40 @@ pub fn pass_forward(
                 SurfaceType::Opaque,
             );
             render_pass.set_pipeline(pbr_pipeline);
-            for item in pbr_opaque {
-                if let Some(material) = scene.materials_pbr.get(&item.material_id) {
-                    if let Some(group) = material.bind_group.as_ref() {
-                        let instance_offset = bindings.model_pool.get_offset(item.model_id) as u32;
-                        let material_offset =
-                            bindings.material_pbr_pool.get_offset(item.material_id) as u32;
-                        render_pass.set_bind_group(1, group, &[instance_offset, material_offset]);
-                    }
-                }
+            {
+                let mut i = 0;
+                while i < pbr_opaque.len() {
+                    let batch_start = i;
+                    let item = &pbr_opaque[i];
+                    let mat_id = item.material_id;
+                    let geom_id = item.geometry_id;
 
-                if let Ok(Some(index_info)) = vertex_sys.index_info(item.geometry_id) {
-                    if vertex_sys.bind(&mut render_pass, item.geometry_id).is_err() {
-                        continue;
+                    while i < pbr_opaque.len()
+                        && pbr_opaque[i].material_id == mat_id
+                        && pbr_opaque[i].geometry_id == geom_id
+                    {
+                        i += 1;
                     }
-                    render_pass.draw_indexed(0..index_info.count, 0, 0..1);
+                    let batch_count = (i - batch_start) as u32;
+
+                    if let Some(material) = scene.materials_pbr.get(&mat_id) {
+                        if let Some(group) = material.bind_group.as_ref() {
+                            let material_offset =
+                                bindings.material_pbr_pool.get_offset(mat_id) as u32;
+                            render_pass.set_bind_group(1, group, &[material_offset]);
+                        }
+                    }
+
+                    if let Ok(Some(index_info)) = vertex_sys.index_info(geom_id) {
+                        if vertex_sys.bind(&mut render_pass, geom_id).is_ok() {
+                            let first_instance = pbr_opaque[batch_start].instance_idx;
+                            render_pass.draw_indexed(
+                                0..index_info.count,
+                                0,
+                                first_instance..(first_instance + batch_count),
+                            );
+                        }
+                    }
                 }
             }
 
@@ -242,21 +296,40 @@ pub fn pass_forward(
                 SurfaceType::Masked,
             );
             render_pass.set_pipeline(pbr_pipeline);
-            for item in pbr_masked {
-                if let Some(material) = scene.materials_pbr.get(&item.material_id) {
-                    if let Some(group) = material.bind_group.as_ref() {
-                        let instance_offset = bindings.model_pool.get_offset(item.model_id) as u32;
-                        let material_offset =
-                            bindings.material_pbr_pool.get_offset(item.material_id) as u32;
-                        render_pass.set_bind_group(1, group, &[instance_offset, material_offset]);
-                    }
-                }
+            {
+                let mut i = 0;
+                while i < pbr_masked.len() {
+                    let batch_start = i;
+                    let item = &pbr_masked[i];
+                    let mat_id = item.material_id;
+                    let geom_id = item.geometry_id;
 
-                if let Ok(Some(index_info)) = vertex_sys.index_info(item.geometry_id) {
-                    if vertex_sys.bind(&mut render_pass, item.geometry_id).is_err() {
-                        continue;
+                    while i < pbr_masked.len()
+                        && pbr_masked[i].material_id == mat_id
+                        && pbr_masked[i].geometry_id == geom_id
+                    {
+                        i += 1;
                     }
-                    render_pass.draw_indexed(0..index_info.count, 0, 0..1);
+                    let batch_count = (i - batch_start) as u32;
+
+                    if let Some(material) = scene.materials_pbr.get(&mat_id) {
+                        if let Some(group) = material.bind_group.as_ref() {
+                            let material_offset =
+                                bindings.material_pbr_pool.get_offset(mat_id) as u32;
+                            render_pass.set_bind_group(1, group, &[material_offset]);
+                        }
+                    }
+
+                    if let Ok(Some(index_info)) = vertex_sys.index_info(geom_id) {
+                        if vertex_sys.bind(&mut render_pass, geom_id).is_ok() {
+                            let first_instance = pbr_masked[batch_start].instance_idx;
+                            render_pass.draw_indexed(
+                                0..index_info.count,
+                                0,
+                                first_instance..(first_instance + batch_count),
+                            );
+                        }
+                    }
                 }
             }
 
@@ -268,21 +341,40 @@ pub fn pass_forward(
                 SurfaceType::Opaque,
             );
             render_pass.set_pipeline(pipeline);
-            for item in standard_opaque {
-                if let Some(material) = scene.materials_standard.get(&item.material_id) {
-                    if let Some(group) = material.bind_group.as_ref() {
-                        let instance_offset = bindings.model_pool.get_offset(item.model_id) as u32;
-                        let material_offset =
-                            bindings.material_standard_pool.get_offset(item.material_id) as u32;
-                        render_pass.set_bind_group(1, group, &[instance_offset, material_offset]);
-                    }
-                }
+            {
+                let mut i = 0;
+                while i < standard_opaque.len() {
+                    let batch_start = i;
+                    let item = &standard_opaque[i];
+                    let mat_id = item.material_id;
+                    let geom_id = item.geometry_id;
 
-                if let Ok(Some(index_info)) = vertex_sys.index_info(item.geometry_id) {
-                    if vertex_sys.bind(&mut render_pass, item.geometry_id).is_err() {
-                        continue;
+                    while i < standard_opaque.len()
+                        && standard_opaque[i].material_id == mat_id
+                        && standard_opaque[i].geometry_id == geom_id
+                    {
+                        i += 1;
                     }
-                    render_pass.draw_indexed(0..index_info.count, 0, 0..1);
+                    let batch_count = (i - batch_start) as u32;
+
+                    if let Some(material) = scene.materials_standard.get(&mat_id) {
+                        if let Some(group) = material.bind_group.as_ref() {
+                            let material_offset =
+                                bindings.material_standard_pool.get_offset(mat_id) as u32;
+                            render_pass.set_bind_group(1, group, &[material_offset]);
+                        }
+                    }
+
+                    if let Ok(Some(index_info)) = vertex_sys.index_info(geom_id) {
+                        if vertex_sys.bind(&mut render_pass, geom_id).is_ok() {
+                            let first_instance = standard_opaque[batch_start].instance_idx;
+                            render_pass.draw_indexed(
+                                0..index_info.count,
+                                0,
+                                first_instance..(first_instance + batch_count),
+                            );
+                        }
+                    }
                 }
             }
 
@@ -294,21 +386,40 @@ pub fn pass_forward(
                 SurfaceType::Masked,
             );
             render_pass.set_pipeline(pipeline);
-            for item in standard_masked {
-                if let Some(material) = scene.materials_standard.get(&item.material_id) {
-                    if let Some(group) = material.bind_group.as_ref() {
-                        let instance_offset = bindings.model_pool.get_offset(item.model_id) as u32;
-                        let material_offset =
-                            bindings.material_standard_pool.get_offset(item.material_id) as u32;
-                        render_pass.set_bind_group(1, group, &[instance_offset, material_offset]);
-                    }
-                }
+            {
+                let mut i = 0;
+                while i < standard_masked.len() {
+                    let batch_start = i;
+                    let item = &standard_masked[i];
+                    let mat_id = item.material_id;
+                    let geom_id = item.geometry_id;
 
-                if let Ok(Some(index_info)) = vertex_sys.index_info(item.geometry_id) {
-                    if vertex_sys.bind(&mut render_pass, item.geometry_id).is_err() {
-                        continue;
+                    while i < standard_masked.len()
+                        && standard_masked[i].material_id == mat_id
+                        && standard_masked[i].geometry_id == geom_id
+                    {
+                        i += 1;
                     }
-                    render_pass.draw_indexed(0..index_info.count, 0, 0..1);
+                    let batch_count = (i - batch_start) as u32;
+
+                    if let Some(material) = scene.materials_standard.get(&mat_id) {
+                        if let Some(group) = material.bind_group.as_ref() {
+                            let material_offset =
+                                bindings.material_standard_pool.get_offset(mat_id) as u32;
+                            render_pass.set_bind_group(1, group, &[material_offset]);
+                        }
+                    }
+
+                    if let Ok(Some(index_info)) = vertex_sys.index_info(geom_id) {
+                        if vertex_sys.bind(&mut render_pass, geom_id).is_ok() {
+                            let first_instance = standard_masked[batch_start].instance_idx;
+                            render_pass.draw_indexed(
+                                0..index_info.count,
+                                0,
+                                first_instance..(first_instance + batch_count),
+                            );
+                        }
+                    }
                 }
             }
 
@@ -320,21 +431,40 @@ pub fn pass_forward(
                 SurfaceType::Transparent,
             );
             render_pass.set_pipeline(pbr_pipeline);
-            for item in pbr_transparent {
-                if let Some(material) = scene.materials_pbr.get(&item.material_id) {
-                    if let Some(group) = material.bind_group.as_ref() {
-                        let instance_offset = bindings.model_pool.get_offset(item.model_id) as u32;
-                        let material_offset =
-                            bindings.material_pbr_pool.get_offset(item.material_id) as u32;
-                        render_pass.set_bind_group(1, group, &[instance_offset, material_offset]);
-                    }
-                }
+            {
+                let mut i = 0;
+                while i < pbr_transparent.len() {
+                    let batch_start = i;
+                    let item = &pbr_transparent[i];
+                    let mat_id = item.material_id;
+                    let geom_id = item.geometry_id;
 
-                if let Ok(Some(index_info)) = vertex_sys.index_info(item.geometry_id) {
-                    if vertex_sys.bind(&mut render_pass, item.geometry_id).is_err() {
-                        continue;
+                    while i < pbr_transparent.len()
+                        && pbr_transparent[i].material_id == mat_id
+                        && pbr_transparent[i].geometry_id == geom_id
+                    {
+                        i += 1;
                     }
-                    render_pass.draw_indexed(0..index_info.count, 0, 0..1);
+                    let batch_count = (i - batch_start) as u32;
+
+                    if let Some(material) = scene.materials_pbr.get(&mat_id) {
+                        if let Some(group) = material.bind_group.as_ref() {
+                            let material_offset =
+                                bindings.material_pbr_pool.get_offset(mat_id) as u32;
+                            render_pass.set_bind_group(1, group, &[material_offset]);
+                        }
+                    }
+
+                    if let Ok(Some(index_info)) = vertex_sys.index_info(geom_id) {
+                        if vertex_sys.bind(&mut render_pass, geom_id).is_ok() {
+                            let first_instance = pbr_transparent[batch_start].instance_idx;
+                            render_pass.draw_indexed(
+                                0..index_info.count,
+                                0,
+                                first_instance..(first_instance + batch_count),
+                            );
+                        }
+                    }
                 }
             }
 
@@ -346,21 +476,40 @@ pub fn pass_forward(
                 SurfaceType::Transparent,
             );
             render_pass.set_pipeline(pipeline);
-            for item in standard_transparent {
-                if let Some(material) = scene.materials_standard.get(&item.material_id) {
-                    if let Some(group) = material.bind_group.as_ref() {
-                        let instance_offset = bindings.model_pool.get_offset(item.model_id) as u32;
-                        let material_offset =
-                            bindings.material_standard_pool.get_offset(item.material_id) as u32;
-                        render_pass.set_bind_group(1, group, &[instance_offset, material_offset]);
-                    }
-                }
+            {
+                let mut i = 0;
+                while i < standard_transparent.len() {
+                    let batch_start = i;
+                    let item = &standard_transparent[i];
+                    let mat_id = item.material_id;
+                    let geom_id = item.geometry_id;
 
-                if let Ok(Some(index_info)) = vertex_sys.index_info(item.geometry_id) {
-                    if vertex_sys.bind(&mut render_pass, item.geometry_id).is_err() {
-                        continue;
+                    while i < standard_transparent.len()
+                        && standard_transparent[i].material_id == mat_id
+                        && standard_transparent[i].geometry_id == geom_id
+                    {
+                        i += 1;
                     }
-                    render_pass.draw_indexed(0..index_info.count, 0, 0..1);
+                    let batch_count = (i - batch_start) as u32;
+
+                    if let Some(material) = scene.materials_standard.get(&mat_id) {
+                        if let Some(group) = material.bind_group.as_ref() {
+                            let material_offset =
+                                bindings.material_standard_pool.get_offset(mat_id) as u32;
+                            render_pass.set_bind_group(1, group, &[material_offset]);
+                        }
+                    }
+
+                    if let Ok(Some(index_info)) = vertex_sys.index_info(geom_id) {
+                        if vertex_sys.bind(&mut render_pass, geom_id).is_ok() {
+                            let first_instance = standard_transparent[batch_start].instance_idx;
+                            render_pass.draw_indexed(
+                                0..index_info.count,
+                                0,
+                                first_instance..(first_instance + batch_count),
+                            );
+                        }
+                    }
                 }
             }
 

@@ -58,6 +58,7 @@ pub struct BindingSystem {
     pub frame_pool: UniformBufferPool<FrameComponent>,
     pub camera_pool: UniformBufferPool<CameraComponent>,
     pub model_pool: UniformBufferPool<ModelComponent>,
+    pub instance_pool: StorageBufferPool<ModelComponent>,
     pub material_standard_pool: UniformBufferPool<MaterialStandardParams>,
     pub material_standard_inputs: StorageBufferPool<glam::Vec4>,
     pub material_pbr_pool: UniformBufferPool<MaterialPbrParams>,
@@ -211,6 +212,7 @@ impl RenderState {
             bindings.frame_pool.begin_frame(frame_index);
             bindings.camera_pool.begin_frame(frame_index);
             bindings.model_pool.begin_frame(frame_index);
+            bindings.instance_pool.begin_frame(frame_index);
             bindings.material_standard_pool.begin_frame(frame_index);
             bindings.material_standard_inputs.begin_frame(frame_index);
             bindings.material_pbr_pool.begin_frame(frame_index);
@@ -614,27 +616,21 @@ impl RenderState {
             }),
         );
 
-        // 3. Create Model Bind Group (Group 1: Model B0 dynamic)
+        // 3. Create Model Bind Group (Group 1: Model B0 storage)
         if bindings.model_bind_group.is_none() {
-            bindings.model_bind_group = Some(
-                device.create_bind_group(&wgpu::BindGroupDescriptor {
+            bindings.model_bind_group =
+                Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
                     label: Some("BindGroup Model"),
                     layout: &library.layout_object,
                     entries: &[wgpu::BindGroupEntry {
                         binding: 0,
                         resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: bindings.model_pool.buffer(),
+                            buffer: bindings.instance_pool.buffer(),
                             offset: 0,
-                            size: Some(
-                                std::num::NonZeroU64::new(
-                                    std::mem::size_of::<ModelComponent>() as u64
-                                )
-                                .unwrap(),
-                            ),
+                            size: None,
                         }),
                     }],
-                }),
-            );
+                }));
         }
 
         for (material_id, record) in &mut self.scene.materials_standard {
@@ -663,12 +659,9 @@ impl RenderState {
                 wgpu::BindGroupEntry {
                     binding: 0,
                     resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                        buffer: bindings.model_pool.buffer(),
+                        buffer: bindings.instance_pool.buffer(),
                         offset: 0,
-                        size: Some(
-                            std::num::NonZeroU64::new(std::mem::size_of::<ModelComponent>() as u64)
-                                .unwrap(),
-                        ),
+                        size: None,
                     }),
                 },
                 wgpu::BindGroupEntry {
@@ -759,12 +752,9 @@ impl RenderState {
                 wgpu::BindGroupEntry {
                     binding: 0,
                     resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                        buffer: bindings.model_pool.buffer(),
+                        buffer: bindings.instance_pool.buffer(),
                         offset: 0,
-                        size: Some(
-                            std::num::NonZeroU64::new(std::mem::size_of::<ModelComponent>() as u64)
-                                .unwrap(),
-                        ),
+                        size: None,
                     }),
                 },
                 wgpu::BindGroupEntry {
@@ -845,6 +835,7 @@ impl RenderState {
             frame_pool: UniformBufferPool::new(device, queue, Some(1), alignment),
             camera_pool: UniformBufferPool::new(device, queue, Some(128), alignment),
             model_pool: UniformBufferPool::new(device, queue, Some(2048), alignment),
+            instance_pool: StorageBufferPool::new(device, queue, Some(16384), 0),
             material_standard_pool: UniformBufferPool::new(device, queue, Some(256), alignment),
             material_standard_inputs: StorageBufferPool::new(device, queue, Some(256), 0),
             material_pbr_pool: UniformBufferPool::new(device, queue, Some(256), alignment),
@@ -1197,8 +1188,8 @@ impl RenderState {
                 binding: 0,
                 visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                 ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: true,
+                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                    has_dynamic_offset: false,
                     min_binding_size: Some(
                         std::num::NonZeroU64::new(std::mem::size_of::<ModelComponent>() as u64)
                             .unwrap(),
@@ -1216,8 +1207,8 @@ impl RenderState {
                         binding: 0,
                         visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                         ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: true,
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
                             min_binding_size: Some(
                                 std::num::NonZeroU64::new(
                                     std::mem::size_of::<ModelComponent>() as u64
@@ -1342,8 +1333,8 @@ impl RenderState {
                     binding: 0,
                     visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: true,
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
                         min_binding_size: Some(
                             std::num::NonZeroU64::new(std::mem::size_of::<ModelComponent>() as u64)
                                 .unwrap(),

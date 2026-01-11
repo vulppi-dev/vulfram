@@ -67,6 +67,10 @@ pub struct BindingSystem {
     pub shared_group: Option<wgpu::BindGroup>,
     pub model_bind_group: Option<wgpu::BindGroup>,
     pub shadow_model_bind_group: Option<wgpu::BindGroup>,
+
+    // Version tracking for bind group invalidation
+    pub pool_versions: HashMap<&'static str, u64>,
+    pub last_with_shadows: bool,
 }
 
 #[repr(C)]
@@ -122,6 +126,41 @@ pub struct RenderScene {
     pub forward_atlas_entries: HashMap<u32, ForwardAtlasEntry>,
 }
 
+#[derive(Clone, Copy)]
+pub struct DrawItem {
+    pub model_id: u32,
+    pub geometry_id: u32,
+    pub material_id: u32,
+    pub depth: f32,
+    pub instance_idx: u32,
+}
+
+/// Collection of vectors to be reused across frames for draw call preparation
+#[derive(Default)]
+pub struct DrawCollector {
+    pub standard_opaque: Vec<DrawItem>,
+    pub standard_masked: Vec<DrawItem>,
+    pub standard_transparent: Vec<DrawItem>,
+    pub pbr_opaque: Vec<DrawItem>,
+    pub pbr_masked: Vec<DrawItem>,
+    pub pbr_transparent: Vec<DrawItem>,
+    pub instance_data: Vec<ModelComponent>,
+    pub shadow_instance_data: Vec<ModelComponent>,
+}
+
+impl DrawCollector {
+    pub fn clear(&mut self) {
+        self.standard_opaque.clear();
+        self.standard_masked.clear();
+        self.standard_transparent.clear();
+        self.pbr_opaque.clear();
+        self.pbr_masked.clear();
+        self.pbr_transparent.clear();
+        self.instance_data.clear();
+        self.shadow_instance_data.clear();
+    }
+}
+
 // -----------------------------------------------------------------------------
 // RenderState
 // -----------------------------------------------------------------------------
@@ -137,6 +176,7 @@ pub struct RenderState {
     pub forward_atlas: Option<ForwardAtlasSystem>,
     pub cache: RenderCache,
     pub forward_depth_target: Option<RenderTarget>,
+    pub collector: DrawCollector,
 }
 
 impl RenderState {
@@ -172,6 +212,7 @@ impl RenderState {
             forward_atlas: None,
             cache: RenderCache::new(),
             forward_depth_target: None,
+            collector: DrawCollector::default(),
         }
     }
 
@@ -299,6 +340,53 @@ impl RenderState {
 
         // 1. Upload all data to pools
         bindings.frame_pool.write(0, &frame_spec);
+
+        let mut any_pool_resized = false;
+        let mut check_pool = |name: &'static str, current_version: u64| {
+            let entry = bindings
+                .pool_versions
+                .entry(name)
+                .or_insert(current_version);
+            if *entry != current_version {
+                *entry = current_version;
+                any_pool_resized = true;
+            }
+        };
+
+        check_pool("frame", bindings.frame_pool.version());
+        check_pool("camera", bindings.camera_pool.version());
+        check_pool("model", bindings.model_pool.version());
+        check_pool("instance", bindings.instance_pool.version());
+        check_pool("shadow_instance", bindings.shadow_instance_pool.version());
+        check_pool("mat_std", bindings.material_standard_pool.version());
+        check_pool("mat_std_in", bindings.material_standard_inputs.version());
+        check_pool("mat_pbr", bindings.material_pbr_pool.version());
+        check_pool("mat_pbr_in", bindings.material_pbr_inputs.version());
+
+        if let Some(light_system) = self.light_system.as_ref() {
+            check_pool("light_cull", light_system.lights.version());
+            check_pool("light_indices", light_system.visible_indices.version());
+            check_pool("light_counts", light_system.visible_counts.version());
+            check_pool("light_params", light_system.light_params.version());
+        }
+
+        if let Some(shadow_manager) = self.shadow.as_ref() {
+            check_pool("shadow_params", shadow_manager.params_pool.version());
+            check_pool("shadow_page_table", shadow_manager.page_table.version());
+            check_pool("shadow_point_vp", shadow_manager.point_light_vp.version());
+        }
+
+        if with_shadows != bindings.last_with_shadows {
+            bindings.last_with_shadows = with_shadows;
+            bindings.shared_group = None;
+        }
+
+        if any_pool_resized {
+            bindings.shared_group = None;
+            bindings.model_bind_group = None;
+            bindings.shadow_model_bind_group = None;
+            // Materials will be handled below
+        }
 
         for (id, record) in &mut self.scene.cameras {
             if record.is_dirty {
@@ -474,12 +562,11 @@ impl RenderState {
             }
         }
 
+        // 2. Create Shared Bind Group (Consolidated Group 0)
         let light_system = match self.light_system.as_ref() {
             Some(sys) => sys,
             None => return,
         };
-
-        // 2. Create Shared Bind Group (Consolidated Group 0)
         let shadow_manager = self.shadow.as_ref().expect("ShadowManager missing");
 
         let forward_atlas_view = match self.forward_atlas.as_ref() {
@@ -487,136 +574,144 @@ impl RenderState {
             None => &library.fallback_forward_atlas_view,
         };
 
-        bindings.shared_group = Some(
-            device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some(&format!(
-                    "BindGroup Shared (Consolidated, shadows={})",
-                    with_shadows
-                )),
-                layout: &library.layout_shared,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: bindings.frame_pool.buffer(),
-                            offset: 0,
-                            size: Some(
-                                std::num::NonZeroU64::new(
-                                    std::mem::size_of::<FrameComponent>() as u64
-                                )
-                                .unwrap(),
+        if bindings.shared_group.is_none() {
+            bindings.shared_group = Some(
+                device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some(&format!(
+                        "BindGroup Shared (Consolidated, shadows={})",
+                        with_shadows
+                    )),
+                    layout: &library.layout_shared,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                                buffer: bindings.frame_pool.buffer(),
+                                offset: 0,
+                                size: Some(
+                                    std::num::NonZeroU64::new(
+                                        std::mem::size_of::<FrameComponent>() as u64,
+                                    )
+                                    .unwrap(),
+                                ),
+                            }),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                                buffer: bindings.camera_pool.buffer(),
+                                offset: 0,
+                                size: Some(
+                                    std::num::NonZeroU64::new(
+                                        std::mem::size_of::<CameraComponent>() as u64,
+                                    )
+                                    .unwrap(),
+                                ),
+                            }),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 2,
+                            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                                buffer: light_system.light_params.buffer(),
+                                offset: 0,
+                                size: Some(
+                                    std::num::NonZeroU64::new(
+                                        std::mem::size_of::<LightDrawParams>() as u64,
+                                    )
+                                    .unwrap(),
+                                ),
+                            }),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 3,
+                            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                                buffer: light_system.lights.buffer(),
+                                offset: 0,
+                                size: None,
+                            }),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 4,
+                            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                                buffer: light_system.visible_indices.buffer(),
+                                offset: 0,
+                                size: None,
+                            }),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 5,
+                            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                                buffer: light_system.visible_counts.buffer(),
+                                offset: 0,
+                                size: None,
+                            }),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 6,
+                            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                                buffer: shadow_manager.params_pool.buffer(),
+                                offset: 0,
+                                size: None,
+                            }),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 7,
+                            resource: wgpu::BindingResource::TextureView(if with_shadows {
+                                shadow_manager.atlas.view()
+                            } else {
+                                &library.fallback_shadow_view
+                            }),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 8,
+                            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                                buffer: shadow_manager.page_table.buffer(),
+                                offset: 0,
+                                size: None,
+                            }),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 9,
+                            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                                buffer: shadow_manager.point_light_vp.buffer(),
+                                offset: 0,
+                                size: None,
+                            }),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 10,
+                            resource: wgpu::BindingResource::Sampler(&library.samplers.point_clamp),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 11,
+                            resource: wgpu::BindingResource::Sampler(
+                                &library.samplers.linear_clamp,
                             ),
-                        }),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: bindings.camera_pool.buffer(),
-                            offset: 0,
-                            size: Some(
-                                std::num::NonZeroU64::new(
-                                    std::mem::size_of::<CameraComponent>() as u64
-                                )
-                                .unwrap(),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 12,
+                            resource: wgpu::BindingResource::Sampler(
+                                &library.samplers.point_repeat,
                             ),
-                        }),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 2,
-                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: light_system.light_params.buffer(),
-                            offset: 0,
-                            size: Some(
-                                std::num::NonZeroU64::new(
-                                    std::mem::size_of::<LightDrawParams>() as u64
-                                )
-                                .unwrap(),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 13,
+                            resource: wgpu::BindingResource::Sampler(
+                                &library.samplers.linear_repeat,
                             ),
-                        }),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 3,
-                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: light_system.lights.buffer(),
-                            offset: 0,
-                            size: None,
-                        }),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 4,
-                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: light_system.visible_indices.buffer(),
-                            offset: 0,
-                            size: None,
-                        }),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 5,
-                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: light_system.visible_counts.buffer(),
-                            offset: 0,
-                            size: None,
-                        }),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 6,
-                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: shadow_manager.params_pool.buffer(),
-                            offset: 0,
-                            size: None,
-                        }),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 7,
-                        resource: wgpu::BindingResource::TextureView(if with_shadows {
-                            shadow_manager.atlas.view()
-                        } else {
-                            &library.fallback_shadow_view
-                        }),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 8,
-                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: shadow_manager.page_table.buffer(),
-                            offset: 0,
-                            size: None,
-                        }),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 9,
-                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: shadow_manager.point_light_vp.buffer(),
-                            offset: 0,
-                            size: None,
-                        }),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 10,
-                        resource: wgpu::BindingResource::Sampler(&library.samplers.point_clamp),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 11,
-                        resource: wgpu::BindingResource::Sampler(&library.samplers.linear_clamp),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 12,
-                        resource: wgpu::BindingResource::Sampler(&library.samplers.point_repeat),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 13,
-                        resource: wgpu::BindingResource::Sampler(&library.samplers.linear_repeat),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 14,
-                        resource: wgpu::BindingResource::Sampler(&library.samplers.comparison),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 15,
-                        resource: wgpu::BindingResource::TextureView(forward_atlas_view),
-                    },
-                ],
-            }),
-        );
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 14,
+                            resource: wgpu::BindingResource::Sampler(&library.samplers.comparison),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 15,
+                            resource: wgpu::BindingResource::TextureView(forward_atlas_view),
+                        },
+                    ],
+                }),
+            );
+        }
 
         // 3. Create Model Bind Groups (Group 1: Model B0 storage)
         if bindings.model_bind_group.is_none() {
@@ -652,7 +747,7 @@ impl RenderState {
         }
 
         for (material_id, record) in &mut self.scene.materials_standard {
-            if record.bind_group.is_some() && !record.is_dirty {
+            if record.bind_group.is_some() && !record.is_dirty && !any_pool_resized {
                 continue;
             }
 
@@ -745,7 +840,7 @@ impl RenderState {
         }
 
         for (material_id, record) in &mut self.scene.materials_pbr {
-            if record.bind_group.is_some() && !record.is_dirty {
+            if record.bind_group.is_some() && !record.is_dirty && !any_pool_resized {
                 continue;
             }
 
@@ -862,6 +957,8 @@ impl RenderState {
             shared_group: None,
             model_bind_group: None,
             shadow_model_bind_group: None,
+            pool_versions: HashMap::new(),
+            last_with_shadows: false,
         });
 
         self.light_system = Some(LightCullingSystem {

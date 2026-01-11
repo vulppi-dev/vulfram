@@ -29,6 +29,8 @@ pub struct StorageBufferPool<T: Pod> {
     garbage: Vec<GarbageEntry>,
     keep_frames: u64,
 
+    version: u64,
+
     _phantom: PhantomData<T>,
 }
 
@@ -68,8 +70,13 @@ impl<T: Pod> StorageBufferPool<T> {
             queue: queue.clone(),
             garbage: Vec::new(),
             keep_frames: 3,
+            version: 0,
             _phantom: PhantomData,
         }
+    }
+
+    pub fn version(&self) -> u64 {
+        self.version
     }
 
     pub fn write_bytes(&mut self, index: u32, data: &[u8]) {
@@ -168,6 +175,7 @@ impl<T: Pod> StorageBufferPool<T> {
         });
 
         self.capacity = new_capacity;
+        self.version += 1;
     }
 
     fn calculate_next_capacity(&self, required_capacity: u32) -> u32 {

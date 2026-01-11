@@ -204,7 +204,8 @@ pub fn pass_shadow_update(
     render_pages.sort_by_key(|page| page.layer);
 
     let mut i = 0;
-    let mut all_shadow_data = Vec::new();
+    let collector = &mut render_state.collector;
+    collector.shadow_instance_data.clear();
     let mut shadow_instance_cursor = 0u32;
 
     while i < render_pages.len() {
@@ -339,7 +340,7 @@ pub fn pass_shadow_update(
                         .is_ok()
                     {
                         let inst_idx = shadow_instance_cursor;
-                        all_shadow_data.push(model_record.data);
+                        collector.shadow_instance_data.push(model_record.data);
                         shadow_instance_cursor += 1;
 
                         rpass.draw_indexed(0..index_info.count, 0, inst_idx..(inst_idx + 1));
@@ -351,10 +352,10 @@ pub fn pass_shadow_update(
         }
     }
 
-    if !all_shadow_data.is_empty() {
+    if !collector.shadow_instance_data.is_empty() {
         bindings
             .shadow_instance_pool
-            .write_slice(0, &all_shadow_data);
+            .write_slice(0, &collector.shadow_instance_data);
     }
 
     shadow_manager.clear_dirty();

@@ -12,16 +12,7 @@ pub fn pass_forward(
     encoder: &mut wgpu::CommandEncoder,
     frame_index: u64,
 ) {
-    struct DrawItem {
-        model_id: u32,
-        geometry_id: u32,
-        material_id: u32,
-        depth: f32,
-        instance_idx: u32,
-    }
-
-    let mut instance_data: Vec<crate::core::resources::ModelComponent> = Vec::new();
-    let mut instance_cursor: u32 = 0;
+    let mut instance_cursor: u32;
 
     let scene = &render_state.scene;
 
@@ -78,11 +69,14 @@ pub fn pass_forward(
         light_system.write_draw_params(camera_index as u32, light_system.max_lights_per_camera);
 
         // 2. Get render target view
-
         let target_view = match &camera_record.render_target {
             Some(target) => &target.view,
             None => continue,
         };
+
+        // Reset collector for this camera
+        render_state.collector.clear();
+        instance_cursor = 0;
 
         // 3. Begin render pass
 
@@ -128,14 +122,8 @@ pub fn pass_forward(
             }
 
             // 5. Filter and group models by surface type
-            let mut standard_opaque = Vec::new();
-            let mut standard_masked = Vec::new();
-            let mut standard_transparent = Vec::new();
-            let mut pbr_opaque = Vec::new();
-            let mut pbr_masked = Vec::new();
-            let mut pbr_transparent = Vec::new();
-
             let frustum = Frustum::from_view_projection(camera_record.data.view_projection);
+            let collector = &mut render_state.collector;
 
             for (model_id, model_record) in &scene.models {
                 if (model_record.layer_mask & camera_record.layer_mask) == 0 {
@@ -160,6 +148,8 @@ pub fn pass_forward(
                     }
                 };
 
+                use crate::core::render::state::DrawItem;
+
                 if let Some(record) = materials_pbr.get(&material_id) {
                     let item = DrawItem {
                         model_id: *model_id,
@@ -169,9 +159,9 @@ pub fn pass_forward(
                         instance_idx: 0,
                     };
                     match record.surface_type {
-                        SurfaceType::Opaque => pbr_opaque.push(item),
-                        SurfaceType::Masked => pbr_masked.push(item),
-                        SurfaceType::Transparent => pbr_transparent.push(item),
+                        SurfaceType::Opaque => collector.pbr_opaque.push(item),
+                        SurfaceType::Masked => collector.pbr_masked.push(item),
+                        SurfaceType::Transparent => collector.pbr_transparent.push(item),
                     }
                     continue;
                 }
@@ -195,52 +185,62 @@ pub fn pass_forward(
                 };
 
                 match surface_type {
-                    SurfaceType::Opaque => standard_opaque.push(item),
-                    SurfaceType::Masked => standard_masked.push(item),
-                    SurfaceType::Transparent => standard_transparent.push(item),
+                    SurfaceType::Opaque => collector.standard_opaque.push(item),
+                    SurfaceType::Masked => collector.standard_masked.push(item),
+                    SurfaceType::Transparent => collector.standard_transparent.push(item),
                 }
             }
 
             // 6. Sort and prepare instance data per branch
-            pbr_opaque.sort_by_key(|a| (a.material_id, a.geometry_id));
-            standard_opaque.sort_by_key(|a| (a.material_id, a.geometry_id));
-            pbr_masked.sort_by_key(|a| (a.material_id, a.geometry_id));
-            standard_masked.sort_by_key(|a| (a.material_id, a.geometry_id));
+            collector
+                .pbr_opaque
+                .sort_by_key(|a| (a.material_id, a.geometry_id));
+            collector
+                .standard_opaque
+                .sort_by_key(|a| (a.material_id, a.geometry_id));
+            collector
+                .pbr_masked
+                .sort_by_key(|a| (a.material_id, a.geometry_id));
+            collector
+                .standard_masked
+                .sort_by_key(|a| (a.material_id, a.geometry_id));
 
             // Sort Far-to-Near (Painter's Algorithm)
             // With Reverse Z: Far is 0.0, Near is 1.0. So we sort Ascending.
-            standard_transparent.sort_by(|a, b| {
+            collector.standard_transparent.sort_by(|a, b| {
                 a.depth
                     .partial_cmp(&b.depth)
                     .unwrap_or(std::cmp::Ordering::Equal)
             });
-            pbr_transparent.sort_by(|a, b| {
+            collector.pbr_transparent.sort_by(|a, b| {
                 a.depth
                     .partial_cmp(&b.depth)
                     .unwrap_or(std::cmp::Ordering::Equal)
             });
 
-            let mut groups = [
-                &mut pbr_opaque,
-                &mut standard_opaque,
-                &mut pbr_masked,
-                &mut standard_masked,
-                &mut pbr_transparent,
-                &mut standard_transparent,
+            let groups = [
+                &mut collector.pbr_opaque,
+                &mut collector.standard_opaque,
+                &mut collector.pbr_masked,
+                &mut collector.standard_masked,
+                &mut collector.pbr_transparent,
+                &mut collector.standard_transparent,
             ];
 
-            for group in groups.iter_mut() {
+            for group in groups {
                 for item in group.iter_mut() {
                     item.instance_idx = instance_cursor;
                     if let Some(record) = scene.models.get(&item.model_id) {
-                        instance_data.push(record.data);
+                        collector.instance_data.push(record.data);
                         instance_cursor += 1;
                     }
                 }
             }
 
-            if !instance_data.is_empty() {
-                bindings.instance_pool.write_slice(0, &instance_data);
+            if !collector.instance_data.is_empty() {
+                bindings
+                    .instance_pool
+                    .write_slice(0, &collector.instance_data);
             }
 
             let pbr_pipeline = branches::pbr::get_pipeline(
@@ -253,15 +253,15 @@ pub fn pass_forward(
             render_pass.set_pipeline(pbr_pipeline);
             {
                 let mut i = 0;
-                while i < pbr_opaque.len() {
+                while i < collector.pbr_opaque.len() {
                     let batch_start = i;
-                    let item = &pbr_opaque[i];
+                    let item = &collector.pbr_opaque[i];
                     let mat_id = item.material_id;
                     let geom_id = item.geometry_id;
 
-                    while i < pbr_opaque.len()
-                        && pbr_opaque[i].material_id == mat_id
-                        && pbr_opaque[i].geometry_id == geom_id
+                    while i < collector.pbr_opaque.len()
+                        && collector.pbr_opaque[i].material_id == mat_id
+                        && collector.pbr_opaque[i].geometry_id == geom_id
                     {
                         i += 1;
                     }
@@ -277,7 +277,7 @@ pub fn pass_forward(
 
                     if let Ok(Some(index_info)) = vertex_sys.index_info(geom_id) {
                         if vertex_sys.bind(&mut render_pass, geom_id).is_ok() {
-                            let first_instance = pbr_opaque[batch_start].instance_idx;
+                            let first_instance = collector.pbr_opaque[batch_start].instance_idx;
                             render_pass.draw_indexed(
                                 0..index_info.count,
                                 0,
@@ -298,15 +298,15 @@ pub fn pass_forward(
             render_pass.set_pipeline(pbr_pipeline);
             {
                 let mut i = 0;
-                while i < pbr_masked.len() {
+                while i < collector.pbr_masked.len() {
                     let batch_start = i;
-                    let item = &pbr_masked[i];
+                    let item = &collector.pbr_masked[i];
                     let mat_id = item.material_id;
                     let geom_id = item.geometry_id;
 
-                    while i < pbr_masked.len()
-                        && pbr_masked[i].material_id == mat_id
-                        && pbr_masked[i].geometry_id == geom_id
+                    while i < collector.pbr_masked.len()
+                        && collector.pbr_masked[i].material_id == mat_id
+                        && collector.pbr_masked[i].geometry_id == geom_id
                     {
                         i += 1;
                     }
@@ -322,7 +322,7 @@ pub fn pass_forward(
 
                     if let Ok(Some(index_info)) = vertex_sys.index_info(geom_id) {
                         if vertex_sys.bind(&mut render_pass, geom_id).is_ok() {
-                            let first_instance = pbr_masked[batch_start].instance_idx;
+                            let first_instance = collector.pbr_masked[batch_start].instance_idx;
                             render_pass.draw_indexed(
                                 0..index_info.count,
                                 0,
@@ -343,15 +343,15 @@ pub fn pass_forward(
             render_pass.set_pipeline(pipeline);
             {
                 let mut i = 0;
-                while i < standard_opaque.len() {
+                while i < collector.standard_opaque.len() {
                     let batch_start = i;
-                    let item = &standard_opaque[i];
+                    let item = &collector.standard_opaque[i];
                     let mat_id = item.material_id;
                     let geom_id = item.geometry_id;
 
-                    while i < standard_opaque.len()
-                        && standard_opaque[i].material_id == mat_id
-                        && standard_opaque[i].geometry_id == geom_id
+                    while i < collector.standard_opaque.len()
+                        && collector.standard_opaque[i].material_id == mat_id
+                        && collector.standard_opaque[i].geometry_id == geom_id
                     {
                         i += 1;
                     }
@@ -367,7 +367,8 @@ pub fn pass_forward(
 
                     if let Ok(Some(index_info)) = vertex_sys.index_info(geom_id) {
                         if vertex_sys.bind(&mut render_pass, geom_id).is_ok() {
-                            let first_instance = standard_opaque[batch_start].instance_idx;
+                            let first_instance =
+                                collector.standard_opaque[batch_start].instance_idx;
                             render_pass.draw_indexed(
                                 0..index_info.count,
                                 0,
@@ -388,15 +389,15 @@ pub fn pass_forward(
             render_pass.set_pipeline(pipeline);
             {
                 let mut i = 0;
-                while i < standard_masked.len() {
+                while i < collector.standard_masked.len() {
                     let batch_start = i;
-                    let item = &standard_masked[i];
+                    let item = &collector.standard_masked[i];
                     let mat_id = item.material_id;
                     let geom_id = item.geometry_id;
 
-                    while i < standard_masked.len()
-                        && standard_masked[i].material_id == mat_id
-                        && standard_masked[i].geometry_id == geom_id
+                    while i < collector.standard_masked.len()
+                        && collector.standard_masked[i].material_id == mat_id
+                        && collector.standard_masked[i].geometry_id == geom_id
                     {
                         i += 1;
                     }
@@ -412,7 +413,8 @@ pub fn pass_forward(
 
                     if let Ok(Some(index_info)) = vertex_sys.index_info(geom_id) {
                         if vertex_sys.bind(&mut render_pass, geom_id).is_ok() {
-                            let first_instance = standard_masked[batch_start].instance_idx;
+                            let first_instance =
+                                collector.standard_masked[batch_start].instance_idx;
                             render_pass.draw_indexed(
                                 0..index_info.count,
                                 0,
@@ -433,15 +435,15 @@ pub fn pass_forward(
             render_pass.set_pipeline(pbr_pipeline);
             {
                 let mut i = 0;
-                while i < pbr_transparent.len() {
+                while i < collector.pbr_transparent.len() {
                     let batch_start = i;
-                    let item = &pbr_transparent[i];
+                    let item = &collector.pbr_transparent[i];
                     let mat_id = item.material_id;
                     let geom_id = item.geometry_id;
 
-                    while i < pbr_transparent.len()
-                        && pbr_transparent[i].material_id == mat_id
-                        && pbr_transparent[i].geometry_id == geom_id
+                    while i < collector.pbr_transparent.len()
+                        && collector.pbr_transparent[i].material_id == mat_id
+                        && collector.pbr_transparent[i].geometry_id == geom_id
                     {
                         i += 1;
                     }
@@ -457,7 +459,8 @@ pub fn pass_forward(
 
                     if let Ok(Some(index_info)) = vertex_sys.index_info(geom_id) {
                         if vertex_sys.bind(&mut render_pass, geom_id).is_ok() {
-                            let first_instance = pbr_transparent[batch_start].instance_idx;
+                            let first_instance =
+                                collector.pbr_transparent[batch_start].instance_idx;
                             render_pass.draw_indexed(
                                 0..index_info.count,
                                 0,
@@ -478,15 +481,15 @@ pub fn pass_forward(
             render_pass.set_pipeline(pipeline);
             {
                 let mut i = 0;
-                while i < standard_transparent.len() {
+                while i < collector.standard_transparent.len() {
                     let batch_start = i;
-                    let item = &standard_transparent[i];
+                    let item = &collector.standard_transparent[i];
                     let mat_id = item.material_id;
                     let geom_id = item.geometry_id;
 
-                    while i < standard_transparent.len()
-                        && standard_transparent[i].material_id == mat_id
-                        && standard_transparent[i].geometry_id == geom_id
+                    while i < collector.standard_transparent.len()
+                        && collector.standard_transparent[i].material_id == mat_id
+                        && collector.standard_transparent[i].geometry_id == geom_id
                     {
                         i += 1;
                     }
@@ -502,7 +505,8 @@ pub fn pass_forward(
 
                     if let Ok(Some(index_info)) = vertex_sys.index_info(geom_id) {
                         if vertex_sys.bind(&mut render_pass, geom_id).is_ok() {
-                            let first_instance = standard_transparent[batch_start].instance_idx;
+                            let first_instance =
+                                collector.standard_transparent[batch_start].instance_idx;
                             render_pass.draw_indexed(
                                 0..index_info.count,
                                 0,

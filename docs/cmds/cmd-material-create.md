@@ -8,6 +8,7 @@ Creates a new material resource (Standard or PBR).
 | ---------- | ----------------------- | --------------------------------------------------- |
 | windowId   | u32                     | ID of the window                                    |
 | materialId | u32                     | Unique ID for the material                          |
+| label      | Option<String>          | Optional semantic name for debugging/listing        |
 | kind       | MaterialKind            | Type of material (Standard, Pbr)                    |
 | options    | Option<MaterialOptions> | Material properties (StandardOptions or PbrOptions) |
 

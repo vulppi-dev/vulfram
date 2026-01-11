@@ -8,6 +8,7 @@ Generates a standard primitive shape (Cube, Sphere, etc.) as a geometry resource
 | ---------- | ------------------------ | ------------------------------------------------------------ |
 | windowId   | u32                      | ID of the window                                             |
 | geometryId | u32                      | ID for the generated geometry                                |
+| label      | Option<String>           | Optional semantic name for debugging/listing                 |
 | shape      | PrimitiveShape           | Cube, Plane, Sphere, Cylinder, Torus, Pyramid                |
 | options    | Option<PrimitiveOptions> | Shape-specific parameters (size, radius, subdivisions, etc.) |
 

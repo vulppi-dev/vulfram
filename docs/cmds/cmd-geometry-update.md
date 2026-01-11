@@ -4,11 +4,12 @@ Updates a geometry resource. Replaces all previous data with new buffers.
 
 ## Arguments
 
-| Field      | Type                        | Description                  |
-| ---------- | --------------------------- | ---------------------------- |
-| windowId   | u32                         | ID of the window             |
-| geometryId | u32                         | ID of the geometry to update |
-| entries    | Vec<GeometryPrimitiveEntry> | New set of primitive buffers |
+| Field      | Type                        | Description                        |
+| ---------- | --------------------------- | ---------------------------------- |
+| windowId   | u32                         | ID of the window                   |
+| geometryId | u32                         | ID of the geometry to update       |
+| label      | Option<String>              | New semantic name for the geometry |
+| entries    | Vec<GeometryPrimitiveEntry> | New set of primitive buffers       |
 
 ## Response
 

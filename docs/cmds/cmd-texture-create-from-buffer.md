@@ -8,6 +8,7 @@ Creates a texture from an uploaded image buffer.
 | ------------ | --------------------------- | ----------------------------------------------- |
 | windowId     | u32                         | ID of the window                                |
 | textureId    | u32                         | Unique ID for the texture                       |
+| label        | Option<String>              | Optional semantic name for debugging/listing    |
 | bufferId     | u64                         | ID of the uploaded buffer containing image data |
 | srgb         | Option<bool>                | Whether to use sRGB format (default: true)      |
 | mode         | TextureCreateMode           | Standalone (0) or ForwardAtlas (1)              |

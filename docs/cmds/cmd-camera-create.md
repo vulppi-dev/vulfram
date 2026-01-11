@@ -7,6 +7,7 @@ Creates a new camera resource.
 | Field        | Type                 | Description                                    |
 | ------------ | -------------------- | ---------------------------------------------- |
 | cameraId     | u32                  | Unique ID for the camera                       |
+| label        | Option<String>       | Optional semantic name for debugging/listing   |
 | transform    | Mat4                 | Matrix for camera view transformation          |
 | kind         | CameraKind           | Type of camera (Orthographic, Perspective)     |
 | flags        | u32                  | Bitmask for camera options                     |

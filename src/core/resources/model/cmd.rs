@@ -58,26 +58,6 @@ pub fn engine_cmd_model_create(
         };
     }
 
-    let vertex_allocator = match window_state.render_state.vertex.as_mut() {
-        Some(va) => va,
-        None => {
-            return CmdResultModelCreate {
-                success: false,
-                message: format!(
-                    "Vertex allocator not initialized for window {}",
-                    args.window_id
-                ),
-            };
-        }
-    };
-
-    if vertex_allocator.vertex_count(args.geometry_id).is_err() {
-        return CmdResultModelCreate {
-            success: false,
-            message: format!("Geometry {} not found", args.geometry_id),
-        };
-    }
-
     let component = ModelComponent::new(args.transform, args.receive_shadow);
     let record = ModelRecord::new(
         args.label.clone(),
@@ -162,26 +142,6 @@ pub fn engine_cmd_model_update(
     }
 
     if let Some(geometry_id) = args.geometry_id {
-        let vertex_allocator = match window_state.render_state.vertex.as_mut() {
-            Some(va) => va,
-            None => {
-                return CmdResultModelUpdate {
-                    success: false,
-                    message: format!(
-                        "Vertex allocator not initialized for window {}",
-                        args.window_id
-                    ),
-                };
-            }
-        };
-
-        if vertex_allocator.vertex_count(geometry_id).is_err() {
-            return CmdResultModelUpdate {
-                success: false,
-                message: format!("Geometry {} not found", geometry_id),
-            };
-        }
-
         record.geometry_id = geometry_id;
     }
 

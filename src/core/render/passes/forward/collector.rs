@@ -19,6 +19,10 @@ pub(crate) fn collect_objects(
             continue;
         }
 
+        if vertex_sys.index_info(model_record.geometry_id).ok().flatten().is_none() {
+            continue;
+        }
+
         if let Some(aabb) = vertex_sys.aabb(model_record.geometry_id) {
             let world_aabb = aabb.transform(&model_record.data.transform);
             if !frustum.intersects_aabb(world_aabb.min, world_aabb.max) {

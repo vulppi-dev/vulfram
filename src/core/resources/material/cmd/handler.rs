@@ -1,5 +1,5 @@
 use super::types::*;
-use super::utils::*;
+use super::utils::{pack_pbr_material, pack_standard_material};
 use crate::core::resources::{
     MATERIAL_FALLBACK_ID, MaterialPbrParams, MaterialPbrRecord, MaterialStandardParams,
     MaterialStandardRecord,
@@ -51,15 +51,6 @@ pub fn engine_cmd_material_create(
                 None => StandardOptions::default(),
                 _ => StandardOptions::default(),
             };
-            if let Some(message) =
-                validate_standard_texture_ids(&window_state.render_state.scene, &opts)
-            {
-                return CmdResultMaterialCreate {
-                    success: false,
-                    message,
-                };
-            }
-
             let mut record =
                 MaterialStandardRecord::new(args.label.clone(), MaterialStandardParams::default());
             pack_standard_material(args.material_id, &opts, &mut record);
@@ -76,14 +67,6 @@ pub fn engine_cmd_material_create(
                 None => PbrOptions::default(),
                 _ => PbrOptions::default(),
             };
-            if let Some(message) = validate_pbr_texture_ids(&window_state.render_state.scene, &opts)
-            {
-                return CmdResultMaterialCreate {
-                    success: false,
-                    message,
-                };
-            }
-
             let mut record =
                 MaterialPbrRecord::new(args.label.clone(), MaterialPbrParams::default());
             pack_pbr_material(args.material_id, &opts, &mut record);
@@ -171,14 +154,6 @@ pub fn engine_cmd_material_update(
     if let Some(opts) = &args.options {
         match opts {
             MaterialOptions::Standard(opts) => {
-                if let Some(message) =
-                    validate_standard_texture_ids(&window_state.render_state.scene, &opts)
-                {
-                    return CmdResultMaterialUpdate {
-                        success: false,
-                        message,
-                    };
-                }
                 if let Some(record) = window_state
                     .render_state
                     .scene
@@ -191,14 +166,6 @@ pub fn engine_cmd_material_update(
                 }
             }
             MaterialOptions::Pbr(opts) => {
-                if let Some(message) =
-                    validate_pbr_texture_ids(&window_state.render_state.scene, &opts)
-                {
-                    return CmdResultMaterialUpdate {
-                        success: false,
-                        message,
-                    };
-                }
                 if let Some(record) = window_state
                     .render_state
                     .scene

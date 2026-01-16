@@ -68,6 +68,7 @@ Vulfram follows a **black box** approach where:
 - **Minimal public surface**: Only essential C-ABI functions exposed
 - **Binary and fast**: MessagePack for structured data, raw bytes for heavy assets
 - **Clear separation**: Host manages logic and IDs, Core manages GPU and rendering
+- **Async linking**: Components/resources can be created in any order, using fallbacks until data is available
 
 ---
 
@@ -164,6 +165,20 @@ The host manages all logical identifiers:
 
 These are opaque integers to the core. The host ensures uniqueness and consistency.
 
+### Asynchronous Resource Linking (Fallback-Driven)
+
+Vulfram allows resources to be created out of order:
+
+- Models can reference geometry or material IDs that do not exist yet.
+- Materials can reference texture IDs that do not exist yet.
+
+In these cases, Vulfram renders using fallback resources until the real
+resources are created later with the same IDs. When a referenced resource
+appears, it is picked up automatically on the next frame without recreating
+the model or material.
+
+This enables async streaming and decouples creation order.
+
 ### Layer Masking
 
 Vulfram uses `u32` bitmasks for visibility control:
@@ -185,6 +200,25 @@ This enables:
 - Debug geometry filtering
 - Multi-pass rendering strategies
 
+### Reuse Semantics
+
+- A single geometry can be referenced by many models.
+- A single material can be referenced by many models.
+- A single texture can be referenced by many materials.
+
+There is no ownership tracking. If a resource is disposed while still referenced,
+rendering falls back gracefully.
+
+### Render Ordering & Batching
+
+Per camera:
+
+- Opaque/masked objects are sorted by `material_id` then `geometry_id` to reduce
+  state changes and batch draw calls.
+- Transparent objects are sorted by depth for correct blending.
+
+Draw calls are batched by runs of `(material_id, geometry_id)` after sorting.
+
 ### Upload System
 
 Heavy data uses one-shot uploads:
@@ -194,6 +228,9 @@ Heavy data uses one-shot uploads:
 3. `Create*` commands reference `bufferId` to consume data
 4. Entry is marked as used and can be removed
 5. `DiscardUnusedUploads` command cleans up unused entries
+
+Uploads are independent of model/material creation, so you can create
+components first and upload data later.
 
 ---
 
@@ -300,6 +337,8 @@ cargo fmt
 6. Receive events via vulframReceiveEvents()
 7. Read profiling data (optional) via vulframProfiling()
 ```
+
+`vulframReceiveQueue()` consumes and clears the internal response queue.
 
 ---
 

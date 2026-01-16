@@ -167,6 +167,16 @@ During `EngineState::tick` (called from `vulfram_tick`):
 
 ---
 
+## 5.4 Asynchronous Resource Linking (Fallback-Driven)
+
+The render path tolerates missing references:
+
+- Models may reference geometry or material IDs that do not exist yet.
+- Materials may reference texture IDs that do not exist yet.
+
+Missing resources fall back to safe defaults. When the real resource is created
+later with the same ID, the core picks it up automatically on the next frame.
+
 ## 6. Upload Handling (`UploadBuffer`)
 
 Upload buffers manage blobs uploaded via `vulfram_upload_buffer`:
@@ -241,19 +251,27 @@ Conceptual flow:
 
      - Filter by `layerMask`:
 
-       ```rust
-       if camera.layer_mask & mesh.layer_mask != 0 {
-           // visible
-       }
-       ```
+     ```rust
+     if camera.layer_mask & mesh.layer_mask != 0 {
+         // visible
+     }
+     ```
 
      - Select pipeline:
 
-       - Fetch from the pipeline cache or create if needed.
+     - Fetch from the pipeline cache or create if needed.
 
      - Bind vertex/index buffers and resource bind groups.
 
      - Issue draw calls via `RenderPass::draw` / `draw_indexed`.
+
+### 7.3 Render Ordering & Batching (Per Camera)
+
+- Opaque/masked objects are sorted by `(material_id, geometry_id)` to reduce
+  state changes and batch draw calls.
+- Transparent objects are sorted by depth for correct blending.
+
+Draw calls are batched by runs of `(material_id, geometry_id)` after sorting.
 
 3. (Future) Composite camera render targets into a final swapchain image.
 

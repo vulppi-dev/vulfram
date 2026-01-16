@@ -108,6 +108,7 @@ If you're working on the Rust core implementation:
 - One-shot upload system
 - Layer masking for visibility
 - What the host sees vs. what it doesn't
+- Asynchronous resource linking (fallback-driven)
 
 ### [ABI.md](ABI.md)
 

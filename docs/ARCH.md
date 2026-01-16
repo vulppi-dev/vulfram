@@ -113,6 +113,20 @@ its internal instance structures.
 
 ## 3. LayerMask and Visibility
 
+## 2.4 Asynchronous Resource Linking (Fallback-Driven)
+
+Vulfram allows resources to be created out of order:
+
+- Models can reference geometry or material IDs that do not exist yet.
+- Materials can reference texture IDs that do not exist yet.
+
+When a referenced resource is missing, the core uses fallback resources so
+rendering continues. When the real resource appears later with the same ID,
+the core picks it up automatically on the next frame.
+
+This enables async streaming, independent loading pipelines, and decoupled
+creation order.
+
 The core uses a `u32` bitmask to filter visibility:
 
 - Each camera has a `layerMaskCamera`.
@@ -132,6 +146,27 @@ This enables:
 - World-only or UI-only cameras.
 - Team or category-based rendering.
 - Dedicated special passes (e.g. picking, debug-only geometry).
+
+---
+
+## 3.1 Resource Reuse Semantics
+
+- A single geometry can be referenced by many models.
+- A single material can be referenced by many models.
+- A single texture can be referenced by many materials.
+
+There is no ownership tracking. If a resource is disposed while still referenced,
+rendering falls back gracefully.
+
+---
+
+## 3.2 Render Ordering & Batching (Per Camera)
+
+- Opaque/masked objects are sorted by `(material_id, geometry_id)` to reduce
+  state changes and batch draw calls.
+- Transparent objects are sorted by depth for correct blending.
+
+Draw calls are batched by runs of `(material_id, geometry_id)` after sorting.
 
 ---
 
@@ -171,7 +206,7 @@ The core processes these commands on subsequent calls to `vulfram_tick`.
 
 Once the initial state is ready, the host enters its main loop, where:
 
-- `vulfram_tick` drives the core each frame.
+- `vulfram_tick` drives the core each frame and consumes queued commands.
 - The host sends updates and receives events/messages.
 
 ### 4.4 Shutdown
@@ -203,8 +238,8 @@ while (running) {
     1. Update host-side logic
     2. Perform uploads (optional)
     3. Send command batch
-    4. Call vulfram_tick
-    5. Receive messages
+4. Call vulfram_tick (processes queued commands)
+5. Receive messages (consumes response queue)
     6. Receive events
     7. (Optional) Receive profiling
 }
@@ -287,6 +322,8 @@ The core will:
   - Copy the bytes to host memory (JS Buffer / Python bytes / Lua string, etc.).
   - Free the core buffer via the mechanism defined in the binding.
   - Deserialize MessagePack and process the messages.
+
+`vulfram_receive_queue` consumes and clears the internal response queue.
 
 ### 5.6 Receive Events
 

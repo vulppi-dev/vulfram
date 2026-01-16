@@ -172,6 +172,28 @@ Uploads are treated as **one-shot**:
 - Unused uploads can be discarded by a maintenance command like
   `DiscardUnusedUploads`.
 
+### Fallback Resource
+
+Safe default resource used when a referenced ID does not exist yet
+(for example, fallback material or fallback texture view). This allows
+rendering to continue while resources are created asynchronously.
+
+### Asynchronous Resource Linking
+
+The ability to create models, materials, geometries, and textures in any
+order. Missing references use fallbacks until the real resource appears.
+
+### Resource Reuse
+
+Resources are shareable by design:
+
+- One geometry can be referenced by many models.
+- One material can be referenced by many models.
+- One texture can be referenced by many materials.
+
+There is no ownership tracking; disposing a resource while still referenced
+falls back gracefully.
+
 ### Buffer (GPU)
 
 A GPU memory object created via WGPU, typically one of:
@@ -197,6 +219,8 @@ Logical queue of commands coming from the host:
 
 Serialized as MessagePack and passed to `vulfram_send_queue`.
 
+Commands are queued and consumed during `vulfram_tick`.
+
 ### Message Queue (`receive_queue`)
 
 Logical queue of messages from the core:
@@ -206,6 +230,8 @@ Logical queue of messages from the core:
 - Debug/log messages (structured).
 
 The host reads this via `vulfram_receive_queue` and decodes MessagePack.
+
+Calling `vulfram_receive_queue` consumes and clears the internal response queue.
 
 ### Event Queue (`receive_events`)
 

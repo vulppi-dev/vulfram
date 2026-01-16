@@ -250,6 +250,28 @@ Core responsibilities in `tick`:
 
 ---
 
+## 2.8 Asynchronous Resource Linking (Fallback-Driven)
+
+Resources can be created out of order:
+
+- Models can reference geometry or material IDs that do not exist yet.
+- Materials can reference texture IDs that do not exist yet.
+
+When a referenced resource is missing, the core uses fallback resources so
+rendering continues. When the real resource appears later with the same ID,
+the core picks it up automatically on the next frame.
+
+## 2.9 Resource Reuse Semantics
+
+- A single geometry can be referenced by many models.
+- A single material can be referenced by many models.
+- A single texture can be referenced by many materials.
+
+There is no ownership tracking. If a resource is disposed while still referenced,
+rendering falls back gracefully.
+
+---
+
 ### 2.7 Profiling
 
 ```c

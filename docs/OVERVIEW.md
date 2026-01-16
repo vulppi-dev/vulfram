@@ -67,6 +67,7 @@ The host is responsible for:
 - Building command batches in MessagePack.
 - Calling the ABI functions in the correct order (loop).
 - Integrating events (input, window) into its own logic.
+- Consuming responses via `vulfram_receive_queue` (clears the response queue).
 
 The host never needs to know about:
 
@@ -184,6 +185,22 @@ The host generates and owns:
 - `TextureId` — texture asset (future)
 - `BufferId` — upload blob identifier
 
+---
+
+## 4.3 Asynchronous Resource Linking (Fallback-Driven)
+
+Vulfram allows resources to be created out of order:
+
+- Models can reference geometry or material IDs that do not exist yet.
+- Materials can reference texture IDs that do not exist yet.
+
+When a referenced resource is missing, the core uses fallback resources
+so rendering continues. When the real resource appears later with the same ID,
+the core picks it up automatically on the next frame.
+
+This enables async streaming, independent loading pipelines, and
+decoupled creation order.
+
 These are simple integers from the core’s perspective. The only rule is:
 
 - The host must not reuse an ID for different purposes unless a
@@ -254,6 +271,27 @@ This supports:
 - UI-only cameras
 - Team- or group-based filtering
 - Special passes (e.g. picking, debug)
+
+---
+
+## 6.1 Resource Reuse Semantics
+
+- A single geometry can be referenced by many models.
+- A single material can be referenced by many models.
+- A single texture can be referenced by many materials.
+
+There is no ownership tracking. If a resource is disposed while still referenced,
+rendering falls back gracefully.
+
+---
+
+## 6.2 Render Ordering & Batching (Per Camera)
+
+- Opaque/masked objects are sorted by `(material_id, geometry_id)` to reduce
+  state changes and batch draw calls.
+- Transparent objects are sorted by depth for correct blending.
+
+Draw calls are batched by runs of `(material_id, geometry_id)` after sorting.
 
 ---
 

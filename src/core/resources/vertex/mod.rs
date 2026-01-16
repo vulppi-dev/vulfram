@@ -231,20 +231,6 @@ impl VertexAllocatorSystem {
         })
     }
 
-    pub fn vertex_count(&self, id: u32) -> Result<u32, VertexAllocError> {
-        let rec = self
-            .records
-            .get(&id)
-            .ok_or(VertexAllocError::GeometryNotFound)?;
-        if !rec.alive {
-            return Err(VertexAllocError::GeometryNotFound);
-        }
-        Ok(match &rec.storage {
-            GeometryStorage::Pooled { vertex_count, .. } => *vertex_count,
-            GeometryStorage::Dedicated { vertex_count, .. } => *vertex_count,
-        })
-    }
-
     pub fn aabb(&self, id: u32) -> Option<Aabb> {
         self.records.get(&id).filter(|r| r.alive).map(|r| r.aabb)
     }

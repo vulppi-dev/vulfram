@@ -36,7 +36,7 @@ If you're building a language binding (Node.js, Lua, Python, etc.) or integratin
    - Calling conventions
    - Error handling
    - MessagePack serialization
-   - Buffer management (upload/download)
+   - Buffer management (upload)
 
 3. **[ARCH.md](ARCH.md)** - _Implementation patterns_
 
@@ -124,7 +124,7 @@ If you're working on the Rust core implementation:
   - `vulfram_send_queue()`
   - `vulfram_receive_queue()`
   - `vulfram_receive_events()`
-  - `vulfram_upload_buffer()` / `vulfram_download_buffer()`
+  - `vulfram_upload_buffer()`
   - `vulfram_tick()`
   - `vulfram_profiling()`
 - Recommended frame loop

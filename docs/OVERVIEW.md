@@ -63,7 +63,7 @@ The host is responsible for:
   - `GeometryId`
   - `MaterialId`
   - `TextureId`
-  - `BufferId` (for uploads/downloads)
+  - `BufferId` (for uploads)
 - Building command batches in MessagePack.
 - Calling the ABI functions in the correct order (loop).
 - Integrating events (input, window) into its own logic.
@@ -182,7 +182,7 @@ The host generates and owns:
 - `GeometryId` — mesh/geometry asset
 - `MaterialId` — material asset (future)
 - `TextureId` — texture asset (future)
-- `BufferId` — upload/download blob identifier
+- `BufferId` — upload blob identifier
 
 These are simple integers from the core’s perspective. The only rule is:
 

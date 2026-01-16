@@ -17,7 +17,7 @@ pub mod window;
 
 // Re-exports for public API
 #[allow(unused)]
-pub use buffers::{vulfram_download_buffer, vulfram_upload_buffer};
+pub use buffers::vulfram_upload_buffer;
 #[allow(unused)]
 pub use lifecycle::{vulfram_dispose, vulfram_init};
 #[allow(unused)]

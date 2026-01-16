@@ -155,6 +155,8 @@ Binding responsibilities:
 3. Release the core-allocated buffer using the agreed mechanism.
 4. Deserialize MessagePack and route messages to the host/application.
 
+Calling `vulfram_receive_queue` consumes and clears the internal response queue.
+
 ---
 
 ### 2.4 Event Queue (Input / Window)
@@ -180,17 +182,13 @@ Typical flow:
 
 ---
 
-### 2.5 Upload / Download of Raw Blobs
+### 2.5 Upload of Raw Blobs
 
 ```c
 u32 vulfram_upload_buffer(uint64_t id,
                           uint32_t type,
                           const uint8_t* buffer,
                           size_t length);
-
-u32 vulfram_download_buffer(uint64_t id,
-                            uint8_t** out_ptr,
-                            size_t* out_length);
 ```
 
 #### 2.5.1 `vulfram_upload_buffer`
@@ -221,28 +219,6 @@ Behavior:
   will look up these uploads by `BufferId` and `type`.
 - Uploads are treated as **one-shot**: once consumed by a `Create*` command, they
   may be removed from the upload table.
-
-#### 2.5.2 `vulfram_download_buffer`
-
-Direction: **Core → Host** (used by the binding)
-
-Purpose:
-
-- Allows the host to retrieve a raw blob from the core, identified by a
-  `BufferId`:
-
-  - Captured frame buffers
-  - Debug dumps
-  - Generated binary assets
-  - Etc.
-
-Behavior:
-
-- The core fills `*out_ptr` and `*out_length` with a newly allocated buffer
-  containing the requested data (if available).
-- The binding must copy & free the data, similar to `receive_queue`.
-
----
 
 ### 2.6 Tick / Frame Advance
 
@@ -325,7 +301,7 @@ per frame on the main thread:
 
    - `vulfram_tick(time, delta_time)`
 
-5. **Receive messages**
+5. **Receive messages** (consumes response queue)
 
    - `vulfram_receive_queue(&ptr, &len)`
    - If `len > 0`:

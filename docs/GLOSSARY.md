@@ -127,7 +127,7 @@ Integers defined and managed by the host. Common logical IDs:
 - `GeometryId`
 - `MaterialId`
 - `TextureId`
-- `BufferId` (for uploads/downloads)
+- `BufferId` (for uploads)
 
 Convention:
 
@@ -253,7 +253,6 @@ All public ABI functions are prefixed with `vulfram_`:
 - `vulfram_receive_queue`
 - `vulfram_receive_events`
 - `vulfram_upload_buffer`
-- `vulfram_download_buffer`
 - `vulfram_tick`
 - `vulfram_profiling`
 

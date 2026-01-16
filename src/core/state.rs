@@ -1,5 +1,5 @@
 use crate::core::buffers::state::BufferStorage;
-use crate::core::cmd::{EngineBatchEvents, EngineBatchResponses};
+use crate::core::cmd::{EngineBatchCmds, EngineBatchEvents, EngineBatchResponses};
 use crate::core::gamepad::state::GamepadState;
 use crate::core::input::InputState;
 use crate::core::profiling::TickProfiling;
@@ -16,6 +16,7 @@ pub struct EngineState {
 
     pub buffers: BufferStorage,
 
+    pub cmd_queue: EngineBatchCmds,
     pub event_queue: EngineBatchEvents,
     pub response_queue: EngineBatchResponses,
 
@@ -49,6 +50,7 @@ impl EngineState {
             device: None,
             queue: None,
             buffers: BufferStorage::new(),
+            cmd_queue: Vec::new(),
             event_queue: Vec::new(),
             response_queue: Vec::new(),
             time: 0,

@@ -1,10 +1,8 @@
 use std::time::Instant;
 
-use crate::core::cmd::engine_process_batch;
-
 use super::VulframResult;
 use super::cmd::EngineBatchCmds;
-use super::singleton::{with_engine, with_engine_singleton};
+use super::singleton::with_engine;
 
 /// Send a batch of commands to the engine
 pub fn vulfram_send_queue(ptr: *const u8, length: usize) -> VulframResult {
@@ -17,11 +15,9 @@ pub fn vulfram_send_queue(ptr: *const u8, length: usize) -> VulframResult {
         Ok(batch) => batch,
     };
 
-    match with_engine_singleton(|engine| {
-        // Clear response queue before processing new commands to prevent unbounded growth
-        // Host should consume responses via vulfram_receive_queue before sending more commands
-        engine.state.response_queue.clear();
-        engine_process_batch(&mut engine.state, engine.proxy.as_mut().unwrap(), batch)
+    match with_engine(|engine| {
+        engine.cmd_queue.extend(batch);
+        VulframResult::Success
     }) {
         Err(e) => return e,
         Ok(r) => r,

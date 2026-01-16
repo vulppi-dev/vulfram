@@ -160,7 +160,7 @@ The host manages all logical identifiers:
 - `GeometryId` - Mesh/geometry assets
 - `MaterialId` - Material configurations
 - `TextureId` - Texture assets
-- `BufferId` - Upload/download blob identifiers
+- `BufferId` - Upload blob identifiers
 
 These are opaque integers to the core. The host ensures uniqueness and consistency.
 
@@ -250,7 +250,7 @@ The test harness lives in `src/main.rs` and exercises:
 
 - GPU-accelerated rendering via WebGPU
 - Cross-platform support (Vulkan, Metal, DirectX 12)
-- Buffer upload/download for textures and meshes
+- Buffer upload for textures and meshes
 - Efficient CPU-GPU synchronization
 - Component-based rendering system
 - Layer-based visibility control

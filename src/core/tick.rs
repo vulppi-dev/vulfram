@@ -1,6 +1,8 @@
 use std::time::{Duration, Instant};
 use winit::platform::pump_events::EventLoopExtPumpEvents;
 
+use crate::core::cmd::engine_process_batch;
+
 use super::VulframResult;
 use super::gamepad::process_gilrs_event;
 use super::singleton::with_engine_singleton;
@@ -11,6 +13,18 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
         engine.state.time = time;
         engine.state.delta_time = delta_time;
         engine.state.event_queue.clear();
+
+        if !engine.state.cmd_queue.is_empty() {
+            let batch = std::mem::take(&mut engine.state.cmd_queue);
+            let result = engine_process_batch(
+                &mut engine.state,
+                engine.proxy.as_mut().unwrap(),
+                batch,
+            );
+            if result != VulframResult::Success {
+                return result;
+            }
+        }
 
         // Reset profiling counters
         engine.state.profiling.gamepad_processing_ns = 0;
@@ -62,8 +76,9 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
         }
 
         engine.state.profiling.request_redraw_ns = start.elapsed().as_nanos() as u64;
+        VulframResult::Success
     }) {
         Err(e) => e,
-        Ok(_) => VulframResult::Success,
+        Ok(result) => result,
     }
 }

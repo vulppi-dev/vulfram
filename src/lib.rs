@@ -91,31 +91,6 @@ mod napi_exports {
     }
 
     #[napi]
-    pub fn vulfram_download_buffer(id: i64) -> Result<BufferResult> {
-        let mut length: usize = 0;
-        let mut ptr: *const u8 = std::ptr::null();
-        let length_ptr = &mut length as *mut usize;
-        let ptr_ptr = &mut ptr as *mut *const u8;
-
-        let result = core::vulfram_download_buffer(id as u64, ptr_ptr, length_ptr) as u32;
-
-        if result != 0 || length == 0 {
-            return Ok(BufferResult {
-                buffer: Buffer::from(vec![]),
-                result,
-            });
-        }
-
-        // Reconstruct Box<[u8]> and convert to Vec (zero-copy)
-        let boxed =
-            unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
-        let vec = boxed.into_vec();
-        let buffer = Buffer::from(vec);
-
-        Ok(BufferResult { buffer, result })
-    }
-
-    #[napi]
     pub fn vulfram_tick(time: i64, delta_time: u32) -> u32 {
         core::vulfram_tick(time as u64, delta_time) as u32
     }
@@ -216,26 +191,6 @@ mod lua_exports {
         Ok(core::vulfram_upload_buffer(id as u64, upload_type, bytes.as_ptr(), bytes.len()) as u32)
     }
 
-    fn vulfram_download_buffer(lua: &Lua, id: i64) -> LuaResult<(LuaString, u32)> {
-        let mut length: usize = 0;
-        let mut ptr: *const u8 = std::ptr::null();
-        let length_ptr = &mut length as *mut usize;
-        let ptr_ptr = &mut ptr as *mut *const u8;
-
-        let result = core::vulfram_download_buffer(id as u64, ptr_ptr, length_ptr) as u32;
-
-        if result != 0 || length == 0 {
-            return Ok((lua.create_string(&[])?, result));
-        }
-
-        // Reconstruct Box<[u8]> and let Lua copy (unavoidable)
-        let boxed =
-            unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
-        let lua_string = lua.create_string(&boxed)?;
-
-        Ok((lua_string, result))
-    }
-
     fn vulfram_tick(_: &Lua, (time, delta_time): (i64, u32)) -> LuaResult<u32> {
         Ok(core::vulfram_tick(time as u64, delta_time) as u32)
     }
@@ -272,10 +227,6 @@ mod lua_exports {
             lua.create_function(vulfram_receive_events)?,
         )?;
         exports.set("upload_buffer", lua.create_function(vulfram_upload_buffer)?)?;
-        exports.set(
-            "download_buffer",
-            lua.create_function(vulfram_download_buffer)?,
-        )?;
         exports.set("tick", lua.create_function(vulfram_tick)?)?;
         exports.set("get_profiling", lua.create_function(vulfram_get_profiling)?)?;
         Ok(exports)
@@ -355,27 +306,6 @@ mod python_exports {
     }
 
     #[pyfunction]
-    fn vulfram_download_buffer(py: Python, id: i64) -> PyResult<(Py<PyBytes>, u32)> {
-        let mut length: usize = 0;
-        let mut ptr: *const u8 = std::ptr::null();
-        let length_ptr = &mut length as *mut usize;
-        let ptr_ptr = &mut ptr as *mut *const u8;
-
-        let result = core::vulfram_download_buffer(id as u64, ptr_ptr, length_ptr) as u32;
-
-        if result != 0 || length == 0 {
-            return Ok((PyBytes::new(py, &[]).into(), result));
-        }
-
-        // Reconstruct Box<[u8]> and let Python copy (unavoidable)
-        let boxed =
-            unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
-        let py_bytes = PyBytes::new(py, &boxed).into();
-
-        Ok((py_bytes, result))
-    }
-
-    #[pyfunction]
     fn vulfram_tick(time: i64, delta_time: u32) -> u32 {
         core::vulfram_tick(time as u64, delta_time) as u32
     }
@@ -409,7 +339,6 @@ mod python_exports {
         module.add_function(wrap_pyfunction!(vulfram_receive_queue, module)?)?;
         module.add_function(wrap_pyfunction!(vulfram_receive_events, module)?)?;
         module.add_function(wrap_pyfunction!(vulfram_upload_buffer, module)?)?;
-        module.add_function(wrap_pyfunction!(vulfram_download_buffer, module)?)?;
         module.add_function(wrap_pyfunction!(vulfram_tick, module)?)?;
         module.add_function(wrap_pyfunction!(vulfram_get_profiling, module)?)?;
         Ok(())
@@ -463,15 +392,6 @@ mod ffi_exports {
         bfr_length: usize,
     ) -> u32 {
         core::vulfram_upload_buffer(bfr_id, upload_type, bfr_ptr, bfr_length) as u32
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn vulfram_download_buffer(
-        bfr_id: u64,
-        bfr_ptr: *mut *const u8,
-        bfr_length: *mut usize,
-    ) -> u32 {
-        core::vulfram_download_buffer(bfr_id, bfr_ptr, bfr_length) as u32
     }
 
     #[unsafe(no_mangle)]

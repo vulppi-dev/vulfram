@@ -170,7 +170,7 @@ Uploads are treated as **one-shot**:
 
 - Once used to create resources, they may be removed.
 - Unused uploads can be discarded by a maintenance command like
-  `DiscardUnusedUploads`.
+  `CmdUploadBufferDiscardAll`.
 
 ### Fallback Resource
 

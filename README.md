@@ -227,7 +227,7 @@ Heavy data uses one-shot uploads:
 2. Core stores blob in internal upload table
 3. `Create*` commands reference `bufferId` to consume data
 4. Entry is marked as used and can be removed
-5. `DiscardUnusedUploads` command cleans up unused entries
+5. `CmdUploadBufferDiscardAll` command clears all pending uploads
 
 Uploads are independent of model/material creation, so you can create
 components first and upload data later.

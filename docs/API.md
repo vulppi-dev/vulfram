@@ -205,7 +205,7 @@ buffers: HashMap<u64, UploadBuffer>  // BufferId -> UploadBuffer
   - Use/consume its data to create WGPU resources.
   - Remove entry after consumption.
 
-- `DiscardUnusedUploads` command:
+- `CmdUploadBufferDiscardAll` command:
 
   - Iterates and removes any unconsumed upload buffers.
 

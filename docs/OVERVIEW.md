@@ -239,8 +239,8 @@ Typical flow:
    - creates the GPU resources (shader modules, buffers, textures)
    - binds those resources to logical IDs (`ShaderId`, `GeometryId`, …)
    - marks uploads as consumed/removed
-4. A maintenance command (e.g. `DiscardUnusedUploads`) may be used to
-   free any upload blobs that were never consumed.
+4. A maintenance command (`CmdUploadBufferDiscardAll`) may be used to
+   free all pending upload blobs.
 
 This enforces:
 

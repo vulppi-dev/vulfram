@@ -280,7 +280,7 @@ These uploads will later be consumed by `Create*` commands referenced by `buffer
 
   - Component create/update
   - Resource create/update
-  - Maintenance (e.g. `DiscardUnusedUploads`)
+  - Maintenance (e.g. `CmdUploadBufferDiscardAll`)
 
 - Serialize this to MessagePack.
 - Call:
@@ -373,7 +373,7 @@ Heavy binary uploads use `vulfram_upload_buffer` and `BufferId`:
 3. A `Create*` engine command (via `send_queue`) references `buffer_id` and uses
    its data to create a resource (`ShaderResource`, `TextureResource`, etc.).
 4. Once consumed, the upload entry is marked as used and can be removed.
-5. A logical command such as `DiscardUnusedUploads` may be used to clean up
+5. A maintenance command (`CmdUploadBufferDiscardAll`) may be used to clean up
    any remaining, never-used uploads.
 
 This model:

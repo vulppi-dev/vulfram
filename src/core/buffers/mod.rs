@@ -2,8 +2,10 @@ use crate::core::VulframResult;
 use crate::core::buffers::state::{BufferStorage, UploadBuffer, UploadType};
 use crate::core::singleton::with_engine;
 
+pub mod cmd;
 pub mod state;
 
+pub use cmd::*;
 pub fn vulfram_upload_buffer(
     bfr_id: u64,
     upload_type: u32,

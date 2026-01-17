@@ -2,6 +2,9 @@
 
 Removes a texture resource.
 
+If materials reference this texture, they will render with fallbacks until a
+texture with the same ID is created again.
+
 ## Arguments
 
 | Field     | Type | Description                 |

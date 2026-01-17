@@ -1,6 +1,14 @@
 # CmdModelCreate
 
-Creates a new model instance (links geometry and material at a transform).
+Creates a new model instance.
+
+Geometry and material references are **lazy**:
+
+- `geometryId` does not need to exist at creation time.
+- `materialId` does not need to exist at creation time.
+
+If geometry/material are missing, the model renders with fallbacks (or is skipped)
+until those resources appear later with the same IDs.
 
 ## Arguments
 
@@ -9,8 +17,8 @@ Creates a new model instance (links geometry and material at a transform).
 | windowId      | u32            | ID of the window where this model belongs                      |
 | modelId       | u32            | Unique ID for the model                                        |
 | label         | Option<String> | (Optional) Semantic name for debugging/listing                 |
-| geometryId    | u32            | ID of the geometry resource to use                             |
-| materialId    | Option<u32>    | (Optional) ID of the material resource                         |
+| geometryId    | u32            | ID of the geometry resource to use (may not exist yet)          |
+| materialId    | Option<u32>    | (Optional) ID of the material resource (may not exist yet)      |
 | transform     | Mat4           | Model transformation matrix (world position/rotation/scale)    |
 | layerMask     | u32            | (Optional) Visibility bitmask (default: 0xFFFFFFFF)            |
 | castShadow    | bool           | (Optional) Whether this model casts shadows (default: true)    |

@@ -2,6 +2,12 @@
 
 Creates a new material resource (Standard or PBR).
 
+Texture references are **lazy**:
+
+- Any texture ID inside `options` may refer to a texture that does not exist yet.
+- Missing textures render with fallbacks until the texture appears later with
+  the same ID.
+
 ## Arguments
 
 | Field      | Type                    | Description                              |
@@ -18,8 +24,8 @@ Creates a new material resource (Standard or PBR).
 - **surfaceType**: Opaque, Transparent, Cutout
 - **specColor**: Option<Vec4>
 - **specPower**: Option<f32>
-- **baseTexId**: Option<u32>
-- **normalTexId**: Option<u32>
+- **baseTexId**: Option<u32> (may not exist yet)
+- **normalTexId**: Option<u32> (may not exist yet)
 - ... (and more texture/sampler options)
 
 ### PbrOptions
@@ -30,8 +36,8 @@ Creates a new material resource (Standard or PBR).
 - **roughness**: f32
 - **ao**: f32
 - **normalScale**: f32
-- **baseTexId**: Option<u32>
-- **normalTexId**: Option<u32>
+- **baseTexId**: Option<u32> (may not exist yet)
+- **normalTexId**: Option<u32> (may not exist yet)
 - ... (and more PBR specific textures)
 
 ## Response

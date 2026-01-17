@@ -2,6 +2,13 @@
 
 Creates a texture from an uploaded image buffer.
 
+Notes:
+
+- `bufferId` must refer to an upload with `UploadType::ImageData`.
+- Supported formats: PNG, JPEG, WebP, AVIF.
+- If `mode` is `ForwardAtlas`, creation can fail if an atlas already exists
+  with a different configuration.
+
 ## Arguments
 
 | Field        | Type                        | Description                                         |

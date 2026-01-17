@@ -2,6 +2,15 @@
 
 Creates a geometry resource from multiple uploaded vertex/index buffers.
 
+Validation rules:
+
+- `Position` is required.
+- Maximum of 2 `UV` streams.
+- Duplicates (except `UV`) are rejected.
+- All referenced `bufferId`s must exist in the upload table.
+
+Buffers are only removed from the upload table after a successful create.
+
 ## Arguments
 
 | Field      | Type                        | Description                               |

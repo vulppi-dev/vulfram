@@ -2,6 +2,12 @@
 
 Updates an existing material's properties.
 
+Texture references are **lazy**:
+
+- Any texture ID inside `options` may refer to a texture that does not exist yet.
+- Missing textures render with fallbacks until the texture appears later with
+  the same ID.
+
 ## Arguments
 
 | Field      | Type                    | Description                     |

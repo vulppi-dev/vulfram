@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+#[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
 use wgpu::{Device, Queue};
 
 mod alloc;
@@ -58,6 +59,7 @@ impl VertexAllocatorSystem {
 }
 
 impl VertexAllocatorSystem {
+    #[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
     pub fn new(device: &Device, queue: &Queue, cfg: VertexAllocatorConfig) -> Self {
         let mut index_u32 = ArenaAllocator::new(
             device,
@@ -153,6 +155,7 @@ impl VertexAllocatorSystem {
         sys
     }
 
+    #[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
     fn initialize_default_buffers(&mut self) {
         let caps = [
             self.default_normal.capacity_vertices,

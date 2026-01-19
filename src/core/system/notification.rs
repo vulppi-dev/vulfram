@@ -7,6 +7,7 @@ use crate::core::platform::EventLoopProxy;
 
 use crate::core::singleton::EngineCustomEvents;
 use crate::core::state::EngineState;
+#[cfg(not(feature = "wasm"))]
 use crate::core::system::SystemEvent;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

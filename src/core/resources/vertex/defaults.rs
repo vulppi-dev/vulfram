@@ -14,6 +14,7 @@ pub struct DefaultStreamBuffer {
 }
 
 impl DefaultStreamBuffer {
+    #[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
     pub fn new(device: &Device, cfg: VertexAllocatorConfig, stream: VertexStream) -> Self {
         let stride = stream.stride_bytes();
         let initial_bytes = cfg.min_pool_bytes.max(stride);

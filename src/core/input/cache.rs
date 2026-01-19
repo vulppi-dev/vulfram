@@ -1,14 +1,19 @@
+#[cfg(not(feature = "wasm"))]
 use glam::Vec2;
+#[cfg(not(feature = "wasm"))]
 use std::collections::HashMap;
 
+#[cfg(not(feature = "wasm"))]
 use crate::core::input::events::ModifiersState;
 
 /// Cached keyboard state
+#[cfg(not(feature = "wasm"))]
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct KeyboardStateCache {
     pub modifiers: ModifiersState,
 }
 
+#[cfg(not(feature = "wasm"))]
 impl KeyboardStateCache {
     pub fn new() -> Self {
         Self {
@@ -18,11 +23,13 @@ impl KeyboardStateCache {
 }
 
 /// Cached pointer (mouse) state per window
+#[cfg(not(feature = "wasm"))]
 #[derive(Debug, Clone)]
 pub struct PointerStateCache {
     pub position: Vec2,
 }
 
+#[cfg(not(feature = "wasm"))]
 impl PointerStateCache {
     pub fn new() -> Self {
         Self {
@@ -37,12 +44,14 @@ impl PointerStateCache {
 }
 
 /// Manager for input state caches
+#[cfg(not(feature = "wasm"))]
 #[derive(Debug, Default)]
 pub struct InputCacheManager {
     pub keyboard: KeyboardStateCache,
     pub pointers: HashMap<u32, PointerStateCache>, // per window
 }
 
+#[cfg(not(feature = "wasm"))]
 impl InputCacheManager {
     pub fn new() -> Self {
         Self {
@@ -62,4 +71,17 @@ impl InputCacheManager {
     pub fn remove_pointer(&mut self, window_id: u32) {
         self.pointers.remove(&window_id);
     }
+}
+
+#[cfg(feature = "wasm")]
+#[derive(Debug, Default)]
+pub struct InputCacheManager;
+
+#[cfg(feature = "wasm")]
+impl InputCacheManager {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn remove_pointer(&mut self, _window_id: u32) {}
 }

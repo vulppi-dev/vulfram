@@ -1,18 +1,22 @@
+#[cfg(any(not(feature = "wasm"), all(feature = "wasm", target_arch = "wasm32")))]
 use std::sync::Arc;
-
 use glam::{IVec2, UVec2};
+#[cfg(any(not(feature = "wasm"), all(feature = "wasm", target_arch = "wasm32")))]
 use pollster::FutureExt;
 use serde::{Deserialize, Serialize};
 use crate::core::platform::ActiveEventLoop;
+#[cfg(any(not(feature = "wasm"), all(feature = "wasm", target_arch = "wasm32")))]
 use crate::core::platform::Window;
+#[cfg(not(feature = "wasm"))]
 use crate::core::platform::winit::dpi::{PhysicalPosition, PhysicalSize, Position};
-#[cfg(feature = "wasm")]
+#[cfg(all(feature = "wasm", target_arch = "wasm32"))]
 use wasm_bindgen::JsCast;
-#[cfg(feature = "wasm")]
+#[cfg(all(feature = "wasm", target_arch = "wasm32"))]
 use web_sys::HtmlCanvasElement;
 
 use super::{EngineWindowState, window_size_default};
 use crate::core::state::EngineState;
+#[cfg(any(not(feature = "wasm"), all(feature = "wasm", target_arch = "wasm32")))]
 use crate::core::window::WindowState;
 
 // MARK: - Create Window
@@ -46,7 +50,7 @@ pub struct CmdResultWindowCreate {
     pub message: String,
 }
 
-#[cfg(feature = "wasm")]
+#[cfg(all(feature = "wasm", target_arch = "wasm32"))]
 pub fn engine_cmd_window_create(
     engine: &mut EngineState,
     _event_loop: &ActiveEventLoop,
@@ -197,25 +201,17 @@ pub fn engine_cmd_window_create(
             window: window_handle,
             surface,
             config: config.clone(),
+            #[cfg(not(feature = "wasm"))]
             inner_position: IVec2::ZERO,
+            #[cfg(not(feature = "wasm"))]
             outer_position: IVec2::ZERO,
             inner_size: UVec2::new(window_width, window_height),
             outer_size: UVec2::new(window_width, window_height),
             render_state,
             is_dirty: true,
-            web_listeners: listeners,
+            _web_listeners: listeners,
         },
     );
-
-    let cache = engine.window.cache.get_or_create(win_id);
-    cache.inner_position = IVec2::ZERO;
-    cache.outer_position = IVec2::ZERO;
-    cache.inner_size = UVec2::new(window_width, window_height);
-    cache.outer_size = UVec2::new(window_width, window_height);
-    cache.scale_factor = 1.0;
-    cache.focused = true;
-    cache.occluded = false;
-    cache.dark_mode = false;
 
     engine.event_queue.push(crate::core::cmd::EngineEvent::Window(
         crate::core::window::WindowEvent::OnCreate { window_id: win_id },
@@ -224,6 +220,18 @@ pub fn engine_cmd_window_create(
     CmdResultWindowCreate {
         success: true,
         message: "Canvas window created successfully".into(),
+    }
+}
+
+#[cfg(all(feature = "wasm", not(target_arch = "wasm32")))]
+pub fn engine_cmd_window_create(
+    _engine: &mut EngineState,
+    _event_loop: &ActiveEventLoop,
+    _args: &CmdWindowCreateArgs,
+) -> CmdResultWindowCreate {
+    CmdResultWindowCreate {
+        success: false,
+        message: "wasm feature requires the wasm32-unknown-unknown target".into(),
     }
 }
 

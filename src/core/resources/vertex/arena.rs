@@ -16,7 +16,9 @@
 
 use std::ops::Range;
 
-use wgpu::{Buffer, BufferDescriptor, BufferUsages, Device, Queue};
+use wgpu::{Buffer, BufferDescriptor, BufferUsages};
+#[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
+use wgpu::{Device, Queue};
 
 // -----------------------------------------------------------------------------
 // Public types
@@ -91,6 +93,7 @@ pub struct ArenaAllocator {
 
 impl ArenaAllocator {
     /// Default alignment (bytes).
+    #[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
     pub const DEFAULT_ALIGN: u64 = 4;
 
     /// Extra headroom used as a minimum in compaction shrink decisions.
@@ -102,6 +105,7 @@ impl ArenaAllocator {
     // -------------------------------------------------------------------------
 
     /// Create a new arena allocator with default alignment (4 bytes).
+    #[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
     pub fn new(
         device: &Device,
         queue: &Queue,
@@ -122,6 +126,7 @@ impl ArenaAllocator {
     /// Create a new arena allocator with an explicit alignment.
     ///
     /// `align` must be a power-of-two for the fast `align_up` implementation.
+    #[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
     pub fn with_alignment(
         device: &Device,
         queue: &Queue,
@@ -177,6 +182,7 @@ impl ArenaAllocator {
     // Frame lifecycle / deferred drop
     // -------------------------------------------------------------------------
 
+    #[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
     pub fn set_keep_frames(&mut self, frames: u64) {
         self.keep_frames = frames.max(1);
     }

@@ -21,13 +21,24 @@ pub fn vulfram_init() -> VulframResult {
         if opt.is_some() {
             return VulframResult::AlreadyInitialized;
         } else {
-            let event_loop = EventLoop::<EngineCustomEvents>::with_user_event()
+            #[cfg(not(feature = "wasm"))]
+            let (event_loop, proxy) = {
+                let event_loop = EventLoop::<EngineCustomEvents>::with_user_event()
+                    .build()
+                    .unwrap();
+                let proxy = event_loop.create_proxy();
+                (event_loop, proxy)
+            };
+
+            #[cfg(feature = "wasm")]
+            let proxy = EventLoop::<EngineCustomEvents>::with_user_event()
                 .build()
-                .unwrap();
-            let proxy = event_loop.create_proxy();
+                .unwrap()
+                .create_proxy();
 
             *opt = Some(EngineSingleton {
                 state: EngineState::new(),
+                #[cfg(not(feature = "wasm"))]
                 event_loop: Some(event_loop),
                 proxy: Some(proxy),
             });

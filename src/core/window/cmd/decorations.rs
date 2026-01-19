@@ -18,6 +18,7 @@ pub struct CmdResultWindowSetDecorations {
     message: String,
 }
 
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_window_set_decorations(
     engine: &mut EngineState,
     args: &CmdWindowSetDecorationsArgs,
@@ -37,6 +38,20 @@ pub fn engine_cmd_window_set_decorations(
     }
 }
 
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_window_set_decorations(
+    _engine: &mut EngineState,
+    args: &CmdWindowSetDecorationsArgs,
+) -> CmdResultWindowSetDecorations {
+    CmdResultWindowSetDecorations {
+        success: false,
+        message: format!(
+            "Window decorations are not supported in wasm (window_id={})",
+            args.window_id
+        ),
+    }
+}
+
 // MARK: - Has Decorations
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -53,6 +68,7 @@ pub struct CmdResultWindowHasDecorations {
     content: bool,
 }
 
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_window_has_decorations(
     engine: &EngineState,
     args: &CmdWindowHasDecorationsArgs,
@@ -74,6 +90,21 @@ pub fn engine_cmd_window_has_decorations(
     }
 }
 
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_window_has_decorations(
+    _engine: &EngineState,
+    args: &CmdWindowHasDecorationsArgs,
+) -> CmdResultWindowHasDecorations {
+    CmdResultWindowHasDecorations {
+        success: false,
+        message: format!(
+            "Window decorations are not supported in wasm (window_id={})",
+            args.window_id
+        ),
+        content: false,
+    }
+}
+
 // MARK: - Set Resizable
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -90,6 +121,7 @@ pub struct CmdResultWindowSetResizable {
     message: String,
 }
 
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_window_set_resizable(
     engine: &mut EngineState,
     args: &CmdWindowSetResizableArgs,
@@ -109,6 +141,20 @@ pub fn engine_cmd_window_set_resizable(
     }
 }
 
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_window_set_resizable(
+    _engine: &mut EngineState,
+    args: &CmdWindowSetResizableArgs,
+) -> CmdResultWindowSetResizable {
+    CmdResultWindowSetResizable {
+        success: false,
+        message: format!(
+            "Window resizing is not supported in wasm (window_id={})",
+            args.window_id
+        ),
+    }
+}
+
 // MARK: - Is Resizable
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -125,6 +171,7 @@ pub struct CmdResultWindowIsResizable {
     content: bool,
 }
 
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_window_is_resizable(
     engine: &EngineState,
     args: &CmdWindowIsResizableArgs,
@@ -143,5 +190,20 @@ pub fn engine_cmd_window_is_resizable(
             message: format!("Window with id {} not found", args.window_id),
             content: false,
         },
+    }
+}
+
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_window_is_resizable(
+    _engine: &EngineState,
+    args: &CmdWindowIsResizableArgs,
+) -> CmdResultWindowIsResizable {
+    CmdResultWindowIsResizable {
+        success: false,
+        message: format!(
+            "Window resizing is not supported in wasm (window_id={})",
+            args.window_id
+        ),
+        content: false,
     }
 }

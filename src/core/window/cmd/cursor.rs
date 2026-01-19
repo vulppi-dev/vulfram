@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
+#[cfg(not(feature = "wasm"))]
 use crate::core::platform::winit;
 use crate::core::state::EngineState;
 
@@ -20,6 +21,7 @@ pub struct CmdResultWindowSetCursorVisible {
     message: String,
 }
 
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_window_set_cursor_visible(
     engine: &mut EngineState,
     args: &CmdWindowSetCursorVisibleArgs,
@@ -36,6 +38,20 @@ pub fn engine_cmd_window_set_cursor_visible(
             success: false,
             message: format!("Window with id {} not found", args.window_id),
         },
+    }
+}
+
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_window_set_cursor_visible(
+    _engine: &mut EngineState,
+    args: &CmdWindowSetCursorVisibleArgs,
+) -> CmdResultWindowSetCursorVisible {
+    CmdResultWindowSetCursorVisible {
+        success: false,
+        message: format!(
+            "Cursor visibility is not supported in wasm (window_id={})",
+            args.window_id
+        ),
     }
 }
 
@@ -73,6 +89,7 @@ pub struct CmdResultWindowSetCursorGrab {
     message: String,
 }
 
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_window_set_cursor_grab(
     engine: &mut EngineState,
     args: &CmdWindowSetCursorGrabArgs,
@@ -119,6 +136,20 @@ pub fn engine_cmd_window_set_cursor_grab(
             success: false,
             message: format!("Window with id {} not found", args.window_id),
         },
+    }
+}
+
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_window_set_cursor_grab(
+    _engine: &mut EngineState,
+    args: &CmdWindowSetCursorGrabArgs,
+) -> CmdResultWindowSetCursorGrab {
+    CmdResultWindowSetCursorGrab {
+        success: false,
+        message: format!(
+            "Cursor grab is not supported in wasm (window_id={})",
+            args.window_id
+        ),
     }
 }
 
@@ -218,6 +249,7 @@ pub struct CmdResultWindowSetCursorIcon {
     message: String,
 }
 
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_window_set_cursor_icon(
     engine: &mut EngineState,
     args: &CmdWindowSetCursorIconArgs,
@@ -271,5 +303,19 @@ pub fn engine_cmd_window_set_cursor_icon(
             success: false,
             message: format!("Window with id {} not found", args.window_id),
         },
+    }
+}
+
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_window_set_cursor_icon(
+    _engine: &mut EngineState,
+    args: &CmdWindowSetCursorIconArgs,
+) -> CmdResultWindowSetCursorIcon {
+    CmdResultWindowSetCursorIcon {
+        success: false,
+        message: format!(
+            "Cursor icon is not supported in wasm (window_id={})",
+            args.window_id
+        ),
     }
 }

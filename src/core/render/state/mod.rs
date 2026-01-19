@@ -14,7 +14,9 @@ use crate::core::resources::shadow::ShadowManager;
 
 pub use self::binding::BindingSystem;
 pub use self::collector::{DrawCollector, DrawItem};
-pub use self::library::{ResourceLibrary, SamplerSet};
+pub use self::library::ResourceLibrary;
+#[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
+pub use self::library::SamplerSet;
 pub use self::light::{FrustumPlane, LightCullingSystem};
 pub use self::scene::RenderScene;
 
@@ -35,6 +37,7 @@ pub struct RenderState {
 }
 
 impl RenderState {
+    #[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
     pub fn on_resize(&mut self, _width: u32, _height: u32) {
         // Depth target is now managed per-frame or lazily by passes
         self.forward_depth_target = None;

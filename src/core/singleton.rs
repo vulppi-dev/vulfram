@@ -1,21 +1,29 @@
 use once_cell::sync::OnceCell;
 use std::cell::RefCell;
 use std::thread::{self, ThreadId};
-use crate::core::platform::{EventLoop, EventLoopProxy};
+#[cfg(not(feature = "wasm"))]
+use crate::core::platform::EventLoop;
+use crate::core::platform::EventLoopProxy;
 
 use super::VulframResult;
 use super::state::EngineState;
+#[cfg(not(feature = "wasm"))]
 use super::window::CmdWindowCreateArgs;
 
 /// Custom events sent through the event loop
+#[cfg(not(feature = "wasm"))]
 pub enum EngineCustomEvents {
     CreateWindow(u64, CmdWindowCreateArgs),
     NotificationInteraction(super::system::SystemEvent),
 }
 
+#[cfg(feature = "wasm")]
+pub enum EngineCustomEvents {}
+
 /// Singleton container for engine state and event loop
 pub struct EngineSingleton {
     pub state: EngineState,
+    #[cfg(not(feature = "wasm"))]
     pub event_loop: Option<EventLoop<EngineCustomEvents>>,
     pub proxy: Option<EventLoopProxy<EngineCustomEvents>>,
 }

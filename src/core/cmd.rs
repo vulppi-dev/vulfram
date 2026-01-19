@@ -174,8 +174,20 @@ pub fn engine_process_batch(
                 });
             }
             EngineCmd::CmdWindowCreate(args) => {
-                let _ =
-                    loop_proxy.send_event(EngineCustomEvents::CreateWindow(pack.id, args.clone()));
+                #[cfg(not(feature = "wasm"))]
+                {
+                    let _ = loop_proxy
+                        .send_event(EngineCustomEvents::CreateWindow(pack.id, args.clone()));
+                }
+                #[cfg(feature = "wasm")]
+                {
+                    let dummy_event_loop = ();
+                    let result = win::engine_cmd_window_create(engine, &dummy_event_loop, &args);
+                    engine.response_queue.push(CommandResponseEnvelope {
+                        id: pack.id,
+                        response: CommandResponse::WindowCreate(result),
+                    });
+                }
             }
             EngineCmd::CmdWindowClose(args) => {
                 let result = win::engine_cmd_window_close(engine, &args);

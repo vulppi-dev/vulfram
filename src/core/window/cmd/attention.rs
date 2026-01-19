@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
+#[cfg(not(feature = "wasm"))]
 use crate::core::platform::winit;
 use crate::core::state::EngineState;
 
@@ -30,6 +31,7 @@ pub struct CmdResultWindowRequestAttention {
     message: String,
 }
 
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_window_request_attention(
     engine: &mut EngineState,
     args: &CmdWindowRequestAttentionArgs,
@@ -53,6 +55,20 @@ pub fn engine_cmd_window_request_attention(
     }
 }
 
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_window_request_attention(
+    _engine: &mut EngineState,
+    args: &CmdWindowRequestAttentionArgs,
+) -> CmdResultWindowRequestAttention {
+    CmdResultWindowRequestAttention {
+        success: false,
+        message: format!(
+            "Window request attention is not supported in wasm (window_id={})",
+            args.window_id
+        ),
+    }
+}
+
 // MARK: - Focus Window
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -68,6 +84,7 @@ pub struct CmdResultWindowFocus {
     message: String,
 }
 
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_window_focus(
     engine: &mut EngineState,
     args: &CmdWindowFocusArgs,
@@ -84,5 +101,19 @@ pub fn engine_cmd_window_focus(
             success: false,
             message: format!("Window with id {} not found", args.window_id),
         },
+    }
+}
+
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_window_focus(
+    _engine: &mut EngineState,
+    args: &CmdWindowFocusArgs,
+) -> CmdResultWindowFocus {
+    CmdResultWindowFocus {
+        success: false,
+        message: format!(
+            "Window focus is not supported in wasm (window_id={})",
+            args.window_id
+        ),
     }
 }

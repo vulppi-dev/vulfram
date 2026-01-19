@@ -3,7 +3,9 @@ use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec4Swizzles};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use wgpu::{Device, Queue, TextureFormat, TextureUsages};
+use wgpu::{Device, TextureFormat, TextureUsages};
+#[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
+use wgpu::Queue;
 
 mod atlas;
 pub mod cmd;
@@ -104,6 +106,7 @@ pub struct ShadowManager {
 }
 
 impl ShadowManager {
+    #[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
     pub fn new(device: &Device, queue: &Queue, table_capacity: u32) -> Self {
         let config = ShadowConfig::default();
         let atlas_desc = ShadowAtlasDesc {

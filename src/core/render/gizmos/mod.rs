@@ -36,6 +36,7 @@ pub struct GizmoSystem {
 }
 
 impl GizmoSystem {
+    #[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
     pub fn new() -> Self {
         Self {
             vertices: Vec::with_capacity(1024),

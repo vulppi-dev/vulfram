@@ -1,9 +1,13 @@
 use glam::{IVec2, UVec2};
 use serde::{Deserialize, Serialize};
+#[cfg(not(feature = "wasm"))]
 use crate::core::platform::winit;
+#[cfg(not(feature = "wasm"))]
 use crate::core::platform::winit::dpi::{PhysicalPosition, PhysicalSize};
 
+#[cfg(not(feature = "wasm"))]
 use crate::core::buffers::state::UploadType;
+#[cfg(not(feature = "wasm"))]
 use crate::core::image::ImageDecoder;
 use crate::core::state::EngineState;
 
@@ -25,6 +29,7 @@ pub struct CmdResultWindowSetTitle {
     message: String,
 }
 
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_window_set_title(
     engine: &mut EngineState,
     args: &CmdWindowSetTitleArgs,
@@ -44,6 +49,20 @@ pub fn engine_cmd_window_set_title(
     }
 }
 
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_window_set_title(
+    _engine: &mut EngineState,
+    args: &CmdWindowSetTitleArgs,
+) -> CmdResultWindowSetTitle {
+    CmdResultWindowSetTitle {
+        success: false,
+        message: format!(
+            "Window title is not supported in wasm (window_id={})",
+            args.window_id
+        ),
+    }
+}
+
 // MARK: - Set Position
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -60,6 +79,7 @@ pub struct CmdResultWindowSetPosition {
     message: String,
 }
 
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_window_set_position(
     engine: &mut EngineState,
     args: &CmdWindowSetPositionArgs,
@@ -80,6 +100,20 @@ pub fn engine_cmd_window_set_position(
     }
 }
 
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_window_set_position(
+    _engine: &mut EngineState,
+    args: &CmdWindowSetPositionArgs,
+) -> CmdResultWindowSetPosition {
+    CmdResultWindowSetPosition {
+        success: false,
+        message: format!(
+            "Window position is not supported in wasm (window_id={})",
+            args.window_id
+        ),
+    }
+}
+
 // MARK: - Get Position
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -96,6 +130,7 @@ pub struct CmdResultWindowGetPosition {
     content: IVec2,
 }
 
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_window_get_position(
     engine: &EngineState,
     args: &CmdWindowGetPositionArgs,
@@ -121,6 +156,21 @@ pub fn engine_cmd_window_get_position(
     }
 }
 
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_window_get_position(
+    _engine: &EngineState,
+    args: &CmdWindowGetPositionArgs,
+) -> CmdResultWindowGetPosition {
+    CmdResultWindowGetPosition {
+        success: false,
+        message: format!(
+            "Window position is not supported in wasm (window_id={})",
+            args.window_id
+        ),
+        content: IVec2::new(0, 0),
+    }
+}
+
 // MARK: - Set Size
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -137,6 +187,7 @@ pub struct CmdResultWindowSetSize {
     message: String,
 }
 
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_window_set_size(
     engine: &mut EngineState,
     args: &CmdWindowSetSizeArgs,
@@ -168,6 +219,20 @@ pub fn engine_cmd_window_set_size(
     }
 }
 
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_window_set_size(
+    _engine: &mut EngineState,
+    args: &CmdWindowSetSizeArgs,
+) -> CmdResultWindowSetSize {
+    CmdResultWindowSetSize {
+        success: false,
+        message: format!(
+            "Window size is not supported in wasm (window_id={})",
+            args.window_id
+        ),
+    }
+}
+
 // MARK: - Get Size
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -184,6 +249,7 @@ pub struct CmdResultWindowGetSize {
     content: UVec2,
 }
 
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_window_get_size(
     engine: &EngineState,
     args: &CmdWindowGetSizeArgs,
@@ -205,6 +271,21 @@ pub fn engine_cmd_window_get_size(
     }
 }
 
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_window_get_size(
+    _engine: &EngineState,
+    args: &CmdWindowGetSizeArgs,
+) -> CmdResultWindowGetSize {
+    CmdResultWindowGetSize {
+        success: false,
+        message: format!(
+            "Window size is not supported in wasm (window_id={})",
+            args.window_id
+        ),
+        content: UVec2::new(0, 0),
+    }
+}
+
 // MARK: - Get Outer Size
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -221,6 +302,7 @@ pub struct CmdResultWindowGetOuterSize {
     content: UVec2,
 }
 
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_window_get_outer_size(
     engine: &EngineState,
     args: &CmdWindowGetOuterSizeArgs,
@@ -242,6 +324,21 @@ pub fn engine_cmd_window_get_outer_size(
     }
 }
 
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_window_get_outer_size(
+    _engine: &EngineState,
+    args: &CmdWindowGetOuterSizeArgs,
+) -> CmdResultWindowGetOuterSize {
+    CmdResultWindowGetOuterSize {
+        success: false,
+        message: format!(
+            "Window outer size is not supported in wasm (window_id={})",
+            args.window_id
+        ),
+        content: UVec2::new(0, 0),
+    }
+}
+
 // MARK: - Get Surface Size
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -258,6 +355,7 @@ pub struct CmdResultWindowGetSurfaceSize {
     content: UVec2,
 }
 
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_window_get_surface_size(
     engine: &EngineState,
     args: &CmdWindowGetSurfaceSizeArgs,
@@ -273,6 +371,21 @@ pub fn engine_cmd_window_get_surface_size(
             message: format!("Window with id {} not found", args.window_id),
             content: UVec2::new(0, 0),
         },
+    }
+}
+
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_window_get_surface_size(
+    _engine: &EngineState,
+    args: &CmdWindowGetSurfaceSizeArgs,
+) -> CmdResultWindowGetSurfaceSize {
+    CmdResultWindowGetSurfaceSize {
+        success: false,
+        message: format!(
+            "Window surface size is not supported in wasm (window_id={})",
+            args.window_id
+        ),
+        content: UVec2::new(0, 0),
     }
 }
 
@@ -292,6 +405,7 @@ pub struct CmdResultWindowSetState {
     message: String,
 }
 
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_window_set_state(
     engine: &mut EngineState,
     args: &CmdWindowSetStateArgs,
@@ -338,6 +452,20 @@ pub fn engine_cmd_window_set_state(
     }
 }
 
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_window_set_state(
+    _engine: &mut EngineState,
+    args: &CmdWindowSetStateArgs,
+) -> CmdResultWindowSetState {
+    CmdResultWindowSetState {
+        success: false,
+        message: format!(
+            "Window state is not supported in wasm (window_id={})",
+            args.window_id
+        ),
+    }
+}
+
 // MARK: - Get State
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -354,6 +482,7 @@ pub struct CmdResultWindowGetState {
     content: EngineWindowState,
 }
 
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_window_get_state(
     engine: &EngineState,
     args: &CmdWindowGetStateArgs,
@@ -391,6 +520,21 @@ pub fn engine_cmd_window_get_state(
     }
 }
 
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_window_get_state(
+    _engine: &EngineState,
+    args: &CmdWindowGetStateArgs,
+) -> CmdResultWindowGetState {
+    CmdResultWindowGetState {
+        success: false,
+        message: format!(
+            "Window state is not supported in wasm (window_id={})",
+            args.window_id
+        ),
+        content: EngineWindowState::default(),
+    }
+}
+
 // MARK: - Set Icon
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -407,6 +551,7 @@ pub struct CmdResultWindowSetIcon {
     message: String,
 }
 
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_window_set_icon(
     engine: &mut EngineState,
     args: &CmdWindowSetIconArgs,
@@ -474,5 +619,19 @@ pub fn engine_cmd_window_set_icon(
     CmdResultWindowSetIcon {
         success: true,
         message: "Icon set successfully".into(),
+    }
+}
+
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_window_set_icon(
+    _engine: &mut EngineState,
+    args: &CmdWindowSetIconArgs,
+) -> CmdResultWindowSetIcon {
+    CmdResultWindowSetIcon {
+        success: false,
+        message: format!(
+            "Window icon is not supported in wasm (window_id={})",
+            args.window_id
+        ),
     }
 }

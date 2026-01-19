@@ -1,6 +1,10 @@
-use std::time::{Duration, Instant};
+use std::time::Instant;
+#[cfg(not(feature = "wasm"))]
+use std::time::Duration;
 #[cfg(not(feature = "wasm"))]
 use crate::core::platform::EventLoopExtPumpEvents;
+#[cfg(feature = "wasm")]
+use crate::core::render::render_frames;
 
 use crate::core::cmd::engine_process_batch;
 
@@ -84,13 +88,23 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
         }
 
         // MARK: Request Redraw
-        let start = std::time::Instant::now();
+        #[cfg(not(feature = "wasm"))]
+        {
+            let start = std::time::Instant::now();
 
-        for window_state in engine.state.window.states.values_mut() {
-            window_state.window.request_redraw();
+            for window_state in engine.state.window.states.values_mut() {
+                window_state.window.request_redraw();
+            }
+
+            engine.state.profiling.request_redraw_ns = start.elapsed().as_nanos() as u64;
         }
 
-        engine.state.profiling.request_redraw_ns = start.elapsed().as_nanos() as u64;
+        #[cfg(feature = "wasm")]
+        {
+            let start = std::time::Instant::now();
+            render_frames(&mut engine.state);
+            engine.state.profiling.request_redraw_ns = start.elapsed().as_nanos() as u64;
+        }
         VulframResult::Success
     }) {
         Err(e) => e,

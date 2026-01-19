@@ -50,6 +50,7 @@ struct ComputePipelineEntry {
 }
 
 impl RenderCache {
+    #[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
     pub fn new() -> Self {
         Self {
             pipelines: HashMap::new(),

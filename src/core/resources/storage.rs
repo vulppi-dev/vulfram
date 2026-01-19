@@ -35,6 +35,7 @@ pub struct StorageBufferPool<T: Pod> {
 }
 
 impl<T: Pod> StorageBufferPool<T> {
+    #[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
     pub fn new(
         device: &wgpu::Device,
         queue: &wgpu::Queue,

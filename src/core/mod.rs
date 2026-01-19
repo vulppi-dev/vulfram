@@ -11,7 +11,7 @@ pub mod profiling;
 mod queue;
 pub mod render;
 pub mod resources;
-#[cfg(feature = "wasm")]
+#[cfg(all(feature = "wasm", target_arch = "wasm32"))]
 pub mod web;
 mod singleton;
 mod state;

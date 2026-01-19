@@ -1,9 +1,14 @@
+#[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
 mod fallbacks;
+#[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
 mod library;
+#[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
 mod systems;
 
+#[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
 use crate::core::render::state::{RenderState, ResourceLibrary};
 
+#[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
 impl RenderState {
     pub(crate) fn init(
         &mut self,

@@ -57,6 +57,7 @@ pub fn all_streams() -> [VertexStream; STREAM_COUNT] {
 // -----------------------------------------------------------------------------
 // Configuration
 // -----------------------------------------------------------------------------
+#[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
 #[derive(Debug, Clone, Copy)]
 pub struct VertexAllocatorConfig {
     pub min_pool_bytes: u64,            // >= 2MB
@@ -64,12 +65,30 @@ pub struct VertexAllocatorConfig {
     pub keep_frames: u64,               // deferred drop window for arena resizes/compactions
 }
 
+#[cfg(all(feature = "wasm", not(target_arch = "wasm32")))]
+#[derive(Debug, Clone, Copy)]
+pub struct VertexAllocatorConfig {
+    pub min_pool_bytes: u64,            // >= 2MB
+    pub dedicated_threshold_bytes: u64, // > 16MB => Dedicated
+}
+
+#[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
 impl Default for VertexAllocatorConfig {
     fn default() -> Self {
         Self {
             min_pool_bytes: 2 * 1024 * 1024,
             dedicated_threshold_bytes: 16 * 1024 * 1024,
             keep_frames: 3,
+        }
+    }
+}
+
+#[cfg(all(feature = "wasm", not(target_arch = "wasm32")))]
+impl Default for VertexAllocatorConfig {
+    fn default() -> Self {
+        Self {
+            min_pool_bytes: 2 * 1024 * 1024,
+            dedicated_threshold_bytes: 16 * 1024 * 1024,
         }
     }
 }

@@ -1,10 +1,16 @@
-use super::{RenderScene, RenderState};
+use super::RenderState;
+#[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
+use super::RenderScene;
+#[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
 use crate::core::render::cache::RenderCache;
+#[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
 use crate::core::render::gizmos::GizmoSystem;
+#[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
 use crate::core::render::state::collector::DrawCollector;
 use crate::core::resources::{
     MATERIAL_FALLBACK_ID, MaterialStandardParams, MaterialStandardRecord,
 };
+#[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
 use std::collections::HashMap;
 
 impl RenderState {
@@ -14,6 +20,7 @@ impl RenderState {
     const VERTEX_COMPACT_MIN_DEAD_BYTES: u64 = 256 * 1024;
 
     /// Create a new RenderState with empty systems
+    #[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
     pub fn new(_surface_format: wgpu::TextureFormat) -> Self {
         let mut materials_standard = HashMap::new();
         materials_standard.insert(

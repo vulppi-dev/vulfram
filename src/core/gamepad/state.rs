@@ -1,4 +1,5 @@
 use crate::core::gamepad::cache::GamepadCacheManager;
+use crate::core::platform::gilrs;
 
 pub struct GamepadState {
     pub gilrs: Option<gilrs::Gilrs>,

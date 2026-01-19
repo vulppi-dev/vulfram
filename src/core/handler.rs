@@ -1,8 +1,7 @@
 use glam::{IVec2, UVec2, Vec2};
-use winit::application::ApplicationHandler;
-use winit::event::WindowEvent as WinitWindowEvent;
-use winit::event_loop::ActiveEventLoop;
-use winit::window::WindowId;
+use crate::core::platform::{ApplicationHandler, ActiveEventLoop, WindowId};
+use crate::core::platform::winit;
+use crate::core::platform::winit::event::WindowEvent as WinitWindowEvent;
 
 use crate::core::input::{
     ElementState, KeyboardEvent, ModifiersState, PointerEvent, ScrollDelta, convert_key_code,

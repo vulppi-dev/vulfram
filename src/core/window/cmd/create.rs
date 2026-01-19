@@ -3,11 +3,9 @@ use std::sync::Arc;
 use glam::{IVec2, UVec2};
 use pollster::FutureExt;
 use serde::{Deserialize, Serialize};
-use winit::{
-    dpi::{PhysicalPosition, PhysicalSize, Position},
-    event_loop::ActiveEventLoop,
-    window::Window,
-};
+use crate::core::platform::ActiveEventLoop;
+use crate::core::platform::Window;
+use crate::core::platform::winit::dpi::{PhysicalPosition, PhysicalSize, Position};
 
 use super::{EngineWindowState, window_size_default};
 use crate::core::state::EngineState;
@@ -19,13 +17,21 @@ use crate::core::window::WindowState;
 #[serde(default, rename_all = "camelCase")]
 pub struct CmdWindowCreateArgs {
     pub window_id: u32,
+    #[serde(default)]
     pub title: String,
     #[serde(default = "window_size_default")]
     pub size: UVec2,
+    #[serde(default)]
     pub position: IVec2,
+    #[serde(default)]
+    pub canvas_id: Option<String>,
+    #[serde(default)]
     pub borderless: bool,
+    #[serde(default)]
     pub resizable: bool,
+    #[serde(default)]
     pub transparent: bool,
+    #[serde(default)]
     pub initial_state: EngineWindowState,
 }
 

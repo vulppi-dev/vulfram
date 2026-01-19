@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
+use crate::core::platform::winit;
 use crate::core::state::EngineState;
 
 // MARK: - Set Cursor Visible

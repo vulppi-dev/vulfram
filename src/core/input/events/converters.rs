@@ -1,5 +1,7 @@
 use super::common::TouchPhase;
 
+use crate::core::platform::winit;
+
 /// Convert winit TouchPhase to our TouchPhase
 pub fn convert_touch_phase(phase: winit::event::TouchPhase) -> TouchPhase {
     match phase {

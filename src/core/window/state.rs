@@ -1,7 +1,7 @@
 use glam::{IVec2, UVec2, Vec2};
 use std::collections::HashMap;
 use std::sync::Arc;
-use winit::window::{Window, WindowId};
+use crate::core::platform::{Window, WindowId};
 
 use crate::core::input::InputCacheManager;
 use crate::core::render::RenderState;

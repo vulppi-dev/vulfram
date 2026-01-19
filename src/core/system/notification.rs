@@ -2,7 +2,7 @@
 use notify_rust::Urgency;
 use notify_rust::{Notification, Timeout};
 use serde::{Deserialize, Serialize};
-use winit::event_loop::EventLoopProxy;
+use crate::core::platform::EventLoopProxy;
 
 use crate::core::singleton::EngineCustomEvents;
 use crate::core::state::EngineState;

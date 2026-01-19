@@ -1,7 +1,7 @@
 use once_cell::sync::OnceCell;
 use std::cell::RefCell;
 use std::thread::{self, ThreadId};
-use winit::event_loop::{EventLoop, EventLoopProxy};
+use crate::core::platform::{EventLoop, EventLoopProxy};
 
 use super::VulframResult;
 use super::state::EngineState;

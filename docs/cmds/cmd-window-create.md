@@ -2,6 +2,9 @@
 
 Creates a new window and initializes its WGPU surface.
 
+In web/WASM mode, the window is backed by a DOM canvas. Use `canvasId` to
+attach to an existing `<canvas>` element.
+
 ## Arguments
 
 | Field        | Type              | Description                                                              |
@@ -9,7 +12,8 @@ Creates a new window and initializes its WGPU surface.
 | windowId     | u32               | Unique ID for the new window                                             |
 | title        | String            | (Optional) Window title (default: "")                                    |
 | size         | UVec2             | (Optional) Initial size (default: 800x600)                               |
-| position     | IVec2             | (Optional) Initial position (default: 100x100)                           |
+| position     | IVec2             | (Optional) Initial position (default: 0,0)                               |
+| canvasId     | Option<String>    | (Optional) DOM canvas id (web/WASM only)                                 |
 | borderless   | bool              | (Optional) Whether to hide decorations (default: false)                  |
 | resizable    | bool              | (Optional) Whether the window can be resized (default: false)            |
 | transparent  | bool              | (Optional) Whether the window background is transparent (default: false) |

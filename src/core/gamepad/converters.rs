@@ -1,3 +1,5 @@
+use crate::core::platform::gilrs;
+
 /// Convert gilrs Button to u32
 pub fn convert_gilrs_button(button: gilrs::Button) -> u32 {
     use gilrs::Button;

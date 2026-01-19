@@ -233,6 +233,7 @@ GLOSSARY.md (for terminology)
 - **[README.md](../README.md)** - Project overview and quick start
 - **[MASCOT-DEFINITION.md](MASCOT-DEFINITION.md)** - Brand guidelines
 - **[UI.md](UI.md)** - User interface guidelines
+- **[WASM-PLAN.md](WASM-PLAN.md)** - Web/WASM support audit and plan (Phase 1)
 - **[Copilot Instructions](../.github/copilot-instructions.md)** - Development patterns
 
 ---

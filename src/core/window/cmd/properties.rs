@@ -1,6 +1,7 @@
 use glam::{IVec2, UVec2};
 use serde::{Deserialize, Serialize};
-use winit::dpi::{PhysicalPosition, PhysicalSize};
+use crate::core::platform::winit;
+use crate::core::platform::winit::dpi::{PhysicalPosition, PhysicalSize};
 
 use crate::core::buffers::state::UploadType;
 use crate::core::image::ImageDecoder;

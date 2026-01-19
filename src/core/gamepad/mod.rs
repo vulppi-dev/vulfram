@@ -3,7 +3,7 @@ pub mod converters;
 pub mod events;
 pub mod state;
 
-use gilrs::{Event as GilrsEvent, EventType as GilrsEventType};
+use crate::core::platform::gilrs::{Event as GilrsEvent, EventType as GilrsEventType};
 
 use crate::core::cmd::EngineEvent;
 use crate::core::gamepad::converters::{convert_gilrs_axis, convert_gilrs_button};

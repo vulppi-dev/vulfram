@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use winit::event_loop::EventLoopProxy;
+use crate::core::platform::EventLoopProxy;
 
 use crate::core::VulframResult;
 use crate::core::gamepad::events::GamepadEvent;

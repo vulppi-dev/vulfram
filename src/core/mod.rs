@@ -5,6 +5,7 @@ mod handler;
 pub mod image;
 pub mod input;
 mod lifecycle;
+pub mod platform;
 pub mod profiling;
 mod queue;
 pub mod render;

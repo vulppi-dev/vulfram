@@ -241,10 +241,16 @@ pub mod winit {
         }
 
         #[derive(Debug, Clone, Copy)]
-        pub struct MonitorHandle;
+    pub struct MonitorHandle;
 
-        #[derive(Debug, Clone, Copy)]
-        pub struct VideoMode;
+    impl MonitorHandle {
+        pub fn video_modes(&self) -> std::vec::IntoIter<VideoMode> {
+            Vec::new().into_iter()
+        }
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    pub struct VideoMode;
 
         #[derive(Debug, Clone, Copy)]
         pub enum Fullscreen {

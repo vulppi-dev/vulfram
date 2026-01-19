@@ -4,7 +4,9 @@ mod converters;
 mod keyboard;
 mod pointer;
 
-pub use common::{ElementState, ModifiersState, TouchPhase};
+pub use common::{ElementState, ModifiersState};
+#[cfg(feature = "wasm")]
+pub use common::TouchPhase;
 #[cfg(not(feature = "wasm"))]
 pub use converters::{
     convert_key_code, convert_key_location, convert_mouse_button, convert_touch_phase,

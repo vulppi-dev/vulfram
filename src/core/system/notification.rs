@@ -1,5 +1,6 @@
-#[cfg(target_os = "linux")]
+#[cfg(all(not(feature = "wasm"), target_os = "linux"))]
 use notify_rust::Urgency;
+#[cfg(not(feature = "wasm"))]
 use notify_rust::{Notification, Timeout};
 use serde::{Deserialize, Serialize};
 use crate::core::platform::EventLoopProxy;
@@ -33,6 +34,16 @@ pub struct CmdResultNotificationSend {
     pub success: bool,
 }
 
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_notification_send(
+    _engine: &mut EngineState,
+    _loop_proxy: &EventLoopProxy<EngineCustomEvents>,
+    _args: &CmdNotificationSendArgs,
+) -> CmdResultNotificationSend {
+    CmdResultNotificationSend { success: false }
+}
+
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_notification_send(
     _engine: &mut EngineState,
     loop_proxy: &EventLoopProxy<EngineCustomEvents>,

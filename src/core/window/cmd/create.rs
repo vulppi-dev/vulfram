@@ -136,11 +136,12 @@ pub fn engine_cmd_window_create(
             }
         };
 
+    let required_limits = wgpu::Limits::downlevel_webgl2_defaults();
     let (device, queue) = match adapter
         .request_device(&wgpu::DeviceDescriptor {
             label: None,
             required_features: wgpu::Features::empty(),
-            required_limits: wgpu::Limits::default(),
+            required_limits,
             memory_hints: wgpu::MemoryHints::default(),
             ..Default::default()
         })

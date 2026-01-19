@@ -9,7 +9,7 @@ env_logger = "0.11"
 log = "0.4"
 pollster = "0.4"
 once_cell = "1.21"
-ctrlc = "3.5"
+ctrlc = { version = "3.5", optional = true }
 smallvec = "1.15"
 
 # Serialization & Data Structures
@@ -26,7 +26,7 @@ winit = { version = "0.30", optional = true }
 gilrs = { version = "0.11", optional = true }
 
 # Notifications
-notify-rust = "4.11"
+notify-rust = { version = "4.11", optional = true }
 
 # Image decoding
 image = { version = "0.25", default-features = false, features = ["bmp", "png", "jpeg", "webp", "avif"] }
@@ -59,18 +59,23 @@ web-sys = { version = "0.3", optional = true, features = [
     "ResizeObserver",
     "ResizeObserverEntry",
     "Navigator",
+    "Gamepad",
+    "GamepadButton",
 ] }
 
 [lib]
 crate-type = ["cdylib"]
 path = "src/lib.rs"
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.3", features = ["wasm_js"] }
+
 [features]
 default = ["napi"]  # Default to N-API export
-ffi = ["dep:winit", "dep:gilrs"]  # C ABI / FFI export
-napi = ["dep:napi", "dep:napi-derive", "dep:winit", "dep:gilrs"]  # N-API export
-lua = ["dep:mlua", "dep:winit", "dep:gilrs"]
-python = ["dep:pyo3", "dep:winit", "dep:gilrs"]
+ffi = ["dep:winit", "dep:gilrs", "dep:notify-rust", "dep:ctrlc"]  # C ABI / FFI export
+napi = ["dep:napi", "dep:napi-derive", "dep:winit", "dep:gilrs", "dep:notify-rust", "dep:ctrlc"]  # N-API export
+lua = ["dep:mlua", "dep:winit", "dep:gilrs", "dep:notify-rust", "dep:ctrlc"]
+python = ["dep:pyo3", "dep:winit", "dep:gilrs", "dep:notify-rust", "dep:ctrlc"]
 wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-futures", "dep:js-sys", "dep:web-sys"]
 
 [profile.dev]

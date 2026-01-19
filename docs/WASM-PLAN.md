@@ -51,6 +51,7 @@ Gamepad:
 
 - Use `Navigator.get_gamepads()` for polling each `vulfram_tick`.
 - Map to existing `GamepadEvent` with the same cache + deadzone filters.
+  - Implemented in phase 5 (web polling).
 
 ## Rendering Considerations
 

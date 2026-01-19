@@ -109,7 +109,7 @@ pub fn engine_cmd_window_get_position(
             },
             Err(e) => CmdResultWindowGetPosition {
                 success: false,
-                message: format!("Failed to get position: {}", e),
+                message: format!("Failed to get position: {:?}", e),
                 content: IVec2::new(0, 0),
             },
         },
@@ -462,7 +462,7 @@ pub fn engine_cmd_window_set_icon(
         Err(e) => {
             return CmdResultWindowSetIcon {
                 success: false,
-                message: format!("Failed to create icon: {}", e),
+                message: format!("Failed to create icon: {:?}", e),
             };
         }
     };

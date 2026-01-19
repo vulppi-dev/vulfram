@@ -54,6 +54,14 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
                 gamepad_start.elapsed().as_nanos() as u64;
         }
 
+        #[cfg(feature = "wasm")]
+        {
+            let gamepad_start = Instant::now();
+            crate::core::gamepad::process_web_gamepads(&mut engine.state);
+            engine.state.profiling.gamepad_processing_ns =
+                gamepad_start.elapsed().as_nanos() as u64;
+        }
+
         // MARK: Event Loop Pump
         #[cfg(not(feature = "wasm"))]
         if let Some(event_loop) = &mut engine.event_loop {

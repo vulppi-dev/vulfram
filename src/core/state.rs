@@ -32,6 +32,15 @@ pub struct EngineState {
 
 impl EngineState {
     pub fn new() -> Self {
+        #[cfg(feature = "wasm")]
+        let wgpu_descriptor = wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::BROWSER_WEBGPU,
+            backend_options: wgpu::BackendOptions::default(),
+            flags: wgpu::InstanceFlags::empty(),
+            memory_budget_thresholds: wgpu::MemoryBudgetThresholds::default(),
+        };
+
+        #[cfg(not(feature = "wasm"))]
         let wgpu_descriptor = wgpu::InstanceDescriptor {
             backends: if cfg!(target_os = "ios") || cfg!(target_os = "macos") {
                 wgpu::Backends::METAL | wgpu::Backends::VULKAN

@@ -95,7 +95,7 @@ pub fn engine_cmd_window_set_cursor_grab(
                         Err(e) => {
                             return CmdResultWindowSetCursorGrab {
                                 success: false,
-                                message: format!("Failed to release cursor grab: {}", e),
+                    message: format!("Failed to release cursor grab: {:?}", e),
                             };
                         }
                     }
@@ -111,7 +111,7 @@ pub fn engine_cmd_window_set_cursor_grab(
                 },
                 Err(e) => CmdResultWindowSetCursorGrab {
                     success: false,
-                    message: format!("Failed to set cursor grab mode: {}", e),
+                message: format!("Failed to set cursor grab mode: {:?}", e),
                 },
             }
         }

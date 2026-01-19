@@ -3378,6 +3378,7 @@ dependencies = [
  "gilrs",
  "glam",
  "image",
+ "js-sys",
  "log",
  "mlua",
  "napi",
@@ -3391,6 +3392,9 @@ dependencies = [
  "serde",
  "serde_repr",
  "smallvec",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
  "wgpu",
  "winit",
 ]

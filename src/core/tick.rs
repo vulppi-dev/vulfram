@@ -1,9 +1,11 @@
 use std::time::{Duration, Instant};
+#[cfg(not(feature = "wasm"))]
 use crate::core::platform::EventLoopExtPumpEvents;
 
 use crate::core::cmd::engine_process_batch;
 
 use super::VulframResult;
+#[cfg(not(feature = "wasm"))]
 use super::gamepad::process_gilrs_event;
 use super::singleton::with_engine_singleton;
 
@@ -35,20 +37,25 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
         let events_before = engine.state.event_queue.len();
 
         // MARK: Gamepad Processing
-        let gamepad_start = Instant::now();
-        let mut gilrs_events = Vec::new();
-        if let Some(gilrs) = &mut engine.state.gamepad.gilrs {
-            while let Some(event) = gilrs.next_event() {
-                gilrs_events.push(event);
+        #[cfg(not(feature = "wasm"))]
+        {
+            let gamepad_start = Instant::now();
+            let mut gilrs_events = Vec::new();
+            if let Some(gilrs) = &mut engine.state.gamepad.gilrs {
+                while let Some(event) = gilrs.next_event() {
+                    gilrs_events.push(event);
+                }
             }
-        }
 
-        for event in gilrs_events {
-            process_gilrs_event(&mut engine.state, event);
+            for event in gilrs_events {
+                process_gilrs_event(&mut engine.state, event);
+            }
+            engine.state.profiling.gamepad_processing_ns =
+                gamepad_start.elapsed().as_nanos() as u64;
         }
-        engine.state.profiling.gamepad_processing_ns = gamepad_start.elapsed().as_nanos() as u64;
 
         // MARK: Event Loop Pump
+        #[cfg(not(feature = "wasm"))]
         if let Some(event_loop) = &mut engine.event_loop {
             let pump_start = Instant::now();
             event_loop.pump_app_events(Some(Duration::from_millis(16)), &mut engine.state);

@@ -1,6 +1,7 @@
 pub mod buffers;
 pub mod cmd;
 pub mod gamepad;
+#[cfg(not(feature = "wasm"))]
 mod handler;
 pub mod image;
 pub mod input;
@@ -10,6 +11,8 @@ pub mod profiling;
 mod queue;
 pub mod render;
 pub mod resources;
+#[cfg(feature = "wasm")]
+pub mod web;
 mod singleton;
 mod state;
 pub mod system;

@@ -6,6 +6,10 @@ use serde::{Deserialize, Serialize};
 use crate::core::platform::ActiveEventLoop;
 use crate::core::platform::Window;
 use crate::core::platform::winit::dpi::{PhysicalPosition, PhysicalSize, Position};
+#[cfg(feature = "wasm")]
+use wasm_bindgen::JsCast;
+#[cfg(feature = "wasm")]
+use web_sys::HtmlCanvasElement;
 
 use super::{EngineWindowState, window_size_default};
 use crate::core::state::EngineState;
@@ -42,6 +46,187 @@ pub struct CmdResultWindowCreate {
     pub message: String,
 }
 
+#[cfg(feature = "wasm")]
+pub fn engine_cmd_window_create(
+    engine: &mut EngineState,
+    _event_loop: &ActiveEventLoop,
+    args: &CmdWindowCreateArgs,
+) -> CmdResultWindowCreate {
+    let canvas_id = match &args.canvas_id {
+        Some(id) => id,
+        None => {
+            return CmdResultWindowCreate {
+                success: false,
+                message: "canvasId is required in wasm mode".into(),
+            };
+        }
+    };
+
+    let window = match web_sys::window() {
+        Some(window) => window,
+        None => {
+            return CmdResultWindowCreate {
+                success: false,
+                message: "Web window not available".into(),
+            };
+        }
+    };
+    let document = match window.document() {
+        Some(document) => document,
+        None => {
+            return CmdResultWindowCreate {
+                success: false,
+                message: "Document not available".into(),
+            };
+        }
+    };
+    let element = match document.get_element_by_id(canvas_id) {
+        Some(element) => element,
+        None => {
+            return CmdResultWindowCreate {
+                success: false,
+                message: format!("Canvas with id '{}' not found", canvas_id),
+            };
+        }
+    };
+    let canvas: HtmlCanvasElement = match element.dyn_into() {
+        Ok(canvas) => canvas,
+        Err(_) => {
+            return CmdResultWindowCreate {
+                success: false,
+                message: format!("Element '{}' is not a canvas", canvas_id),
+            };
+        }
+    };
+
+    let window_width = args.size.x.max(1);
+    let window_height = args.size.y.max(1);
+    canvas.set_width(window_width);
+    canvas.set_height(window_height);
+
+    let win_id = args.window_id;
+    let window_handle = Arc::new(Window::new(win_id, canvas.clone()));
+    engine.window.map_window(window_handle.id(), win_id);
+
+    let surface = match engine
+        .wgpu
+        .create_surface(wgpu::SurfaceTarget::Canvas(canvas.clone()))
+    {
+        Ok(surface) => surface,
+        Err(e) => {
+            return CmdResultWindowCreate {
+                success: false,
+                message: format!("WGPU create surface error: {}", e),
+            };
+        }
+    };
+
+    let adapter =
+        match pollster::block_on(engine.wgpu.request_adapter(&wgpu::RequestAdapterOptions {
+            power_preference: wgpu::PowerPreference::HighPerformance,
+            compatible_surface: Some(&surface),
+            force_fallback_adapter: false,
+        })) {
+            Ok(adapter) => adapter,
+            Err(_) => {
+                return CmdResultWindowCreate {
+                    success: false,
+                    message: "WGPU adapter request error".into(),
+                };
+            }
+        };
+
+    let (device, queue) = match adapter
+        .request_device(&wgpu::DeviceDescriptor {
+            label: None,
+            required_features: wgpu::Features::empty(),
+            required_limits: wgpu::Limits::default(),
+            memory_hints: wgpu::MemoryHints::default(),
+            ..Default::default()
+        })
+        .block_on()
+    {
+        Ok((device, queue)) => (device, queue),
+        Err(e) => {
+            return CmdResultWindowCreate {
+                success: false,
+                message: format!("WGPU device request error: {}", e),
+            };
+        }
+    };
+
+    engine.caps = Some(surface.get_capabilities(&adapter));
+    engine.device = Some(device);
+    engine.queue = Some(queue);
+
+    let caps = engine.caps.as_ref().unwrap();
+    let format = caps
+        .formats
+        .iter()
+        .copied()
+        .find(|f| f.is_srgb())
+        .unwrap_or(caps.formats[0]);
+
+    let config = wgpu::SurfaceConfiguration {
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+        width: window_width,
+        height: window_height,
+        present_mode: wgpu::PresentMode::Fifo,
+        format,
+        alpha_mode: wgpu::CompositeAlphaMode::Auto,
+        view_formats: vec![],
+        desired_maximum_frame_latency: 2,
+    };
+
+    surface.configure(engine.device.as_ref().unwrap(), &config);
+
+    let mut render_state = crate::core::render::RenderState::new(format);
+    if let Some(device) = &engine.device {
+        if let Some(queue) = &engine.queue {
+            render_state.init(device, queue, format);
+            render_state.on_resize(window_width, window_height);
+        }
+    }
+
+    let listeners = crate::core::web::input::attach_canvas_listeners(win_id, &canvas);
+
+    engine.window.insert_state(
+        win_id,
+        WindowState {
+            window: window_handle,
+            surface,
+            config: config.clone(),
+            inner_position: IVec2::ZERO,
+            outer_position: IVec2::ZERO,
+            inner_size: UVec2::new(window_width, window_height),
+            outer_size: UVec2::new(window_width, window_height),
+            render_state,
+            is_dirty: true,
+            web_listeners: listeners,
+        },
+    );
+
+    let cache = engine.window.cache.get_or_create(win_id);
+    cache.inner_position = IVec2::ZERO;
+    cache.outer_position = IVec2::ZERO;
+    cache.inner_size = UVec2::new(window_width, window_height);
+    cache.outer_size = UVec2::new(window_width, window_height);
+    cache.scale_factor = 1.0;
+    cache.focused = true;
+    cache.occluded = false;
+    cache.dark_mode = false;
+
+    engine.event_queue.push(crate::core::cmd::EngineEvent::Window(
+        crate::core::window::WindowEvent::OnCreate { window_id: win_id },
+    ));
+
+    CmdResultWindowCreate {
+        success: true,
+        message: "Canvas window created successfully".into(),
+    }
+}
+
+#[cfg(not(feature = "wasm"))]
 pub fn engine_cmd_window_create(
     engine: &mut EngineState,
     event_loop: &ActiveEventLoop,

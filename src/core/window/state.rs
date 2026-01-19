@@ -3,6 +3,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use crate::core::platform::{Window, WindowId};
 
+#[cfg(feature = "wasm")]
+use wasm_bindgen::closure::Closure;
+#[cfg(feature = "wasm")]
+use web_sys::Event;
+
 use crate::core::input::InputCacheManager;
 use crate::core::render::RenderState;
 
@@ -19,6 +24,8 @@ pub struct WindowState {
     pub inner_size: UVec2,
     pub outer_size: UVec2,
     pub(crate) is_dirty: bool,
+    #[cfg(feature = "wasm")]
+    pub web_listeners: Vec<Closure<dyn FnMut(Event)>>,
 }
 
 /// Aggregates window state, IDs and caches

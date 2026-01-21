@@ -181,12 +181,15 @@ pub fn engine_process_batch(
                 }
                 #[cfg(feature = "wasm")]
                 {
-                    let dummy_event_loop = ();
-                    let result = win::engine_cmd_window_create(engine, &dummy_event_loop, &args);
-                    engine.response_queue.push(CommandResponseEnvelope {
-                        id: pack.id,
-                        response: CommandResponse::WindowCreate(result),
-                    });
+                    match win::engine_cmd_window_create_async(&args, pack.id) {
+                        Ok(()) => {}
+                        Err(result) => {
+                            engine.response_queue.push(CommandResponseEnvelope {
+                                id: pack.id,
+                                response: CommandResponse::WindowCreate(result),
+                            });
+                        }
+                    }
                 }
             }
             EngineCmd::CmdWindowClose(args) => {

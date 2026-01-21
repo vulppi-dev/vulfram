@@ -1,7 +1,15 @@
+#[cfg(not(feature = "wasm"))]
 use std::time::Instant;
+#[cfg(feature = "wasm")]
+use js_sys::Date;
 
 use super::VulframResult;
 use super::cmd::EngineBatchCmds;
+
+#[cfg(feature = "wasm")]
+fn now_ns() -> u64 {
+    (Date::now() * 1_000_000.0) as u64
+}
 use super::singleton::with_engine;
 
 /// Send a batch of commands to the engine
@@ -37,12 +45,22 @@ pub fn vulfram_receive_queue(out_ptr: *mut *const u8, out_length: *mut usize) ->
         }
 
         // MARK: Serialization
+        #[cfg(not(feature = "wasm"))]
         let serialization_start = Instant::now();
+        #[cfg(feature = "wasm")]
+        let serialization_start = now_ns();
         let serialized_data = match rmp_serde::to_vec_named(&engine.response_queue) {
             Ok(data) => data,
             Err(_) => return VulframResult::UnknownError,
         };
-        engine.profiling.serialization_ns = serialization_start.elapsed().as_nanos() as u64;
+        #[cfg(not(feature = "wasm"))]
+        {
+            engine.profiling.serialization_ns = serialization_start.elapsed().as_nanos() as u64;
+        }
+        #[cfg(feature = "wasm")]
+        {
+            engine.profiling.serialization_ns = now_ns().saturating_sub(serialization_start);
+        }
 
         let data_length = serialized_data.len();
 
@@ -75,12 +93,18 @@ pub fn vulfram_receive_events(out_ptr: *mut *const u8, out_length: *mut usize) -
         }
 
         // MARK: Serialization
+        #[cfg(not(feature = "wasm"))]
         let serialization_start = Instant::now();
+        #[cfg(feature = "wasm")]
+        let serialization_start = now_ns();
         let serialized_data = match rmp_serde::to_vec_named(&engine.event_queue) {
             Ok(data) => data,
             Err(_) => return VulframResult::UnknownError,
         };
+        #[cfg(not(feature = "wasm"))]
         let serialization_time = serialization_start.elapsed().as_nanos() as u64;
+        #[cfg(feature = "wasm")]
+        let serialization_time = now_ns().saturating_sub(serialization_start);
 
         // Only update profiling if we're serializing responses too
         // (to avoid overwriting response serialization time)

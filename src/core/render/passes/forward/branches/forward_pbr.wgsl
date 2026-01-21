@@ -263,10 +263,12 @@ fn sample_shadow_page_at(
 ) -> f32 {
     let light_uv = vec2<f32>(light_ndc.x * 0.5 + 0.5, light_ndc.y * -0.5 + 0.5);
     let light_depth = light_ndc.z;
-
-    if (light_uv.x < 0.0 || light_uv.x > 1.0 || light_uv.y < 0.0 || light_uv.y > 1.0 || light_depth < 0.0 || light_depth > 1.0) {
-        return 1.0;
-    }
+    let ndc_in_bounds = light_uv.x >= 0.0
+        && light_uv.x <= 1.0
+        && light_uv.y >= 0.0
+        && light_uv.y <= 1.0
+        && light_depth >= 0.0
+        && light_depth <= 1.0;
 
     let grid_size_f = shadow_params.virtual_grid_size;
     let grid_size_u = u32(grid_size_f);
@@ -275,17 +277,15 @@ fn sample_shadow_page_at(
 
     let table_id = compute_table_id(light_base, grid_x, grid_y, grid_size_u);
     let page = shadow_page_table[table_id];
-
-    if (page.scale_offset.x == 0.0 && page.scale_offset.y == 0.0) {
-        return 1.0;
-    }
+    let page_has_data = !(page.scale_offset.x == 0.0 && page.scale_offset.y == 0.0);
 
     let page_origin = vec2<f32>(f32(grid_x), f32(grid_y)) / grid_size_f;
     let page_uv = (light_uv - page_origin) * grid_size_f;
-
-    if (page_uv.x < 0.0 || page_uv.x > 1.0 || page_uv.y < 0.0 || page_uv.y > 1.0) {
-        return 1.0;
-    }
+    let page_in_bounds = page_uv.x >= 0.0
+        && page_uv.x <= 1.0
+        && page_uv.y >= 0.0
+        && page_uv.y <= 1.0;
+    let shadow_valid = ndc_in_bounds && page_has_data && page_in_bounds;
 
     let atlas_uv_center = (page_uv * page.scale_offset.xy) + page.scale_offset.zw;
     let bias = max(bias_min, bias_slope * (1.0 - ndotl));
@@ -298,37 +298,38 @@ fn sample_shadow_page_at(
     let uv_min = tile_min + guard;
     let uv_max = tile_max - guard;
 
+    var shadow = 1.0;
     if (shadow_params.pcf_range == 0) {
         let uv = clamp(atlas_uv_center, uv_min, uv_max);
-        return textureSampleCompare(
+        shadow = textureSampleCompare(
             shadow_atlas,
             shadow_sampler,
             uv,
             i32(page.layer_index),
             saturate(light_depth + bias) // Reverse Z
         );
-    }
-
-    var sum = 0.0;
-    var samples = 0.0;
-    let range = shadow_params.pcf_range;
-
-    for (var oy = -range; oy <= range; oy = oy + 1) {
-        for (var ox = -range; ox <= range; ox = ox + 1) {
-            let offset = vec2<f32>(f32(ox), f32(oy)) * atlas_texel;
-            let uv = clamp(atlas_uv_center + offset, uv_min, uv_max);
-            sum += textureSampleCompare(
-                shadow_atlas,
-                shadow_sampler,
-                uv,
-                i32(page.layer_index),
-                saturate(light_depth + bias) // Reverse Z
-            );
-            samples += 1.0;
+    } else {
+        var sum = 0.0;
+        var samples = 0.0;
+        let range = shadow_params.pcf_range;
+        for (var oy = -range; oy <= range; oy = oy + 1) {
+            for (var ox = -range; ox <= range; ox = ox + 1) {
+                let offset = vec2<f32>(f32(ox), f32(oy)) * atlas_texel;
+                let uv = clamp(atlas_uv_center + offset, uv_min, uv_max);
+                sum += textureSampleCompare(
+                    shadow_atlas,
+                    shadow_sampler,
+                    uv,
+                    i32(page.layer_index),
+                    saturate(light_depth + bias) // Reverse Z
+                );
+                samples += 1.0;
+            }
         }
+        shadow = sum / max(samples, 1.0);
     }
 
-    return sum / max(samples, 1.0);
+    return select(1.0, shadow, shadow_valid);
 }
 
 fn face_from_axis(axis: u32, sign: f32) -> u32 {
@@ -348,11 +349,22 @@ fn sample_point_face(light: Light, face: u32, world_pos: vec3<f32>, ndotl: f32) 
     let view_projection = point_light_vp[light_base];
     let light_clip = view_projection * vec4<f32>(world_pos, 1.0);
     let light_ndc = light_clip.xyz / light_clip.w;
-    return sample_shadow_page_at(light_base, light_ndc, ndotl, shadow_params.point_bias_min, shadow_params.point_bias_slope);
+    let in_bounds = light_ndc.x >= -1.0
+        && light_ndc.x <= 1.0
+        && light_ndc.y >= -1.0
+        && light_ndc.y <= 1.0
+        && light_ndc.z >= 0.0
+        && light_ndc.z <= 1.0;
+    let shadow = sample_shadow_page_at(light_base, light_ndc, ndotl, shadow_params.point_bias_min, shadow_params.point_bias_slope);
+    return select(1.0, shadow, in_bounds);
 }
 
 fn point_shadow_factor(light: Light, world_pos: vec3<f32>, ndotl: f32) -> f32 {
-    let dir = normalize(world_pos - light.position.xyz);
+    let v = world_pos - light.position.xyz;
+    let dist = length(v);
+    let dist_valid = dist > 1e-5;
+    let inv_dist = select(0.0, 1.0 / dist, dist_valid);
+    let dir = v * inv_dist;
     let ad = abs(dir);
     var a0: u32 = 0u;
     var m0: f32 = ad.x;
@@ -372,21 +384,25 @@ fn point_shadow_factor(light: Light, world_pos: vec3<f32>, ndotl: f32) -> f32 {
     let face1 = face_from_axis(a1, dir_component(dir, a1));
     let s0 = sample_point_face(light, face0, world_pos, ndotl);
     let s1 = sample_point_face(light, face1, world_pos, ndotl);
-    return min(s0, s1);
+    let shadow = min(s0, s1);
+    return select(1.0, shadow, dist_valid);
 }
 
 fn get_shadow_factor(light: Light, world_pos: vec3<f32>, ndotl: f32, instance_id: u32) -> f32 {
     let model = models[instance_id];
     let model_receive_shadow = (model.flags.x & 1u) != 0u;
     let light_cast_shadow = (light.kind_flags.y & 1u) != 0u;
-    if (!model_receive_shadow || !light_cast_shadow) { return 1.0; }
-    if (ndotl <= 0.0) { return 1.0; }
-    if (light.kind_flags.x == 1u) { return point_shadow_factor(light, world_pos, ndotl); }
+    let shadow_enabled = model_receive_shadow && light_cast_shadow && ndotl > 0.0;
     let light_clip = light.view_projection * vec4<f32>(world_pos, 1.0);
     let light_ndc = light_clip.xyz / light_clip.w;
     let shadow_idx = light.shadow_index;
     let light_base = shadow_idx * 6u + 0u;
-    return sample_shadow_page_at(light_base, light_ndc, ndotl, shadow_params.bias_min, shadow_params.bias_slope);
+    let directional_shadow =
+        sample_shadow_page_at(light_base, light_ndc, ndotl, shadow_params.bias_min, shadow_params.bias_slope);
+    let point_shadow = point_shadow_factor(light, world_pos, ndotl);
+    let is_point = light.kind_flags.x == 1u;
+    let shadow = select(directional_shadow, point_shadow, is_point);
+    return select(1.0, shadow, shadow_enabled);
 }
 
 // -----------------------------------------------------------------------------
@@ -455,35 +471,32 @@ fn pbr_lighting(
     roughness: f32,
     instance_id: u32,
 ) -> vec3<f32> {
+    let kind = light.kind_flags.x;
+    let is_dir = kind == 0u;
+    let is_point = kind == 1u;
+    let is_spot = kind == 2u;
+    let is_supported = is_dir || is_point || is_spot;
+    let use_local = is_point || is_spot;
     let light_to_pos = world_pos - light.position.xyz;
-    var l = vec3<f32>(0.0);
-    var attenuation = 1.0;
-    var spot_intensity = 1.0;
-    if (light.kind_flags.x == 0u) {
-        l = normalize(-light.direction.xyz);
-    } else if (light.kind_flags.x == 1u) {
-        let dist = length(light_to_pos);
-        l = normalize(-light_to_pos);
-        let range = light.intensity_range.y;
-        if (dist > range) { return vec3<f32>(0.0); }
-        attenuation = pow(clamp(1.0 - dist / range, 0.0, 1.0), 2.0);
-    } else if (light.kind_flags.x == 2u) {
-        let dist = length(light_to_pos);
-        l = normalize(-light_to_pos);
-        let range = light.intensity_range.y;
-        if (dist > range) { return vec3<f32>(0.0); }
-        attenuation = pow(clamp(1.0 - dist / range, 0.0, 1.0), 2.0);
-        let theta = dot(l, normalize(-light.direction.xyz));
-        let inner = cos(light.spot_inner_outer.x);
-        let outer = cos(light.spot_inner_outer.y);
-        let epsilon = inner - outer;
-        spot_intensity = clamp((theta - outer) / epsilon, 0.0, 1.0);
-    } else {
-        return vec3<f32>(0.0);
-    }
+    let dist = length(light_to_pos);
+    let dist_valid = dist > 1e-5;
+    let inv_dist = select(0.0, 1.0 / dist, dist_valid);
+    let l_dir = normalize(-light.direction.xyz);
+    let l_local = -light_to_pos * inv_dist;
+    let l = select(l_dir, l_local, use_local);
+    let range = light.intensity_range.y;
+    let safe_range = max(range, 1e-5);
+    let in_range = dist <= range;
+    let attenuation_local = pow(clamp(1.0 - dist / safe_range, 0.0, 1.0), 2.0);
+    let attenuation = select(1.0, attenuation_local, use_local);
+    let theta = dot(l_local, normalize(-light.direction.xyz));
+    let inner = cos(light.spot_inner_outer.x);
+    let outer = cos(light.spot_inner_outer.y);
+    let epsilon = max(inner - outer, 1e-5);
+    let spot_intensity_raw = clamp((theta - outer) / epsilon, 0.0, 1.0);
+    let spot_intensity = select(1.0, spot_intensity_raw, is_spot);
 
     let n_dot_l = max(dot(n, l), 0.0);
-    if (n_dot_l <= 0.0) { return vec3<f32>(0.0); }
     let n_dot_l_shadow = max(dot(shadow_normal, l), 0.0);
     let shadow = get_shadow_factor(light, world_pos, n_dot_l_shadow, instance_id);
 
@@ -503,7 +516,10 @@ fn pbr_lighting(
     let diffuse = k_d * albedo / PI;
 
     let radiance = light.color.rgb * light.intensity_range.x * attenuation * spot_intensity * shadow;
-    return (diffuse + specular) * radiance * n_dot_l;
+    let light_ok = is_dir || (use_local && dist_valid && in_range);
+    let enabled = is_supported && light_ok && n_dot_l > 0.0;
+    let result = (diffuse + specular) * radiance * n_dot_l;
+    return select(vec3<f32>(0.0), result, enabled);
 }
 
 // -----------------------------------------------------------------------------
@@ -577,18 +593,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         for (var i = 0u; i < count; i++) {
             let idx = visible_indices[base + i];
             let light = lights[idx];
-            switch (light.kind_flags.x) {
-                case 0u: { lighting += pbr_lighting(light, n, n_geom, v, in.world_position, albedo, metallic, roughness, in.instance_id); }
-                case 1u: { lighting += pbr_lighting(light, n, n_geom, v, in.world_position, albedo, metallic, roughness, in.instance_id); }
-                case 2u: { lighting += pbr_lighting(light, n, n_geom, v, in.world_position, albedo, metallic, roughness, in.instance_id); }
-                case 3u: { ambient += light.color.rgb * light.intensity_range.x; }
-                case 4u: {
-                    let up = normalize(light.direction.xyz);
-                    let w = dot(n, up) * 0.5 + 0.5;
-                    ambient += mix(light.ground_color.rgb, light.color.rgb, w) * light.intensity_range.x;
-                }
-                default: { }
-            }
+            let kind = light.kind_flags.x;
+            let is_ambient = kind == 3u;
+            let is_hemi = kind == 4u;
+            let pbr = pbr_lighting(light, n, n_geom, v, in.world_position, albedo, metallic, roughness, in.instance_id);
+            lighting += select(vec3<f32>(0.0), pbr, kind <= 2u);
+            ambient += select(vec3<f32>(0.0), light.color.rgb * light.intensity_range.x, is_ambient);
+            let up = normalize(light.direction.xyz);
+            let w = dot(n, up) * 0.5 + 0.5;
+            let hemi = mix(light.ground_color.rgb, light.color.rgb, w) * light.intensity_range.x;
+            ambient += select(vec3<f32>(0.0), hemi, is_hemi);
         }
     }
 

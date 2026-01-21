@@ -1,6 +1,125 @@
 mod core;
 
 // ============================================================================
+// WASM Exports - for browser WASM via wasm-bindgen
+// ============================================================================
+#[cfg(feature = "wasm")]
+mod wasm_exports {
+    use super::core;
+    use wasm_bindgen::prelude::*;
+
+    #[wasm_bindgen]
+    pub struct BufferResult {
+        buffer: Vec<u8>,
+        result: u32,
+    }
+
+    #[wasm_bindgen]
+    impl BufferResult {
+        #[wasm_bindgen(getter)]
+        pub fn buffer(&self) -> Vec<u8> {
+            self.buffer.clone()
+        }
+
+        #[wasm_bindgen(getter)]
+        pub fn result(&self) -> u32 {
+            self.result
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn vulfram_init() -> u32 {
+        core::vulfram_init() as u32
+    }
+
+    #[wasm_bindgen]
+    pub fn vulfram_dispose() -> u32 {
+        core::vulfram_dispose() as u32
+    }
+
+    #[wasm_bindgen]
+    pub fn vulfram_send_queue(data: &[u8]) -> u32 {
+        core::vulfram_send_queue(data.as_ptr(), data.len()) as u32
+    }
+
+    #[wasm_bindgen]
+    pub fn vulfram_receive_queue() -> BufferResult {
+        let mut length: usize = 0;
+        let mut ptr: *const u8 = std::ptr::null();
+        let length_ptr = &mut length as *mut usize;
+        let ptr_ptr = &mut ptr as *mut *const u8;
+
+        let result = core::vulfram_receive_queue(ptr_ptr, length_ptr) as u32;
+        if result != 0 || length == 0 {
+            return BufferResult {
+                buffer: Vec::new(),
+                result,
+            };
+        }
+
+        let boxed = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
+        BufferResult {
+            buffer: boxed.into_vec(),
+            result,
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn vulfram_receive_events() -> BufferResult {
+        let mut length: usize = 0;
+        let mut ptr: *const u8 = std::ptr::null();
+        let length_ptr = &mut length as *mut usize;
+        let ptr_ptr = &mut ptr as *mut *const u8;
+
+        let result = core::vulfram_receive_events(ptr_ptr, length_ptr) as u32;
+        if result != 0 || length == 0 {
+            return BufferResult {
+                buffer: Vec::new(),
+                result,
+            };
+        }
+
+        let boxed = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
+        BufferResult {
+            buffer: boxed.into_vec(),
+            result,
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn vulfram_upload_buffer(id: u64, upload_type: u32, data: &[u8]) -> u32 {
+        core::vulfram_upload_buffer(id, upload_type, data.as_ptr(), data.len()) as u32
+    }
+
+    #[wasm_bindgen]
+    pub fn vulfram_tick(time_ms: f64, delta_ms: u32) -> u32 {
+        core::vulfram_tick(time_ms as u64, delta_ms) as u32
+    }
+
+    #[wasm_bindgen]
+    pub fn vulfram_get_profiling() -> BufferResult {
+        let mut length: usize = 0;
+        let mut ptr: *const u8 = std::ptr::null();
+        let length_ptr = &mut length as *mut usize;
+        let ptr_ptr = &mut ptr as *mut *const u8;
+
+        let result = core::vulfram_get_profiling(ptr_ptr, length_ptr) as u32;
+        if result != 0 || length == 0 {
+            return BufferResult {
+                buffer: Vec::new(),
+                result,
+            };
+        }
+
+        let boxed = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
+        BufferResult {
+            buffer: boxed.into_vec(),
+            result,
+        }
+    }
+}
+
+// ============================================================================
 // N-API Exports - for Node.js native modules
 // ============================================================================
 #[cfg(feature = "napi")]

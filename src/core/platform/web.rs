@@ -25,6 +25,7 @@ impl Window {
     }
 }
 
+#[allow(dead_code)]
 pub type ActiveEventLoop = ();
 
 pub struct EventLoop<T> {

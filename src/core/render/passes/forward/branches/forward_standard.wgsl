@@ -288,10 +288,12 @@ fn sample_shadow_page_at(
 ) -> f32 {
     let light_uv = vec2<f32>(light_ndc.x * 0.5 + 0.5, light_ndc.y * -0.5 + 0.5);
     let light_depth = light_ndc.z;
-
-    if (light_uv.x < 0.0 || light_uv.x > 1.0 || light_uv.y < 0.0 || light_uv.y > 1.0 || light_depth < 0.0 || light_depth > 1.0) {
-        return 1.0;
-    }
+    let ndc_in_bounds = light_uv.x >= 0.0
+        && light_uv.x <= 1.0
+        && light_uv.y >= 0.0
+        && light_uv.y <= 1.0
+        && light_depth >= 0.0
+        && light_depth <= 1.0;
 
     let grid_size_f = shadow_params.virtual_grid_size;
     let grid_size_u = u32(grid_size_f);
@@ -300,17 +302,15 @@ fn sample_shadow_page_at(
 
     let table_id = compute_table_id(light_base, grid_x, grid_y, grid_size_u);
     let page = shadow_page_table[table_id];
-
-    if (page.scale_offset.x == 0.0 && page.scale_offset.y == 0.0) {
-        return 1.0;
-    }
+    let page_has_data = !(page.scale_offset.x == 0.0 && page.scale_offset.y == 0.0);
 
     let page_origin = vec2<f32>(f32(grid_x), f32(grid_y)) / grid_size_f;
     let page_uv = (light_uv - page_origin) * grid_size_f;
-
-    if (page_uv.x < 0.0 || page_uv.x > 1.0 || page_uv.y < 0.0 || page_uv.y > 1.0) {
-        return 1.0;
-    }
+    let page_in_bounds = page_uv.x >= 0.0
+        && page_uv.x <= 1.0
+        && page_uv.y >= 0.0
+        && page_uv.y <= 1.0;
+    let shadow_valid = ndc_in_bounds && page_has_data && page_in_bounds;
 
     let atlas_uv_center = (page_uv * page.scale_offset.xy) + page.scale_offset.zw;
     let bias = max(bias_min, bias_slope * (1.0 - ndotl));
@@ -323,37 +323,38 @@ fn sample_shadow_page_at(
     let uv_min = tile_min + guard;
     let uv_max = tile_max - guard;
 
+    var shadow = 1.0;
     if (shadow_params.pcf_range == 0) {
         let uv = clamp(atlas_uv_center, uv_min, uv_max);
-        return textureSampleCompare(
+        shadow = textureSampleCompare(
             shadow_atlas,
             shadow_sampler,
             uv,
             i32(page.layer_index),
             saturate(light_depth + bias) // Reverse Z: add bias (larger Z is closer)
         );
-    }
-
-    var sum = 0.0;
-    var samples = 0.0;
-    let range = shadow_params.pcf_range;
-
-    for (var oy = -range; oy <= range; oy = oy + 1) {
-        for (var ox = -range; ox <= range; ox = ox + 1) {
-            let offset = vec2<f32>(f32(ox), f32(oy)) * atlas_texel;
-            let uv = clamp(atlas_uv_center + offset, uv_min, uv_max);
-            sum += textureSampleCompare(
-                shadow_atlas,
-                shadow_sampler,
-                uv,
-                i32(page.layer_index),
-                saturate(light_depth + bias) // Reverse Z: add bias
-            );
-            samples += 1.0;
+    } else {
+        var sum = 0.0;
+        var samples = 0.0;
+        let range = shadow_params.pcf_range;
+        for (var oy = -range; oy <= range; oy = oy + 1) {
+            for (var ox = -range; ox <= range; ox = ox + 1) {
+                let offset = vec2<f32>(f32(ox), f32(oy)) * atlas_texel;
+                let uv = clamp(atlas_uv_center + offset, uv_min, uv_max);
+                sum += textureSampleCompare(
+                    shadow_atlas,
+                    shadow_sampler,
+                    uv,
+                    i32(page.layer_index),
+                    saturate(light_depth + bias) // Reverse Z: add bias
+                );
+                samples += 1.0;
+            }
         }
+        shadow = sum / samples;
     }
 
-    return sum / samples;
+    return select(1.0, shadow, shadow_valid);
 }
 
 fn dir_component(v: vec3<f32>, axis: u32) -> f32 {
@@ -374,18 +375,23 @@ fn sample_point_face(light: Light, face: u32, world_pos: vec3<f32>, ndotl: f32) 
     let vp = point_light_vp[shadow_idx * 6u + face];
     let clip = vp * vec4<f32>(world_pos, 1.0);
     let ndc = clip.xyz / clip.w;
-    if (ndc.x < -1.0 || ndc.x > 1.0 || ndc.y < -1.0 || ndc.y > 1.0 || ndc.z < 0.0 || ndc.z > 1.0) {
-        return 1.0;
-    }
+    let in_bounds = ndc.x >= -1.0
+        && ndc.x <= 1.0
+        && ndc.y >= -1.0
+        && ndc.y <= 1.0
+        && ndc.z >= 0.0
+        && ndc.z <= 1.0;
     let light_base = shadow_idx * 6u + face;
-    return sample_shadow_page_at(light_base, ndc, ndotl, shadow_params.point_bias_min, shadow_params.point_bias_slope);
+    let shadow = sample_shadow_page_at(light_base, ndc, ndotl, shadow_params.point_bias_min, shadow_params.point_bias_slope);
+    return select(1.0, shadow, in_bounds);
 }
 
 fn point_shadow_factor(light: Light, world_pos: vec3<f32>, ndotl: f32) -> f32 {
     let v = world_pos - light.position.xyz;
     let dist = length(v);
-    if (dist <= 1e-5) { return 1.0; }
-    let dir = v / dist;
+    let dist_valid = dist > 1e-5;
+    let inv_dist = select(0.0, 1.0 / dist, dist_valid);
+    let dir = v * inv_dist;
     let ad = abs(dir);
     var a0: u32 = 0u;
     var m0: f32 = ad.x;
@@ -405,21 +411,25 @@ fn point_shadow_factor(light: Light, world_pos: vec3<f32>, ndotl: f32) -> f32 {
     let face1 = face_from_axis(a1, dir_component(dir, a1));
     let s0 = sample_point_face(light, face0, world_pos, ndotl);
     let s1 = sample_point_face(light, face1, world_pos, ndotl);
-    return min(s0, s1);
+    let shadow = min(s0, s1);
+    return select(1.0, shadow, dist_valid);
 }
 
 fn get_shadow_factor(light: Light, world_pos: vec3<f32>, ndotl: f32, instance_id: u32) -> f32 {
     let model = models[instance_id];
     let model_receive_shadow = (model.flags.x & 1u) != 0u;
     let light_cast_shadow = (light.kind_flags.y & 1u) != 0u;
-    if (!model_receive_shadow || !light_cast_shadow) { return 1.0; }
-    if (ndotl <= 0.0) { return 1.0; }
-    if (light.kind_flags.x == 1u) { return point_shadow_factor(light, world_pos, ndotl); }
+    let shadow_enabled = model_receive_shadow && light_cast_shadow && ndotl > 0.0;
     let light_clip = light.view_projection * vec4<f32>(world_pos, 1.0);
     let light_ndc = light_clip.xyz / light_clip.w;
     let shadow_idx = light.shadow_index;
     let light_base = shadow_idx * 6u + 0u;
-    return sample_shadow_page_at(light_base, light_ndc, ndotl, shadow_params.bias_min, shadow_params.bias_slope);
+    let directional_shadow =
+        sample_shadow_page_at(light_base, light_ndc, ndotl, shadow_params.bias_min, shadow_params.bias_slope);
+    let point_shadow = point_shadow_factor(light, world_pos, ndotl);
+    let is_point = light.kind_flags.x == 1u;
+    let shadow = select(directional_shadow, point_shadow, is_point);
+    return select(1.0, shadow, shadow_enabled);
 }
 
 // -----------------------------------------------------------------------------
@@ -437,11 +447,11 @@ fn calculate_directional_light(
 ) -> vec3<f32> {
     let l = normalize(-light.direction.xyz);
     let ndotl = max(dot(normal, l), 0.0);
-    if (ndotl <= 0.0) { return vec3<f32>(0.0); }
     let ndotl_shadow = max(dot(shadow_normal, l), 0.0);
     let shadow = get_shadow_factor(light, world_pos, ndotl_shadow, instance_id);
     let diffuse = diffuse_term(ndotl, toon_slot, toon_sampler);
-    return light.color.rgb * light.intensity_range.x * diffuse * shadow;
+    let lighting = light.color.rgb * light.intensity_range.x * diffuse * shadow;
+    return select(vec3<f32>(0.0), lighting, ndotl > 0.0);
 }
 
 fn calculate_ambient_light(light: Light) -> vec3<f32> {
@@ -465,21 +475,25 @@ fn calculate_spot_light(
 ) -> vec3<f32> {
     let light_to_pos = world_pos - light.position.xyz;
     let dist = length(light_to_pos);
-    let l = normalize(-light_to_pos);
     let range = light.intensity_range.y;
-    if (dist > range) { return vec3<f32>(0.0); }
-    let attenuation = pow(clamp(1.0 - dist / range, 0.0, 1.0), 2.0);
+    let dist_valid = dist > 1e-5;
+    let inv_dist = select(0.0, 1.0 / dist, dist_valid);
+    let l = -light_to_pos * inv_dist;
+    let safe_range = max(range, 1e-5);
+    let in_range = dist <= range;
+    let attenuation = pow(clamp(1.0 - dist / safe_range, 0.0, 1.0), 2.0);
     let theta = dot(l, normalize(-light.direction.xyz));
     let inner = cos(light.spot_inner_outer.x);
     let outer = cos(light.spot_inner_outer.y);
-    let epsilon = inner - outer;
+    let epsilon = max(inner - outer, 1e-5);
     let spot_intensity = clamp((theta - outer) / epsilon, 0.0, 1.0);
     let ndotl = max(dot(normal, l), 0.0);
-    if (ndotl <= 0.0) { return vec3<f32>(0.0); }
     let ndotl_shadow = max(dot(shadow_normal, l), 0.0);
     let shadow = get_shadow_factor(light, world_pos, ndotl_shadow, instance_id);
     let diffuse = diffuse_term(ndotl, toon_slot, toon_sampler);
-    return light.color.rgb * light.intensity_range.x * diffuse * attenuation * spot_intensity * shadow;
+    let lighting = light.color.rgb * light.intensity_range.x * diffuse * attenuation * spot_intensity * shadow;
+    let enabled = dist_valid && in_range && ndotl > 0.0;
+    return select(vec3<f32>(0.0), lighting, enabled);
 }
 
 fn calculate_point_light(
@@ -493,16 +507,20 @@ fn calculate_point_light(
 ) -> vec3<f32> {
     let light_to_pos = world_pos - light.position.xyz;
     let dist = length(light_to_pos);
-    let l = normalize(-light_to_pos);
     let range = light.intensity_range.y;
-    if (dist > range) { return vec3<f32>(0.0); }
-    let attenuation = pow(clamp(1.0 - dist / range, 0.0, 1.0), 2.0);
+    let dist_valid = dist > 1e-5;
+    let inv_dist = select(0.0, 1.0 / dist, dist_valid);
+    let l = -light_to_pos * inv_dist;
+    let safe_range = max(range, 1e-5);
+    let in_range = dist <= range;
+    let attenuation = pow(clamp(1.0 - dist / safe_range, 0.0, 1.0), 2.0);
     let ndotl = max(dot(normal, l), 0.0);
-    if (ndotl <= 0.0) { return vec3<f32>(0.0); }
     let ndotl_shadow = max(dot(shadow_normal, l), 0.0);
     let shadow = get_shadow_factor(light, world_pos, ndotl_shadow, instance_id);
     let diffuse = diffuse_term(ndotl, toon_slot, toon_sampler);
-    return light.color.rgb * light.intensity_range.x * diffuse * attenuation * shadow;
+    let lighting = light.color.rgb * light.intensity_range.x * diffuse * attenuation * shadow;
+    let enabled = dist_valid && in_range && ndotl > 0.0;
+    return select(vec3<f32>(0.0), lighting, enabled);
 }
 
 // -----------------------------------------------------------------------------
@@ -560,14 +578,22 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         for (var i = 0u; i < count; i++) {
             let idx = visible_indices[base + i];
             let light = lights[idx];
-            switch (light.kind_flags.x) {
-                case 0u: { lighting += calculate_directional_light(light, n, n_geom, in.world_position, toon_slot, toon_sampler, in.instance_id); }
-                case 1u: { lighting += calculate_point_light(light, n, n_geom, in.world_position, toon_slot, toon_sampler, in.instance_id); }
-                case 2u: { lighting += calculate_spot_light(light, n, n_geom, in.world_position, toon_slot, toon_sampler, in.instance_id); }
-                case 3u: { lighting += calculate_ambient_light(light); }
-                case 4u: { lighting += calculate_hemisphere_light(light, n); }
-                default: { }
-            }
+            let kind = light.kind_flags.x;
+            let is_dir = kind == 0u;
+            let is_point = kind == 1u;
+            let is_spot = kind == 2u;
+            let is_ambient = kind == 3u;
+            let is_hemi = kind == 4u;
+            let dir_light = calculate_directional_light(light, n, n_geom, in.world_position, toon_slot, toon_sampler, in.instance_id);
+            let point_light = calculate_point_light(light, n, n_geom, in.world_position, toon_slot, toon_sampler, in.instance_id);
+            let spot_light = calculate_spot_light(light, n, n_geom, in.world_position, toon_slot, toon_sampler, in.instance_id);
+            let ambient_light = calculate_ambient_light(light);
+            let hemi_light = calculate_hemisphere_light(light, n);
+            lighting += select(vec3<f32>(0.0), dir_light, is_dir);
+            lighting += select(vec3<f32>(0.0), point_light, is_point);
+            lighting += select(vec3<f32>(0.0), spot_light, is_spot);
+            lighting += select(vec3<f32>(0.0), ambient_light, is_ambient);
+            lighting += select(vec3<f32>(0.0), hemi_light, is_hemi);
 
             if ((material.surface_flags.y & STANDARD_FLAG_SPECULAR) != 0u) {
                 let view_dir = normalize(camera.position.xyz - in.world_position);

@@ -1,3 +1,4 @@
+#[cfg(not(feature = "wasm"))]
 use std::time::Instant;
 #[cfg(not(feature = "wasm"))]
 use std::time::Duration;
@@ -5,6 +6,8 @@ use std::time::Duration;
 use crate::core::platform::EventLoopExtPumpEvents;
 #[cfg(feature = "wasm")]
 use crate::core::render::render_frames;
+#[cfg(feature = "wasm")]
+use js_sys::Date;
 
 use crate::core::cmd::engine_process_batch;
 
@@ -12,6 +15,11 @@ use super::VulframResult;
 #[cfg(not(feature = "wasm"))]
 use super::gamepad::process_gilrs_event;
 use super::singleton::with_engine_singleton;
+
+#[cfg(feature = "wasm")]
+fn wasm_now_ms() -> f64 {
+    Date::now()
+}
 
 /// Main engine tick - processes events and updates state
 pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
@@ -60,10 +68,10 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
 
         #[cfg(feature = "wasm")]
         {
-            let gamepad_start = Instant::now();
+            let gamepad_start = wasm_now_ms();
             crate::core::gamepad::process_web_gamepads(&mut engine.state);
             engine.state.profiling.gamepad_processing_ns =
-                gamepad_start.elapsed().as_nanos() as u64;
+                ((wasm_now_ms() - gamepad_start) * 1_000_000.0) as u64;
         }
 
         // MARK: Event Loop Pump
@@ -101,9 +109,10 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
 
         #[cfg(feature = "wasm")]
         {
-            let start = std::time::Instant::now();
+            let start = wasm_now_ms();
             render_frames(&mut engine.state);
-            engine.state.profiling.request_redraw_ns = start.elapsed().as_nanos() as u64;
+            engine.state.profiling.request_redraw_ns =
+                ((wasm_now_ms() - start) * 1_000_000.0) as u64;
         }
         VulframResult::Success
     }) {

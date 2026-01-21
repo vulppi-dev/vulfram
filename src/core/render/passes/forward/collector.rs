@@ -19,7 +19,12 @@ pub(crate) fn collect_objects(
             continue;
         }
 
-        if vertex_sys.index_info(model_record.geometry_id).ok().flatten().is_none() {
+        if vertex_sys
+            .index_info(model_record.geometry_id)
+            .ok()
+            .flatten()
+            .is_none()
+        {
             continue;
         }
 

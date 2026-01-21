@@ -1,7 +1,7 @@
-use glam::{IVec2, UVec2, Vec2};
-use crate::core::platform::{ApplicationHandler, ActiveEventLoop, WindowId};
 use crate::core::platform::winit;
 use crate::core::platform::winit::event::WindowEvent as WinitWindowEvent;
+use crate::core::platform::{ActiveEventLoop, ApplicationHandler, WindowId};
+use glam::{IVec2, UVec2, Vec2};
 
 use crate::core::input::{
     ElementState, KeyboardEvent, ModifiersState, PointerEvent, ScrollDelta, convert_key_code,
@@ -12,9 +12,9 @@ use crate::core::system::SystemEvent;
 use crate::core::window::WindowEvent;
 use crate::core::window::engine_cmd_window_create;
 
-use super::cmd::{CommandResponse, CommandResponseEnvelope, EngineEvent};
-use super::singleton::EngineCustomEvents;
-use super::state::EngineState;
+use crate::core::cmd::{CommandResponse, CommandResponseEnvelope, EngineEvent};
+use crate::core::singleton::EngineCustomEvents;
+use crate::core::state::EngineState;
 
 impl ApplicationHandler<EngineCustomEvents> for EngineState {
     fn resumed(&mut self, _event_loop: &ActiveEventLoop) {

@@ -1,16 +1,15 @@
+use crate::core::platforms::PlatformProxy;
 use serde::{Deserialize, Serialize};
-use crate::core::platform::EventLoopProxy;
 
 use crate::core::VulframResult;
 use crate::core::gamepad::events::GamepadEvent;
 use crate::core::input::events::{KeyboardEvent, PointerEvent};
-use crate::core::singleton::EngineCustomEvents;
 use crate::core::state::EngineState;
 use crate::core::system::SystemEvent;
 use crate::core::window::WindowEvent;
 
-pub use crate::core::render::gizmos as gizmo;
 pub use crate::core::buffers as buf;
+pub use crate::core::render::gizmos as gizmo;
 pub use crate::core::resources as res;
 pub use crate::core::system as sys;
 pub use crate::core::window as win;
@@ -161,34 +160,27 @@ pub type EngineBatchResponses = Vec<CommandResponseEnvelope>;
 
 pub fn engine_process_batch(
     engine: &mut EngineState,
-    loop_proxy: &mut EventLoopProxy<EngineCustomEvents>,
+    platform: &mut dyn PlatformProxy,
     batch: EngineBatchCmds,
 ) -> VulframResult {
     for pack in batch {
         match pack.cmd {
             EngineCmd::CmdNotificationSend(args) => {
-                let result = sys::engine_cmd_notification_send(engine, loop_proxy, &args);
+                let result =
+                    sys::engine_cmd_notification_send(engine, platform.event_loop_proxy(), &args);
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::NotificationSend(result),
                 });
             }
             EngineCmd::CmdWindowCreate(args) => {
-                #[cfg(not(feature = "wasm"))]
-                {
-                    let _ = loop_proxy
-                        .send_event(EngineCustomEvents::CreateWindow(pack.id, args.clone()));
-                }
-                #[cfg(feature = "wasm")]
-                {
-                    match win::engine_cmd_window_create_async(&args, pack.id) {
-                        Ok(()) => {}
-                        Err(result) => {
-                            engine.response_queue.push(CommandResponseEnvelope {
-                                id: pack.id,
-                                response: CommandResponse::WindowCreate(result),
-                            });
-                        }
+                match platform.handle_window_create(engine, pack.id, &args) {
+                    Ok(()) => {}
+                    Err(result) => {
+                        engine.response_queue.push(CommandResponseEnvelope {
+                            id: pack.id,
+                            response: CommandResponse::WindowCreate(result),
+                        });
                     }
                 }
             }

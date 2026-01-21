@@ -57,7 +57,8 @@ mod wasm_exports {
             };
         }
 
-        let boxed = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
+        let boxed =
+            unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
         BufferResult {
             buffer: boxed.into_vec(),
             result,
@@ -79,7 +80,8 @@ mod wasm_exports {
             };
         }
 
-        let boxed = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
+        let boxed =
+            unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
         BufferResult {
             buffer: boxed.into_vec(),
             result,
@@ -111,7 +113,8 @@ mod wasm_exports {
             };
         }
 
-        let boxed = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
+        let boxed =
+            unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, length)) };
         BufferResult {
             buffer: boxed.into_vec(),
             result,

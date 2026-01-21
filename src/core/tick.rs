@@ -1,25 +1,8 @@
-#[cfg(not(feature = "wasm"))]
-use std::time::Instant;
-#[cfg(not(feature = "wasm"))]
-use std::time::Duration;
-#[cfg(not(feature = "wasm"))]
-use crate::core::platform::EventLoopExtPumpEvents;
-#[cfg(feature = "wasm")]
-use crate::core::render::render_frames;
-#[cfg(feature = "wasm")]
-use js_sys::Date;
-
 use crate::core::cmd::engine_process_batch;
+use crate::core::platforms::PlatformProxy;
 
 use super::VulframResult;
-#[cfg(not(feature = "wasm"))]
-use super::gamepad::process_gilrs_event;
 use super::singleton::with_engine_singleton;
-
-#[cfg(feature = "wasm")]
-fn wasm_now_ms() -> f64 {
-    Date::now()
-}
 
 /// Main engine tick - processes events and updates state
 pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
@@ -30,11 +13,7 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
 
         if !engine.state.cmd_queue.is_empty() {
             let batch = std::mem::take(&mut engine.state.cmd_queue);
-            let result = engine_process_batch(
-                &mut engine.state,
-                engine.proxy.as_mut().unwrap(),
-                batch,
-            );
+            let result = engine_process_batch(&mut engine.state, &mut engine.platform, batch);
             if result != VulframResult::Success {
                 return result;
             }
@@ -49,41 +28,11 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
         let events_before = engine.state.event_queue.len();
 
         // MARK: Gamepad Processing
-        #[cfg(not(feature = "wasm"))]
-        {
-            let gamepad_start = Instant::now();
-            let mut gilrs_events = Vec::new();
-            if let Some(gilrs) = &mut engine.state.gamepad.gilrs {
-                while let Some(event) = gilrs.next_event() {
-                    gilrs_events.push(event);
-                }
-            }
-
-            for event in gilrs_events {
-                process_gilrs_event(&mut engine.state, event);
-            }
-            engine.state.profiling.gamepad_processing_ns =
-                gamepad_start.elapsed().as_nanos() as u64;
-        }
-
-        #[cfg(feature = "wasm")]
-        {
-            let gamepad_start = wasm_now_ms();
-            crate::core::gamepad::process_web_gamepads(&mut engine.state);
-            engine.state.profiling.gamepad_processing_ns =
-                ((wasm_now_ms() - gamepad_start) * 1_000_000.0) as u64;
-        }
+        engine.state.profiling.gamepad_processing_ns =
+            engine.platform.process_gamepads(&mut engine.state);
 
         // MARK: Event Loop Pump
-        #[cfg(not(feature = "wasm"))]
-        if let Some(event_loop) = &mut engine.event_loop {
-            let pump_start = Instant::now();
-            event_loop.pump_app_events(Some(Duration::from_millis(16)), &mut engine.state);
-
-            let total_pump_time = pump_start.elapsed().as_nanos() as u64;
-            engine.state.profiling.event_loop_pump_ns =
-                total_pump_time.saturating_sub(engine.state.profiling.custom_events_ns);
-        }
+        engine.state.profiling.event_loop_pump_ns = engine.platform.pump_events(&mut engine.state);
 
         let events_after = engine.state.event_queue.len();
         engine.state.profiling.total_events_dispatched = events_after - events_before;
@@ -96,24 +45,7 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
         }
 
         // MARK: Request Redraw
-        #[cfg(not(feature = "wasm"))]
-        {
-            let start = std::time::Instant::now();
-
-            for window_state in engine.state.window.states.values_mut() {
-                window_state.window.request_redraw();
-            }
-
-            engine.state.profiling.request_redraw_ns = start.elapsed().as_nanos() as u64;
-        }
-
-        #[cfg(feature = "wasm")]
-        {
-            let start = wasm_now_ms();
-            render_frames(&mut engine.state);
-            engine.state.profiling.request_redraw_ns =
-                ((wasm_now_ms() - start) * 1_000_000.0) as u64;
-        }
+        engine.state.profiling.request_redraw_ns = engine.platform.render(&mut engine.state);
         VulframResult::Success
     }) {
         Err(e) => e,

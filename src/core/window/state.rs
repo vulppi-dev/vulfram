@@ -1,9 +1,9 @@
+use crate::core::platform::{Window, WindowId};
 #[cfg(not(feature = "wasm"))]
 use glam::IVec2;
 use glam::{UVec2, Vec2};
 use std::collections::HashMap;
 use std::sync::Arc;
-use crate::core::platform::{Window, WindowId};
 
 #[cfg(feature = "wasm")]
 use wasm_bindgen::closure::Closure;

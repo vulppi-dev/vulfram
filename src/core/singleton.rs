@@ -1,9 +1,7 @@
+use crate::core::platforms::DefaultPlatformProxy;
 use once_cell::sync::OnceCell;
 use std::cell::RefCell;
 use std::thread::{self, ThreadId};
-#[cfg(not(feature = "wasm"))]
-use crate::core::platform::EventLoop;
-use crate::core::platform::EventLoopProxy;
 
 use super::VulframResult;
 use super::state::EngineState;
@@ -23,9 +21,7 @@ pub enum EngineCustomEvents {}
 /// Singleton container for engine state and event loop
 pub struct EngineSingleton {
     pub state: EngineState,
-    #[cfg(not(feature = "wasm"))]
-    pub event_loop: Option<EventLoop<EngineCustomEvents>>,
-    pub proxy: Option<EventLoopProxy<EngineCustomEvents>>,
+    pub platform: DefaultPlatformProxy,
 }
 
 thread_local! {

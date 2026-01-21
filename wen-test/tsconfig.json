@@ -8,8 +8,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "lib": [
-      "ES2020",
-      "DOM"
+      "ESNext",
+      "DOM",
     ],
     "types": [
       "bun-types"

@@ -1,10 +1,12 @@
-use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::closure::Closure;
 use web_sys::{Event, HtmlCanvasElement, KeyboardEvent, PointerEvent, WheelEvent};
 
 use crate::core::cmd::EngineEvent;
 use crate::core::input::events::{ElementState, ModifiersState, TouchPhase};
-use crate::core::input::events::{KeyboardEvent as CoreKeyboardEvent, PointerEvent as CorePointerEvent, ScrollDelta};
+use crate::core::input::events::{
+    KeyboardEvent as CoreKeyboardEvent, PointerEvent as CorePointerEvent, ScrollDelta,
+};
 use crate::core::singleton::with_engine;
 use crate::core::window::WindowEvent;
 
@@ -36,17 +38,17 @@ pub fn attach_canvas_listeners(
                 window_state.outer_size = glam::UVec2::new(width, height);
                 window_state.is_dirty = true;
             }
-            engine.event_queue.push(EngineEvent::Window(WindowEvent::OnResize {
-                window_id,
-                width,
-                height,
-            }));
+            engine
+                .event_queue
+                .push(EngineEvent::Window(WindowEvent::OnResize {
+                    window_id,
+                    width,
+                    height,
+                }));
         });
     }) as Box<dyn FnMut(Event)>);
-    let _ = window.add_event_listener_with_callback(
-        "resize",
-        resize_closure.as_ref().unchecked_ref(),
-    );
+    let _ =
+        window.add_event_listener_with_callback("resize", resize_closure.as_ref().unchecked_ref());
     listeners.push(resize_closure);
 
     let focus_closure = Closure::wrap(Box::new(move |_event: Event| {
@@ -59,10 +61,8 @@ pub fn attach_canvas_listeners(
                 }));
         });
     }) as Box<dyn FnMut(Event)>);
-    let _ = window.add_event_listener_with_callback(
-        "focus",
-        focus_closure.as_ref().unchecked_ref(),
-    );
+    let _ =
+        window.add_event_listener_with_callback("focus", focus_closure.as_ref().unchecked_ref());
     listeners.push(focus_closure);
 
     let blur_closure = Closure::wrap(Box::new(move |_event: Event| {
@@ -75,10 +75,7 @@ pub fn attach_canvas_listeners(
                 }));
         });
     }) as Box<dyn FnMut(Event)>);
-    let _ = window.add_event_listener_with_callback(
-        "blur",
-        blur_closure.as_ref().unchecked_ref(),
-    );
+    let _ = window.add_event_listener_with_callback("blur", blur_closure.as_ref().unchecked_ref());
     listeners.push(blur_closure);
 
     let keydown_closure = Closure::wrap(Box::new(move |event: Event| {
@@ -114,10 +111,8 @@ pub fn attach_canvas_listeners(
                 }));
         });
     }) as Box<dyn FnMut(Event)>);
-    let _ = window.add_event_listener_with_callback(
-        "keydown",
-        keydown_closure.as_ref().unchecked_ref(),
-    );
+    let _ = window
+        .add_event_listener_with_callback("keydown", keydown_closure.as_ref().unchecked_ref());
     listeners.push(keydown_closure);
 
     let keyup_closure = Closure::wrap(Box::new(move |event: Event| {
@@ -153,10 +148,8 @@ pub fn attach_canvas_listeners(
                 }));
         });
     }) as Box<dyn FnMut(Event)>);
-    let _ = window.add_event_listener_with_callback(
-        "keyup",
-        keyup_closure.as_ref().unchecked_ref(),
-    );
+    let _ =
+        window.add_event_listener_with_callback("keyup", keyup_closure.as_ref().unchecked_ref());
     listeners.push(keyup_closure);
 
     let canvas_for_pointer = canvas.clone();
@@ -170,10 +163,7 @@ pub fn attach_canvas_listeners(
         let pointer_id = event.pointer_id() as u64;
 
         let _ = with_engine(|engine| {
-            engine
-                .window
-                .cursor_positions
-                .insert(window_id, position);
+            engine.window.cursor_positions.insert(window_id, position);
             engine
                 .event_queue
                 .push(EngineEvent::Pointer(CorePointerEvent::OnMove {
@@ -184,10 +174,8 @@ pub fn attach_canvas_listeners(
                 }));
         });
     }) as Box<dyn FnMut(Event)>);
-    let _ = canvas.add_event_listener_with_callback(
-        "pointermove",
-        pointer_move.as_ref().unchecked_ref(),
-    );
+    let _ = canvas
+        .add_event_listener_with_callback("pointermove", pointer_move.as_ref().unchecked_ref());
     listeners.push(pointer_move);
 
     let canvas_for_pointer = canvas.clone();
@@ -214,10 +202,8 @@ pub fn attach_canvas_listeners(
                 }));
         });
     }) as Box<dyn FnMut(Event)>);
-    let _ = canvas.add_event_listener_with_callback(
-        "pointerdown",
-        pointer_down.as_ref().unchecked_ref(),
-    );
+    let _ = canvas
+        .add_event_listener_with_callback("pointerdown", pointer_down.as_ref().unchecked_ref());
     listeners.push(pointer_down);
 
     let canvas_for_pointer = canvas.clone();
@@ -244,10 +230,8 @@ pub fn attach_canvas_listeners(
                 }));
         });
     }) as Box<dyn FnMut(Event)>);
-    let _ = canvas.add_event_listener_with_callback(
-        "pointerup",
-        pointer_up.as_ref().unchecked_ref(),
-    );
+    let _ =
+        canvas.add_event_listener_with_callback("pointerup", pointer_up.as_ref().unchecked_ref());
     listeners.push(pointer_up);
 
     let pointer_enter = Closure::wrap(Box::new(move |event: Event| {
@@ -267,10 +251,8 @@ pub fn attach_canvas_listeners(
                 }));
         });
     }) as Box<dyn FnMut(Event)>);
-    let _ = canvas.add_event_listener_with_callback(
-        "pointerenter",
-        pointer_enter.as_ref().unchecked_ref(),
-    );
+    let _ = canvas
+        .add_event_listener_with_callback("pointerenter", pointer_enter.as_ref().unchecked_ref());
     listeners.push(pointer_enter);
 
     let pointer_leave = Closure::wrap(Box::new(move |event: Event| {
@@ -290,10 +272,8 @@ pub fn attach_canvas_listeners(
                 }));
         });
     }) as Box<dyn FnMut(Event)>);
-    let _ = canvas.add_event_listener_with_callback(
-        "pointerleave",
-        pointer_leave.as_ref().unchecked_ref(),
-    );
+    let _ = canvas
+        .add_event_listener_with_callback("pointerleave", pointer_leave.as_ref().unchecked_ref());
     listeners.push(pointer_leave);
 
     let wheel_canvas = canvas.clone();
@@ -321,10 +301,8 @@ pub fn attach_canvas_listeners(
                 }));
         });
     }) as Box<dyn FnMut(Event)>);
-    let _ = canvas.add_event_listener_with_callback(
-        "wheel",
-        wheel_closure.as_ref().unchecked_ref(),
-    );
+    let _ =
+        canvas.add_event_listener_with_callback("wheel", wheel_closure.as_ref().unchecked_ref());
     listeners.push(wheel_closure);
 
     listeners
@@ -332,7 +310,10 @@ pub fn attach_canvas_listeners(
 
 fn canvas_relative_pos(canvas: &HtmlCanvasElement, x: i32, y: i32) -> glam::Vec2 {
     let rect = canvas.get_bounding_client_rect();
-    glam::Vec2::new((x as f64 - rect.left()) as f32, (y as f64 - rect.top()) as f32)
+    glam::Vec2::new(
+        (x as f64 - rect.left()) as f32,
+        (y as f64 - rect.top()) as f32,
+    )
 }
 
 fn map_pointer_type(pointer_type: &str) -> u32 {

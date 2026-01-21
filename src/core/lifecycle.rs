@@ -1,8 +1,8 @@
+use crate::core::platforms::DefaultPlatformProxy;
 use std::thread;
-use crate::core::platform::EventLoop;
 
 use super::VulframResult;
-use super::singleton::{ENGINE_INSTANCE, EngineCustomEvents, EngineSingleton, MAIN_THREAD_ID};
+use super::singleton::{ENGINE_INSTANCE, EngineSingleton, MAIN_THREAD_ID};
 use super::state::EngineState;
 
 /// Initialize the engine (must be called from the main thread)
@@ -21,26 +21,10 @@ pub fn vulfram_init() -> VulframResult {
         if opt.is_some() {
             return VulframResult::AlreadyInitialized;
         } else {
-            #[cfg(not(feature = "wasm"))]
-            let (event_loop, proxy) = {
-                let event_loop = EventLoop::<EngineCustomEvents>::with_user_event()
-                    .build()
-                    .unwrap();
-                let proxy = event_loop.create_proxy();
-                (event_loop, proxy)
-            };
-
-            #[cfg(feature = "wasm")]
-            let proxy = EventLoop::<EngineCustomEvents>::with_user_event()
-                .build()
-                .unwrap()
-                .create_proxy();
-
+            let platform = DefaultPlatformProxy::new();
             *opt = Some(EngineSingleton {
                 state: EngineState::new(),
-                #[cfg(not(feature = "wasm"))]
-                event_loop: Some(event_loop),
-                proxy: Some(proxy),
+                platform,
             });
             return VulframResult::Success;
         }

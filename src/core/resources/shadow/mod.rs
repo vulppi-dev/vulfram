@@ -3,9 +3,9 @@ use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec4Swizzles};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use wgpu::{Device, TextureFormat, TextureUsages};
 #[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
 use wgpu::Queue;
+use wgpu::{Device, TextureFormat, TextureUsages};
 
 mod atlas;
 pub mod cmd;

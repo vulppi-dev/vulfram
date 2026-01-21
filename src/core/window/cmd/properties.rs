@@ -1,9 +1,9 @@
-use glam::{IVec2, UVec2};
-use serde::{Deserialize, Serialize};
 #[cfg(not(feature = "wasm"))]
 use crate::core::platform::winit;
 #[cfg(not(feature = "wasm"))]
 use crate::core::platform::winit::dpi::{PhysicalPosition, PhysicalSize};
+use glam::{IVec2, UVec2};
+use serde::{Deserialize, Serialize};
 
 #[cfg(not(feature = "wasm"))]
 use crate::core::buffers::state::UploadType;

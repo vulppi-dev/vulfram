@@ -165,6 +165,9 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
+      - name: Install wasm-bindgen
+        run: cargo install wasm-bindgen-cli --version 0.2.106
+
       - name: Build
         run: cargo build --release --target wasm32-unknown-unknown --no-default-features --features wasm
 
@@ -173,6 +176,12 @@ jobs:
         run: |
           mkdir -p dist/wasm
           cp target/wasm32-unknown-unknown/release/*.wasm dist/wasm/ || true
+          mkdir -p dist/wasm/pkg
+          wasm-bindgen \
+            --target web \
+            --out-dir dist/wasm/pkg \
+            --out-name vulfram_core \
+            target/wasm32-unknown-unknown/release/vulfram_core.wasm
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

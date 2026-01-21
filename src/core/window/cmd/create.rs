@@ -1,27 +1,30 @@
-#[cfg(any(not(feature = "wasm"), all(feature = "wasm", target_arch = "wasm32")))]
-use std::sync::Arc;
-use glam::{IVec2, UVec2};
-#[cfg(not(feature = "wasm"))]
-use pollster::FutureExt;
-use serde::{Deserialize, Serialize};
-#[cfg(any(not(feature = "wasm"), all(feature = "wasm", not(target_arch = "wasm32"))))]
+#[cfg(all(feature = "wasm", target_arch = "wasm32"))]
+use crate::core::cmd::{CommandResponse, CommandResponseEnvelope, EngineEvent};
+#[cfg(any(
+    not(feature = "wasm"),
+    all(feature = "wasm", not(target_arch = "wasm32"))
+))]
 use crate::core::platform::ActiveEventLoop;
 #[cfg(any(not(feature = "wasm"), all(feature = "wasm", target_arch = "wasm32")))]
 use crate::core::platform::Window;
 #[cfg(not(feature = "wasm"))]
 use crate::core::platform::winit::dpi::{PhysicalPosition, PhysicalSize, Position};
 #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
-use wasm_bindgen_futures::spawn_local;
-#[cfg(all(feature = "wasm", target_arch = "wasm32"))]
-use wasm_bindgen::JsCast;
-#[cfg(all(feature = "wasm", target_arch = "wasm32"))]
-use web_sys::HtmlCanvasElement;
-#[cfg(all(feature = "wasm", target_arch = "wasm32"))]
-use crate::core::cmd::{CommandResponse, CommandResponseEnvelope, EngineEvent};
-#[cfg(all(feature = "wasm", target_arch = "wasm32"))]
 use crate::core::singleton::with_engine_singleton;
 #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
 use crate::core::window::WindowEvent;
+use glam::{IVec2, UVec2};
+#[cfg(not(feature = "wasm"))]
+use pollster::FutureExt;
+use serde::{Deserialize, Serialize};
+#[cfg(any(not(feature = "wasm"), all(feature = "wasm", target_arch = "wasm32")))]
+use std::sync::Arc;
+#[cfg(all(feature = "wasm", target_arch = "wasm32"))]
+use wasm_bindgen::JsCast;
+#[cfg(all(feature = "wasm", target_arch = "wasm32"))]
+use wasm_bindgen_futures::spawn_local;
+#[cfg(all(feature = "wasm", target_arch = "wasm32"))]
+use web_sys::HtmlCanvasElement;
 
 use super::{EngineWindowState, window_size_default};
 use crate::core::state::EngineState;
@@ -126,21 +129,22 @@ pub fn engine_cmd_window_create_async(
             memory_budget_thresholds: wgpu::MemoryBudgetThresholds::default(),
         };
         let instance = wgpu::Instance::new(&instance_descriptor);
-        let surface = match instance.create_surface(wgpu::SurfaceTarget::Canvas(canvas_clone.clone())) {
-            Ok(surface) => surface,
-            Err(e) => {
-                let _ = with_engine_singleton(|engine| {
-                    engine.state.response_queue.push(CommandResponseEnvelope {
-                        id: cmd_id,
-                        response: CommandResponse::WindowCreate(CmdResultWindowCreate {
-                            success: false,
-                            message: format!("WGPU create surface error: {}", e),
-                        }),
+        let surface =
+            match instance.create_surface(wgpu::SurfaceTarget::Canvas(canvas_clone.clone())) {
+                Ok(surface) => surface,
+                Err(e) => {
+                    let _ = with_engine_singleton(|engine| {
+                        engine.state.response_queue.push(CommandResponseEnvelope {
+                            id: cmd_id,
+                            response: CommandResponse::WindowCreate(CmdResultWindowCreate {
+                                success: false,
+                                message: format!("WGPU create surface error: {}", e),
+                            }),
+                        });
                     });
-                });
-                return;
-            }
-        };
+                    return;
+                }
+            };
 
         let adapter = match instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -216,7 +220,8 @@ pub fn engine_cmd_window_create_async(
         render_state.init(&device, &queue, format);
         render_state.on_resize(window_width, window_height);
 
-        let listeners = crate::core::web::input::attach_canvas_listeners(win_id, &canvas_clone);
+        let listeners =
+            crate::core::platforms::browser::input::attach_canvas_listeners(win_id, &canvas_clone);
         let window_handle = Arc::new(Window::new(win_id, canvas_clone.clone()));
 
         let _ = with_engine_singleton(|engine| {
@@ -243,9 +248,12 @@ pub fn engine_cmd_window_create_async(
                 },
             );
 
-            engine.state.event_queue.push(EngineEvent::Window(WindowEvent::OnCreate {
-                window_id: win_id,
-            }));
+            engine
+                .state
+                .event_queue
+                .push(EngineEvent::Window(WindowEvent::OnCreate {
+                    window_id: win_id,
+                }));
             engine.state.response_queue.push(CommandResponseEnvelope {
                 id: cmd_id,
                 response: CommandResponse::WindowCreate(CmdResultWindowCreate {

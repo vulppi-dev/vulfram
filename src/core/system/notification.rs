@@ -1,9 +1,9 @@
+use crate::core::platform::EventLoopProxy;
 #[cfg(all(not(feature = "wasm"), target_os = "linux"))]
 use notify_rust::Urgency;
 #[cfg(not(feature = "wasm"))]
 use notify_rust::{Notification, Timeout};
 use serde::{Deserialize, Serialize};
-use crate::core::platform::EventLoopProxy;
 
 use crate::core::singleton::EngineCustomEvents;
 use crate::core::state::EngineState;

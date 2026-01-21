@@ -1,7 +1,7 @@
-#[cfg(not(feature = "wasm"))]
-use std::time::Instant;
 #[cfg(feature = "wasm")]
 use js_sys::Date;
+#[cfg(not(feature = "wasm"))]
+use std::time::Instant;
 
 use super::VulframResult;
 use super::cmd::EngineBatchCmds;

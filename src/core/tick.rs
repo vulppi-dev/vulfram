@@ -1,6 +1,11 @@
 use crate::core::cmd::engine_process_batch;
 use crate::core::platforms::PlatformProxy;
 
+#[cfg(feature = "wasm")]
+use js_sys::Date;
+#[cfg(not(feature = "wasm"))]
+use std::time::Instant;
+
 use super::VulframResult;
 use super::singleton::with_engine_singleton;
 
@@ -11,19 +16,39 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
         engine.state.delta_time = delta_time;
         engine.state.event_queue.clear();
 
-        if !engine.state.cmd_queue.is_empty() {
-            let batch = std::mem::take(&mut engine.state.cmd_queue);
-            let result = engine_process_batch(&mut engine.state, &mut engine.platform, batch);
-            if result != VulframResult::Success {
-                return result;
-            }
-        }
-
         // Reset profiling counters
+        engine.state.profiling.command_processing_ns = 0;
         engine.state.profiling.gamepad_processing_ns = 0;
         engine.state.profiling.event_loop_pump_ns = 0;
         engine.state.profiling.total_events_cached = 0;
         engine.state.profiling.custom_events_ns = 0;
+        engine.state.profiling.render_total_ns = 0;
+        engine.state.profiling.render_shadow_ns = 0;
+        engine.state.profiling.render_windows_ns = 0;
+        engine.state.profiling.frame_delta_ns = (delta_time as u64).saturating_mul(1_000_000);
+
+        if !engine.state.cmd_queue.is_empty() {
+            // MARK: Command Processing
+            #[cfg(not(feature = "wasm"))]
+            let cmd_start = Instant::now();
+            #[cfg(feature = "wasm")]
+            let cmd_start = (Date::now() * 1_000_000.0) as u64;
+            let batch = std::mem::take(&mut engine.state.cmd_queue);
+            let result = engine_process_batch(&mut engine.state, &mut engine.platform, batch);
+            #[cfg(not(feature = "wasm"))]
+            {
+                engine.state.profiling.command_processing_ns =
+                    cmd_start.elapsed().as_nanos() as u64;
+            }
+            #[cfg(feature = "wasm")]
+            {
+                let now = (Date::now() * 1_000_000.0) as u64;
+                engine.state.profiling.command_processing_ns = now.saturating_sub(cmd_start);
+            }
+            if result != VulframResult::Success {
+                return result;
+            }
+        }
 
         let events_before = engine.state.event_queue.len();
 

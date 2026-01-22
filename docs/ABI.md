@@ -282,8 +282,17 @@ u32 vulfram_get_profiling(uint8_t** out_ptr, size_t* out_length);
 
 - Returns a MessagePack buffer containing **profiling information**:
 
-  - Timing of internal sections (tick, render passes, uploads, etc.)
-  - Counters (draw calls, instance count, resource counts, etc.)
+  - Timings in microseconds:
+    - `commandProcessingUs`, `gamepadProcessingUs`, `eventLoopPumpUs`
+    - `requestRedrawUs`, `serializationUs`
+    - `renderTotalUs`, `renderShadowUs`, `renderWindowsUs`
+    - `frameDeltaUs`
+  - Derived:
+    - `fpsInstant`
+  - Counters:
+    - `totalEventsDispatched`, `totalEventsCached`
+  - Per-window:
+    - `windowFps[]` with `windowId`, `fpsInstant`, `frameDeltaUs`
 
 Usage patterns:
 

@@ -303,21 +303,25 @@ On `vulfram_receive_events`, the core:
 
 ## 9. Profiling Data
 
-`ProfilingData` tracks performance metrics, such as:
+`ProfilingData` tracks these metrics:
 
-- Section timings:
-
-  - `tick_total`
-  - `render_total`
-  - `command_processing`
-  - `event_collection`
-  - etc.
-
+- Timings (microseconds):
+  - `commandProcessingUs`
+  - `gamepadProcessingUs`
+  - `eventLoopPumpUs`
+  - `requestRedrawUs`
+  - `serializationUs`
+  - `renderTotalUs`
+  - `renderShadowUs`
+  - `renderWindowsUs`
+  - `frameDeltaUs`
+- Derived:
+  - `fpsInstant`
+- Per-window:
+  - `windowFps[]` with `windowId`, `fpsInstant`, `frameDeltaUs`
 - Counters:
-
-  - number of draw calls
-  - number of visible mesh instances
-  - number of active resources
+  - `totalEventsDispatched`
+  - `totalEventsCached`
 
 On `vulfram_get_profiling`, the core:
 

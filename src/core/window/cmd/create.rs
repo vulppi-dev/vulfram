@@ -244,6 +244,12 @@ pub fn engine_cmd_window_create_async(
                     outer_size: UVec2::new(window_width, window_height),
                     render_state,
                     is_dirty: true,
+                    #[cfg(not(feature = "wasm"))]
+                    last_present_instant: None,
+                    #[cfg(feature = "wasm")]
+                    last_present_ns: 0,
+                    last_frame_delta_ns: 0,
+                    fps_instant: 0.0,
                     _web_listeners: listeners,
                 },
             );
@@ -459,6 +465,9 @@ pub fn engine_cmd_window_create(
             outer_size: UVec2::new(outer_size.width, outer_size.height),
             render_state,
             is_dirty: true,
+            last_present_instant: None,
+            last_frame_delta_ns: 0,
+            fps_instant: 0.0,
         },
     );
 

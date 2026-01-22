@@ -157,6 +157,12 @@ rendering falls back gracefully.
 
 Draw calls are batched by runs of `(material_id, geometry_id)` after sorting.
 
+## 4.3 Forward Shading (Standard vs PBR)
+
+- The Standard branch favors cheaper shading; the PBR branch favors realism.
+- Light evaluation only runs the relevant path per light kind to avoid wasted work.
+- Specular in the Standard branch only applies to directional/point/spot lights.
+
 ---
 
 ## 5. Core Lifecycle

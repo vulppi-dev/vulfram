@@ -4,6 +4,8 @@ use glam::IVec2;
 use glam::{UVec2, Vec2};
 use std::collections::HashMap;
 use std::sync::Arc;
+#[cfg(not(feature = "wasm"))]
+use std::time::Instant;
 
 #[cfg(feature = "wasm")]
 use wasm_bindgen::closure::Closure;
@@ -30,6 +32,12 @@ pub struct WindowState {
     pub inner_size: UVec2,
     pub outer_size: UVec2,
     pub(crate) is_dirty: bool,
+    #[cfg(not(feature = "wasm"))]
+    pub(crate) last_present_instant: Option<Instant>,
+    #[cfg(feature = "wasm")]
+    pub(crate) last_present_ns: u64,
+    pub(crate) last_frame_delta_ns: u64,
+    pub(crate) fps_instant: f64,
     #[cfg(feature = "wasm")]
     pub _web_listeners: Vec<Closure<dyn FnMut(Event)>>,
 }

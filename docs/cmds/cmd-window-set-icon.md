@@ -2,6 +2,15 @@
 
 Sets the icon of a window using an uploaded image buffer.
 
+## Platform Notes
+
+- **WASM:** Not supported (returns `success=false` with a message).
+
+## Notes
+
+- `bufferId` must refer to an upload with `UploadType::ImageData`.
+- Supported formats: PNG, JPEG, WebP, AVIF.
+
 ## Arguments
 
 | Field    | Type | Description                                     |

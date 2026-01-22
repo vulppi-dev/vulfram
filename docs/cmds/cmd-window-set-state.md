@@ -2,6 +2,10 @@
 
 Sets the state of a window (Minimized, Maximized, Fullscreen, etc.).
 
+## Platform Notes
+
+- **WASM:** Not supported (returns `success=false` with a message).
+
 ## Arguments
 
 | Field    | Type              | Description                                                                             |

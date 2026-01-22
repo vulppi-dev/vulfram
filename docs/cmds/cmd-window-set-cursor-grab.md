@@ -2,6 +2,10 @@
 
 Configures mouse cursor grabbing/locking.
 
+## Platform Notes
+
+- **WASM:** Not supported (returns `success=false` with a message).
+
 ## Arguments
 
 | Field    | Type           | Description                              |

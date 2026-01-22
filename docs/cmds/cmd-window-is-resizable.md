@@ -2,6 +2,10 @@
 
 Checks if a window is resizable.
 
+## Platform Notes
+
+- **WASM:** Not supported (returns `success=false` with a message).
+
 ## Arguments
 
 | Field    | Type | Description      |

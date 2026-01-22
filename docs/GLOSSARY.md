@@ -16,6 +16,7 @@ Examples:
 - Node.js (N-API) runtime
 - Lua VM
 - Python interpreter
+- Browser WASM host
 - Custom native applications
 
 Responsibilities of the host:
@@ -25,7 +26,7 @@ Responsibilities of the host:
 - Manage game logic and world state (ECS, OOP, etc.).
 - Generate and maintain logical IDs (entities, resources, buffers).
 - Build MessagePack command batches and send them to the core.
-- Consume events, messages, and profiling data from the core.
+- Consume events, responses, and profiling data from the core.
 
 ### Core
 
@@ -57,7 +58,8 @@ higher-level, language-friendly APIs.
 ### Component
 
 A **component** is a high-level structure describing some behavior or
-participation in the scene, usually attached to a `ComponentId`.
+participation in the scene, usually attached to a host-chosen ID
+(e.g. `camera_id`, `model_id`, `light_id`).
 
 Examples:
 
@@ -79,9 +81,7 @@ Examples:
 
 - `GeometryResource`: Vertex and index data.
 - `MaterialResource`: Surface properties (Standard or PBR).
-- `TextureResource`: Image data (decodded or raw).
-- `LightResource`: (Implicitly managed via LightComponent IDs).
-- `CameraResource`: (Implicitly managed via CameraComponent IDs).
+- `TextureResource`: Image data (decoded or raw).
 
 Resources are identified by logical IDs such as:
 
@@ -122,8 +122,10 @@ Example:
 
 Integers defined and managed by the host. Common logical IDs:
 
-- `ComponentId`
-- `ShaderId`
+- `WindowId`
+- `CameraId`
+- `ModelId`
+- `LightId`
 - `GeometryId`
 - `MaterialId`
 - `TextureId`
@@ -139,17 +141,8 @@ Convention:
 
 Internal references used by the core, such as:
 
-- `ShaderModuleHandle`
-- `RenderPipelineHandle`
-- `BufferHandle` (GPU buffer)
-- `TextureHandle`
-- `SamplerHandle`
-
-And for instances:
-
-- `CameraInstanceHandle`
-- `MeshInstanceHandle`
-- (future) `LightInstanceHandle`, `EnvironmentInstanceHandle`
+- GPU buffers, textures, samplers, and pipelines
+- Per-instance records for cameras, models, and lights
 
 These handles are typically indices or pointers managed by the core and are
 never exposed through the ABI.
@@ -221,13 +214,13 @@ Serialized as MessagePack and passed to `vulfram_send_queue`.
 
 Commands are queued and consumed during `vulfram_tick`.
 
-### Message Queue (`receive_queue`)
+### Response Queue (`receive_queue`)
 
-Logical queue of messages from the core:
+Logical queue of responses from the core:
 
 - Acknowledgments.
 - Error details.
-- Debug/log messages (structured).
+- Debug/log responses (structured).
 
 The host reads this via `vulfram_receive_queue` and decodes MessagePack.
 
@@ -280,7 +273,7 @@ All public ABI functions are prefixed with `vulfram_`:
 - `vulfram_receive_events`
 - `vulfram_upload_buffer`
 - `vulfram_tick`
-- `vulfram_profiling`
+- `vulfram_get_profiling`
 
 ### Documentation Files
 
@@ -327,4 +320,4 @@ Internal structure that collects:
 
 Exposed to the host via:
 
-- `vulfram_profiling` → MessagePack → host tooling/UI.
+- `vulfram_get_profiling` → MessagePack → host tooling/UI.

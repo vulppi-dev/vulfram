@@ -2,6 +2,10 @@
 
 Retrieves the outer size of a window, including Decorations (borders, title bar).
 
+## Platform Notes
+
+- **WASM:** Not supported (returns `success=false` with a message).
+
 ## Arguments
 
 | Field    | Type | Description      |

@@ -10,12 +10,14 @@
 
 The Vulfram core is built as a Rust library with the following key crates:
 
-- **Windowing & OS events**
+- **Platform proxies**
 
-  - `winit`
+  - `winit` (desktop)
     - Window creation
     - Event loop integration
-    - Input events (keyboard, mouse)
+    - Input events (keyboard, mouse, touch, gestures)
+  - `web-sys` (browser/WASM)
+    - DOM canvas, input events, gamepad polling
 
 - **Rendering**
 
@@ -26,8 +28,8 @@ The Vulfram core is built as a Rust library with the following key crates:
 
 - **Gamepad input**
 
-  - `gilrs`
-    - Gamepad discovery and events
+  - `gilrs` (desktop)
+  - Web Gamepad API (browser/WASM)
 
 - **Images**
 
@@ -59,13 +61,16 @@ At a high level, the core is organized around a central `EngineState`:
 pub struct EngineState {
     pub window: WindowManager,
 
+    #[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
     pub wgpu: wgpu::Instance,
+    #[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
     pub caps: Option<wgpu::SurfaceCapabilities>,
     pub device: Option<wgpu::Device>,
     pub queue: Option<wgpu::Queue>,
 
     pub buffers: BufferStorage,
 
+    pub cmd_queue: EngineBatchCmds,
     pub event_queue: EngineBatchEvents,
     pub response_queue: EngineBatchResponses,
 
@@ -73,6 +78,7 @@ pub struct EngineState {
     pub(crate) delta_time: u32,
     pub(crate) frame_index: u64,
 
+    #[cfg(not(feature = "wasm"))]
     pub input: InputState,
     pub(crate) gamepad: GamepadState,
 
@@ -80,20 +86,19 @@ pub struct EngineState {
 }
 ```
 
+`EngineSingleton` owns the `EngineState` plus a platform proxy
+(`DesktopProxy` or `BrowserProxy`) that handles window/input integration.
+
 ---
 
 ## 3. Resources (Current)
 
 The core manages several first-class resources:
 
-- **Geometry**: Managed by `VertexAllocatorSystem`, which owns pooled or
-  dedicated vertex/index buffers and validates incoming streams.
+- **Geometry**: Managed by the vertex allocator (pooled or dedicated buffers).
 - **Textures**: Loaded from buffers or created as solid colors.
 - **Materials**: Define the appearance of meshes.
-- **Lights**: Point, directional, and spot lights.
-- **Cameras**: View and projection matrices with layer masking support.
-- **Models**: Instances that link geometry and material (includes transform).
-- **Shadows**: Global shadow mapping configuration.
+- **Shadows**: Global shadow mapping configuration per window.
 
 ---
 
@@ -134,7 +139,7 @@ then decoded into internal Rust enums.
 - `vulfram_send_queue(buffer, length)`
 
   1. Copies the buffer into a `Vec<u8>`.
-  2. Deserializes with `rmp-serde` into a `Vec<EngineCommand>`.
+  2. Deserializes with `rmp-serde` into `EngineBatchCmds` (`Vec<EngineCmdEnvelope>`).
   3. Pushes the commands into `EngineState::cmd_queue`.
 
 ### 5.2 Command Representation
@@ -154,7 +159,7 @@ Current command enum (`EngineCmd`) includes:
 
 ### 5.3 Command Execution
 
-During `EngineState::tick` (called from `vulfram_tick`):
+During `vulfram_tick`:
 
 1. Drain `cmd_queue`.
 2. For each `EngineCommand`, call into appropriate systems:
@@ -213,7 +218,7 @@ buffers: HashMap<u64, UploadBuffer>  // BufferId -> UploadBuffer
 
 ## 7. Rendering System Overview
 
-The `RenderSystem` is responsible for managing WGPU objects and executing
+The `RenderState` is responsible for managing WGPU objects and executing
 the draw passes.
 
 ### 7.1 Buffers
@@ -273,17 +278,17 @@ Conceptual flow:
 
 Draw calls are batched by runs of `(material_id, geometry_id)` after sorting.
 
-3. (Future) Composite camera render targets into a final swapchain image.
+3. Submit the frame to the surface swapchain.
 
 ---
 
 ## 8. Event System
 
-The `InputSystem` is responsible for aggregating events:
+The input layer aggregates events via the active platform proxy:
 
-- Keyboard & mouse from `winit`
-- Gamepad from `gilrs`
-- Window events (resize, close, focus, etc.) from `winit`
+- Keyboard/pointer/touch from `winit` (desktop) or DOM (browser)
+- Gamepad from `gilrs` (desktop) or the Web Gamepad API (browser)
+- Window events (resize, close, focus, etc.) from the platform
 
 These are translated into internal `EngineEvent` enums and pushed into
 `event_queue`.
@@ -314,7 +319,7 @@ On `vulfram_receive_events`, the core:
   - number of visible mesh instances
   - number of active resources
 
-On `vulfram_profiling`, the core:
+On `vulfram_get_profiling`, the core:
 
 1. Takes a snapshot of `ProfilingData`.
 2. Serializes it into MessagePack.

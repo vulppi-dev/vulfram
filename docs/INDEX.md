@@ -13,6 +13,7 @@ Welcome to the Vulfram documentation! This index will guide you to the right doc
 - **Contribute to the Rust core** → Check [API.md](API.md) and [GLOSSARY.md](GLOSSARY.md)
 - **Learn terminology** → See [GLOSSARY.md](GLOSSARY.md)
 - **Understand the architecture** → Read [ARCH.md](ARCH.md)
+- **Understand platform separation** → Read [PLATFORM-PROXIES.md](PLATFORM-PROXIES.md)
 
 ---
 
@@ -127,7 +128,7 @@ If you're working on the Rust core implementation:
   - `vulfram_receive_events()`
   - `vulfram_upload_buffer()`
   - `vulfram_tick()`
-  - `vulfram_profiling()`
+  - `vulfram_get_profiling()`
 - Recommended frame loop
 - Error handling guidelines
 
@@ -153,7 +154,7 @@ If you're working on the Rust core implementation:
 
 - Crate dependencies (winit, wgpu, gilrs, serde, etc.)
 - Engine state structure
-- Resource management (Shaders, Geometries, Textures, Materials)
+- Resource management (Geometries, Textures, Materials)
 - Component instances (Cameras, Meshes)
 - Internal command flow
 - Upload table handling
@@ -171,7 +172,7 @@ If you're working on the Rust core implementation:
 - Components vs Resources
 - Logical IDs vs Internal Handles
 - Upload and buffer terminology
-- Queue types (command, message, event)
+- Queue types (command, response, event)
 - Layer masking
 - Function naming (`vulfram_*`)
 - Documentation file structure
@@ -233,7 +234,7 @@ GLOSSARY.md (for terminology)
 - **[README.md](../README.md)** - Project overview and quick start
 - **[MASCOT-DEFINITION.md](MASCOT-DEFINITION.md)** - Brand guidelines
 - **[UI.md](UI.md)** - User interface guidelines
-- **[WASM-PLAN.md](WASM-PLAN.md)** - Web/WASM support audit and plan (Phase 1)
+- **[PLATFORM-PROXIES.md](PLATFORM-PROXIES.md)** - Platform proxy architecture
 - **[Copilot Instructions](../.github/copilot-instructions.md)** - Development patterns
 
 ---
@@ -252,7 +253,7 @@ GLOSSARY.md (for terminology)
 - **Host**: External program calling Vulfram
 - **Core**: The Rust library (Vulfram itself)
 - **Component**: Scene entity behavior (Camera, Model, etc.)
-- **Resource**: Reusable asset (Shader, Texture, etc.)
+- **Resource**: Reusable asset (Geometry, Texture, Material, etc.)
 - **Logical ID**: Integer ID visible to host
 - **Handle**: Internal core reference (not exposed)
 

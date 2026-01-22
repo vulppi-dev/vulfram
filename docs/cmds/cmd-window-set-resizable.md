@@ -2,6 +2,10 @@
 
 Enables or disables the ability to resize a window.
 
+## Platform Notes
+
+- **WASM:** Not supported (returns `success=false` with a message).
+
 ## Arguments
 
 | Field     | Type | Description                            |

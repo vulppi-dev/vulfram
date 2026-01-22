@@ -18,27 +18,56 @@ Texture references are **lazy**:
 | kind       | MaterialKind            | Type of material (Standard, Pbr)         |
 | options    | Option<MaterialOptions> | (Optional) StandardOptions or PbrOptions |
 
+### SurfaceType (Enum)
+
+- `Opaque`
+- `Masked`
+- `Transparent`
+
+### MaterialSampler (Enum)
+
+- `PointClamp`
+- `LinearClamp`
+- `PointRepeat`
+- `LinearRepeat`
+
 ### StandardOptions
 
 - **baseColor**: Vec4
-- **surfaceType**: Opaque, Transparent, Cutout
+- **surfaceType**: SurfaceType
 - **specColor**: Option<Vec4>
 - **specPower**: Option<f32>
-- **baseTexId**: Option<u32> (may not exist yet)
-- **normalTexId**: Option<u32> (may not exist yet)
-- ... (and more texture/sampler options)
+- **baseTexId**: Option<u32>
+- **baseSampler**: Option<MaterialSampler>
+- **specTexId**: Option<u32>
+- **specSampler**: Option<MaterialSampler>
+- **normalTexId**: Option<u32>
+- **normalSampler**: Option<MaterialSampler>
+- **toonRampTexId**: Option<u32>
+- **toonRampSampler**: Option<MaterialSampler>
+- **flags**: u32
+- **toonParams**: Option<Vec4>
 
 ### PbrOptions
 
 - **baseColor**: Vec4
+- **surfaceType**: SurfaceType
 - **emissiveColor**: Vec4
 - **metallic**: f32
 - **roughness**: f32
 - **ao**: f32
 - **normalScale**: f32
-- **baseTexId**: Option<u32> (may not exist yet)
-- **normalTexId**: Option<u32> (may not exist yet)
-- ... (and more PBR specific textures)
+- **baseTexId**: Option<u32>
+- **baseSampler**: Option<MaterialSampler>
+- **normalTexId**: Option<u32>
+- **normalSampler**: Option<MaterialSampler>
+- **metallicRoughnessTexId**: Option<u32>
+- **metallicRoughnessSampler**: Option<MaterialSampler>
+- **emissiveTexId**: Option<u32>
+- **emissiveSampler**: Option<MaterialSampler>
+- **aoTexId**: Option<u32>
+- **aoSampler**: Option<MaterialSampler>
+- **flags**: u32
 
 ## Response
 

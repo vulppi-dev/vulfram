@@ -48,14 +48,14 @@ All structured data that crosses the ABI uses **MessagePack**, via:
 This includes:
 
 - Command batches (`vulfram_send_queue`)
-- Response/message batches (`vulfram_receive_queue`)
+- Response batches (`vulfram_receive_queue`)
 - Event batches (`vulfram_receive_events`)
-- Profiling data (`vulfram_profiling`)
+- Profiling data (`vulfram_get_profiling`)
 
 Binding responsibilities:
 
 - Serialize commands into MessagePack when calling `send_queue`.
-- Deserialize MessagePack returned by `receive_queue`, `receive_events`, `profiling`.
+- Deserialize MessagePack returned by `receive_queue`, `receive_events`, `get_profiling`.
 
 ### 1.4 Output Buffers (`out_ptr`, `out_length`)
 
@@ -128,32 +128,32 @@ Core behavior:
 
 Typical commands include:
 
-- Create/update/destroy **resources** (shaders, textures, geometries, materials…)
+- Create/update/destroy **resources** (textures, geometries, materials…)
 - Create/update/destroy **components** (cameras, models, etc.)
 - Maintenance commands (e.g. discard unused uploads).
 
 ---
 
-### 2.3 Response / Message Queue (Core → Host)
+### 2.3 Response Queue (Core → Host)
 
 ```c
 u32 vulfram_receive_queue(uint8_t** out_ptr, size_t* out_length);
 ```
 
-- On success, returns a MessagePack buffer with a batch of **messages**:
+- On success, returns a MessagePack buffer with a batch of **responses**:
 
   - Acknowledgments, detailed error info, internal notifications, etc.
 
 - The buffer may be empty:
 
-  - `*out_length == 0` indicates “no messages available”.
+  - `*out_length == 0` indicates “no responses available”.
 
 Binding responsibilities:
 
 1. Call `vulfram_receive_queue(&ptr, &len)`.
 2. If `len > 0`, copy `[ptr .. ptr+len)` to host memory.
 3. Release the core-allocated buffer using the agreed mechanism.
-4. Deserialize MessagePack and route messages to the host/application.
+4. Deserialize MessagePack and route responses to the host/application.
 
 Calling `vulfram_receive_queue` consumes and clears the internal response queue.
 
@@ -167,11 +167,11 @@ u32 vulfram_receive_events(uint8_t** out_ptr, size_t* out_length);
 
 - Returns a MessagePack buffer containing a batch of **events**:
 
-  - Keyboard, mouse, gamepad (via Gilrs)
-  - Window system events (via Winit: resize, close, focus, etc.)
+  - Keyboard, pointer, touch, gamepad (Gilrs on native, Gamepad API on web)
+  - Window system events (resize, close, focus, etc.) via the platform proxy
 
 Semantics are identical to `vulfram_receive_queue`, but the content is
-strictly _event_ data, not generic messages.
+strictly _event_ data, not responses.
 
 Typical flow:
 
@@ -203,11 +203,13 @@ Parameters:
 - `type`
   Numeric enum representing the kind of upload, e.g.:
 
-  - shader source / bytecode
-  - vertex data
-  - index data
-  - texture image
-  - other binary assets
+  - `Raw` (0)
+  - `ShaderSource` (1) (reserved)
+  - `GeometryData` (2)
+  - `VertexData` (3)
+  - `IndexData` (4)
+  - `ImageData` (5)
+  - `BinaryAsset` (6)
 
 - `buffer`, `length`
   Pointer and size of the raw data.
@@ -215,8 +217,8 @@ Parameters:
 Behavior:
 
 - The core **copies** the contents into its internal upload table.
-- Later, commands (via `send_queue`) such as `CreateShader`, `CreateTexture`, etc.
-  will look up these uploads by `BufferId` and `type`.
+- Later, commands (via `send_queue`) such as geometry/texture creation
+  look up these uploads by `BufferId` and `type`.
 - Uploads are treated as **one-shot**: once consumed by a `Create*` command, they
   may be removed from the upload table.
 
@@ -231,26 +233,26 @@ Called **once per frame** by the host.
 Parameters:
 
 - `time`
-  Host-provided time (currently forwarded to shaders).
+  Host-provided time (forwarded to frame uniforms).
 
 - `delta_time`
-  Host-provided delta time (currently forwarded to shaders).
+  Host-provided delta time (forwarded to frame uniforms).
 
 Core responsibilities in `tick`:
 
 - Process pending commands enqueued via `send_queue`.
 - Update internal component state (transforms, camera matrices, etc.).
-- Collect input & window events from Winit / Gilrs.
+- Collect input & window events from the active platform proxy.
 - Execute the render pipeline on the GPU using WGPU.
 - Populate internal queues for:
 
-  - messages (`receive_queue`)
+  - responses (`receive_queue`)
   - events (`receive_events`)
   - profiling data (`get_profiling`)
 
 ---
 
-## 2.8 Asynchronous Resource Linking (Fallback-Driven)
+## 2.7 Asynchronous Resource Linking (Fallback-Driven)
 
 Resources can be created out of order:
 
@@ -261,7 +263,7 @@ When a referenced resource is missing, the core uses fallback resources so
 rendering continues. When the real resource appears later with the same ID,
 the core picks it up automatically on the next frame.
 
-## 2.9 Resource Reuse Semantics
+## 2.8 Resource Reuse Semantics
 
 - A single geometry can be referenced by many models.
 - A single material can be referenced by many models.
@@ -272,7 +274,7 @@ rendering falls back gracefully.
 
 ---
 
-### 2.7 Profiling
+### 2.9 Profiling
 
 ```c
 u32 vulfram_get_profiling(uint8_t** out_ptr, size_t* out_length);
@@ -323,13 +325,13 @@ per frame on the main thread:
 
    - `vulfram_tick(time, delta_time)`
 
-5. **Receive messages** (consumes response queue)
+5. **Receive responses** (consumes response queue)
 
    - `vulfram_receive_queue(&ptr, &len)`
    - If `len > 0`:
 
      - copy & free buffer
-     - decode MessagePack and process messages
+     - decode MessagePack and process responses
 
 6. **Receive events**
 
@@ -363,4 +365,4 @@ A typical pattern:
 1. Binding call fails (non-zero `VulframResult`).
 2. Binding throws/returns an error.
 3. Host can additionally call `vulfram_receive_queue` to fetch
-   detailed error messages, if desired.
+   detailed error responses, if desired.

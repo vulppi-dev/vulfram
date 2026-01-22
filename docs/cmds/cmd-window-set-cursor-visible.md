@@ -2,6 +2,10 @@
 
 Shows or hides the mouse cursor when it's over the window.
 
+## Platform Notes
+
+- **WASM:** Not supported (returns `success=false` with a message).
+
 ## Arguments
 
 | Field    | Type | Description                          |

@@ -2,6 +2,10 @@
 
 Requests that a window be focused.
 
+## Platform Notes
+
+- **WASM:** Not supported (returns `success=false` with a message).
+
 ## Arguments
 
 | Field    | Type | Description      |

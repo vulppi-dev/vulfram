@@ -1,13 +1,13 @@
 # 🦊 Vulfram — Overview
 
 Vulfram is a **rendering and systems core** written in Rust and exposed as a dynamic library.
-It is designed to be driven by external _hosts_ via FFI:
+It is designed to be driven by external _hosts_ via FFI or WASM:
 
-- Node.js (N-API)
 - Node.js (N-API)
 - Lua (via `mlua`)
 - Python (via `PyO3`)
 - Any other environment capable of calling C-ABI functions
+- Browser runtimes via WASM (WebGPU + DOM canvas)
 
 The central idea is:
 
@@ -32,7 +32,7 @@ The core remains a **black box** that owns the windowing, input, GPU resources, 
 
 - **Binary and fast**  
   All structured communication uses MessagePack (via `serde` + `rmp-serde`).  
-  Heavy data (meshes, textures, shaders, etc.) is sent as raw byte blobs.
+  Heavy data (meshes, textures, etc.) is sent as raw byte blobs.
 
 - **Separation of responsibilities**
   - Host: game logic, world state, IDs, high-level decisions.
@@ -58,8 +58,10 @@ Typical hosts:
 The host is responsible for:
 
 - Generating **logical IDs**:
-  - `ComponentId`
-  - `ShaderId`
+  - `WindowId`
+  - `CameraId`
+  - `ModelId`
+  - `LightId`
   - `GeometryId`
   - `MaterialId`
   - `TextureId`
@@ -73,26 +75,27 @@ The host never needs to know about:
 
 - GPU APIs (Vulkan/Metal/DX/etc.)
 - WGPU internals
-- Winit window/event APIs
+- Platform window/event APIs (Winit or DOM)
 - Pipeline / bind group layouts
 
 ### 2.2 Vulfram Core
 
 The core is implemented in Rust and uses:
 
-- `winit` for window creation and OS-level events
 - `wgpu` for rendering (cross-platform GPU abstraction)
-- `gilrs` for gamepad input
+- `winit` for native window creation and OS-level events
+- `gilrs` for native gamepad input
+- `web-sys` for browser window/input plumbing (WASM)
 - `image` for texture decoding
 - `glam` + `bytemuck` for math and safe binary packing
 - `serde`, `serde_repr`, `rmp-serde` for MessagePack serialization
 
 The core is responsible for:
 
-- Tracking **resources** (shaders, materials, textures, geometries…)
-- Tracking **component instances** (cameras, models, etc.) per `ComponentId`
+- Tracking **resources** (materials, textures, geometries…)
+- Tracking **component instances** (cameras, models, lights) per host ID
 - Managing GPU buffers and pipelines
-- Collecting input and window events
+- Collecting input and window events via platform proxies
 - Executing the render pipeline in `vulfram_tick`
 
 ### 2.3 GPU Layer
@@ -119,14 +122,13 @@ Vulfram uses two key concepts for scene description:
 ### 3.1 Components
 
 Components represent “what exists in the scene” and how it behaves.
-They are always associated with an `ComponentId` chosen by the host.
+They are always associated with an ID chosen by the host (e.g. `camera_id`, `model_id`, `light_id`).
 
 Examples of components:
 
-- `CameraComponent` (with `order` and optional `view_position`)
-- `ModelComponent` (transform data; references `geometry_id`, future `material_id`)
-- `LightComponent` (future)
-- `EnvironmentComponent` (future)
+- `Camera` (with `order` and optional `view_position`)
+- `Model` (transform data; references `geometry_id` and `material_id`)
+- `Light` (directional/point/spot)
 
 Components may contain:
 
@@ -136,7 +138,7 @@ Components may contain:
   via logical IDs (e.g. `MaterialId`, `GeometryId`, `TextureId`).
 
 The host creates and updates components through commands in the
-`send_queue` MessagePack buffer.
+`vulfram_send_queue` MessagePack buffer.
 
 ### 3.2 Resources
 
@@ -144,12 +146,9 @@ Resources are the underlying data used by components.
 
 Examples:
 
-- Shaders (future)
-- Geometries (current)
-- Textures (future)
-- Materials (future)
-- Samplers (future)
-- (Future: fonts, sounds, etc.)
+- Geometries
+- Materials
+- Textures
 
 They are split into two categories:
 
@@ -157,7 +156,7 @@ They are split into two categories:
 
 - Can be shared among multiple components/entities.
 - Identified by **logical IDs** visible to the host:
-  - `ShaderId`, `GeometryId`, `MaterialId`, `TextureId`, etc.
+  - `GeometryId`, `MaterialId`, `TextureId`, etc.
 - Internally, the core maps these IDs to GPU handles using internal “holders”.
 
 #### 3.2.2 Static Resources
@@ -178,11 +177,13 @@ They are split into two categories:
 
 The host generates and owns:
 
+- `WindowId` — identifies a window
 - `CameraId` — identifies a camera
 - `ModelId` — identifies a model instance
+- `LightId` — identifies a light
 - `GeometryId` — mesh/geometry asset
-- `MaterialId` — material asset (future)
-- `TextureId` — texture asset (future)
+- `MaterialId` — material asset
+- `TextureId` — texture asset
 - `BufferId` — upload blob identifier
 
 ---
@@ -208,17 +209,8 @@ These are simple integers from the core’s perspective. The only rule is:
 
 ### 4.2 Internal Handles (core-only)
 
-Inside the core, logical IDs are resolved into internal handles:
-
-- `ShaderModuleHandle`
-- `RenderPipelineHandle`
-- `BufferHandle` (GPU buffer)
-- `TextureHandle`
-- `SamplerHandle`
-
-- `CameraInstanceHandle`
-- `MeshInstanceHandle`
-- (future) `LightInstanceHandle`, `EnvironmentInstanceHandle`, etc.
+Inside the core, logical IDs are resolved into internal GPU and runtime handles
+(buffers, textures, pipelines, and per-instance state).
 
 These handles are never exposed to the host. They are internal indices,
 pointers, or IDs used to drive WGPU objects.
@@ -232,12 +224,12 @@ Heavy data is sent via `vulfram_upload_buffer` using `BufferId`s.
 Typical flow:
 
 1. Host calls `vulfram_upload_buffer(buffer_id, type, bytes, len)` one or more times.
-2. Host sends commands (in `send_queue`) like `CreateShader`, `CreateGeometry`,
-   `CreateTexture`, `CreateMaterial` that **reference those `BufferId`s**.
+2. Host sends commands (in `vulfram_send_queue`) like `CmdGeometryCreate` or
+   `CmdTextureCreateFromBuffer` that **reference those `BufferId`s**.
 3. The core:
    - looks up each `BufferId` in its internal upload table
-   - creates the GPU resources (shader modules, buffers, textures)
-   - binds those resources to logical IDs (`ShaderId`, `GeometryId`, …)
+   - creates the GPU resources (buffers, textures)
+   - binds those resources to logical IDs (`GeometryId`, `TextureId`, …)
    - marks uploads as consumed/removed
 4. A maintenance command (`CmdUploadBufferDiscardAll`) may be used to
    free all pending upload blobs.
@@ -303,7 +295,7 @@ Draw calls are batched by runs of `(material_id, geometry_id)` after sorting.
 - MessagePack format for:
 
   - commands
-  - responses/messages
+  - responses
   - events
   - profiling
 

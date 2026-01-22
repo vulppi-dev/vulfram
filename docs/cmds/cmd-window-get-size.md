@@ -2,6 +2,10 @@
 
 Retrieves the inner size (drawable area) of an existing window.
 
+## Platform Notes
+
+- **WASM:** Not supported (returns `success=false` with a message).
+
 ## Arguments
 
 | Field    | Type | Description      |

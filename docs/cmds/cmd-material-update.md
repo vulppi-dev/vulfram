@@ -18,6 +18,9 @@ Texture references are **lazy**:
 | kind       | Option<MaterialKind>    | (Optional) New material type    |
 | options    | Option<MaterialOptions> | (Optional) New material options |
 
+Material option shapes (`StandardOptions`, `PbrOptions`, `SurfaceType`, `MaterialSampler`)
+match those defined in `CmdMaterialCreate`.
+
 ## Response
 
 Returns `CmdResultMaterialUpdate`:

@@ -22,7 +22,7 @@ Buffers are only removed from the upload table after a successful create.
 
 ### GeometryPrimitiveEntry
 
-- **primitiveType**: Position, Normal, UV, Color, Tangent, JointIndices, JointWeights, Index, etc.
+- **primitiveType**: Index, Position, Normal, Tangent, Color, UV, SkinJoints, SkinWeights.
 - **bufferId**: u64 (ID of the uploaded buffer)
 
 ## Response

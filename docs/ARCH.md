@@ -13,24 +13,25 @@ Conceptual data flow:
 
 ### 1.1 Host Responsibilities
 
-The host is any runtime that calls the C-ABI functions, for example:
+The host is any runtime that calls the C-ABI functions (or WASM exports), for example:
 
 - Node.js (N-API)
 - Lua
 - Python
 - Any other FFI-capable environment
+- Browser runtimes via WASM (WebGPU + DOM canvas)
 
 The host is responsible for:
 
 - Managing the **game logic** and world state.
-- Generating **logical IDs** (entities, materials, textures, etc.).
+- Generating **logical IDs** (window, camera, model, light, geometry, material, texture, etc.).
 - Building **MessagePack command batches** and sending them to the core.
 - Feeding time (`time`, `delta_time`) into `vulfram_tick`.
-- Reading **events** and **messages** from the core and reacting to them.
+- Reading **events** and **responses** from the core and reacting to them.
 
 The host does **not**:
 
-- Create windows manually (handled via Winit inside the core).
+- Create windows manually (handled by the core via platform proxies).
 - Talk to GPU APIs directly.
 - Manage WGPU devices, queues, or pipelines.
 
@@ -39,9 +40,10 @@ The host does **not**:
 The core is the Rust dynamic library that implements Vulfram.
 It uses:
 
-- `winit` for window + OS events
 - `wgpu` for rendering (WebGPU)
-- `gilrs` for gamepad input
+- `winit` for native window + OS events
+- `gilrs` for native gamepad input
+- `web-sys` for browser window/input plumbing (WASM)
 - `image` for texture decoding
 - `glam` + `bytemuck` for math and buffer packing
 - `serde` + `rmp-serde` for MessagePack
@@ -49,11 +51,11 @@ It uses:
 Core responsibilities:
 
 - Keep track of **resources**:
-  - Geometries, materials, textures, lights, cameras (and shadows).
-- Keep track of **instances** (components) per `ComponentId`:
-  - Cameras, models, etc.
+  - Geometries, materials, textures (and shadows).
+- Keep track of **instances** (components) per host ID:
+  - Cameras, models, lights.
 - Manage GPU buffers, textures, pipelines, and render passes.
-- Collect and expose input/window events.
+- Collect and expose input/window events via platform proxies.
 - Perform rendering in `vulfram_tick`.
 
 ---
@@ -64,13 +66,12 @@ Core responsibilities:
 
 Components represent high-level logic and are attached to entities:
 
-- `CameraComponent`
-- `ModelComponent` (mesh instance)
-- `LightComponent`
-- `EnvironmentComponent` (future)
+- `Camera`
+- `Model` (mesh instance)
+- `Light`
 
-They are created and updated via commands in `send_queue`.
-Each component is associated with an `ComponentId` chosen by the host.
+They are created and updated via commands in `vulfram_send_queue`.
+Each component is associated with a host-chosen ID (e.g. `camera_id`, `model_id`, `light_id`).
 
 ### 2.2 Resources
 
@@ -79,41 +80,27 @@ Resources are reusable data assets such as:
 - Geometries
 - Textures
 - Materials
-- Lights (point, directional, spot)
-- Cameras
 
 They are referenced from components via **logical IDs**:
 
-- `GeometryId`, `MaterialId`, `TextureId`, `LightId`, `CameraId`, etc.
+- `GeometryId`, `MaterialId`, `TextureId`, etc.
 
 Some data (static, per-component values like local colors or viewports) live inside
 the component and are **not** standalone resources.
 
 ### 2.3 Internal Instances
 
-Internally, the core maintains per-entity instances like:
+Internally, the core maintains per-entity instances like cameras, models, and lights.
+These instances hold GPU bindings, visibility masks, and render state derived from
+the host payloads.
 
-- `CameraInstance`
-
-  - A slot in `CameraUniformBuffer`
-  - Viewport data
-  - A dedicated render target texture
-  - `layerMaskCamera`
-
-- `MeshInstance`
-  - References to `GeometryResource` and `MaterialResource`
-  - A slot in `ModelUniformBuffer`
-  - `layerMaskComponent`
-
-These internal instances are indexed by `ComponentId` and are not visible to the host.
-The host always refers to entities by `ComponentId`, and the core resolves that to
+These internal instances are indexed by host IDs and are not visible to the host.
+The host always refers to entities by their logical IDs, and the core resolves that to
 its internal instance structures.
 
 ---
 
-## 3. LayerMask and Visibility
-
-## 2.4 Asynchronous Resource Linking (Fallback-Driven)
+## 3. Asynchronous Resource Linking (Fallback-Driven)
 
 Vulfram allows resources to be created out of order:
 
@@ -126,6 +113,8 @@ the core picks it up automatically on the next frame.
 
 This enables async streaming, independent loading pipelines, and decoupled
 creation order.
+
+## 4. LayerMask and Visibility
 
 The core uses a `u32` bitmask to filter visibility:
 
@@ -149,7 +138,7 @@ This enables:
 
 ---
 
-## 3.1 Resource Reuse Semantics
+## 4.1 Resource Reuse Semantics
 
 - A single geometry can be referenced by many models.
 - A single material can be referenced by many models.
@@ -160,7 +149,7 @@ rendering falls back gracefully.
 
 ---
 
-## 3.2 Render Ordering & Batching (Per Camera)
+## 4.2 Render Ordering & Batching (Per Camera)
 
 - Opaque/masked objects are sorted by `(material_id, geometry_id)` to reduce
   state changes and batch draw calls.
@@ -170,9 +159,9 @@ Draw calls are batched by runs of `(material_id, geometry_id)` after sorting.
 
 ---
 
-## 4. Core Lifecycle
+## 5. Core Lifecycle
 
-### 4.1 Startup
+### 5.1 Startup
 
 1. The host loads the Vulfram dynamic library.
 
@@ -184,32 +173,32 @@ Draw calls are batched by runs of `(material_id, geometry_id)` after sorting.
 
 3. The core initializes:
 
-   - Winit (window, event loop integration)
-   - WGPU (instance, device, queue)
-   - Gilrs (gamepad)
+   - Platform proxy (desktop or browser)
+   - WGPU instance (device/queue created on first window)
+   - Gilrs (native gamepad) and web gamepad polling (WASM)
    - Internal resource/component tables
    - Profiling and internal queues
 
-### 4.2 Loading / Initial Configuration
+### 5.2 Loading / Initial Configuration
 
 In the loading phase, the host typically:
 
-- Uploads heavy data (meshes, textures, shaders) via `vulfram_upload_buffer`.
+- Uploads heavy data (meshes, textures) via `vulfram_upload_buffer`.
 - Sends one or more command batches via `vulfram_send_queue` to:
 
-  - create resources (`CreateShader`, `CreateTexture`, `CreateMaterial`, etc.)
-  - create components (`CreateCameraComponent`, `CreateModelComponent`, …)
+  - create resources (`CmdGeometryCreate`, `CmdTextureCreateFromBuffer`, `CmdMaterialCreate`, etc.)
+  - create components (`CmdCameraCreate`, `CmdModelCreate`, `CmdLightCreate`, …)
 
 The core processes these commands on subsequent calls to `vulfram_tick`.
 
-### 4.3 Main Loop
+### 5.3 Main Loop
 
 Once the initial state is ready, the host enters its main loop, where:
 
 - `vulfram_tick` drives the core each frame and consumes queued commands.
-- The host sends updates and receives events/messages.
+- The host sends updates and receives events/responses.
 
-### 4.4 Shutdown
+### 5.4 Shutdown
 
 When the application is closing:
 
@@ -229,7 +218,7 @@ When the application is closing:
 
 ---
 
-## 5. Recommended Main Loop (Host Side)
+## 6. Recommended Main Loop (Host Side)
 
 The exact structure of the host loop is flexible, but a recommended pattern is:
 
@@ -238,8 +227,8 @@ while (running) {
     1. Update host-side logic
     2. Perform uploads (optional)
     3. Send command batch
-4. Call vulfram_tick (processes queued commands)
-5. Receive messages (consumes response queue)
+    4. Call vulfram_tick (processes queued commands)
+    5. Receive responses (consumes response queue)
     6. Receive events
     7. (Optional) Receive profiling
 }
@@ -247,7 +236,7 @@ while (running) {
 
 In more detail:
 
-### 5.1 Update Host Logic
+### 6.1 Update Host Logic
 
 - Compute new game state (ECS systems, scripts, AI, etc.).
 - Decide which entities/components/resources need:
@@ -256,7 +245,7 @@ In more detail:
   - to be updated
   - to be destroyed (future).
 
-### 5.2 Upload Heavy Data (Optional)
+### 6.2 Upload Heavy Data (Optional)
 
 For any new or replaced heavy asset:
 
@@ -268,13 +257,12 @@ For any new or replaced heavy asset:
 
 - Typical uploaded data:
 
-  - Shader source/bytecode
   - Vertex/index buffers
   - Texture images
 
 These uploads will later be consumed by `Create*` commands referenced by `buffer_id`.
 
-### 5.3 Send Command Batch
+### 6.3 Send Command Batch
 
 - Build a batch of commands describing what changed this frame:
 
@@ -291,7 +279,7 @@ These uploads will later be consumed by `Create*` commands referenced by `buffer
 
 The core will copy the buffer and queue the commands for processing.
 
-### 5.4 Advance the Core (`vulfram_tick`)
+### 6.4 Advance the Core (`vulfram_tick`)
 
 - Call:
 
@@ -305,9 +293,9 @@ The core will:
 - Update internal component state (camera matrices, transforms, etc.).
 - Collect input/window events.
 - Execute rendering using WGPU.
-- Fill internal queues for messages, events and profiling.
+- Fill internal queues for responses, events and profiling.
 
-### 5.5 Receive Messages (Optional)
+### 6.5 Receive Responses (Optional)
 
 - Call:
 
@@ -321,11 +309,11 @@ The core will:
 
   - Copy the bytes to host memory (JS Buffer / Python bytes / Lua string, etc.).
   - Free the core buffer via the mechanism defined in the binding.
-  - Deserialize MessagePack and process the messages.
+  - Deserialize MessagePack and process the responses.
 
 `vulfram_receive_queue` consumes and clears the internal response queue.
 
-### 5.6 Receive Events
+### 6.6 Receive Events
 
 - Call:
 
@@ -342,7 +330,7 @@ The core will:
   - Deserialize MessagePack into an event list.
   - Integrate these into the host’s own input/window systems.
 
-### 5.7 Profiling (Optional)
+### 6.7 Profiling (Optional)
 
 For debug or tooling:
 
@@ -351,7 +339,7 @@ For debug or tooling:
   ```c
   uint8_t* ptr = NULL;
   size_t len = 0;
-  vulfram_profiling(&ptr, &len);
+  vulfram_get_profiling(&ptr, &len);
   ```
 
 - If `len > 0`:
@@ -363,7 +351,7 @@ For debug or tooling:
 
 ---
 
-## 6. One-shot Uploads and Cleanup
+## 7. One-shot Uploads and Cleanup
 
 Heavy binary uploads use `vulfram_upload_buffer` and `BufferId`:
 
@@ -371,7 +359,7 @@ Heavy binary uploads use `vulfram_upload_buffer` and `BufferId`:
 2. The core stores the blob in an internal upload table as:
    `BufferId → { type, bytes, used_flag }`.
 3. A `Create*` engine command (via `send_queue`) references `buffer_id` and uses
-   its data to create a resource (`ShaderResource`, `TextureResource`, etc.).
+   its data to create a resource (geometry buffers, textures, etc.).
 4. Once consumed, the upload entry is marked as used and can be removed.
 5. A maintenance command (`CmdUploadBufferDiscardAll`) may be used to clean up
    any remaining, never-used uploads.

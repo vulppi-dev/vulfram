@@ -18,8 +18,13 @@ Notes:
 | label        | Option<String>              | (Optional) Semantic name                            |
 | bufferId     | u64                         | ID of the uploaded buffer containing image data     |
 | srgb         | Option<bool>                | (Optional) Use sRGB (default: true)                 |
-| mode         | TextureCreateMode           | (Optional) Standalone (0) or Atlas (1) (default: 0) |
+| mode         | TextureCreateMode           | (Optional) Standalone (0) or ForwardAtlas (1) (default: 0) |
 | atlasOptions | Option<ForwardAtlasOptions> | (Optional) Options for atlas allocation             |
+
+### ForwardAtlasOptions
+
+- **tilePx**: u32 (tile size in pixels, default: 256)
+- **layers**: u32 (atlas layers, default: 1)
 
 ## Response
 

@@ -6,7 +6,7 @@
   **High-Performance Rendering & Systems Core powered by WebGPU**
   
   [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
-  [![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org/)
+  [![Rust](https://img.shields.io/badge/rust-stable-orange.svg)](https://www.rust-lang.org/)
 </div>
 
 ---
@@ -32,19 +32,20 @@
 
 **Vulfram** is a **rendering and systems core** written in Rust and exposed as a dynamic library. The name combines "Vulppi" (derived from _Vulpes_, the scientific name for fox) and "Frame", representing our mission to create perfect frames for incredible interactive experiences.
 
-Vulfram is designed to be **host-agnostic** and driven by external runtimes via FFI:
+Vulfram is designed to be **host-agnostic** and driven by external runtimes via FFI or WASM:
 
 - 🟢 **Node.js** (N-API)
 - 🌙 **Lua** (via `mlua`)
 - 🐍 **Python** (via `PyO3`)
 - 🔧 Any environment capable of calling C-ABI functions
+- 🌐 Browser runtimes via WASM (WebGPU + DOM canvas)
 
 ### Core Features
 
 - 🚀 **High Performance**: GPU-accelerated rendering with WGPU (WebGPU)
 - 🔄 **Cross-Platform**: Native support for Windows, macOS, and Linux
 - 🎮 **Complete Input System**: Keyboard, mouse, touch, and gamepads (via Gilrs)
-- 🪟 **Advanced Window Management**: Full control over multiple windows (via Winit)
+- 🪟 **Advanced Window Management**: Full control over multiple windows (via Winit) or a DOM canvas (WASM)
 - 💡 **Lighting & Shadows**: Support for various light types and shadow mapping
 - 🎨 **Materials & Textures**: Flexible resource management for rendering
 - 🔌 **Language Bindings**: N-API (Node.js), Lua, Python, and more. With C-ABI, `bun:ffi` is also possible.
@@ -100,9 +101,9 @@ Vulfram uses a queue-based architecture that enables efficient communication bet
 │        Vulfram Core (Rust)           │
 │  • Resource Management               │
 │  • Component Instances               │
-│  • Window Management (Winit)         │
+│  • Platform Proxy (Desktop/Browser)  │
 │  • GPU Rendering (WGPU)              │
-│  • Input Processing (Gilrs)          │
+│  • Input Processing (Gilrs/Web)      │
 └──────────────┬───────────────────────┘
                │
 ┌──────────────▼───────────────────────┐
@@ -118,12 +119,12 @@ Vulfram uses a queue-based architecture that enables efficient communication bet
 - Manage game logic and world state
 - Generate logical IDs (entities, resources, buffers)
 - Build MessagePack command batches
-- Drive the main loop with `vulframTick()`
-- Process events and messages
+- Drive the main loop with `vulfram_tick()`
+- Process events and responses
 
 **Vulfram Core:**
 
-- Abstract window, input, and rendering systems
+- Abstract window, input, and rendering systems via platform proxies
 - Manage GPU resources and pipelines using WGPU
 - Track component instances (cameras, models, etc.)
 - Translate commands into internal state changes
@@ -139,25 +140,27 @@ Vulfram distinguishes between two fundamental types:
 
 **Components** - High-level structures describing scene participation:
 
-- Always attached to an `ComponentId`
-- Examples: `CameraComponent`, `ModelComponent`, `LightComponent`
+- Always attached to a host-chosen ID (e.g. `camera_id`, `model_id`, `light_id`)
+- Examples: `Camera`, `Model`, `Light`
 - Can contain static data (local colors, matrices)
 - Reference sharable resources by logical ID
 - Created/updated via MessagePack commands
 
 **Resources** - Reusable assets used by components:
 
-- Identified by logical IDs: `ShaderId`, `GeometryId`, `MaterialId`, `TextureId`
+- Identified by logical IDs: `GeometryId`, `MaterialId`, `TextureId`
 - Sharable across multiple components/entities
 - Have internal GPU handles (buffers, textures, pipelines)
-- Examples: Shaders, geometries, textures, materials, samplers
+- Examples: geometries, textures, materials
 
 ### Logical IDs
 
 The host manages all logical identifiers:
 
-- `ComponentId` - Identifies scene entities
-- `ShaderId` - Shader programs
+- `WindowId` - Window instances
+- `CameraId` - Camera instances
+- `ModelId` - Model instances
+- `LightId` - Light instances
 - `GeometryId` - Mesh/geometry assets
 - `MaterialId` - Material configurations
 - `TextureId` - Texture assets
@@ -277,9 +280,9 @@ The test harness lives in `src/main.rs` and exercises:
 
 - **Keyboard**: Physical key events with modifiers and IME support
 - **Mouse**: Movement, buttons, scroll wheel
-- **Touch**: Multi-touch support with gestures (pinch, pan, rotate)
+- **Touch**: Multi-touch support with gestures (pinch, pan, rotate) on native
 - **Pointer**: Unified API for mouse/touch/pen via `PointerEvent`
-- **Gamepad**: Automatic detection, buttons, analog sticks, triggers
+- **Gamepad**: Automatic detection, buttons, analog sticks, triggers (Gilrs on native, Gamepad API on web)
   - Standard mapping with dead zones
   - Change threshold filtering for efficient event generation
 
@@ -297,7 +300,7 @@ The test harness lives in `src/main.rs` and exercises:
 - **MessagePack** serialization for fast binary communication
 - Separate queues for:
   - Commands (host → core)
-  - Messages (core → host)
+  - Responses (core → host)
   - Events (core → host)
 - Profiling data export for performance analysis
 
@@ -330,15 +333,15 @@ cargo fmt
 
 ```text
 1. Update host-side logic (game state, entities)
-2. Upload heavy data (optional) via vulframUploadBuffer()
-3. Send command batch via vulframSendQueue()
-4. Advance the core via vulframTick(time, deltaTime)
-5. Receive messages via vulframReceiveQueue()
-6. Receive events via vulframReceiveEvents()
-7. Read profiling data (optional) via vulframProfiling()
+2. Upload heavy data (optional) via `vulfram_upload_buffer()`
+3. Send command batch via `vulfram_send_queue()`
+4. Advance the core via `vulfram_tick(time, delta_time)`
+5. Receive responses via `vulfram_receive_queue()`
+6. Receive events via `vulfram_receive_events()`
+7. Read profiling data (optional) via `vulfram_get_profiling()`
 ```
 
-`vulframReceiveQueue()` consumes and clears the internal response queue.
+`vulfram_receive_queue()` consumes and clears the internal response queue.
 
 ---
 
@@ -346,43 +349,29 @@ cargo fmt
 
 ```
 vulfram/
-├── src/                       # Rust core
-│   ├── lib.rs                # Crate entry point (cdylib)
-│   └── core/                 # Engine core modules
-│       ├── mod.rs            # Core module exports
-│       ├── buffers.rs        # Buffer management
-│       ├── handler.rs        # Command handling
-│       ├── lifecycle.rs      # Init/dispose lifecycle
-│       ├── queue.rs          # Message/command queues
-│       ├── result.rs         # Result types
-│       ├── singleton.rs      # Global state management
-│       ├── state.rs          # Engine state
-│       ├── tick.rs           # Frame update logic
-│       ├── cache/            # Event caching system
-│       │   ├── gamepad.rs    # Gamepad state cache
-│       │   ├── input.rs      # Input state cache
-│       │   └── window.rs     # Window state cache
-│       ├── cmd/              # Command system
-│       │   ├── events/       # Event command handlers
-│       │   └── win/          # Window command handlers
-│       └── render/           # Rendering system
-│           ├── state.rs      # Render state management
-│           └── mod.rs        # Render module exports
+├── src/                         # Rust core
+│   ├── lib.rs                   # Crate entry point (cdylib)
+│   └── core/                    # Engine core modules
+│       ├── cmd.rs               # Command routing
+│       ├── lifecycle.rs         # Init/dispose lifecycle
+│       ├── queue.rs             # Command/response/event queues
+│       ├── singleton.rs         # Global state management
+│       ├── state.rs             # Engine state
+│       ├── tick.rs              # Frame update logic
+│       ├── platforms/           # Platform proxies
+│       │   ├── desktop/         # Winit + native input
+│       │   └── browser/         # DOM canvas + web input
+│       ├── window/              # Window commands/events/state
+│       ├── input/               # Keyboard/pointer events + cache
+│       ├── gamepad/             # Gamepad events + cache
+│       ├── render/              # Rendering system
+│       └── resources/           # Camera/model/light/material/texture
 │
-├── docs/                      # Documentation
-│   ├── OVERVIEW.md           # High-level overview
-│   ├── ABI.md                # C-ABI specification
-│   ├── ARCH.md               # Architecture & lifecycle
-│   ├── API.md                # Internal Rust API
-│   ├── GLOSSARY.md           # Terminology reference
-│   ├── MASCOT-DEFINITION.md  # Mascot guidelines
-│   └── UI.md                 # UI design guidelines
-│
-├── assets/                    # Visual resources
-│   └── brand.svg             # Vulfram logo
-│
-├── Cargo.toml                 # Rust dependencies
-└── README.md                  # This file
+├── docs/                        # Documentation
+├── assets/                      # Visual resources
+├── wen-test/                    # WASM test harness (Vite)
+├── Cargo.toml                   # Rust dependencies
+└── README.md                    # This file
 ```
 
 ---
@@ -415,6 +404,7 @@ Comprehensive documentation is available in the `docs/` folder.
 
 - **[MASCOT-DEFINITION.md](docs/MASCOT-DEFINITION.md)** - Brand mascot guidelines
 - **[UI.md](docs/UI.md)** - User interface design guidelines
+- **[PLATFORM-PROXIES.md](docs/PLATFORM-PROXIES.md)** - Platform proxy architecture
 - **[Copilot Instructions](.github/copilot-instructions.md)** - Development patterns and memory
 
 ---

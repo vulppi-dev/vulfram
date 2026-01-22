@@ -161,7 +161,6 @@ pub fn engine_cmd_material_update(
                     .get_mut(&args.material_id)
                 {
                     pack_standard_material(args.material_id, &opts, record);
-                    record.bind_group = None;
                     record.mark_dirty();
                 }
             }
@@ -173,7 +172,6 @@ pub fn engine_cmd_material_update(
                     .get_mut(&args.material_id)
                 {
                     pack_pbr_material(args.material_id, &opts, record);
-                    record.bind_group = None;
                     record.mark_dirty();
                 }
             }

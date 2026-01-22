@@ -11,6 +11,7 @@ pub(crate) fn pack_standard_material(
     opts: &StandardOptions,
     record: &mut MaterialStandardRecord,
 ) {
+    let previous_texture_ids = record.texture_ids;
     let inputs_offset = material_id.saturating_mul(STANDARD_INPUTS_PER_MATERIAL);
 
     record.data = MaterialStandardParams::default();
@@ -112,6 +113,9 @@ pub(crate) fn pack_standard_material(
     record.data.atlas_scale_bias = atlas_scale_bias;
 
     record.surface_type = opts.surface_type;
+    if record.texture_ids != previous_texture_ids {
+        record.bind_group = None;
+    }
     if record.inputs.len() != STANDARD_INPUTS_PER_MATERIAL as usize {
         record.inputs = vec![Vec4::ZERO; STANDARD_INPUTS_PER_MATERIAL as usize];
     }
@@ -128,6 +132,7 @@ pub(crate) fn pack_pbr_material(
     opts: &PbrOptions,
     record: &mut MaterialPbrRecord,
 ) {
+    let previous_texture_ids = record.texture_ids;
     let inputs_offset = material_id.saturating_mul(PBR_INPUTS_PER_MATERIAL);
 
     record.data = MaterialPbrParams::default();
@@ -238,6 +243,9 @@ pub(crate) fn pack_pbr_material(
     record.data.atlas_scale_bias = atlas_scale_bias;
 
     record.surface_type = opts.surface_type;
+    if record.texture_ids != previous_texture_ids {
+        record.bind_group = None;
+    }
     if record.inputs.len() != PBR_INPUTS_PER_MATERIAL as usize {
         record.inputs = vec![Vec4::ZERO; PBR_INPUTS_PER_MATERIAL as usize];
     }

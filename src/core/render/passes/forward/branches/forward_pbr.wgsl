@@ -119,6 +119,10 @@ const TEX_NORMAL: u32 = 1u;
 const TEX_METAL_ROUGH: u32 = 2u;
 const TEX_EMISSIVE: u32 = 3u;
 const TEX_AO: u32 = 4u;
+const SAMPLER_POINT_CLAMP: u32 = 0u;
+const SAMPLER_LINEAR_CLAMP: u32 = 1u;
+const SAMPLER_POINT_REPEAT: u32 = 2u;
+const SAMPLER_LINEAR_REPEAT: u32 = 3u;
 const TEX_SOURCE_STANDALONE: u32 = 0u;
 const TEX_SOURCE_ATLAS: u32 = 1u;
 const TEX_SOURCE_INVALID: u32 = 2u;
@@ -143,51 +147,51 @@ fn sample_color(tex_slot: u32, sampler_index: u32, uv: vec2<f32>) -> vec4<f32> {
         return vec4<f32>(1.0);
     }
     if (tex_slot == 0u) {
-        if (sampler_index == 0u) { return textureSample(material_tex0, point_clamp_sampler, uv); }
-        if (sampler_index == 1u) { return textureSample(material_tex0, linear_clamp_sampler, uv); }
-        if (sampler_index == 2u) { return textureSample(material_tex0, point_repeat_sampler, uv); }
+        if (sampler_index == SAMPLER_POINT_CLAMP) { return textureSample(material_tex0, point_clamp_sampler, uv); }
+        if (sampler_index == SAMPLER_LINEAR_CLAMP) { return textureSample(material_tex0, linear_clamp_sampler, uv); }
+        if (sampler_index == SAMPLER_POINT_REPEAT) { return textureSample(material_tex0, point_repeat_sampler, uv); }
         return textureSample(material_tex0, linear_repeat_sampler, uv);
     }
     if (tex_slot == 1u) {
-        if (sampler_index == 0u) { return textureSample(material_tex1, point_clamp_sampler, uv); }
-        if (sampler_index == 1u) { return textureSample(material_tex1, linear_clamp_sampler, uv); }
-        if (sampler_index == 2u) { return textureSample(material_tex1, point_repeat_sampler, uv); }
+        if (sampler_index == SAMPLER_POINT_CLAMP) { return textureSample(material_tex1, point_clamp_sampler, uv); }
+        if (sampler_index == SAMPLER_LINEAR_CLAMP) { return textureSample(material_tex1, linear_clamp_sampler, uv); }
+        if (sampler_index == SAMPLER_POINT_REPEAT) { return textureSample(material_tex1, point_repeat_sampler, uv); }
         return textureSample(material_tex1, linear_repeat_sampler, uv);
     }
     if (tex_slot == 2u) {
-        if (sampler_index == 0u) { return textureSample(material_tex2, point_clamp_sampler, uv); }
-        if (sampler_index == 1u) { return textureSample(material_tex2, linear_clamp_sampler, uv); }
-        if (sampler_index == 2u) { return textureSample(material_tex2, point_repeat_sampler, uv); }
+        if (sampler_index == SAMPLER_POINT_CLAMP) { return textureSample(material_tex2, point_clamp_sampler, uv); }
+        if (sampler_index == SAMPLER_LINEAR_CLAMP) { return textureSample(material_tex2, linear_clamp_sampler, uv); }
+        if (sampler_index == SAMPLER_POINT_REPEAT) { return textureSample(material_tex2, point_repeat_sampler, uv); }
         return textureSample(material_tex2, linear_repeat_sampler, uv);
     }
     if (tex_slot == 3u) {
-        if (sampler_index == 0u) { return textureSample(material_tex3, point_clamp_sampler, uv); }
-        if (sampler_index == 1u) { return textureSample(material_tex3, linear_clamp_sampler, uv); }
-        if (sampler_index == 2u) { return textureSample(material_tex3, point_repeat_sampler, uv); }
+        if (sampler_index == SAMPLER_POINT_CLAMP) { return textureSample(material_tex3, point_clamp_sampler, uv); }
+        if (sampler_index == SAMPLER_LINEAR_CLAMP) { return textureSample(material_tex3, linear_clamp_sampler, uv); }
+        if (sampler_index == SAMPLER_POINT_REPEAT) { return textureSample(material_tex3, point_repeat_sampler, uv); }
         return textureSample(material_tex3, linear_repeat_sampler, uv);
     }
     if (tex_slot == 4u) {
-        if (sampler_index == 0u) { return textureSample(material_tex4, point_clamp_sampler, uv); }
-        if (sampler_index == 1u) { return textureSample(material_tex4, linear_clamp_sampler, uv); }
-        if (sampler_index == 2u) { return textureSample(material_tex4, point_repeat_sampler, uv); }
+        if (sampler_index == SAMPLER_POINT_CLAMP) { return textureSample(material_tex4, point_clamp_sampler, uv); }
+        if (sampler_index == SAMPLER_LINEAR_CLAMP) { return textureSample(material_tex4, linear_clamp_sampler, uv); }
+        if (sampler_index == SAMPLER_POINT_REPEAT) { return textureSample(material_tex4, point_repeat_sampler, uv); }
         return textureSample(material_tex4, linear_repeat_sampler, uv);
     }
     if (tex_slot == 5u) {
-        if (sampler_index == 0u) { return textureSample(material_tex5, point_clamp_sampler, uv); }
-        if (sampler_index == 1u) { return textureSample(material_tex5, linear_clamp_sampler, uv); }
-        if (sampler_index == 2u) { return textureSample(material_tex5, point_repeat_sampler, uv); }
+        if (sampler_index == SAMPLER_POINT_CLAMP) { return textureSample(material_tex5, point_clamp_sampler, uv); }
+        if (sampler_index == SAMPLER_LINEAR_CLAMP) { return textureSample(material_tex5, linear_clamp_sampler, uv); }
+        if (sampler_index == SAMPLER_POINT_REPEAT) { return textureSample(material_tex5, point_repeat_sampler, uv); }
         return textureSample(material_tex5, linear_repeat_sampler, uv);
     }
     if (tex_slot == 6u) {
-        if (sampler_index == 0u) { return textureSample(material_tex6, point_clamp_sampler, uv); }
-        if (sampler_index == 1u) { return textureSample(material_tex6, linear_clamp_sampler, uv); }
-        if (sampler_index == 2u) { return textureSample(material_tex6, point_repeat_sampler, uv); }
+        if (sampler_index == SAMPLER_POINT_CLAMP) { return textureSample(material_tex6, point_clamp_sampler, uv); }
+        if (sampler_index == SAMPLER_LINEAR_CLAMP) { return textureSample(material_tex6, linear_clamp_sampler, uv); }
+        if (sampler_index == SAMPLER_POINT_REPEAT) { return textureSample(material_tex6, point_repeat_sampler, uv); }
         return textureSample(material_tex6, linear_repeat_sampler, uv);
     }
     if (tex_slot == 7u) {
-        if (sampler_index == 0u) { return textureSample(material_tex7, point_clamp_sampler, uv); }
-        if (sampler_index == 1u) { return textureSample(material_tex7, linear_clamp_sampler, uv); }
-        if (sampler_index == 2u) { return textureSample(material_tex7, point_repeat_sampler, uv); }
+        if (sampler_index == SAMPLER_POINT_CLAMP) { return textureSample(material_tex7, point_clamp_sampler, uv); }
+        if (sampler_index == SAMPLER_LINEAR_CLAMP) { return textureSample(material_tex7, linear_clamp_sampler, uv); }
+        if (sampler_index == SAMPLER_POINT_REPEAT) { return textureSample(material_tex7, point_repeat_sampler, uv); }
         return textureSample(material_tex7, linear_repeat_sampler, uv);
     }
     return vec4<f32>(1.0);
@@ -195,9 +199,9 @@ fn sample_color(tex_slot: u32, sampler_index: u32, uv: vec2<f32>) -> vec4<f32> {
 
 fn sample_atlas(sampler_index: u32, uv: vec2<f32>, layer: u32) -> vec4<f32> {
     let layer_i = i32(layer);
-    if (sampler_index == 0u) { return textureSample(forward_atlas, point_clamp_sampler, uv, layer_i); }
-    if (sampler_index == 1u) { return textureSample(forward_atlas, linear_clamp_sampler, uv, layer_i); }
-    if (sampler_index == 2u) { return textureSample(forward_atlas, point_repeat_sampler, uv, layer_i); }
+    if (sampler_index == SAMPLER_POINT_CLAMP) { return textureSample(forward_atlas, point_clamp_sampler, uv, layer_i); }
+    if (sampler_index == SAMPLER_LINEAR_CLAMP) { return textureSample(forward_atlas, linear_clamp_sampler, uv, layer_i); }
+    if (sampler_index == SAMPLER_POINT_REPEAT) { return textureSample(forward_atlas, point_repeat_sampler, uv, layer_i); }
     return textureSample(forward_atlas, linear_repeat_sampler, uv, layer_i);
 }
 
@@ -577,12 +581,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let emissive_tex = sample_material(emissive_slot, emissive_sampler, in.uv0);
     let emissive = emissive_color * emissive_tex.rgb;
 
-    let normal_slot = get_slot(material.texture_slots, TEX_NORMAL);
-    let normal_sampler = get_slot(material.sampler_indices, TEX_NORMAL);
-    let n_geom = normalize(in.normal);
-    let n = apply_normal_map(in.normal, in.world_position, in.uv0, normal_slot, normal_sampler, normal_scale);
-    let v = normalize(camera.position.xyz - in.world_position);
-
     let cam = light_params.camera_index;
     let base = cam * light_params.max_lights_per_camera;
     let count = min(visible_counts[cam], light_params.max_lights_per_camera);
@@ -590,19 +588,34 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var lighting = vec3<f32>(0.0);
     var ambient = vec3<f32>(0.0);
     if (count > 0u) {
+        let normal_slot = get_slot(material.texture_slots, TEX_NORMAL);
+        let normal_sampler = get_slot(material.sampler_indices, TEX_NORMAL);
+        let n_geom = normalize(in.normal);
+        let n = apply_normal_map(in.normal, in.world_position, in.uv0, normal_slot, normal_sampler, normal_scale);
+        let v = normalize(camera.position.xyz - in.world_position);
         for (var i = 0u; i < count; i++) {
             let idx = visible_indices[base + i];
             let light = lights[idx];
             let kind = light.kind_flags.x;
-            let is_ambient = kind == 3u;
-            let is_hemi = kind == 4u;
-            let pbr = pbr_lighting(light, n, n_geom, v, in.world_position, albedo, metallic, roughness, in.instance_id);
-            lighting += select(vec3<f32>(0.0), pbr, kind <= 2u);
-            ambient += select(vec3<f32>(0.0), light.color.rgb * light.intensity_range.x, is_ambient);
-            let up = normalize(light.direction.xyz);
-            let w = dot(n, up) * 0.5 + 0.5;
-            let hemi = mix(light.ground_color.rgb, light.color.rgb, w) * light.intensity_range.x;
-            ambient += select(vec3<f32>(0.0), hemi, is_hemi);
+            if (kind <= 2u) {
+                lighting += pbr_lighting(
+                    light,
+                    n,
+                    n_geom,
+                    v,
+                    in.world_position,
+                    albedo,
+                    metallic,
+                    roughness,
+                    in.instance_id
+                );
+            } else if (kind == 3u) {
+                ambient += light.color.rgb * light.intensity_range.x;
+            } else if (kind == 4u) {
+                let up = normalize(light.direction.xyz);
+                let w = dot(n, up) * 0.5 + 0.5;
+                ambient += mix(light.ground_color.rgb, light.color.rgb, w) * light.intensity_range.x;
+            }
         }
     }
 

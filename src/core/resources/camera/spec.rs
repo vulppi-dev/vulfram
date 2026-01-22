@@ -213,6 +213,7 @@ pub struct CameraRecord {
     pub layer_mask: u32,
     pub order: i32,
     pub is_dirty: bool,
+    pub ortho_scale: f32,
     pub render_target: Option<RenderTarget>,
     pub view_position: Option<ViewPosition>,
 }
@@ -224,6 +225,7 @@ impl CameraRecord {
         layer_mask: u32,
         order: i32,
         view_position: Option<ViewPosition>,
+        ortho_scale: f32,
     ) -> Self {
         Self {
             label,
@@ -231,6 +233,7 @@ impl CameraRecord {
             layer_mask,
             order,
             is_dirty: true,
+            ortho_scale,
             render_target: None,
             view_position,
         }

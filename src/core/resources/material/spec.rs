@@ -17,6 +17,9 @@ pub const STANDARD_INVALID_SLOT: u32 = u32::MAX;
 pub const PBR_INPUTS_PER_MATERIAL: u32 = 8;
 pub const PBR_TEXTURE_SLOTS: usize = 8;
 pub const PBR_INVALID_SLOT: u32 = u32::MAX;
+pub const TEX_SOURCE_STANDALONE: u32 = 0;
+pub const TEX_SOURCE_ATLAS: u32 = 1;
+pub const TEX_SOURCE_INVALID: u32 = 2;
 
 #[derive(Debug, Clone, Copy, Pod, Zeroable, Deserialize, Serialize)]
 #[repr(C)]
@@ -39,7 +42,7 @@ impl Default for MaterialStandardParams {
             surface_flags: glam::UVec2::new(SurfaceType::Opaque as u32, 0),
             texture_slots: [glam::UVec4::splat(STANDARD_INVALID_SLOT); 2],
             sampler_indices: [glam::UVec4::ZERO; 2],
-            tex_sources: [glam::UVec4::splat(2); 2],
+            tex_sources: [glam::UVec4::splat(TEX_SOURCE_INVALID); 2],
             atlas_layers: [glam::UVec4::ZERO; 2],
             atlas_scale_bias: [glam::Vec4::new(1.0, 1.0, 0.0, 0.0); STANDARD_TEXTURE_SLOTS],
         }
@@ -67,7 +70,7 @@ impl Default for MaterialPbrParams {
             surface_flags: glam::UVec2::new(SurfaceType::Opaque as u32, 0),
             texture_slots: [glam::UVec4::splat(PBR_INVALID_SLOT); 2],
             sampler_indices: [glam::UVec4::ZERO; 2],
-            tex_sources: [glam::UVec4::splat(2); 2],
+            tex_sources: [glam::UVec4::splat(TEX_SOURCE_INVALID); 2],
             atlas_layers: [glam::UVec4::ZERO; 2],
             atlas_scale_bias: [glam::Vec4::new(1.0, 1.0, 0.0, 0.0); PBR_TEXTURE_SLOTS],
         }

@@ -218,7 +218,7 @@ pub fn engine_cmd_window_create_async(
 
         let mut render_state = crate::core::render::RenderState::new(format);
         render_state.init(&device, &queue, format);
-        render_state.on_resize(window_width, window_height);
+        render_state.on_resize(&device, window_width, window_height);
 
         let listeners =
             crate::core::platforms::browser::input::attach_canvas_listeners(win_id, &canvas_clone);
@@ -443,7 +443,7 @@ pub fn engine_cmd_window_create(
             render_state.init(device, queue, format);
 
             // Initialize size-dependent resources (like depth buffer)
-            render_state.on_resize(window_width, window_height);
+            render_state.on_resize(device, window_width, window_height);
         }
     }
 

@@ -1,7 +1,8 @@
 use super::super::RenderState;
 use crate::core::resources::{
     MaterialPbrParams, MaterialStandardParams, PBR_INVALID_SLOT, PBR_TEXTURE_SLOTS,
-    STANDARD_INVALID_SLOT, STANDARD_TEXTURE_SLOTS,
+    STANDARD_INVALID_SLOT, STANDARD_TEXTURE_SLOTS, TEX_SOURCE_ATLAS, TEX_SOURCE_INVALID,
+    TEX_SOURCE_STANDALONE,
 };
 
 impl RenderState {
@@ -26,17 +27,17 @@ impl RenderState {
 
             for slot in 0..STANDARD_TEXTURE_SLOTS {
                 let tex_id = record.texture_ids[slot];
-                let mut desired_source = 2u32;
+                let mut desired_source = TEX_SOURCE_INVALID;
                 let mut desired_layer = 0u32;
                 let mut desired_scale_bias = glam::Vec4::new(1.0, 1.0, 0.0, 0.0);
 
                 if tex_id != STANDARD_INVALID_SLOT {
                     if let Some(entry) = self.scene.forward_atlas_entries.get(&tex_id) {
-                        desired_source = 1;
+                        desired_source = TEX_SOURCE_ATLAS;
                         desired_layer = entry.layer;
                         desired_scale_bias = entry.uv_scale_bias;
                     } else {
-                        desired_source = 0;
+                        desired_source = TEX_SOURCE_STANDALONE;
                     }
                 }
 
@@ -161,17 +162,17 @@ impl RenderState {
 
             for slot in 0..PBR_TEXTURE_SLOTS {
                 let tex_id = record.texture_ids[slot];
-                let mut desired_source = 2u32;
+                let mut desired_source = TEX_SOURCE_INVALID;
                 let mut desired_layer = 0u32;
                 let mut desired_scale_bias = glam::Vec4::new(1.0, 1.0, 0.0, 0.0);
 
                 if tex_id != PBR_INVALID_SLOT {
                     if let Some(entry) = self.scene.forward_atlas_entries.get(&tex_id) {
-                        desired_source = 1;
+                        desired_source = TEX_SOURCE_ATLAS;
                         desired_layer = entry.layer;
                         desired_scale_bias = entry.uv_scale_bias;
                     } else {
-                        desired_source = 0;
+                        desired_source = TEX_SOURCE_STANDALONE;
                     }
                 }
 

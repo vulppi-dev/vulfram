@@ -80,6 +80,7 @@ pub fn engine_cmd_camera_create(
             args.layer_mask,
             args.order,
             args.view_position.clone(),
+            args.ortho_scale,
         );
         if let Some(device) = engine.device.as_ref() {
             let size = wgpu::Extent3d {
@@ -163,8 +164,10 @@ pub fn engine_cmd_camera_update(
                 .map(|vp| vp.resolve_size(window_state.config.width, window_state.config.height))
                 .unwrap_or((window_state.config.width, window_state.config.height));
 
-            // Get ortho_scale from args or use default
-            let ortho_scale = args.ortho_scale.unwrap_or(10.0);
+            if let Some(ortho_scale) = args.ortho_scale {
+                record.ortho_scale = ortho_scale;
+            }
+            let ortho_scale = record.ortho_scale;
 
             // Update camera component
             record.data.update(
@@ -175,6 +178,25 @@ pub fn engine_cmd_camera_update(
                 (target_width, target_height),
                 ortho_scale,
             );
+
+            if let Some(device) = engine.device.as_ref() {
+                let needs_target = match record.render_target.as_ref() {
+                    Some(target) => {
+                        let size = target._texture.size();
+                        size.width != target_width || size.height != target_height
+                    }
+                    None => true,
+                };
+                if needs_target {
+                    let size = wgpu::Extent3d {
+                        width: target_width,
+                        height: target_height,
+                        depth_or_array_layers: 1,
+                    };
+                    let target = RenderTarget::new(device, size, wgpu::TextureFormat::Rgba16Float);
+                    record.set_render_target(target);
+                }
+            }
 
             if let Some(layer_mask) = args.layer_mask {
                 record.layer_mask = layer_mask;

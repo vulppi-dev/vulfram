@@ -32,8 +32,8 @@ pub fn attach_canvas_listeners(
                 window_state.config.height = height;
                 if let Some(device) = engine.device.as_ref() {
                     window_state.surface.configure(device, &window_state.config);
+                    window_state.render_state.on_resize(device, width, height);
                 }
-                window_state.render_state.on_resize(width, height);
                 window_state.inner_size = glam::UVec2::new(width, height);
                 window_state.outer_size = glam::UVec2::new(width, height);
                 window_state.is_dirty = true;

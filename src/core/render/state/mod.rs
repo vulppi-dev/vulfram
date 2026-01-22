@@ -38,8 +38,56 @@ pub struct RenderState {
 
 impl RenderState {
     #[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
-    pub fn on_resize(&mut self, _width: u32, _height: u32) {
+    pub fn on_resize(&mut self, device: &wgpu::Device, width: u32, height: u32) {
         // Depth target is now managed per-frame or lazily by passes
         self.forward_depth_target = None;
+
+        let mut any_camera_dirty = false;
+        for record in self.scene.cameras.values_mut() {
+            let (target_width, target_height) = record
+                .view_position
+                .as_ref()
+                .map(|vp| vp.resolve_size(width, height))
+                .unwrap_or((width, height));
+
+            let needs_target = match record.render_target.as_ref() {
+                Some(target) => {
+                    let size = target._texture.size();
+                    size.width != target_width || size.height != target_height
+                }
+                None => true,
+            };
+
+            if needs_target {
+                let size = wgpu::Extent3d {
+                    width: target_width,
+                    height: target_height,
+                    depth_or_array_layers: 1,
+                };
+                let target = crate::core::resources::RenderTarget::new(
+                    device,
+                    size,
+                    wgpu::TextureFormat::Rgba16Float,
+                );
+                record.set_render_target(target);
+            }
+
+            record.data.update(
+                None,
+                None,
+                None,
+                None,
+                (target_width, target_height),
+                record.ortho_scale,
+            );
+            record.mark_dirty();
+            any_camera_dirty = true;
+        }
+
+        if any_camera_dirty {
+            if let Some(shadow) = self.shadow.as_mut() {
+                shadow.mark_dirty();
+            }
+        }
     }
 }

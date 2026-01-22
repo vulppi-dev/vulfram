@@ -2,7 +2,7 @@ use super::types::{MaterialSampler, PbrOptions, StandardOptions};
 use crate::core::resources::{
     MaterialPbrParams, MaterialPbrRecord, MaterialStandardParams, MaterialStandardRecord,
     PBR_INPUTS_PER_MATERIAL, PBR_INVALID_SLOT, PBR_TEXTURE_SLOTS, STANDARD_INPUTS_PER_MATERIAL,
-    STANDARD_INVALID_SLOT, STANDARD_TEXTURE_SLOTS,
+    STANDARD_INVALID_SLOT, STANDARD_TEXTURE_SLOTS, TEX_SOURCE_INVALID,
 };
 use glam::Vec4;
 
@@ -23,7 +23,8 @@ pub(crate) fn pack_standard_material(
 
     let mut texture_slots = [glam::UVec4::splat(STANDARD_INVALID_SLOT); 2];
     let mut sampler_indices = [glam::UVec4::ZERO; 2];
-    let mut tex_sources = [glam::UVec4::splat(2); 2];
+    // Source is resolved internally in prepare_materials based on atlas availability.
+    let tex_sources = [glam::UVec4::splat(TEX_SOURCE_INVALID); 2];
     let atlas_layers = [glam::UVec4::ZERO; 2];
     let atlas_scale_bias = [glam::Vec4::new(1.0, 1.0, 0.0, 0.0); STANDARD_TEXTURE_SLOTS];
     record.texture_ids = [STANDARD_INVALID_SLOT; STANDARD_TEXTURE_SLOTS];
@@ -59,7 +60,6 @@ pub(crate) fn pack_standard_material(
         if slot < STANDARD_TEXTURE_SLOTS {
             record.texture_ids[slot] = tex_id;
             assign_slot(&mut texture_slots, 0, slot as u32);
-            assign_slot(&mut tex_sources, 0, 0);
             assign_sampler(
                 &mut sampler_indices,
                 0,
@@ -72,7 +72,6 @@ pub(crate) fn pack_standard_material(
         if slot < STANDARD_TEXTURE_SLOTS {
             record.texture_ids[slot] = tex_id;
             assign_slot(&mut texture_slots, 1, slot as u32);
-            assign_slot(&mut tex_sources, 1, 0);
             assign_sampler(
                 &mut sampler_indices,
                 1,
@@ -85,7 +84,6 @@ pub(crate) fn pack_standard_material(
         if slot < STANDARD_TEXTURE_SLOTS {
             record.texture_ids[slot] = tex_id;
             assign_slot(&mut texture_slots, 2, slot as u32);
-            assign_slot(&mut tex_sources, 2, 0);
             assign_sampler(
                 &mut sampler_indices,
                 2,
@@ -98,7 +96,6 @@ pub(crate) fn pack_standard_material(
         if slot < STANDARD_TEXTURE_SLOTS {
             record.texture_ids[slot] = tex_id;
             assign_slot(&mut texture_slots, 3, slot as u32);
-            assign_slot(&mut tex_sources, 3, 0);
             assign_sampler(
                 &mut sampler_indices,
                 3,
@@ -139,7 +136,8 @@ pub(crate) fn pack_pbr_material(
 
     let mut texture_slots = [glam::UVec4::splat(PBR_INVALID_SLOT); 2];
     let mut sampler_indices = [glam::UVec4::ZERO; 2];
-    let mut tex_sources = [glam::UVec4::splat(2); 2];
+    // Source is resolved internally in prepare_materials based on atlas availability.
+    let tex_sources = [glam::UVec4::splat(TEX_SOURCE_INVALID); 2];
     let atlas_layers = [glam::UVec4::ZERO; 2];
     let atlas_scale_bias = [glam::Vec4::new(1.0, 1.0, 0.0, 0.0); PBR_TEXTURE_SLOTS];
     record.texture_ids = [PBR_INVALID_SLOT; PBR_TEXTURE_SLOTS];
@@ -175,7 +173,6 @@ pub(crate) fn pack_pbr_material(
         if slot < PBR_TEXTURE_SLOTS {
             record.texture_ids[slot] = tex_id;
             assign_slot(&mut texture_slots, 0, slot as u32);
-            assign_slot(&mut tex_sources, 0, 0);
             assign_sampler(
                 &mut sampler_indices,
                 0,
@@ -188,7 +185,6 @@ pub(crate) fn pack_pbr_material(
         if slot < PBR_TEXTURE_SLOTS {
             record.texture_ids[slot] = tex_id;
             assign_slot(&mut texture_slots, 1, slot as u32);
-            assign_slot(&mut tex_sources, 1, 0);
             assign_sampler(
                 &mut sampler_indices,
                 1,
@@ -201,7 +197,6 @@ pub(crate) fn pack_pbr_material(
         if slot < PBR_TEXTURE_SLOTS {
             record.texture_ids[slot] = tex_id;
             assign_slot(&mut texture_slots, 2, slot as u32);
-            assign_slot(&mut tex_sources, 2, 0);
             assign_sampler(
                 &mut sampler_indices,
                 2,
@@ -215,7 +210,6 @@ pub(crate) fn pack_pbr_material(
         if slot < PBR_TEXTURE_SLOTS {
             record.texture_ids[slot] = tex_id;
             assign_slot(&mut texture_slots, 3, slot as u32);
-            assign_slot(&mut tex_sources, 3, 0);
             assign_sampler(
                 &mut sampler_indices,
                 3,
@@ -229,7 +223,6 @@ pub(crate) fn pack_pbr_material(
         if slot < PBR_TEXTURE_SLOTS {
             record.texture_ids[slot] = tex_id;
             assign_slot(&mut texture_slots, 4, slot as u32);
-            assign_slot(&mut tex_sources, 4, 0);
             assign_sampler(
                 &mut sampler_indices,
                 4,

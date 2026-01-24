@@ -45,14 +45,14 @@ pub fn generate_sphere(options: &SphereOptions) -> Vec<(GeometryPrimitiveType, V
         for _ in 0..sectors {
             if i != 0 {
                 indices.push(k1 as u32);
-                indices.push(k2 as u32);
                 indices.push(k1 as u32 + 1);
+                indices.push(k2 as u32);
             }
 
             if i != (stacks - 1) {
                 indices.push(k1 as u32 + 1);
-                indices.push(k2 as u32);
                 indices.push(k2 as u32 + 1);
+                indices.push(k2 as u32);
             }
             k1 += 1;
             k2 += 1;

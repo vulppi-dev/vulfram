@@ -114,8 +114,8 @@ pub fn engine_cmd_window_create_async(
         }
     };
 
-    let window_width = args.size.x.max(1);
-    let window_height = args.size.y.max(1);
+    let window_width = canvas.client_width().max(1) as u32;
+    let window_height = canvas.client_height().max(1) as u32;
     canvas.set_width(window_width);
     canvas.set_height(window_height);
 

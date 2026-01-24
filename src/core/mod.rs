@@ -37,6 +37,7 @@ pub enum VulframResult {
     NotInitialized,
     AlreadyInitialized,
     WrongThread,
+    NotInBrowser,
     CmdInvalidMessagePackError,
     BufferNotFound,
     BufferIdCollision,

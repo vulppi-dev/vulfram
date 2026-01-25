@@ -141,6 +141,7 @@ pub enum CommandResponse {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct EngineCmdEnvelope {
     pub id: u64,
     #[serde(flatten)]
@@ -148,6 +149,7 @@ pub struct EngineCmdEnvelope {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct CommandResponseEnvelope {
     pub id: u64,
     #[serde(flatten)]

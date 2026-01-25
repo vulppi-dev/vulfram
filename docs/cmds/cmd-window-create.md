@@ -17,9 +17,9 @@ attach to an existing `<canvas>` element.
 | borderless   | bool              | (Optional) Whether to hide decorations (default: false)                  |
 | resizable    | bool              | (Optional) Whether the window can be resized (default: false)            |
 | transparent  | bool              | (Optional) Whether the window background is transparent (default: false) |
-| initialState | EngineWindowState | (Optional) Initial state (default: Windowed=2)                           |
+| initialState | EngineWindowState | (Optional) Initial state (default: "windowed")                          |
 
-Initial State mapping: Minimized=0, Maximized=1, Windowed=2, Fullscreen=3, WindowedFullscreen=4.
+Initial State mapping: "minimized", "maximized", "windowed", "fullscreen", "windowed-fullscreen".
 
 ## Response
 

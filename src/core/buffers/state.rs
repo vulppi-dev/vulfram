@@ -1,8 +1,8 @@
-use serde_repr::{Deserialize_repr, Serialize_repr};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize_repr, Serialize_repr)]
-#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum UploadType {
     Raw = 0,
     ShaderSource,
@@ -14,6 +14,18 @@ pub enum UploadType {
 }
 
 impl UploadType {
+    pub fn to_u32(self) -> u32 {
+        match self {
+            UploadType::Raw => 0,
+            UploadType::ShaderSource => 1,
+            UploadType::GeometryData => 2,
+            UploadType::VertexData => 3,
+            UploadType::IndexData => 4,
+            UploadType::ImageData => 5,
+            UploadType::BinaryAsset => 6,
+        }
+    }
+
     pub fn from_u32(value: u32) -> Option<Self> {
         match value {
             0 => Some(UploadType::Raw),

@@ -586,7 +586,7 @@ fn upload_texture(path: &str, buffer_id: u64) {
     assert_eq!(
         core::vulfram_upload_buffer(
             buffer_id,
-            UploadType::ImageData as u32,
+            UploadType::ImageData.to_u32(),
             texture_bytes.as_ptr(),
             texture_bytes.len()
         ),
@@ -599,7 +599,7 @@ fn upload_buffer<T: bytemuck::Pod>(buffer_id: u64, upload_type: UploadType, data
     assert_eq!(
         core::vulfram_upload_buffer(
             buffer_id,
-            upload_type as u32,
+            upload_type.to_u32(),
             bytes.as_ptr() as *const u8,
             bytes.len()
         ),

@@ -172,7 +172,7 @@ pub fn engine_cmd_light_update(
     }
 
     if let Some(kind) = args.kind {
-        record.data.kind_flags.x = kind as u32;
+        record.data.kind_flags.x = kind.to_u32();
     }
 
     if let Some(cast_shadow) = args.cast_shadow {

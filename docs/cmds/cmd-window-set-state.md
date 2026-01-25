@@ -1,6 +1,6 @@
 # CmdWindowSetState
 
-Sets the state of a window (Minimized, Maximized, Fullscreen, etc.).
+Sets the state of a window ("minimized", "maximized", "fullscreen", etc.).
 
 ## Platform Notes
 
@@ -11,7 +11,7 @@ Sets the state of a window (Minimized, Maximized, Fullscreen, etc.).
 | Field    | Type              | Description                                                                             |
 | -------- | ----------------- | --------------------------------------------------------------------------------------- |
 | windowId | u32               | ID of the window                                                                        |
-| state    | EngineWindowState | Target state (Minimized=0, Maximized=1, Windowed=2, Fullscreen=3, WindowedFullscreen=4) |
+| state    | EngineWindowState | Target state ("minimized", "maximized", "windowed", "fullscreen", "windowed-fullscreen") |
 
 ## Response
 

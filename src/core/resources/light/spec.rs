@@ -1,10 +1,9 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, UVec2, Vec2, Vec4};
 use serde::{Deserialize, Serialize};
-use serde_repr::{Deserialize_repr, Serialize_repr};
 
-#[derive(Debug, Clone, Copy, Deserialize_repr, Serialize_repr)]
-#[repr(u32)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum LightKind {
     Directional = 0,
     Point,
@@ -13,7 +12,31 @@ pub enum LightKind {
     Hemisphere,
 }
 
+impl LightKind {
+    pub fn to_u32(self) -> u32 {
+        match self {
+            LightKind::Directional => 0,
+            LightKind::Point => 1,
+            LightKind::Spot => 2,
+            LightKind::Ambient => 3,
+            LightKind::Hemisphere => 4,
+        }
+    }
+
+    pub fn from_u32(value: u32) -> Option<Self> {
+        match value {
+            0 => Some(LightKind::Directional),
+            1 => Some(LightKind::Point),
+            2 => Some(LightKind::Spot),
+            3 => Some(LightKind::Ambient),
+            4 => Some(LightKind::Hemisphere),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Pod, Zeroable, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[repr(C)]
 pub struct LightComponent {
     pub position: Vec4,
@@ -62,7 +85,7 @@ impl LightComponent {
             view_projection: projection * view,
             intensity_range: Vec2::new(intensity, range),
             spot_inner_outer,
-            kind_flags: UVec2::new(kind as u32, flags),
+            kind_flags: UVec2::new(kind.to_u32(), flags),
             shadow_index: 0xFFFFFFFF,
             _padding: 0,
         }

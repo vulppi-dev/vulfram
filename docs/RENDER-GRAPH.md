@@ -21,7 +21,7 @@ This document describes the host-facing render graph format. The host builds a g
 
 | Field       | Type        | Description |
 |------------|-------------|-------------|
-| graph_id   | LogicalId    | Logical graph identifier (cache key) |
+| graphId    | LogicalId    | Logical graph identifier (cache key) |
 | nodes      | Node[]       | Render nodes |
 | edges      | Edge[]       | Dependencies between nodes |
 | resources  | Resource[]   | Declared resources |
@@ -31,8 +31,8 @@ This document describes the host-facing render graph format. The host builds a g
 
 | Field     | Type        | Description |
 |----------|-------------|-------------|
-| node_id  | LogicalId    | Logical node identifier |
-| pass_id  | LogicalId    | Logical pass type (e.g., "forward") |
+| nodeId   | LogicalId    | Logical node identifier |
+| passId   | LogicalId    | Logical pass type (e.g., "forward") |
 | inputs   | LogicalId[]  | Resource IDs read by this node |
 | outputs  | LogicalId[]  | Resource IDs written by this node |
 | params   | Map          | Optional parameters (clear, flags, etc.) |
@@ -41,43 +41,43 @@ This document describes the host-facing render graph format. The host builds a g
 
 | Field       | Type      | Description |
 |------------|-----------|-------------|
-| res_id     | LogicalId  | Logical resource identifier |
+| resId      | LogicalId  | Logical resource identifier |
 | kind       | string     | "texture", "buffer", "attachment" |
 | desc       | Map        | Logical descriptor (format, size, usage) |
 | lifetime   | string     | "frame" or "persistent" |
-| alias_group| LogicalId? | Optional alias group for memory reuse |
+| aliasGroup | LogicalId? | Optional alias group for memory reuse |
 
 ### Edge
 
 | Field        | Type     | Description |
 |-------------|----------|-------------|
-| from_node_id| LogicalId| Dependency source |
-| to_node_id  | LogicalId| Dependency target |
+| fromNodeId | LogicalId| Dependency source |
+| toNodeId   | LogicalId| Dependency target |
 | reason      | string?  | Optional: "read_after_write", "write_after_read" |
 
 ### LogicalId
 
-Logical IDs can be strings or numeric values. The core maps them to internal IDs once per `graph_id` and caches the result to avoid per-frame cost.
+Logical IDs can be strings or numeric values. The core maps them to internal IDs once per `graphId` and caches the result to avoid per-frame cost.
 
 ## Minimal Example
 
 ```json
 {
-  "graph_id": "main_render",
+  "graphId": "main_render",
   "nodes": [
-    { "node_id": "shadow_pass", "pass_id": "shadow", "inputs": [], "outputs": ["shadow_atlas"] },
-    { "node_id": "forward_pass", "pass_id": "forward", "inputs": ["shadow_atlas"], "outputs": ["hdr_color", "depth"] },
-    { "node_id": "compose_pass", "pass_id": "compose", "inputs": ["hdr_color"], "outputs": ["swapchain"] }
+    { "nodeId": "shadow_pass", "passId": "shadow", "inputs": [], "outputs": ["shadow_atlas"] },
+    { "nodeId": "forward_pass", "passId": "forward", "inputs": ["shadow_atlas"], "outputs": ["hdr_color", "depth"] },
+    { "nodeId": "compose_pass", "passId": "compose", "inputs": ["hdr_color"], "outputs": ["swapchain"] }
   ],
   "edges": [
-    { "from_node_id": "shadow_pass", "to_node_id": "forward_pass" },
-    { "from_node_id": "forward_pass", "to_node_id": "compose_pass" }
+    { "fromNodeId": "shadow_pass", "toNodeId": "forward_pass" },
+    { "fromNodeId": "forward_pass", "toNodeId": "compose_pass" }
   ],
   "resources": [
-    { "res_id": "shadow_atlas", "kind": "texture", "desc": { "format": "depth24", "size": "shadow_res" }, "lifetime": "frame" },
-    { "res_id": "hdr_color", "kind": "texture", "desc": { "format": "rgba16f", "size": "screen" }, "lifetime": "frame" },
-    { "res_id": "depth", "kind": "texture", "desc": { "format": "depth24", "size": "screen" }, "lifetime": "frame" },
-    { "res_id": "swapchain", "kind": "attachment", "desc": { "format": "swapchain" }, "lifetime": "frame" }
+    { "resId": "shadow_atlas", "kind": "texture", "desc": { "format": "depth24", "size": "shadow_res" }, "lifetime": "frame" },
+    { "resId": "hdr_color", "kind": "texture", "desc": { "format": "rgba16f", "size": "screen" }, "lifetime": "frame" },
+    { "resId": "depth", "kind": "texture", "desc": { "format": "depth24", "size": "screen" }, "lifetime": "frame" },
+    { "resId": "swapchain", "kind": "attachment", "desc": { "format": "swapchain" }, "lifetime": "frame" }
   ],
   "fallback": true
 }
@@ -108,8 +108,7 @@ shadow -> forward -> compose
 
 ## Performance Notes
 
-- **Cache per graph_id**: Compile once, reuse execution plan and resource layout.
+- **Cache per graphId**: Compile once, reuse execution plan and resource layout.
 - **Alias groups**: Allow the core to reuse memory for non-overlapping resources.
 - **Frame lifetime**: `lifetime = "frame"` resources are recycled automatically.
 - **Minimal validation on hot path**: Validate only when the graph changes.
-

@@ -3,6 +3,7 @@ use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Pod, Zeroable, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[repr(C)]
 pub struct Aabb {
     pub min: Vec3,

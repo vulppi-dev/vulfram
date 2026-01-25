@@ -3,6 +3,7 @@ use glam::Vec4;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
 #[repr(u32)]
 pub enum SurfaceType {
     Opaque = 0,
@@ -22,6 +23,7 @@ pub const TEX_SOURCE_ATLAS: u32 = 1;
 pub const TEX_SOURCE_INVALID: u32 = 2;
 
 #[derive(Debug, Clone, Copy, Pod, Zeroable, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[repr(C)]
 pub struct MaterialStandardParams {
     pub input_indices: glam::UVec4,
@@ -50,6 +52,7 @@ impl Default for MaterialStandardParams {
 }
 
 #[derive(Debug, Clone, Copy, Pod, Zeroable, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[repr(C)]
 pub struct MaterialPbrParams {
     pub input_indices: glam::UVec4,

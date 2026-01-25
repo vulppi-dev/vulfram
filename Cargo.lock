@@ -3393,7 +3393,6 @@ dependencies = [
  "rand",
  "rmp-serde",
  "serde",
- "serde_repr",
  "smallvec",
  "wasm-bindgen",
  "wasm-bindgen-futures",

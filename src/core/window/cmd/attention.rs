@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use serde_repr::{Deserialize_repr, Serialize_repr};
 
 #[cfg(not(feature = "wasm"))]
 use crate::core::platform::winit;
@@ -8,8 +7,8 @@ use crate::core::state::EngineState;
 // MARK: - Request Attention
 
 /// User attention request types
-#[repr(u32)]
-#[derive(Debug, Deserialize_repr, Serialize_repr, Clone, Copy)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
+#[serde(rename_all = "kebab-case")]
 pub enum UserAttentionType {
     /// Urgent attention (e.g., bouncing icon, flashing taskbar continuously)
     Critical = 0,

@@ -4,9 +4,9 @@ Creates a texture from an uploaded image buffer.
 
 Notes:
 
-- `bufferId` must refer to an upload with `UploadType::ImageData`.
+- `bufferId` must refer to an upload with `uploadType = "image-data"`.
 - Supported formats: PNG, JPEG, WebP, AVIF.
-- If `mode` is `ForwardAtlas`, creation can fail if an atlas already exists
+- If `mode` is `forward-atlas`, creation can fail if an atlas already exists
   with a different configuration.
 
 ## Arguments
@@ -18,7 +18,7 @@ Notes:
 | label        | Option<String>              | (Optional) Semantic name                            |
 | bufferId     | u64                         | ID of the uploaded buffer containing image data     |
 | srgb         | Option<bool>                | (Optional) Use sRGB (default: true)                 |
-| mode         | TextureCreateMode           | (Optional) Standalone (0) or ForwardAtlas (1) (default: 0) |
+| mode         | TextureCreateMode           | (Optional) "standalone" or "forward-atlas" (default: "standalone") |
 | atlasOptions | Option<ForwardAtlasOptions> | (Optional) Options for atlas allocation             |
 
 ### ForwardAtlasOptions

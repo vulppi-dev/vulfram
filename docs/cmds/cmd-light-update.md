@@ -9,7 +9,7 @@ Updates an existing light's properties.
 | windowId       | u32               | ID of the window                    |
 | lightId        | u32               | ID of the light to update           |
 | label          | Option<String>    | (Optional) New semantic name        |
-| kind           | Option<LightKind> | (Optional) New light type           |
+| kind           | Option<LightKind> | (Optional) New light type ("point", "directional", "spot", "ambient", "hemisphere") |
 | position       | Option<Vec4>      | (Optional) New position             |
 | direction      | Option<Vec4>      | (Optional) New direction            |
 | color          | Option<Vec4>      | (Optional) New color                |

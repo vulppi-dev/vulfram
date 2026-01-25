@@ -9,9 +9,9 @@ Behavior:
 
 Validation rules for `entries`:
 
-- `Position` is required.
-- Maximum of 2 `UV` streams.
-- Duplicates (except `UV`) are rejected.
+- `position` is required.
+- Maximum of 2 `uv` streams.
+- Duplicates (except `uv`) are rejected.
 - All referenced `bufferId`s must exist in the upload table.
 
 Buffers are only removed from the upload table after a successful update.

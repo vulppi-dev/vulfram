@@ -20,7 +20,7 @@ pub enum NotificationLevel {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct CmdNotificationSendArgs {
     pub id: Option<String>,
     pub title: String,
@@ -30,7 +30,7 @@ pub struct CmdNotificationSendArgs {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct CmdResultNotificationSend {
     pub success: bool,
 }

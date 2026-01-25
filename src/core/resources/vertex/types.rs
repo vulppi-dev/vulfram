@@ -1,4 +1,4 @@
-use serde_repr::{Deserialize_repr, Serialize_repr};
+use serde::{Deserialize, Serialize};
 
 use super::arena::AllocHandle;
 
@@ -96,8 +96,8 @@ impl Default for VertexAllocatorConfig {
 // -----------------------------------------------------------------------------
 // Geometry Primitive Type (input format)
 // -----------------------------------------------------------------------------
-#[derive(Debug, Clone, Copy, Deserialize_repr, Serialize_repr)]
-#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum GeometryPrimitiveType {
     Index = 0,
     Position,

@@ -4,9 +4,9 @@ Creates a geometry resource from multiple uploaded vertex/index buffers.
 
 Validation rules:
 
-- `Position` is required.
-- Maximum of 2 `UV` streams.
-- Duplicates (except `UV`) are rejected.
+- `position` is required.
+- Maximum of 2 `uv` streams.
+- Duplicates (except `uv`) are rejected.
 - All referenced `bufferId`s must exist in the upload table.
 
 Buffers are only removed from the upload table after a successful create.
@@ -22,7 +22,7 @@ Buffers are only removed from the upload table after a successful create.
 
 ### GeometryPrimitiveEntry
 
-- **primitiveType**: Index, Position, Normal, Tangent, Color, UV, SkinJoints, SkinWeights.
+- **primitiveType**: "index", "position", "normal", "tangent", "color", "uv", "skin-joints", "skin-weights".
 - **bufferId**: u64 (ID of the uploaded buffer)
 
 ## Response

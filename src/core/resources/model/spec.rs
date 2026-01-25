@@ -3,6 +3,7 @@ use glam::{Mat4, UVec4, Vec4};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Pod, Zeroable, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[repr(C)]
 pub struct ModelComponent {
     pub transform: Mat4,
@@ -55,7 +56,6 @@ impl ModelComponent {
         self.flags.y = bone_offset;
         self.flags.z = bone_count;
     }
-
 }
 
 #[derive(Debug, Clone)]

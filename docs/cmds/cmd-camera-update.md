@@ -9,7 +9,7 @@ Updates an existing camera's properties. All fields are optional and only provid
 | cameraId     | u32                  | ID of the camera to update        |
 | label        | Option<String>       | (Optional) New semantic name      |
 | transform    | Option<Mat4>         | (Optional) New view matrix        |
-| kind         | Option<CameraKind>   | (Optional) New camera type        |
+| kind         | Option<CameraKind>   | (Optional) New camera type ("orthographic", "perspective") |
 | flags        | Option<u32>          | (Optional) New camera flags       |
 | nearFar      | Option<Vec2>         | (Optional) New clipping planes    |
 | layerMask    | Option<u32>          | (Optional) New visibility mask    |

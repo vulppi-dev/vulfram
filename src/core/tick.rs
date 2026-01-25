@@ -25,6 +25,11 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
         engine.state.profiling.render_total_ns = 0;
         engine.state.profiling.render_shadow_ns = 0;
         engine.state.profiling.render_windows_ns = 0;
+        engine.state.profiling.gpu_shadow_ns = 0;
+        engine.state.profiling.gpu_light_cull_ns = 0;
+        engine.state.profiling.gpu_forward_ns = 0;
+        engine.state.profiling.gpu_compose_ns = 0;
+        engine.state.profiling.gpu_total_ns = 0;
         engine.state.profiling.frame_delta_ns = (delta_time as u64).saturating_mul(1_000_000);
 
         if !engine.state.cmd_queue.is_empty() {

@@ -525,6 +525,11 @@ where
         );
 
         let _ = receive_responses();
+        if total_ms % 1000 == 0 {
+            if let Some(profiling) = get_profiling() {
+                println!("Profiling: {:?}", profiling);
+            }
+        }
 
         if handle_close_events(window_id) {
             let _ = send_commands(vec![EngineCmd::CmdWindowClose(CmdWindowCloseArgs {
@@ -538,6 +543,18 @@ where
             std::thread::sleep(target_frame_time - elapsed);
         }
     }
+}
+
+fn get_profiling() -> Option<core::profiling::cmd::ProfilingData> {
+    let mut ptr = std::ptr::null();
+    let mut len: usize = 0;
+    let result = core::vulfram_get_profiling(&mut ptr, &mut len);
+    if result != VulframResult::Success || len == 0 {
+        return None;
+    }
+    let bytes = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, len)) };
+    let profiling = from_slice(&bytes).ok()?;
+    Some(profiling)
 }
 
 fn handle_close_events(window_id: u32) -> bool {

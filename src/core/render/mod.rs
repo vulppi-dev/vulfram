@@ -18,6 +18,11 @@ pub fn render_frames(engine_state: &mut EngineState) {
     engine_state.profiling.render_total_ns = 0;
     engine_state.profiling.render_shadow_ns = 0;
     engine_state.profiling.render_windows_ns = 0;
+    engine_state.profiling.gpu_shadow_ns = 0;
+    engine_state.profiling.gpu_light_cull_ns = 0;
+    engine_state.profiling.gpu_forward_ns = 0;
+    engine_state.profiling.gpu_compose_ns = 0;
+    engine_state.profiling.gpu_total_ns = 0;
 
     let device = match &engine_state.device {
         Some(device) => device,
@@ -29,10 +34,15 @@ pub fn render_frames(engine_state: &mut EngineState) {
         None => return,
     };
 
+    if let Some(gpu_profiler) = engine_state.gpu_profiler.as_mut() {
+        gpu_profiler.ensure_capacity(device, queue, engine_state.window.states.len());
+    }
+
     let time = engine_state.time as f32 / 1000.0;
     let delta_time = engine_state.delta_time as f32 / 1000.0;
     let frame_index = engine_state.frame_index as u32;
     let frame_spec = crate::core::resources::FrameComponent::new(time, delta_time, frame_index);
+    let mut gpu_written = false;
 
     #[cfg(not(feature = "wasm"))]
     let total_start = std::time::Instant::now();
@@ -54,6 +64,13 @@ pub fn render_frames(engine_state: &mut EngineState) {
             label: Some("Shadow Update Encoder"),
         });
 
+        if let Some(gpu_profiler) = engine_state.gpu_profiler.as_ref() {
+            if gpu_profiler.query_count() >= 2 {
+                encoder.write_timestamp(gpu_profiler.query_set(), 0);
+                gpu_written = true;
+            }
+        }
+
         passes::pass_shadow_update(
             &mut window_state.render_state,
             device,
@@ -61,6 +78,13 @@ pub fn render_frames(engine_state: &mut EngineState) {
             &mut encoder,
             engine_state.frame_index,
         );
+
+        if let Some(gpu_profiler) = engine_state.gpu_profiler.as_ref() {
+            if gpu_profiler.query_count() >= 2 {
+                encoder.write_timestamp(gpu_profiler.query_set(), 1);
+                gpu_written = true;
+            }
+        }
 
         if let Some(shadow) = &mut window_state.render_state.shadow {
             shadow.sync_table();
@@ -80,7 +104,7 @@ pub fn render_frames(engine_state: &mut EngineState) {
 
     // 2. Render all windows
     let mut windows_ns: u64 = 0;
-    for (_window_id, window_state) in engine_state.window.states.iter_mut() {
+    for (window_index, (_window_id, window_state)) in engine_state.window.states.iter_mut().enumerate() {
         #[cfg(not(feature = "wasm"))]
         let window_start = std::time::Instant::now();
         #[cfg(feature = "wasm")]
@@ -99,7 +123,31 @@ pub fn render_frames(engine_state: &mut EngineState) {
         let mut encoder =
             device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
+        let gpu_base = engine_state.gpu_profiler.as_ref().and_then(|gpu_profiler| {
+            let base = 2 + (window_index as u32) * 6;
+            if gpu_profiler.query_count() >= base + 6 {
+                Some(base)
+            } else {
+                None
+            }
+        });
+
+        if let (Some(gpu_profiler), Some(base)) = (engine_state.gpu_profiler.as_ref(), gpu_base) {
+            encoder.write_timestamp(gpu_profiler.query_set(), base);
+            gpu_written = true;
+        }
+
         passes::pass_light_cull(render_state, device, &mut encoder, engine_state.frame_index);
+
+        if let (Some(gpu_profiler), Some(base)) = (engine_state.gpu_profiler.as_ref(), gpu_base) {
+            encoder.write_timestamp(gpu_profiler.query_set(), base + 1);
+            gpu_written = true;
+        }
+
+        if let (Some(gpu_profiler), Some(base)) = (engine_state.gpu_profiler.as_ref(), gpu_base) {
+            encoder.write_timestamp(gpu_profiler.query_set(), base + 2);
+            gpu_written = true;
+        }
         passes::pass_forward(
             render_state,
             device,
@@ -107,6 +155,15 @@ pub fn render_frames(engine_state: &mut EngineState) {
             &mut encoder,
             engine_state.frame_index,
         );
+        if let (Some(gpu_profiler), Some(base)) = (engine_state.gpu_profiler.as_ref(), gpu_base) {
+            encoder.write_timestamp(gpu_profiler.query_set(), base + 3);
+            gpu_written = true;
+        }
+
+        if let (Some(gpu_profiler), Some(base)) = (engine_state.gpu_profiler.as_ref(), gpu_base) {
+            encoder.write_timestamp(gpu_profiler.query_set(), base + 4);
+            gpu_written = true;
+        }
         passes::pass_compose(
             render_state,
             device,
@@ -116,6 +173,10 @@ pub fn render_frames(engine_state: &mut EngineState) {
             &window_state.config,
             engine_state.frame_index,
         );
+        if let (Some(gpu_profiler), Some(base)) = (engine_state.gpu_profiler.as_ref(), gpu_base) {
+            encoder.write_timestamp(gpu_profiler.query_set(), base + 5);
+            gpu_written = true;
+        }
 
         queue.submit(Some(encoder.finish()));
         surface_texture.present();
@@ -160,6 +221,32 @@ pub fn render_frames(engine_state: &mut EngineState) {
         {
             windows_ns =
                 windows_ns.saturating_add(now_ns().saturating_sub(window_start));
+        }
+    }
+
+    if gpu_written {
+        if let Some(gpu_profiler) = engine_state.gpu_profiler.as_ref() {
+            if gpu_profiler.query_count() > 0 {
+                let mut resolve_encoder =
+                    device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("GpuProfiler Resolve Encoder"),
+                    });
+            resolve_encoder.resolve_query_set(
+                gpu_profiler.query_set(),
+                0..gpu_profiler.query_count(),
+                gpu_profiler.resolve_buffer(),
+                0,
+            );
+            resolve_encoder.copy_buffer_to_buffer(
+                gpu_profiler.resolve_buffer(),
+                0,
+                gpu_profiler.readback_buffer(),
+                0,
+                gpu_profiler.buffer_size(),
+            );
+            queue.submit(Some(resolve_encoder.finish()));
+                gpu_profiler.readback_and_update(device, &mut engine_state.profiling);
+            }
         }
     }
     engine_state.profiling.render_windows_ns = windows_ns;

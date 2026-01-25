@@ -18,7 +18,7 @@ _Refatoração para suportar efeitos avançados._
 
 - [ ] **Render Graph**: Substituir o `Compose` por um grafo real para encadeamento de efeitos.
 - [ ] **Optional: Mega-Batching**: Migrar índices de textura para o buffer de instâncias para permitir batching de diferentes materiais.
-- [ ] **Advanced Profiler**: Exportar métricas detalhadas de GPU para o Host via MessagePack.
+- [x] **Advanced Profiler**: Exporta métricas detalhadas de GPU para o Host via MessagePack.
 - [ ] **Skeletal Animation (Skinning)**: Implementar interpolação de ossos via GPU (Shader).
 
 ## 🟠 Fase 3: Efeitos & Simulação (Core)

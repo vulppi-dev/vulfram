@@ -6,6 +6,7 @@ pub mod lifecycle;
 pub mod light;
 pub mod prepare;
 pub mod scene;
+pub mod skinning;
 
 use crate::core::render::cache::RenderCache;
 use crate::core::render::gizmos::GizmoSystem;
@@ -19,6 +20,7 @@ pub use self::library::ResourceLibrary;
 pub use self::library::SamplerSet;
 pub use self::light::{FrustumPlane, LightCullingSystem};
 pub use self::scene::RenderScene;
+pub use self::skinning::SkinningSystem;
 
 pub struct RenderState {
     pub scene: RenderScene,
@@ -31,6 +33,7 @@ pub struct RenderState {
     pub forward_atlas: Option<crate::core::resources::ForwardAtlasSystem>,
     pub cache: RenderCache,
     pub forward_depth_target: Option<crate::core::resources::RenderTarget>,
+    pub skinning: SkinningSystem,
 
     /// Per-frame collector for draw calls, reused to avoid allocations.
     pub collector: DrawCollector,

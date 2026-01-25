@@ -45,6 +45,7 @@ pub enum EngineCmd {
     CmdCameraDispose(res::CmdCameraDisposeArgs),
     CmdModelCreate(res::CmdModelCreateArgs),
     CmdModelUpdate(res::CmdModelUpdateArgs),
+    CmdPoseUpdate(res::CmdPoseUpdateArgs),
     CmdModelDispose(res::CmdModelDisposeArgs),
     CmdLightCreate(res::CmdLightCreateArgs),
     CmdLightUpdate(res::CmdLightUpdateArgs),
@@ -113,6 +114,7 @@ pub enum CommandResponse {
     CameraDispose(res::CmdResultCameraDispose),
     ModelCreate(res::CmdResultModelCreate),
     ModelUpdate(res::CmdResultModelUpdate),
+    PoseUpdate(res::CmdResultPoseUpdate),
     ModelDispose(res::CmdResultModelDispose),
     LightCreate(res::CmdResultLightCreate),
     LightUpdate(res::CmdResultLightUpdate),
@@ -364,6 +366,13 @@ pub fn engine_process_batch(
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::ModelUpdate(result),
+                });
+            }
+            EngineCmd::CmdPoseUpdate(args) => {
+                let result = res::engine_cmd_pose_update(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::PoseUpdate(result),
                 });
             }
             EngineCmd::CmdModelDispose(args) => {

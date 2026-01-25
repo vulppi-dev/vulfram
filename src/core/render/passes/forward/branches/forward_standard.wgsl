@@ -64,7 +64,7 @@ struct Model {
     translation: vec4<f32>,
     rotation: vec4<f32>,
     scale: vec4<f32>,
-    flags: vec4<u32>,
+    flags: vec4<u32>, // x: flags, y: bone_offset, z: bone_count
 }
 
 struct MaterialStandardParams {
@@ -110,6 +110,7 @@ struct MaterialStandardParams {
 @group(1) @binding(8) var material_tex5: texture_2d<f32>;
 @group(1) @binding(9) var material_tex6: texture_2d<f32>;
 @group(1) @binding(10) var material_tex7: texture_2d<f32>;
+@group(1) @binding(11) var<storage, read> bones: array<mat4x4<f32>>;
 
 const STANDARD_INVALID_SLOT: u32 = 0xFFFFFFFFu;
 const SURFACE_MASKED: u32 = 1u;
@@ -262,6 +263,8 @@ struct VertexInput {
     @location(1) normal: vec3<f32>,
     @location(4) uv0: vec2<f32>,
     @location(3) color0: vec4<f32>,
+    @location(6) joints: vec4<u32>,
+    @location(7) weights: vec4<f32>,
 }
 
 struct VertexOutput {
@@ -281,6 +284,59 @@ fn compute_table_id(light_base: u32, grid_x: u32, grid_y: u32, grid_size_u: u32)
     let grid_area = grid_size_u * grid_size_u;
     let linear_id = light_base * grid_area + grid_y * grid_size_u + grid_x;
     return linear_id % shadow_params.table_capacity;
+}
+
+// -----------------------------------------------------------------------------
+// Skinning helpers
+// -----------------------------------------------------------------------------
+
+fn bone_at(index: u32, bone_offset: u32, bone_count: u32) -> mat4x4<f32> {
+    if (index < bone_count) {
+        return bones[bone_offset + index];
+    }
+    return mat4x4<f32>(
+        vec4<f32>(1.0, 0.0, 0.0, 0.0),
+        vec4<f32>(0.0, 1.0, 0.0, 0.0),
+        vec4<f32>(0.0, 0.0, 1.0, 0.0),
+        vec4<f32>(0.0, 0.0, 0.0, 1.0),
+    );
+}
+
+fn skin_position(
+    position: vec3<f32>,
+    joints: vec4<u32>,
+    weights: vec4<f32>,
+    bone_offset: u32,
+    bone_count: u32,
+) -> vec3<f32> {
+    let m0 = bone_at(joints.x, bone_offset, bone_count);
+    let m1 = bone_at(joints.y, bone_offset, bone_count);
+    let m2 = bone_at(joints.z, bone_offset, bone_count);
+    let m3 = bone_at(joints.w, bone_offset, bone_count);
+    let p = vec4<f32>(position, 1.0);
+    let skinned = (m0 * p) * weights.x
+        + (m1 * p) * weights.y
+        + (m2 * p) * weights.z
+        + (m3 * p) * weights.w;
+    return skinned.xyz;
+}
+
+fn skin_normal(
+    normal: vec3<f32>,
+    joints: vec4<u32>,
+    weights: vec4<f32>,
+    bone_offset: u32,
+    bone_count: u32,
+) -> vec3<f32> {
+    let m0 = bone_at(joints.x, bone_offset, bone_count);
+    let m1 = bone_at(joints.y, bone_offset, bone_count);
+    let m2 = bone_at(joints.z, bone_offset, bone_count);
+    let m3 = bone_at(joints.w, bone_offset, bone_count);
+    let n0 = (mat3x3<f32>(m0[0].xyz, m0[1].xyz, m0[2].xyz) * normal) * weights.x;
+    let n1 = (mat3x3<f32>(m1[0].xyz, m1[1].xyz, m1[2].xyz) * normal) * weights.y;
+    let n2 = (mat3x3<f32>(m2[0].xyz, m2[1].xyz, m2[2].xyz) * normal) * weights.z;
+    let n3 = (mat3x3<f32>(m3[0].xyz, m3[1].xyz, m3[2].xyz) * normal) * weights.w;
+    return normalize(n0 + n1 + n2 + n3);
 }
 
 fn sample_shadow_page_at(
@@ -535,10 +591,18 @@ fn calculate_point_light(
 fn vs_main(in: VertexInput, @builtin(instance_index) instance_id: u32) -> VertexOutput {
     var out: VertexOutput;
     let model = models[instance_id];
-    let world_pos = model.transform * vec4<f32>(in.position, 1.0);
+    let bone_offset = model.flags.y;
+    let bone_count = model.flags.z;
+    var local_pos = in.position;
+    var local_normal = in.normal;
+    if (bone_count > 0u) {
+        local_pos = skin_position(in.position, in.joints, in.weights, bone_offset, bone_count);
+        local_normal = skin_normal(in.normal, in.joints, in.weights, bone_offset, bone_count);
+    }
+    let world_pos = model.transform * vec4<f32>(local_pos, 1.0);
     out.clip_position = camera.view_projection * world_pos;
     out.world_position = world_pos.xyz;
-    out.normal = (model.transform * vec4<f32>(in.normal, 0.0)).xyz;
+    out.normal = (model.transform * vec4<f32>(local_normal, 0.0)).xyz;
     out.uv0 = in.uv0;
     out.color0 = in.color0;
     out.instance_id = instance_id;

@@ -17,7 +17,6 @@ _Otimização do fluxo de dados e ferramentas de debug._
 _Refatoração para suportar efeitos avançados._
 
 - [ ] **Render Graph**: Substituir o `Compose` por um grafo real para encadeamento de efeitos.
-- [ ] **Optional: Mega-Batching**: Migrar índices de textura para o buffer de instâncias para permitir batching de diferentes materiais.
 - [x] **Advanced Profiler**: Exporta métricas detalhadas de GPU para o Host via MessagePack.
 - [ ] **Skeletal Animation (Skinning)**: Implementar interpolação de ossos via GPU (Shader).
 

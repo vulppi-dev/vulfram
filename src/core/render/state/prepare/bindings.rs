@@ -162,14 +162,24 @@ impl RenderState {
                 Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
                     label: Some("BindGroup Object (Dynamic Instance Data)"),
                     layout: &library.layout_object,
-                    entries: &[wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: bindings.instance_pool.buffer(),
-                            offset: 0,
-                            size: None,
-                        }),
-                    }],
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                                buffer: bindings.instance_pool.buffer(),
+                                offset: 0,
+                                size: None,
+                            }),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                                buffer: bindings.bones_pool.buffer(),
+                                offset: 0,
+                                size: None,
+                            }),
+                        },
+                    ],
                 }));
         }
 
@@ -179,14 +189,24 @@ impl RenderState {
                 Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
                     label: Some("BindGroup Shadow Object (Dynamic Instance Data)"),
                     layout: &library.layout_object,
-                    entries: &[wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: bindings.shadow_instance_pool.buffer(),
-                            offset: 0,
-                            size: None,
-                        }),
-                    }],
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                                buffer: bindings.shadow_instance_pool.buffer(),
+                                offset: 0,
+                                size: None,
+                            }),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                                buffer: bindings.bones_pool.buffer(),
+                                offset: 0,
+                                size: None,
+                            }),
+                        },
+                    ],
                 }));
         }
     }

@@ -7,14 +7,16 @@ use crate::core::cmd::{
 use crate::core::render::gizmos::{CmdGizmoDrawAabbArgs, CmdGizmoDrawLineArgs};
 use crate::core::resources::shadow::{CmdShadowConfigureArgs, ShadowConfig};
 use crate::core::resources::{
-    CameraKind, CmdCameraCreateArgs, CmdLightCreateArgs, CmdMaterialCreateArgs, CmdModelCreateArgs,
-    CmdModelUpdateArgs, CmdPrimitiveGeometryCreateArgs, CmdTextureCreateFromBufferArgs, LightKind,
-    MaterialKind, MaterialOptions, MaterialSampler, PrimitiveShape, StandardOptions,
+    CameraKind, CmdCameraCreateArgs, CmdGeometryCreateArgs, CmdLightCreateArgs,
+    CmdMaterialCreateArgs, CmdModelCreateArgs, CmdModelUpdateArgs, CmdPoseUpdateArgs,
+    CmdPrimitiveGeometryCreateArgs, CmdTextureCreateFromBufferArgs, GeometryPrimitiveEntry,
+    LightKind, MaterialKind, MaterialOptions, MaterialSampler, PrimitiveShape, StandardOptions,
     TextureCreateMode,
 };
 use crate::core::window::{CmdWindowCloseArgs, CmdWindowCreateArgs, WindowEvent};
 use crate::core::VulframResult;
 use glam::{Mat4, UVec2, Vec2, Vec3, Vec4};
+use bytemuck::cast_slice;
 use rand::Rng;
 use rmp_serde::{from_slice, to_vec_named};
 use std::fs;
@@ -27,6 +29,7 @@ static ENGINE_GUARD: Mutex<()> = Mutex::new(());
 enum DemoKind {
     Demo001,
     Demo002,
+    Demo003,
 }
 
 impl DemoKind {
@@ -34,6 +37,7 @@ impl DemoKind {
         match value.trim().to_ascii_lowercase().as_str() {
             "demo_001" | "demo001" | "1" => Some(Self::Demo001),
             "demo_002" | "demo002" | "2" => Some(Self::Demo002),
+            "demo_003" | "demo003" | "3" => Some(Self::Demo003),
             _ => None,
         }
     }
@@ -42,6 +46,7 @@ impl DemoKind {
         match self {
             Self::Demo001 => "Vulfram Demo 001",
             Self::Demo002 => "Vulfram Demo 002",
+            Self::Demo003 => "Vulfram Demo 003",
         }
     }
 }
@@ -61,6 +66,7 @@ fn main() {
     let close_sent = match demo {
         DemoKind::Demo001 => demo_001(window_id),
         DemoKind::Demo002 => demo_002(window_id),
+        DemoKind::Demo003 => demo_003(window_id),
     };
 
     if !close_sent {
@@ -284,6 +290,102 @@ fn demo_002(window_id: u32) -> bool {
     })
 }
 
+fn demo_003(window_id: u32) -> bool {
+    let geometry_id: u32 = 400;
+    let model_id: u32 = 401;
+    let material_id: u32 = 402;
+    let camera_id: u32 = 1;
+    let bone_count: u32 = 16;
+
+    let (positions, normals, uvs, joints, weights, indices) =
+        build_skinned_plane(64, 64, 10.0, bone_count);
+
+    upload_buffer(2000, UploadType::VertexData, &positions);
+    upload_buffer(2001, UploadType::VertexData, &normals);
+    upload_buffer(2002, UploadType::VertexData, &uvs);
+    upload_buffer(2003, UploadType::VertexData, &joints);
+    upload_buffer(2004, UploadType::VertexData, &weights);
+    upload_buffer(2005, UploadType::IndexData, &indices);
+
+    let setup_cmds = vec![
+        EngineCmd::CmdGeometryCreate(CmdGeometryCreateArgs {
+            window_id,
+            geometry_id,
+            label: Some("Skinned Plane".into()),
+            entries: vec![
+                GeometryPrimitiveEntry {
+                    primitive_type: crate::core::resources::GeometryPrimitiveType::Index,
+                    buffer_id: 2005,
+                },
+                GeometryPrimitiveEntry {
+                    primitive_type: crate::core::resources::GeometryPrimitiveType::Position,
+                    buffer_id: 2000,
+                },
+                GeometryPrimitiveEntry {
+                    primitive_type: crate::core::resources::GeometryPrimitiveType::Normal,
+                    buffer_id: 2001,
+                },
+                GeometryPrimitiveEntry {
+                    primitive_type: crate::core::resources::GeometryPrimitiveType::UV,
+                    buffer_id: 2002,
+                },
+                GeometryPrimitiveEntry {
+                    primitive_type: crate::core::resources::GeometryPrimitiveType::SkinJoints,
+                    buffer_id: 2003,
+                },
+                GeometryPrimitiveEntry {
+                    primitive_type: crate::core::resources::GeometryPrimitiveType::SkinWeights,
+                    buffer_id: 2004,
+                },
+            ],
+        }),
+        create_camera_cmd(
+            camera_id,
+            "Skinned Camera",
+            Mat4::look_at_rh(Vec3::new(0.0, 6.0, 12.0), Vec3::ZERO, Vec3::Y).inverse(),
+        ),
+        create_point_light_cmd(window_id, 2, Vec4::new(0.0, 6.0, 0.0, 1.0)),
+        create_ambient_light_cmd(window_id, 3, Vec4::new(0.3, 0.3, 0.3, 1.0), 0.4),
+        create_standard_material_cmd(window_id, material_id, "Skinned Material", Vec4::ONE, None),
+        EngineCmd::CmdModelCreate(CmdModelCreateArgs {
+            window_id,
+            model_id,
+            label: Some("Skinned Plane".into()),
+            geometry_id,
+            material_id: Some(material_id),
+            transform: Mat4::IDENTITY,
+            layer_mask: crate::core::resources::common::default_layer_mask(),
+            cast_shadow: true,
+            receive_shadow: true,
+        }),
+        create_shadow_config_cmd(window_id),
+    ];
+
+    assert_eq!(send_commands(setup_cmds), VulframResult::Success);
+    let _ = receive_responses();
+
+    let pose_buffer_id: u64 = 9000;
+
+    run_loop(window_id, None, |total_ms, _delta_ms| {
+        let time_f = total_ms as f32 / 1000.0;
+        let mut bones: Vec<Mat4> = Vec::with_capacity(bone_count as usize);
+        for i in 0..bone_count {
+            let phase = time_f * 4.5 + i as f32 * 1.4;
+            let offset_y = phase.sin() * 1.2;
+            bones.push(Mat4::from_translation(Vec3::new(0.0, offset_y, 0.0)));
+        }
+
+        upload_buffer(pose_buffer_id, UploadType::Raw, &bones);
+
+        vec![EngineCmd::CmdPoseUpdate(CmdPoseUpdateArgs {
+            window_id,
+            model_id,
+            bone_count,
+            matrices_buffer_id: pose_buffer_id,
+        })]
+    })
+}
+
 fn create_camera_cmd(camera_id: u32, label: &str, transform: Mat4) -> EngineCmd {
     EngineCmd::CmdCameraCreate(CmdCameraCreateArgs {
         camera_id,
@@ -490,6 +592,91 @@ fn upload_texture(path: &str, buffer_id: u64) {
         ),
         VulframResult::Success
     );
+}
+
+fn upload_buffer<T: bytemuck::Pod>(buffer_id: u64, upload_type: UploadType, data: &[T]) {
+    let bytes = cast_slice(data);
+    assert_eq!(
+        core::vulfram_upload_buffer(
+            buffer_id,
+            upload_type as u32,
+            bytes.as_ptr() as *const u8,
+            bytes.len()
+        ),
+        VulframResult::Success
+    );
+}
+
+fn build_skinned_plane(
+    grid_x: u32,
+    grid_z: u32,
+    size: f32,
+    bone_count: u32,
+) -> (
+    Vec<[f32; 3]>,
+    Vec<[f32; 3]>,
+    Vec<[f32; 2]>,
+    Vec<[u16; 4]>,
+    Vec<[f32; 4]>,
+    Vec<u32>,
+) {
+    let mut positions = Vec::new();
+    let mut normals = Vec::new();
+    let mut uvs = Vec::new();
+    let mut joints = Vec::new();
+    let mut weights = Vec::new();
+    let mut indices = Vec::new();
+
+    let step_x = 1.0 / grid_x as f32;
+    let step_z = 1.0 / grid_z as f32;
+    let half = size * 0.5;
+    let segments = (bone_count - 1).max(1) as f32;
+    let smoothstep = |t: f32| t * t * (3.0 - 2.0 * t);
+
+    for z in 0..=grid_z {
+        for x in 0..=grid_x {
+            let fx = x as f32 * step_x;
+            let fz = z as f32 * step_z;
+            let pos_x = fx * size - half;
+            let pos_z = fz * size - half;
+
+            positions.push([pos_x, 0.0, pos_z]);
+            normals.push([0.0, 1.0, 0.0]);
+            uvs.push([fx, fz]);
+
+            let bone_f = fx * segments;
+            let bone_idx = bone_f.floor() as u32;
+            let next_idx = (bone_idx + 1).min(bone_count - 1);
+            let t = smoothstep(bone_f - bone_idx as f32);
+            joints.push([
+                bone_idx as u16,
+                next_idx as u16,
+                0,
+                0,
+            ]);
+            weights.push([1.0 - t, t, 0.0, 0.0]);
+        }
+    }
+
+    let verts_x = grid_x + 1;
+    for z in 0..grid_z {
+        for x in 0..grid_x {
+            let i0 = z * verts_x + x;
+            let i1 = i0 + 1;
+            let i2 = i0 + verts_x;
+            let i3 = i2 + 1;
+            indices.extend_from_slice(&[i0, i2, i1, i1, i2, i3]);
+        }
+    }
+
+    (
+        positions,
+        normals,
+        uvs,
+        joints,
+        weights,
+        indices,
+    )
 }
 
 fn run_loop<F>(window_id: u32, max_duration: Option<Duration>, mut on_frame: F) -> bool

@@ -15,6 +15,7 @@ pub struct BindingSystem {
     pub material_standard_inputs: StorageBufferPool<glam::Vec4>,
     pub material_pbr_pool: UniformBufferPool<MaterialPbrParams>,
     pub material_pbr_inputs: StorageBufferPool<glam::Vec4>,
+    pub bones_pool: StorageBufferPool<glam::Mat4>,
     pub shared_group: Option<wgpu::BindGroup>,
     pub model_bind_group: Option<wgpu::BindGroup>,
     pub shadow_model_bind_group: Option<wgpu::BindGroup>,

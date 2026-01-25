@@ -4,7 +4,7 @@ use glam::Vec3;
 use crate::core::resources::geometry::primitives::CubeOptions;
 use crate::core::resources::vertex::GeometryPrimitiveType;
 
-use super::push_face_grid;
+use super::{compute_tangents, push_face_grid};
 
 pub fn generate_cube(options: &CubeOptions) -> Vec<(GeometryPrimitiveType, Vec<u8>)> {
     let half_x = options.size.x / 2.0;
@@ -15,7 +15,6 @@ pub fn generate_cube(options: &CubeOptions) -> Vec<(GeometryPrimitiveType, Vec<u
     let mut positions = Vec::new();
     let mut normals = Vec::new();
     let mut uvs = Vec::new();
-    let mut tangents = Vec::new();
     let mut indices = Vec::new();
 
     let faces = [
@@ -74,7 +73,6 @@ pub fn generate_cube(options: &CubeOptions) -> Vec<(GeometryPrimitiveType, Vec<u
             &mut positions,
             &mut normals,
             &mut uvs,
-            &mut tangents,
             &mut indices,
             center,
             axis_u,
@@ -84,6 +82,7 @@ pub fn generate_cube(options: &CubeOptions) -> Vec<(GeometryPrimitiveType, Vec<u
             subdivisions,
         );
     }
+    let tangents = compute_tangents(&positions, &normals, &uvs, &indices);
 
     vec![
         (

@@ -4,7 +4,7 @@ use glam::Vec3;
 use crate::core::resources::geometry::primitives::PlaneOptions;
 use crate::core::resources::vertex::GeometryPrimitiveType;
 
-use super::push_face_grid;
+use super::{compute_tangents, push_face_grid};
 
 pub fn generate_plane(options: &PlaneOptions) -> Vec<(GeometryPrimitiveType, Vec<u8>)> {
     let half_x = options.size.x / 2.0;
@@ -15,14 +15,12 @@ pub fn generate_plane(options: &PlaneOptions) -> Vec<(GeometryPrimitiveType, Vec
     let mut positions = Vec::new();
     let mut normals = Vec::new();
     let mut uvs = Vec::new();
-    let mut tangents = Vec::new();
     let mut indices = Vec::new();
 
     push_face_grid(
         &mut positions,
         &mut normals,
         &mut uvs,
-        &mut tangents,
         &mut indices,
         Vec3::new(0.0, 0.0, 0.0),
         Vec3::X,
@@ -31,6 +29,7 @@ pub fn generate_plane(options: &PlaneOptions) -> Vec<(GeometryPrimitiveType, Vec
         half_y,
         subdivisions,
     );
+    let tangents = compute_tangents(&positions, &normals, &uvs, &indices);
 
     vec![
         (

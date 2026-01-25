@@ -1,8 +1,10 @@
 use bytemuck;
-use glam::{Vec2, Vec3, Vec4};
+use glam::{Vec2, Vec3};
 
 use crate::core::resources::geometry::primitives::SphereOptions;
 use crate::core::resources::vertex::GeometryPrimitiveType;
+
+use super::compute_tangents;
 
 pub fn generate_sphere(options: &SphereOptions) -> Vec<(GeometryPrimitiveType, Vec<u8>)> {
     let radius = options.radius;
@@ -12,7 +14,6 @@ pub fn generate_sphere(options: &SphereOptions) -> Vec<(GeometryPrimitiveType, V
     let mut positions = Vec::new();
     let mut normals = Vec::new();
     let mut uvs = Vec::new();
-    let mut tangents = Vec::new();
     let mut indices = Vec::new();
 
     for i in 0..=stacks {
@@ -33,8 +34,6 @@ pub fn generate_sphere(options: &SphereOptions) -> Vec<(GeometryPrimitiveType, V
                 i as f32 / stacks as f32,
             ));
 
-            let tangent = Vec3::new(-sector_angle.sin(), 0.0, sector_angle.cos()).normalize();
-            tangents.push(Vec4::new(tangent.x, tangent.y, tangent.z, 1.0));
         }
     }
 
@@ -58,6 +57,7 @@ pub fn generate_sphere(options: &SphereOptions) -> Vec<(GeometryPrimitiveType, V
             k2 += 1;
         }
     }
+    let tangents = compute_tangents(&positions, &normals, &uvs, &indices);
 
     vec![
         (

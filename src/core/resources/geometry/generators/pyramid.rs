@@ -4,7 +4,7 @@ use glam::{Vec2, Vec3};
 use crate::core::resources::geometry::primitives::PyramidOptions;
 use crate::core::resources::vertex::GeometryPrimitiveType;
 
-use super::{push_face_grid, push_triangle_grid};
+use super::{compute_tangents, push_face_grid, push_triangle_grid};
 
 pub fn generate_pyramid(options: &PyramidOptions) -> Vec<(GeometryPrimitiveType, Vec<u8>)> {
     let half_x = options.size.x / 2.0;
@@ -15,7 +15,6 @@ pub fn generate_pyramid(options: &PyramidOptions) -> Vec<(GeometryPrimitiveType,
     let mut positions = Vec::new();
     let mut normals = Vec::new();
     let mut uvs = Vec::new();
-    let mut tangents = Vec::new();
     let mut indices = Vec::new();
 
     // Base (XZ plane)
@@ -23,7 +22,6 @@ pub fn generate_pyramid(options: &PyramidOptions) -> Vec<(GeometryPrimitiveType,
         &mut positions,
         &mut normals,
         &mut uvs,
-        &mut tangents,
         &mut indices,
         Vec3::new(0.0, -half_y, 0.0),
         Vec3::X,
@@ -48,7 +46,6 @@ pub fn generate_pyramid(options: &PyramidOptions) -> Vec<(GeometryPrimitiveType,
         &mut positions,
         &mut normals,
         &mut uvs,
-        &mut tangents,
         &mut indices,
         apex,
         front_left,
@@ -64,7 +61,6 @@ pub fn generate_pyramid(options: &PyramidOptions) -> Vec<(GeometryPrimitiveType,
         &mut positions,
         &mut normals,
         &mut uvs,
-        &mut tangents,
         &mut indices,
         apex,
         front_right,
@@ -80,7 +76,6 @@ pub fn generate_pyramid(options: &PyramidOptions) -> Vec<(GeometryPrimitiveType,
         &mut positions,
         &mut normals,
         &mut uvs,
-        &mut tangents,
         &mut indices,
         apex,
         back_right,
@@ -96,7 +91,6 @@ pub fn generate_pyramid(options: &PyramidOptions) -> Vec<(GeometryPrimitiveType,
         &mut positions,
         &mut normals,
         &mut uvs,
-        &mut tangents,
         &mut indices,
         apex,
         back_left,
@@ -106,6 +100,7 @@ pub fn generate_pyramid(options: &PyramidOptions) -> Vec<(GeometryPrimitiveType,
         uv_right,
         subdivisions,
     );
+    let tangents = compute_tangents(&positions, &normals, &uvs, &indices);
 
     vec![
         (

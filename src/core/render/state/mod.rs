@@ -21,6 +21,7 @@ pub use self::library::SamplerSet;
 pub use self::light::{FrustumPlane, LightCullingSystem};
 pub use self::scene::RenderScene;
 pub use self::skinning::SkinningSystem;
+pub use crate::core::render::graph::RenderGraphState;
 
 pub struct RenderState {
     pub scene: RenderScene,
@@ -34,6 +35,7 @@ pub struct RenderState {
     pub cache: RenderCache,
     pub forward_depth_target: Option<crate::core::resources::RenderTarget>,
     pub skinning: SkinningSystem,
+    pub render_graph: RenderGraphState,
 
     /// Per-frame collector for draw calls, reused to avoid allocations.
     pub collector: DrawCollector,

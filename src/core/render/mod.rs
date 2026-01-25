@@ -1,10 +1,13 @@
 pub mod cache;
+pub mod cmd;
+pub mod graph;
 pub mod gizmos;
 mod passes;
 pub mod state;
 
 use crate::core::state::EngineState;
 pub use state::RenderState;
+use crate::core::render::graph::RenderGraphPlan;
 
 #[cfg(feature = "wasm")]
 use js_sys::Date;
@@ -50,7 +53,14 @@ pub fn render_frames(engine_state: &mut EngineState) {
     let total_start = now_ns();
 
     // 1. Update Shadows (Global for all windows - using first window's state as proxy)
-    if let Some((_, window_state)) = engine_state.window.states.iter_mut().next() {
+    let shadow_enabled = engine_state
+        .window
+        .states
+        .values()
+        .any(|window_state| window_state.render_state.render_graph.plan().has_pass("shadow"));
+
+    if shadow_enabled {
+        if let Some((_, window_state)) = engine_state.window.states.iter_mut().next() {
         #[cfg(not(feature = "wasm"))]
         let shadow_start = std::time::Instant::now();
         #[cfg(feature = "wasm")]
@@ -100,6 +110,7 @@ pub fn render_frames(engine_state: &mut EngineState) {
         {
             engine_state.profiling.render_shadow_ns = now_ns().saturating_sub(shadow_start);
         }
+        }
     }
 
     // 2. Render all windows
@@ -132,39 +143,9 @@ pub fn render_frames(engine_state: &mut EngineState) {
             }
         });
 
-        if let (Some(gpu_profiler), Some(base)) = (engine_state.gpu_profiler.as_ref(), gpu_base) {
-            encoder.write_timestamp(gpu_profiler.query_set(), base);
-            gpu_written = true;
-        }
-
-        passes::pass_light_cull(render_state, device, &mut encoder, engine_state.frame_index);
-
-        if let (Some(gpu_profiler), Some(base)) = (engine_state.gpu_profiler.as_ref(), gpu_base) {
-            encoder.write_timestamp(gpu_profiler.query_set(), base + 1);
-            gpu_written = true;
-        }
-
-        if let (Some(gpu_profiler), Some(base)) = (engine_state.gpu_profiler.as_ref(), gpu_base) {
-            encoder.write_timestamp(gpu_profiler.query_set(), base + 2);
-            gpu_written = true;
-        }
-        passes::pass_forward(
-            render_state,
-            device,
-            queue,
-            &mut encoder,
-            engine_state.frame_index,
-        );
-        if let (Some(gpu_profiler), Some(base)) = (engine_state.gpu_profiler.as_ref(), gpu_base) {
-            encoder.write_timestamp(gpu_profiler.query_set(), base + 3);
-            gpu_written = true;
-        }
-
-        if let (Some(gpu_profiler), Some(base)) = (engine_state.gpu_profiler.as_ref(), gpu_base) {
-            encoder.write_timestamp(gpu_profiler.query_set(), base + 4);
-            gpu_written = true;
-        }
-        passes::pass_compose(
+        let plan = render_state.render_graph.plan().clone();
+        gpu_written |= execute_window_graph(
+            &plan,
             render_state,
             device,
             queue,
@@ -172,11 +153,9 @@ pub fn render_frames(engine_state: &mut EngineState) {
             &surface_texture,
             &window_state.config,
             engine_state.frame_index,
+            engine_state.gpu_profiler.as_ref(),
+            gpu_base,
         );
-        if let (Some(gpu_profiler), Some(base)) = (engine_state.gpu_profiler.as_ref(), gpu_base) {
-            encoder.write_timestamp(gpu_profiler.query_set(), base + 5);
-            gpu_written = true;
-        }
 
         queue.submit(Some(encoder.finish()));
         surface_texture.present();
@@ -257,5 +236,79 @@ pub fn render_frames(engine_state: &mut EngineState) {
     #[cfg(feature = "wasm")]
     {
         engine_state.profiling.render_total_ns = now_ns().saturating_sub(total_start);
+    }
+}
+
+fn execute_window_graph(
+    plan: &RenderGraphPlan,
+    render_state: &mut RenderState,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    encoder: &mut wgpu::CommandEncoder,
+    surface_texture: &wgpu::SurfaceTexture,
+    config: &wgpu::SurfaceConfiguration,
+    frame_index: u64,
+    gpu_profiler: Option<&crate::core::profiling::gpu::GpuProfiler>,
+    gpu_base: Option<u32>,
+) -> bool {
+    let mut gpu_written = false;
+
+    for &node_idx in &plan.order {
+        let node = &plan.nodes[node_idx];
+        match node.pass_id.as_str() {
+            "shadow" => {
+                continue;
+            }
+            "light-cull" => {
+                if let Some(base) = gpu_base {
+                    write_gpu_timestamp(encoder, gpu_profiler, base, &mut gpu_written);
+                }
+                passes::pass_light_cull(render_state, device, encoder, frame_index);
+                if let Some(base) = gpu_base {
+                    write_gpu_timestamp(encoder, gpu_profiler, base + 1, &mut gpu_written);
+                }
+            }
+            "forward" => {
+                if let Some(base) = gpu_base {
+                    write_gpu_timestamp(encoder, gpu_profiler, base + 2, &mut gpu_written);
+                }
+                passes::pass_forward(render_state, device, queue, encoder, frame_index);
+                if let Some(base) = gpu_base {
+                    write_gpu_timestamp(encoder, gpu_profiler, base + 3, &mut gpu_written);
+                }
+            }
+            "compose" => {
+                if let Some(base) = gpu_base {
+                    write_gpu_timestamp(encoder, gpu_profiler, base + 4, &mut gpu_written);
+                }
+                passes::pass_compose(
+                    render_state,
+                    device,
+                    queue,
+                    encoder,
+                    surface_texture,
+                    config,
+                    frame_index,
+                );
+                if let Some(base) = gpu_base {
+                    write_gpu_timestamp(encoder, gpu_profiler, base + 5, &mut gpu_written);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    gpu_written
+}
+
+fn write_gpu_timestamp(
+    encoder: &mut wgpu::CommandEncoder,
+    gpu_profiler: Option<&crate::core::profiling::gpu::GpuProfiler>,
+    index: u32,
+    gpu_written: &mut bool,
+) {
+    if let Some(profiler) = gpu_profiler {
+        encoder.write_timestamp(profiler.query_set(), index);
+        *gpu_written = true;
     }
 }

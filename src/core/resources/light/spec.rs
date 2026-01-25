@@ -23,16 +23,6 @@ impl LightKind {
         }
     }
 
-    pub fn from_u32(value: u32) -> Option<Self> {
-        match value {
-            0 => Some(LightKind::Directional),
-            1 => Some(LightKind::Point),
-            2 => Some(LightKind::Spot),
-            3 => Some(LightKind::Ambient),
-            4 => Some(LightKind::Hemisphere),
-            _ => None,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, Pod, Zeroable, Deserialize, Serialize)]

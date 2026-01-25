@@ -14,18 +14,6 @@ pub enum UploadType {
 }
 
 impl UploadType {
-    pub fn to_u32(self) -> u32 {
-        match self {
-            UploadType::Raw => 0,
-            UploadType::ShaderSource => 1,
-            UploadType::GeometryData => 2,
-            UploadType::VertexData => 3,
-            UploadType::IndexData => 4,
-            UploadType::ImageData => 5,
-            UploadType::BinaryAsset => 6,
-        }
-    }
-
     pub fn from_u32(value: u32) -> Option<Self> {
         match value {
             0 => Some(UploadType::Raw),

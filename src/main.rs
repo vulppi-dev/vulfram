@@ -1,10 +1,16 @@
 mod core;
 
+use crate::core::VulframResult;
 use crate::core::buffers::state::UploadType;
 use crate::core::cmd::{
     CommandResponse, CommandResponseEnvelope, EngineCmd, EngineCmdEnvelope, EngineEvent,
 };
+use crate::core::render::cmd::CmdRenderGraphSetArgs;
 use crate::core::render::gizmos::{CmdGizmoDrawAabbArgs, CmdGizmoDrawLineArgs};
+use crate::core::render::graph::{
+    LogicalId, RenderGraphDesc, RenderGraphEdge, RenderGraphEdgeReason, RenderGraphLifetime,
+    RenderGraphNode, RenderGraphResource, RenderGraphResourceKind,
+};
 use crate::core::resources::shadow::{CmdShadowConfigureArgs, ShadowConfig};
 use crate::core::resources::{
     CameraKind, CmdCameraCreateArgs, CmdGeometryCreateArgs, CmdLightCreateArgs,
@@ -14,11 +20,11 @@ use crate::core::resources::{
     TextureCreateMode,
 };
 use crate::core::window::{CmdWindowCloseArgs, CmdWindowCreateArgs, WindowEvent};
-use crate::core::VulframResult;
-use glam::{Mat4, UVec2, Vec2, Vec3, Vec4};
 use bytemuck::cast_slice;
+use glam::{Mat4, UVec2, Vec2, Vec3, Vec4};
 use rand::Rng;
 use rmp_serde::{from_slice, to_vec_named};
+use std::collections::HashMap;
 use std::fs;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -30,6 +36,7 @@ enum DemoKind {
     Demo001,
     Demo002,
     Demo003,
+    Demo004,
 }
 
 impl DemoKind {
@@ -38,6 +45,7 @@ impl DemoKind {
             "demo_001" | "demo001" | "1" => Some(Self::Demo001),
             "demo_002" | "demo002" | "2" => Some(Self::Demo002),
             "demo_003" | "demo003" | "3" => Some(Self::Demo003),
+            "demo_004" | "demo004" | "4" => Some(Self::Demo004),
             _ => None,
         }
     }
@@ -47,6 +55,7 @@ impl DemoKind {
             Self::Demo001 => "Vulfram Demo 001",
             Self::Demo002 => "Vulfram Demo 002",
             Self::Demo003 => "Vulfram Demo 003",
+            Self::Demo004 => "Vulfram Demo 004",
         }
     }
 }
@@ -67,6 +76,7 @@ fn main() {
         DemoKind::Demo001 => demo_001(window_id),
         DemoKind::Demo002 => demo_002(window_id),
         DemoKind::Demo003 => demo_003(window_id),
+        DemoKind::Demo004 => demo_004(window_id),
     };
 
     if !close_sent {
@@ -137,7 +147,11 @@ fn demo_001(window_id: u32) -> bool {
         ),
     ];
 
-    setup_cmds.push(create_floor_cmd(window_id, geometry_cube, material_instance));
+    setup_cmds.push(create_floor_cmd(
+        window_id,
+        geometry_cube,
+        material_instance,
+    ));
     let (mut cubes, cube_cmds) =
         create_instanced_cubes(window_id, geometry_cube, material_instance);
     setup_cmds.extend(cube_cmds);
@@ -228,13 +242,15 @@ fn demo_002(window_id: u32) -> bool {
         let label = format!("{:?}", shape);
         let color = palette[index % palette.len()];
 
-        setup_cmds.push(EngineCmd::CmdPrimitiveGeometryCreate(CmdPrimitiveGeometryCreateArgs {
-            window_id,
-            geometry_id,
-            label: Some(label.clone()),
-            shape: *shape,
-            options: None,
-        }));
+        setup_cmds.push(EngineCmd::CmdPrimitiveGeometryCreate(
+            CmdPrimitiveGeometryCreateArgs {
+                window_id,
+                geometry_id,
+                label: Some(label.clone()),
+                shape: *shape,
+                options: None,
+            },
+        ));
 
         setup_cmds.push(create_standard_material_cmd(
             window_id,
@@ -386,6 +402,167 @@ fn demo_003(window_id: u32) -> bool {
     })
 }
 
+fn demo_004(window_id: u32) -> bool {
+    let geometry_id: u32 = 500;
+    let model_id: u32 = 501;
+    let material_id: u32 = 502;
+    let camera_id: u32 = 1;
+
+    let graph = RenderGraphDesc {
+        graph_id: LogicalId::Str("demo_004_graph".into()),
+        nodes: vec![
+            RenderGraphNode {
+                node_id: LogicalId::Str("shadow_pass".into()),
+                pass_id: "shadow".into(),
+                inputs: Vec::new(),
+                outputs: vec![LogicalId::Str("shadow_atlas".into())],
+                params: HashMap::new(),
+            },
+            RenderGraphNode {
+                node_id: LogicalId::Str("light_cull_pass".into()),
+                pass_id: "light-cull".into(),
+                inputs: Vec::new(),
+                outputs: Vec::new(),
+                params: HashMap::new(),
+            },
+            RenderGraphNode {
+                node_id: LogicalId::Str("custom_node".into()),
+                pass_id: "custom-pass".into(),
+                inputs: Vec::new(),
+                outputs: Vec::new(),
+                params: HashMap::new(),
+            },
+            RenderGraphNode {
+                node_id: LogicalId::Str("forward_pass".into()),
+                pass_id: "forward".into(),
+                inputs: vec![LogicalId::Str("shadow_atlas".into())],
+                outputs: vec![
+                    LogicalId::Str("hdr_color".into()),
+                    LogicalId::Str("depth".into()),
+                ],
+                params: HashMap::new(),
+            },
+            RenderGraphNode {
+                node_id: LogicalId::Str("compose_pass".into()),
+                pass_id: "compose".into(),
+                inputs: vec![LogicalId::Str("hdr_color".into())],
+                outputs: vec![LogicalId::Str("swapchain".into())],
+                params: HashMap::new(),
+            },
+        ],
+        edges: vec![
+            RenderGraphEdge {
+                from_node_id: LogicalId::Str("shadow_pass".into()),
+                to_node_id: LogicalId::Str("forward_pass".into()),
+                reason: Some(RenderGraphEdgeReason::ReadAfterWrite),
+            },
+            RenderGraphEdge {
+                from_node_id: LogicalId::Str("forward_pass".into()),
+                to_node_id: LogicalId::Str("compose_pass".into()),
+                reason: Some(RenderGraphEdgeReason::ReadAfterWrite),
+            },
+        ],
+        resources: vec![
+            RenderGraphResource {
+                res_id: LogicalId::Str("shadow_atlas".into()),
+                kind: RenderGraphResourceKind::Texture,
+                desc: HashMap::new(),
+                lifetime: RenderGraphLifetime::Frame,
+                alias_group: None,
+            },
+            RenderGraphResource {
+                res_id: LogicalId::Str("hdr_color".into()),
+                kind: RenderGraphResourceKind::Texture,
+                desc: HashMap::new(),
+                lifetime: RenderGraphLifetime::Frame,
+                alias_group: None,
+            },
+            RenderGraphResource {
+                res_id: LogicalId::Str("depth".into()),
+                kind: RenderGraphResourceKind::Texture,
+                desc: HashMap::new(),
+                lifetime: RenderGraphLifetime::Frame,
+                alias_group: None,
+            },
+            RenderGraphResource {
+                res_id: LogicalId::Str("swapchain".into()),
+                kind: RenderGraphResourceKind::Attachment,
+                desc: HashMap::new(),
+                lifetime: RenderGraphLifetime::Frame,
+                alias_group: None,
+            },
+        ],
+        fallback: true,
+    };
+
+    let setup_cmds = vec![
+        EngineCmd::CmdRenderGraphSet(CmdRenderGraphSetArgs { window_id, graph }),
+        EngineCmd::CmdPrimitiveGeometryCreate(CmdPrimitiveGeometryCreateArgs {
+            window_id,
+            geometry_id,
+            label: Some("Graph Cube".into()),
+            shape: PrimitiveShape::Cube,
+            options: None,
+        }),
+        create_camera_cmd(
+            camera_id,
+            "Graph Camera",
+            Mat4::look_at_rh(Vec3::new(0.0, 3.5, 8.0), Vec3::ZERO, Vec3::Y).inverse(),
+        ),
+        create_point_light_cmd(window_id, 2, Vec4::new(0.0, 5.0, 2.0, 1.0)),
+        create_ambient_light_cmd(window_id, 3, Vec4::new(0.3, 0.3, 0.3, 1.0), 0.6),
+        create_standard_material_cmd(
+            window_id,
+            material_id,
+            "Graph Material",
+            Vec4::new(0.75, 0.9, 1.0, 1.0),
+            None,
+        ),
+        EngineCmd::CmdModelCreate(CmdModelCreateArgs {
+            window_id,
+            model_id,
+            label: Some("Graph Cube".into()),
+            geometry_id,
+            material_id: Some(material_id),
+            transform: Mat4::IDENTITY,
+            layer_mask: 0xFFFFFFFF,
+            cast_shadow: true,
+            receive_shadow: true,
+        }),
+        create_shadow_config_cmd(window_id),
+    ];
+
+    assert_eq!(send_commands(setup_cmds), VulframResult::Success);
+    let responses = receive_responses();
+    for response in responses {
+        if let CommandResponse::RenderGraphSet(result) = response.response {
+            println!(
+                "RenderGraphSet: success={} fallback={} message={}",
+                result.success, result.fallback_used, result.message
+            );
+        }
+    }
+
+    run_loop(window_id, None, |total_ms, _delta_ms| {
+        let time_f = total_ms as f32 / 1000.0;
+        let transform = Mat4::from_translation(Vec3::new(0.0, time_f.sin() * 0.4, 0.0))
+            * Mat4::from_euler(glam::EulerRot::XYZ, time_f, time_f * 0.6, 0.0)
+            * Mat4::from_scale(Vec3::splat(1.2));
+
+        vec![EngineCmd::CmdModelUpdate(CmdModelUpdateArgs {
+            window_id,
+            model_id,
+            label: None,
+            geometry_id: None,
+            material_id: None,
+            transform: Some(transform),
+            layer_mask: None,
+            cast_shadow: None,
+            receive_shadow: None,
+        })]
+    })
+}
+
 fn create_camera_cmd(camera_id: u32, label: &str, transform: Mat4) -> EngineCmd {
     EngineCmd::CmdCameraCreate(CmdCameraCreateArgs {
         camera_id,
@@ -463,12 +640,7 @@ fn create_standard_material_cmd(
     })
 }
 
-fn create_texture_cmd(
-    window_id: u32,
-    texture_id: u32,
-    label: &str,
-    buffer_id: u64,
-) -> EngineCmd {
+fn create_texture_cmd(window_id: u32, texture_id: u32, label: &str, buffer_id: u64) -> EngineCmd {
     EngineCmd::CmdTextureCreateFromBuffer(CmdTextureCreateFromBufferArgs {
         window_id,
         texture_id,
@@ -586,7 +758,7 @@ fn upload_texture(path: &str, buffer_id: u64) {
     assert_eq!(
         core::vulfram_upload_buffer(
             buffer_id,
-            UploadType::ImageData.to_u32(),
+            upload_type_to_u32(UploadType::ImageData),
             texture_bytes.as_ptr(),
             texture_bytes.len()
         ),
@@ -599,12 +771,24 @@ fn upload_buffer<T: bytemuck::Pod>(buffer_id: u64, upload_type: UploadType, data
     assert_eq!(
         core::vulfram_upload_buffer(
             buffer_id,
-            upload_type.to_u32(),
+            upload_type_to_u32(upload_type),
             bytes.as_ptr() as *const u8,
             bytes.len()
         ),
         VulframResult::Success
     );
+}
+
+fn upload_type_to_u32(upload_type: UploadType) -> u32 {
+    match upload_type {
+        UploadType::Raw => 0,
+        UploadType::ShaderSource => 1,
+        UploadType::GeometryData => 2,
+        UploadType::VertexData => 3,
+        UploadType::IndexData => 4,
+        UploadType::ImageData => 5,
+        UploadType::BinaryAsset => 6,
+    }
 }
 
 fn build_skinned_plane(
@@ -648,12 +832,7 @@ fn build_skinned_plane(
             let bone_idx = bone_f.floor() as u32;
             let next_idx = (bone_idx + 1).min(bone_count - 1);
             let t = smoothstep(bone_f - bone_idx as f32);
-            joints.push([
-                bone_idx as u16,
-                next_idx as u16,
-                0,
-                0,
-            ]);
+            joints.push([bone_idx as u16, next_idx as u16, 0, 0]);
             weights.push([1.0 - t, t, 0.0, 0.0]);
         }
     }
@@ -669,14 +848,7 @@ fn build_skinned_plane(
         }
     }
 
-    (
-        positions,
-        normals,
-        uvs,
-        joints,
-        weights,
-        indices,
-    )
+    (positions, normals, uvs, joints, weights, indices)
 }
 
 fn run_loop<F>(window_id: u32, max_duration: Option<Duration>, mut on_frame: F) -> bool
@@ -748,8 +920,10 @@ fn handle_close_events(window_id: u32) -> bool {
     let events = receive_events();
     for event in events {
         match event {
-            EngineEvent::Window(WindowEvent::OnCloseRequest { window_id: id }) if id == window_id => {
-                return true
+            EngineEvent::Window(WindowEvent::OnCloseRequest { window_id: id })
+                if id == window_id =>
+            {
+                return true;
             }
             EngineEvent::System(sys_event) => {
                 println!("Received system event: {:?}", sys_event);

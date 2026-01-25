@@ -10,6 +10,7 @@ use crate::core::window::WindowEvent;
 
 pub use crate::core::buffers as buf;
 pub use crate::core::render::gizmos as gizmo;
+pub use crate::core::render::cmd as render;
 pub use crate::core::resources as res;
 pub use crate::core::system as sys;
 pub use crate::core::window as win;
@@ -61,6 +62,7 @@ pub enum EngineCmd {
     CmdGeometryDispose(res::CmdGeometryDisposeArgs),
     CmdPrimitiveGeometryCreate(res::CmdPrimitiveGeometryCreateArgs),
     CmdShadowConfigure(res::shadow::CmdShadowConfigureArgs),
+    CmdRenderGraphSet(render::CmdRenderGraphSetArgs),
     CmdModelList(res::CmdModelListArgs),
     CmdMaterialList(res::CmdMaterialListArgs),
     CmdTextureList(res::CmdTextureListArgs),
@@ -130,6 +132,7 @@ pub enum CommandResponse {
     GeometryDispose(res::CmdResultGeometryDispose),
     PrimitiveGeometryCreate(res::CmdResultPrimitiveGeometryCreate),
     ShadowConfigure(res::shadow::CmdResultShadowConfigure),
+    RenderGraphSet(render::CmdResultRenderGraphSet),
     ModelList(res::CmdResultModelList),
     MaterialList(res::CmdResultMaterialList),
     TextureList(res::CmdResultTextureList),
@@ -480,6 +483,13 @@ pub fn engine_process_batch(
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::ShadowConfigure(result),
+                });
+            }
+            EngineCmd::CmdRenderGraphSet(args) => {
+                let result = render::engine_cmd_render_graph_set(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::RenderGraphSet(result),
                 });
             }
             EngineCmd::CmdModelList(args) => {

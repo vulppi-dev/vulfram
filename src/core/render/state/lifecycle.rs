@@ -52,6 +52,7 @@ impl RenderState {
             forward_depth_target: None,
             collector: DrawCollector::default(),
             skinning: crate::core::render::state::SkinningSystem::default(),
+            render_graph: crate::core::render::graph::RenderGraphState::new(),
         }
     }
 
@@ -80,6 +81,7 @@ impl RenderState {
         self.cache.clear();
         self.forward_depth_target = None;
         self.skinning.clear();
+        self.render_graph.reset_to_fallback();
     }
 
     pub fn begin_frame(&mut self, frame_index: u64) {

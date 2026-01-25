@@ -193,7 +193,6 @@ impl RenderGraphState {
     pub fn plan(&self) -> &RenderGraphPlan {
         &self.active
     }
-
 }
 
 pub fn validate_graph(desc: &RenderGraphDesc) -> Result<RenderGraphPlan, String> {
@@ -301,7 +300,10 @@ fn topo_sort(nodes: &[RenderGraphNode], edges: &[RenderGraphEdge]) -> Result<Vec
 }
 
 fn is_known_pass(pass_id: &str) -> bool {
-    matches!(pass_id, "shadow" | "light-cull" | "forward" | "compose")
+    matches!(
+        pass_id,
+        "shadow" | "light-cull" | "skybox" | "forward" | "compose"
+    )
 }
 
 pub fn fallback_graph() -> RenderGraphDesc {

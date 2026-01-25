@@ -172,10 +172,12 @@ pub fn engine_cmd_window_create_async(
 
         let adapter_features = adapter.features();
         let mut required_features = wgpu::Features::empty();
-        let gpu_profiling_supported = adapter_features
-            .contains(wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS);
+        let gpu_profiling_supported = adapter_features.contains(
+            wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS,
+        );
         if gpu_profiling_supported {
-            required_features |= wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS;
+            required_features |=
+                wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS;
         }
 
         let required_limits = wgpu::Limits::downlevel_webgl2_defaults();
@@ -377,10 +379,12 @@ pub fn engine_cmd_window_create(
 
         let adapter_features = adapter.features();
         let mut required_features = wgpu::Features::empty();
-        gpu_profiling_supported = adapter_features
-            .contains(wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS);
+        gpu_profiling_supported = adapter_features.contains(
+            wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS,
+        );
         if gpu_profiling_supported {
-            required_features |= wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS;
+            required_features |=
+                wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS;
         }
 
         let (device, queue) = match adapter
@@ -502,11 +506,7 @@ pub fn engine_cmd_window_create(
 
     if is_new_device && gpu_profiling_supported && engine.gpu_profiler.is_none() {
         if let (Some(device), Some(queue)) = (&engine.device, &engine.queue) {
-            engine.gpu_profiler = Some(GpuProfiler::new(
-                device,
-                queue,
-                engine.window.states.len(),
-            ));
+            engine.gpu_profiler = Some(GpuProfiler::new(device, queue, engine.window.states.len()));
         }
     }
 

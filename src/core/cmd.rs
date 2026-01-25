@@ -9,8 +9,8 @@ use crate::core::system::SystemEvent;
 use crate::core::window::WindowEvent;
 
 pub use crate::core::buffers as buf;
-pub use crate::core::render::gizmos as gizmo;
 pub use crate::core::render::cmd as render;
+pub use crate::core::render::gizmos as gizmo;
 pub use crate::core::resources as res;
 pub use crate::core::system as sys;
 pub use crate::core::window as win;
@@ -61,6 +61,9 @@ pub enum EngineCmd {
     CmdGeometryUpdate(res::CmdGeometryUpdateArgs),
     CmdGeometryDispose(res::CmdGeometryDisposeArgs),
     CmdPrimitiveGeometryCreate(res::CmdPrimitiveGeometryCreateArgs),
+    CmdEnvironmentCreate(res::CmdEnvironmentCreateArgs),
+    CmdEnvironmentUpdate(res::CmdEnvironmentUpdateArgs),
+    CmdEnvironmentDispose(res::CmdEnvironmentDisposeArgs),
     CmdShadowConfigure(res::shadow::CmdShadowConfigureArgs),
     CmdRenderGraphSet(render::CmdRenderGraphSetArgs),
     CmdModelList(res::CmdModelListArgs),
@@ -131,6 +134,9 @@ pub enum CommandResponse {
     GeometryUpdate(res::CmdResultGeometryUpdate),
     GeometryDispose(res::CmdResultGeometryDispose),
     PrimitiveGeometryCreate(res::CmdResultPrimitiveGeometryCreate),
+    EnvironmentCreate(res::CmdResultEnvironment),
+    EnvironmentUpdate(res::CmdResultEnvironment),
+    EnvironmentDispose(res::CmdResultEnvironment),
     ShadowConfigure(res::shadow::CmdResultShadowConfigure),
     RenderGraphSet(render::CmdResultRenderGraphSet),
     ModelList(res::CmdResultModelList),
@@ -476,6 +482,27 @@ pub fn engine_process_batch(
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::PrimitiveGeometryCreate(result),
+                });
+            }
+            EngineCmd::CmdEnvironmentCreate(args) => {
+                let result = res::engine_cmd_environment_create(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::EnvironmentCreate(result),
+                });
+            }
+            EngineCmd::CmdEnvironmentUpdate(args) => {
+                let result = res::engine_cmd_environment_update(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::EnvironmentUpdate(result),
+                });
+            }
+            EngineCmd::CmdEnvironmentDispose(args) => {
+                let result = res::engine_cmd_environment_dispose(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::EnvironmentDispose(result),
                 });
             }
             EngineCmd::CmdShadowConfigure(args) => {

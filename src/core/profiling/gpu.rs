@@ -53,7 +53,12 @@ impl GpuProfiler {
         }
     }
 
-    pub fn ensure_capacity(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, window_count: usize) {
+    pub fn ensure_capacity(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        window_count: usize,
+    ) {
         if window_count == 0 {
             return;
         }
@@ -124,22 +129,22 @@ impl GpuProfiler {
             let light_start = timestamps[base];
             let light_end = timestamps[base + 1];
             if light_end >= light_start {
-                gpu_light_cull_ns =
-                    gpu_light_cull_ns.saturating_add(((light_end - light_start) as f64 * period) as u64);
+                gpu_light_cull_ns = gpu_light_cull_ns
+                    .saturating_add(((light_end - light_start) as f64 * period) as u64);
             }
 
             let forward_start = timestamps[base + 2];
             let forward_end = timestamps[base + 3];
             if forward_end >= forward_start {
-                gpu_forward_ns =
-                    gpu_forward_ns.saturating_add(((forward_end - forward_start) as f64 * period) as u64);
+                gpu_forward_ns = gpu_forward_ns
+                    .saturating_add(((forward_end - forward_start) as f64 * period) as u64);
             }
 
             let compose_start = timestamps[base + 4];
             let compose_end = timestamps[base + 5];
             if compose_end >= compose_start {
-                gpu_compose_ns =
-                    gpu_compose_ns.saturating_add(((compose_end - compose_start) as f64 * period) as u64);
+                gpu_compose_ns = gpu_compose_ns
+                    .saturating_add(((compose_end - compose_start) as f64 * period) as u64);
             }
         }
 

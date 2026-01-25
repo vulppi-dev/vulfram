@@ -22,7 +22,6 @@ impl LightKind {
             LightKind::Hemisphere => 4,
         }
     }
-
 }
 
 #[derive(Debug, Clone, Copy, Pod, Zeroable, Deserialize, Serialize)]

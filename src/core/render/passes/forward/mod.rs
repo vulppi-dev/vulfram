@@ -11,8 +11,11 @@ pub fn pass_forward(
     queue: &wgpu::Queue,
     encoder: &mut wgpu::CommandEncoder,
     frame_index: u64,
+    clear_color: bool,
 ) {
     let scene = &render_state.scene;
+
+    let sample_count = render_state.msaa_sample_count();
 
     // Split borrows
     let (vertex_sys, bindings, library, light_system, collector, cache, gizmos) = (
@@ -26,21 +29,60 @@ pub fn pass_forward(
     );
 
     // 0. Ensure Depth Target exists and matches size (Lazy)
-    if render_state.forward_depth_target.is_none() {
-        if let Some((_, camera)) = scene.cameras.iter().next() {
-            if let Some(target) = &camera.render_target {
-                let size = target._texture.size();
+    if let Some((_, camera)) = scene.cameras.iter().next() {
+        if let Some(target) = &camera.render_target {
+            let size = target._texture.size();
+            let needs_depth = match render_state.forward_depth_target.as_ref() {
+                Some(existing) => {
+                    let existing_size = existing._texture.size();
+                    existing_size.width != size.width
+                        || existing_size.height != size.height
+                        || existing.sample_count != sample_count
+                }
+                None => true,
+            };
+            if needs_depth {
                 render_state.forward_depth_target =
-                    Some(crate::core::resources::RenderTarget::new(
+                    Some(crate::core::resources::RenderTarget::new_with_samples(
                         device,
                         size,
                         wgpu::TextureFormat::Depth32Float,
+                        sample_count,
                     ));
             }
         }
     }
 
     let depth_target = render_state.forward_depth_target.as_ref();
+    let msaa_target = if sample_count > 1 {
+        if let Some((_, camera)) = scene.cameras.iter().next() {
+            if let Some(target) = &camera.render_target {
+                let size = target._texture.size();
+                let needs_msaa = match render_state.forward_msaa_target.as_ref() {
+                    Some(existing) => {
+                        let existing_size = existing._texture.size();
+                        existing_size.width != size.width
+                            || existing_size.height != size.height
+                            || existing.sample_count != sample_count
+                    }
+                    None => true,
+                };
+                if needs_msaa {
+                    render_state.forward_msaa_target =
+                        Some(crate::core::resources::RenderTarget::new_with_samples(
+                            device,
+                            size,
+                            wgpu::TextureFormat::Rgba16Float,
+                            sample_count,
+                        ));
+                }
+            }
+        }
+        render_state.forward_msaa_target.as_ref()
+    } else {
+        render_state.forward_msaa_target = None;
+        None
+    };
     gizmos.prepare(device, queue);
 
     // Pre-cache Gizmo Pipeline once per pass if needed
@@ -49,7 +91,7 @@ pub fn pass_forward(
             shader_id: ShaderId::Gizmo as u64,
             color_format: wgpu::TextureFormat::Rgba16Float,
             depth_format: depth_target.map(|t| t.format),
-            sample_count: 1,
+            sample_count,
             topology: wgpu::PrimitiveTopology::LineList,
             cull_mode: None,
             front_face: wgpu::FrontFace::Ccw,
@@ -73,6 +115,11 @@ pub fn pass_forward(
             Some(target) => &target.view,
             None => continue,
         };
+        let (color_view, resolve_target) = if let Some(msaa) = msaa_target {
+            (&msaa.view, Some(target_view))
+        } else {
+            (target_view, None)
+        };
 
         // Reset collector for this camera
         collector.clear();
@@ -85,15 +132,19 @@ pub fn pass_forward(
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some(&format!("Forward Pass - Camera {}", camera_id)),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: target_view,
-                    resolve_target: None,
+                    view: color_view,
+                    resolve_target,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
-                            a: 1.0,
-                        }),
+                        load: if clear_color {
+                            wgpu::LoadOp::Clear(wgpu::Color {
+                                r: 0.0,
+                                g: 0.0,
+                                b: 0.0,
+                                a: 1.0,
+                            })
+                        } else {
+                            wgpu::LoadOp::Load
+                        },
                         store: wgpu::StoreOp::Store,
                     },
                     depth_slice: None,
@@ -140,6 +191,7 @@ pub fn pass_forward(
                 frame_index,
                 device,
                 cache,
+                sample_count,
             );
 
             // 7. Draw Gizmos

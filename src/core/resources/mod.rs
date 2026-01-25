@@ -1,6 +1,7 @@
 pub mod common;
 
 mod camera;
+mod environment;
 pub mod geometry;
 mod light;
 mod material;
@@ -15,6 +16,7 @@ mod vertex;
 pub mod list;
 
 pub use camera::*;
+pub use environment::*;
 pub use geometry::*;
 pub use light::*;
 pub use list::*;

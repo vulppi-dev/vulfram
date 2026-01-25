@@ -1,10 +1,10 @@
 use glam::Mat4;
 use serde::{Deserialize, Serialize};
 
+use crate::core::render::state::SkinningSystem;
 use crate::core::resources::common::default_layer_mask;
 use crate::core::resources::{ModelComponent, ModelRecord};
 use crate::core::state::EngineState;
-use crate::core::render::state::SkinningSystem;
 
 // MARK: - Create Model
 
@@ -270,7 +270,10 @@ pub fn engine_cmd_pose_update(
         .unwrap_or(false);
 
     if !has_skin_streams {
-        return fail(engine, "Geometry does not include SkinJoints/SkinWeights".into());
+        return fail(
+            engine,
+            "Geometry does not include SkinJoints/SkinWeights".into(),
+        );
     }
 
     let expected_bytes = args.bone_count as usize * std::mem::size_of::<glam::Mat4>();
@@ -298,9 +301,7 @@ pub fn engine_cmd_pose_update(
         .skinning
         .ensure_allocation(args.model_id, args.bone_count);
 
-    bindings
-        .bones_pool
-        .write_slice(allocation.offset, matrices);
+    bindings.bones_pool.write_slice(allocation.offset, matrices);
 
     record.data.set_skinning(allocation.offset, args.bone_count);
     record.mark_dirty();

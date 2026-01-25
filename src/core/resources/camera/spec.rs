@@ -192,15 +192,25 @@ pub struct RenderTarget {
     pub _texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub format: wgpu::TextureFormat,
+    pub sample_count: u32,
 }
 
 impl RenderTarget {
     pub fn new(device: &wgpu::Device, size: Extent3d, format: wgpu::TextureFormat) -> Self {
+        Self::new_with_samples(device, size, format, 1)
+    }
+
+    pub fn new_with_samples(
+        device: &wgpu::Device,
+        size: Extent3d,
+        format: wgpu::TextureFormat,
+        sample_count: u32,
+    ) -> Self {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Camera RenderTarget"),
             size,
             mip_level_count: 1,
-            sample_count: 1,
+            sample_count,
             dimension: wgpu::TextureDimension::D2,
             format,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT
@@ -215,6 +225,7 @@ impl RenderTarget {
             _texture: texture,
             view,
             format,
+            sample_count,
         }
     }
 }

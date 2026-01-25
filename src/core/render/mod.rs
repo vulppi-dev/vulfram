@@ -1,13 +1,13 @@
 pub mod cache;
 pub mod cmd;
-pub mod graph;
 pub mod gizmos;
+pub mod graph;
 mod passes;
 pub mod state;
 
+use crate::core::render::graph::RenderGraphPlan;
 use crate::core::state::EngineState;
 pub use state::RenderState;
-use crate::core::render::graph::RenderGraphPlan;
 
 #[cfg(feature = "wasm")]
 use js_sys::Date;
@@ -53,69 +53,72 @@ pub fn render_frames(engine_state: &mut EngineState) {
     let total_start = now_ns();
 
     // 1. Update Shadows (Global for all windows - using first window's state as proxy)
-    let shadow_enabled = engine_state
-        .window
-        .states
-        .values()
-        .any(|window_state| window_state.render_state.render_graph.plan().has_pass("shadow"));
+    let shadow_enabled = engine_state.window.states.values().any(|window_state| {
+        window_state
+            .render_state
+            .render_graph
+            .plan()
+            .has_pass("shadow")
+    });
 
     if shadow_enabled {
         if let Some((_, window_state)) = engine_state.window.states.iter_mut().next() {
-        #[cfg(not(feature = "wasm"))]
-        let shadow_start = std::time::Instant::now();
-        #[cfg(feature = "wasm")]
-        let shadow_start = now_ns();
-        // Ensure data is ready but WITHOUT shadow atlas binding to avoid conflicts
-        window_state
-            .render_state
-            .prepare_render(device, frame_spec, false);
+            #[cfg(not(feature = "wasm"))]
+            let shadow_start = std::time::Instant::now();
+            #[cfg(feature = "wasm")]
+            let shadow_start = now_ns();
+            // Ensure data is ready but WITHOUT shadow atlas binding to avoid conflicts
+            window_state
+                .render_state
+                .prepare_render(device, frame_spec, false);
 
-        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Shadow Update Encoder"),
-        });
+            let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Shadow Update Encoder"),
+            });
 
-        if let Some(gpu_profiler) = engine_state.gpu_profiler.as_ref() {
-            if gpu_profiler.query_count() >= 2 {
-                encoder.write_timestamp(gpu_profiler.query_set(), 0);
-                gpu_written = true;
+            if let Some(gpu_profiler) = engine_state.gpu_profiler.as_ref() {
+                if gpu_profiler.query_count() >= 2 {
+                    encoder.write_timestamp(gpu_profiler.query_set(), 0);
+                    gpu_written = true;
+                }
             }
-        }
 
-        passes::pass_shadow_update(
-            &mut window_state.render_state,
-            device,
-            queue,
-            &mut encoder,
-            engine_state.frame_index,
-        );
+            passes::pass_shadow_update(
+                &mut window_state.render_state,
+                device,
+                queue,
+                &mut encoder,
+                engine_state.frame_index,
+            );
 
-        if let Some(gpu_profiler) = engine_state.gpu_profiler.as_ref() {
-            if gpu_profiler.query_count() >= 2 {
-                encoder.write_timestamp(gpu_profiler.query_set(), 1);
-                gpu_written = true;
+            if let Some(gpu_profiler) = engine_state.gpu_profiler.as_ref() {
+                if gpu_profiler.query_count() >= 2 {
+                    encoder.write_timestamp(gpu_profiler.query_set(), 1);
+                    gpu_written = true;
+                }
             }
-        }
 
-        if let Some(shadow) = &mut window_state.render_state.shadow {
-            shadow.sync_table();
-        }
+            if let Some(shadow) = &mut window_state.render_state.shadow {
+                shadow.sync_table();
+            }
 
-        queue.submit(Some(encoder.finish()));
-        #[cfg(not(feature = "wasm"))]
-        {
-            engine_state.profiling.render_shadow_ns =
-                shadow_start.elapsed().as_nanos() as u64;
-        }
-        #[cfg(feature = "wasm")]
-        {
-            engine_state.profiling.render_shadow_ns = now_ns().saturating_sub(shadow_start);
-        }
+            queue.submit(Some(encoder.finish()));
+            #[cfg(not(feature = "wasm"))]
+            {
+                engine_state.profiling.render_shadow_ns = shadow_start.elapsed().as_nanos() as u64;
+            }
+            #[cfg(feature = "wasm")]
+            {
+                engine_state.profiling.render_shadow_ns = now_ns().saturating_sub(shadow_start);
+            }
         }
     }
 
     // 2. Render all windows
     let mut windows_ns: u64 = 0;
-    for (window_index, (_window_id, window_state)) in engine_state.window.states.iter_mut().enumerate() {
+    for (window_index, (_window_id, window_state)) in
+        engine_state.window.states.iter_mut().enumerate()
+    {
         #[cfg(not(feature = "wasm"))]
         let window_start = std::time::Instant::now();
         #[cfg(feature = "wasm")]
@@ -192,14 +195,11 @@ pub fn render_frames(engine_state: &mut EngineState) {
         }
         #[cfg(not(feature = "wasm"))]
         {
-            windows_ns = windows_ns.saturating_add(
-                window_start.elapsed().as_nanos() as u64,
-            );
+            windows_ns = windows_ns.saturating_add(window_start.elapsed().as_nanos() as u64);
         }
         #[cfg(feature = "wasm")]
         {
-            windows_ns =
-                windows_ns.saturating_add(now_ns().saturating_sub(window_start));
+            windows_ns = windows_ns.saturating_add(now_ns().saturating_sub(window_start));
         }
     }
 
@@ -210,20 +210,20 @@ pub fn render_frames(engine_state: &mut EngineState) {
                     device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
                         label: Some("GpuProfiler Resolve Encoder"),
                     });
-            resolve_encoder.resolve_query_set(
-                gpu_profiler.query_set(),
-                0..gpu_profiler.query_count(),
-                gpu_profiler.resolve_buffer(),
-                0,
-            );
-            resolve_encoder.copy_buffer_to_buffer(
-                gpu_profiler.resolve_buffer(),
-                0,
-                gpu_profiler.readback_buffer(),
-                0,
-                gpu_profiler.buffer_size(),
-            );
-            queue.submit(Some(resolve_encoder.finish()));
+                resolve_encoder.resolve_query_set(
+                    gpu_profiler.query_set(),
+                    0..gpu_profiler.query_count(),
+                    gpu_profiler.resolve_buffer(),
+                    0,
+                );
+                resolve_encoder.copy_buffer_to_buffer(
+                    gpu_profiler.resolve_buffer(),
+                    0,
+                    gpu_profiler.readback_buffer(),
+                    0,
+                    gpu_profiler.buffer_size(),
+                );
+                queue.submit(Some(resolve_encoder.finish()));
                 gpu_profiler.readback_and_update(device, &mut engine_state.profiling);
             }
         }
@@ -253,11 +253,17 @@ fn execute_window_graph(
 ) -> bool {
     let mut gpu_written = false;
 
+    let mut skybox_done = false;
+
     for &node_idx in &plan.order {
         let node = &plan.nodes[node_idx];
         match node.pass_id.as_str() {
             "shadow" => {
                 continue;
+            }
+            "skybox" => {
+                passes::pass_skybox(render_state, device, encoder, frame_index);
+                skybox_done = true;
             }
             "light-cull" => {
                 if let Some(base) = gpu_base {
@@ -272,7 +278,14 @@ fn execute_window_graph(
                 if let Some(base) = gpu_base {
                     write_gpu_timestamp(encoder, gpu_profiler, base + 2, &mut gpu_written);
                 }
-                passes::pass_forward(render_state, device, queue, encoder, frame_index);
+                passes::pass_forward(
+                    render_state,
+                    device,
+                    queue,
+                    encoder,
+                    frame_index,
+                    !skybox_done,
+                );
                 if let Some(base) = gpu_base {
                     write_gpu_timestamp(encoder, gpu_profiler, base + 3, &mut gpu_written);
                 }

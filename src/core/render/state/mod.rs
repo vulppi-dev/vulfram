@@ -10,6 +10,7 @@ pub mod skinning;
 
 use crate::core::render::cache::RenderCache;
 use crate::core::render::gizmos::GizmoSystem;
+use crate::core::resources::EnvironmentConfig;
 use crate::core::resources::VertexAllocatorSystem;
 use crate::core::resources::shadow::ShadowManager;
 
@@ -34,6 +35,9 @@ pub struct RenderState {
     pub forward_atlas: Option<crate::core::resources::ForwardAtlasSystem>,
     pub cache: RenderCache,
     pub forward_depth_target: Option<crate::core::resources::RenderTarget>,
+    pub forward_msaa_target: Option<crate::core::resources::RenderTarget>,
+    pub environment: EnvironmentConfig,
+    pub environment_is_configured: bool,
     pub skinning: SkinningSystem,
     pub render_graph: RenderGraphState,
 
@@ -42,10 +46,19 @@ pub struct RenderState {
 }
 
 impl RenderState {
+    pub fn msaa_sample_count(&self) -> u32 {
+        if self.environment.msaa.enabled && self.environment.msaa.sample_count >= 2 {
+            self.environment.msaa.sample_count
+        } else {
+            1
+        }
+    }
+
     #[cfg(any(not(feature = "wasm"), target_arch = "wasm32"))]
     pub fn on_resize(&mut self, device: &wgpu::Device, width: u32, height: u32) {
         // Depth target is now managed per-frame or lazily by passes
         self.forward_depth_target = None;
+        self.forward_msaa_target = None;
 
         let mut any_camera_dirty = false;
         for record in self.scene.cameras.values_mut() {

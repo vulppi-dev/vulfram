@@ -3,8 +3,8 @@ use crate::core::cmd::{EngineBatchCmds, EngineBatchEvents, EngineBatchResponses}
 use crate::core::gamepad::state::GamepadState;
 #[cfg(not(feature = "wasm"))]
 use crate::core::input::InputState;
-use crate::core::profiling::gpu::GpuProfiler;
 use crate::core::profiling::TickProfiling;
+use crate::core::profiling::gpu::GpuProfiler;
 use crate::core::window::WindowManager;
 
 /// Main engine state holding all runtime data

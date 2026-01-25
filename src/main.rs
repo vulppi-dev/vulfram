@@ -13,10 +13,11 @@ use crate::core::render::graph::{
 };
 use crate::core::resources::shadow::{CmdShadowConfigureArgs, ShadowConfig};
 use crate::core::resources::{
-    CameraKind, CmdCameraCreateArgs, CmdGeometryCreateArgs, CmdLightCreateArgs,
-    CmdMaterialCreateArgs, CmdModelCreateArgs, CmdModelUpdateArgs, CmdPoseUpdateArgs,
-    CmdPrimitiveGeometryCreateArgs, CmdTextureCreateFromBufferArgs, GeometryPrimitiveEntry,
-    LightKind, MaterialKind, MaterialOptions, MaterialSampler, PrimitiveShape, StandardOptions,
+    CameraKind, CmdCameraCreateArgs, CmdEnvironmentUpdateArgs, CmdGeometryCreateArgs,
+    CmdLightCreateArgs, CmdMaterialCreateArgs, CmdModelCreateArgs, CmdModelUpdateArgs,
+    CmdPoseUpdateArgs, CmdPrimitiveGeometryCreateArgs, CmdTextureCreateFromBufferArgs,
+    EnvironmentConfig, GeometryPrimitiveEntry, LightKind, MaterialKind, MaterialOptions,
+    MaterialSampler, MsaaConfig, PrimitiveShape, SkyboxConfig, SkyboxMode, StandardOptions,
     TextureCreateMode,
 };
 use crate::core::window::{CmdWindowCloseArgs, CmdWindowCreateArgs, WindowEvent};
@@ -426,6 +427,13 @@ fn demo_004(window_id: u32) -> bool {
                 params: HashMap::new(),
             },
             RenderGraphNode {
+                node_id: LogicalId::Str("skybox_pass".into()),
+                pass_id: "skybox".into(),
+                inputs: Vec::new(),
+                outputs: Vec::new(),
+                params: HashMap::new(),
+            },
+            RenderGraphNode {
                 node_id: LogicalId::Str("custom_node".into()),
                 pass_id: "custom-pass".into(),
                 inputs: Vec::new(),
@@ -496,6 +504,22 @@ fn demo_004(window_id: u32) -> bool {
     };
 
     let setup_cmds = vec![
+        EngineCmd::CmdEnvironmentUpdate(CmdEnvironmentUpdateArgs {
+            window_id,
+            config: EnvironmentConfig {
+                msaa: MsaaConfig {
+                    enabled: true,
+                    sample_count: 4,
+                },
+                skybox: SkyboxConfig {
+                    mode: SkyboxMode::Procedural,
+                    intensity: 1.0,
+                    rotation: 0.0,
+                    tint: Vec3::new(0.05, 0.1, 0.2),
+                    cubemap_texture_id: None,
+                },
+            },
+        }),
         EngineCmd::CmdRenderGraphSet(CmdRenderGraphSetArgs { window_id, graph }),
         EngineCmd::CmdPrimitiveGeometryCreate(CmdPrimitiveGeometryCreateArgs {
             window_id,

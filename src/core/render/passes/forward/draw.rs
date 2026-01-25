@@ -11,6 +11,7 @@ pub(crate) fn draw_batches(
     frame_index: u64,
     device: &wgpu::Device,
     cache: &mut crate::core::render::cache::RenderCache,
+    sample_count: u32,
 ) {
     // 1. PBR Opaque
     draw_group(
@@ -25,6 +26,7 @@ pub(crate) fn draw_batches(
         device,
         cache,
         library,
+        sample_count,
     );
 
     // 2. PBR Masked
@@ -40,6 +42,7 @@ pub(crate) fn draw_batches(
         device,
         cache,
         library,
+        sample_count,
     );
 
     // 3. Standard Opaque
@@ -55,6 +58,7 @@ pub(crate) fn draw_batches(
         device,
         cache,
         library,
+        sample_count,
     );
 
     // 4. Standard Masked
@@ -70,6 +74,7 @@ pub(crate) fn draw_batches(
         device,
         cache,
         library,
+        sample_count,
     );
 
     // 5. PBR Transparent
@@ -85,6 +90,7 @@ pub(crate) fn draw_batches(
         device,
         cache,
         library,
+        sample_count,
     );
 
     // 6. Standard Transparent
@@ -100,6 +106,7 @@ pub(crate) fn draw_batches(
         device,
         cache,
         library,
+        sample_count,
     );
 }
 
@@ -115,15 +122,30 @@ fn draw_group(
     device: &wgpu::Device,
     cache: &mut crate::core::render::cache::RenderCache,
     library: &crate::core::render::state::ResourceLibrary,
+    sample_count: u32,
 ) {
     if items.is_empty() {
         return;
     }
 
     let pipeline = if is_pbr {
-        branches::pbr::get_pipeline(cache, frame_index, device, library, surface_type)
+        branches::pbr::get_pipeline(
+            cache,
+            frame_index,
+            device,
+            library,
+            surface_type,
+            sample_count,
+        )
     } else {
-        branches::standard::get_pipeline(cache, frame_index, device, library, surface_type)
+        branches::standard::get_pipeline(
+            cache,
+            frame_index,
+            device,
+            library,
+            surface_type,
+            sample_count,
+        )
     };
     render_pass.set_pipeline(pipeline);
 

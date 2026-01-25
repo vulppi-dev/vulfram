@@ -18,7 +18,7 @@ _Refatoração para suportar efeitos avançados._
 
 - [ ] **Render Graph**: Substituir o `Compose` por um grafo real para encadeamento de efeitos.
 - [x] **Advanced Profiler**: Exporta métricas detalhadas de GPU para o Host via MessagePack.
-- [ ] **Skeletal Animation (Skinning)**: Implementar interpolação de ossos via GPU (Shader).
+- [x] **Skeletal Animation (Skinning)**: Implementar interpolação de ossos via GPU (Shader).
 
 ## 🟠 Fase 3: Efeitos & Simulação (Core)
 

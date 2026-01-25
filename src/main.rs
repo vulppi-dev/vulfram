@@ -738,12 +738,13 @@ fn create_shadow_config_cmd(window_id: u32) -> EngineCmd {
     EngineCmd::CmdShadowConfigure(CmdShadowConfigureArgs {
         window_id,
         config: ShadowConfig {
-            tile_resolution: 512,
+            tile_resolution: 2048,
             atlas_tiles_w: 16,
             atlas_tiles_h: 16,
             atlas_layers: 2,
             virtual_grid_size: 1,
             smoothing: 2,
+            normal_bias: 0.01,
         },
     })
 }

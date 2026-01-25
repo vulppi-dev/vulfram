@@ -56,7 +56,10 @@ struct ShadowParams {
     bias_slope: f32,
     point_bias_min: f32,
     point_bias_slope: f32,
-    _padding: f32,
+    normal_bias: f32,
+    _padding0: f32,
+    _padding1: f32,
+    _padding2: f32,
 }
 
 struct Model {
@@ -448,18 +451,25 @@ fn point_shadow_factor(light: Light, world_pos: vec3<f32>, ndotl: f32) -> f32 {
     return select(1.0, shadow, dist_valid);
 }
 
-fn get_shadow_factor(light: Light, world_pos: vec3<f32>, ndotl: f32, instance_id: u32) -> f32 {
+fn get_shadow_factor(
+    light: Light,
+    world_pos: vec3<f32>,
+    shadow_normal: vec3<f32>,
+    ndotl: f32,
+    instance_id: u32
+) -> f32 {
     let model = models[instance_id];
     let model_receive_shadow = (model.flags.x & 1u) != 0u;
     let light_cast_shadow = (light.kind_flags.y & 1u) != 0u;
     let shadow_enabled = model_receive_shadow && light_cast_shadow && ndotl > 0.0;
-    let light_clip = light.view_projection * vec4<f32>(world_pos, 1.0);
+    let offset_pos = world_pos + shadow_normal * shadow_params.normal_bias;
+    let light_clip = light.view_projection * vec4<f32>(offset_pos, 1.0);
     let light_ndc = light_clip.xyz / light_clip.w;
     let shadow_idx = light.shadow_index;
     let light_base = shadow_idx * 6u + 0u;
     let directional_shadow =
         sample_shadow_page_at(light_base, light_ndc, ndotl, shadow_params.bias_min, shadow_params.bias_slope);
-    let point_shadow = point_shadow_factor(light, world_pos, ndotl);
+    let point_shadow = point_shadow_factor(light, offset_pos, ndotl);
     let is_point = light.kind_flags.x == 1u;
     let shadow = select(directional_shadow, point_shadow, is_point);
     return select(1.0, shadow, shadow_enabled);
@@ -558,7 +568,7 @@ fn pbr_lighting(
 
     let n_dot_l = max(dot(n, l), 0.0);
     let n_dot_l_shadow = max(dot(shadow_normal, l), 0.0);
-    let shadow = get_shadow_factor(light, world_pos, n_dot_l_shadow, instance_id);
+    let shadow = get_shadow_factor(light, world_pos, shadow_normal, n_dot_l_shadow, instance_id);
 
     let h = normalize(v + l);
     let n_dot_v = max(dot(n, v), 0.0);

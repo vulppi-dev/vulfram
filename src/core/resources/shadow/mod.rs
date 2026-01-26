@@ -163,6 +163,10 @@ impl ShadowManager {
             || config.atlas_tiles_w != self.config.atlas_tiles_w
             || config.atlas_tiles_h != self.config.atlas_tiles_h
             || config.atlas_layers != self.config.atlas_layers;
+        let grid_changed = config.virtual_grid_size != self.config.virtual_grid_size;
+        let params_changed = grid_changed
+            || config.smoothing != self.config.smoothing
+            || config.normal_bias != self.config.normal_bias;
 
         self.config = config;
 
@@ -193,6 +197,13 @@ impl ShadowManager {
             };
             self.atlas = ShadowAtlasSystem::new(device, atlas_desc);
             self.cache.clear();
+            self.is_dirty = true;
+        } else if grid_changed {
+            // Virtual grid change invalidates page keys.
+            self.cache.clear();
+            self.is_dirty = true;
+        } else if params_changed {
+            // Params-only changes still need a refresh of cached pages.
             self.is_dirty = true;
         }
     }

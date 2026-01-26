@@ -42,6 +42,10 @@ pub fn engine_cmd_shadow_configure(
 
     if let Some(shadow) = window_state.render_state.shadow.as_mut() {
         shadow.configure(device, args.config);
+        if let Some(bindings) = window_state.render_state.bindings.as_mut() {
+            bindings.shared_group = None;
+            bindings.shadow_model_bind_group = None;
+        }
         window_state.is_dirty = true;
         CmdResultShadowConfigure {
             success: true,

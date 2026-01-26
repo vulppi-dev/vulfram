@@ -2,9 +2,15 @@ name: Build Bindings
 
 on:
   push:
-    branches: [build]
+    paths:
+      - releases/**/*
+      - alphas/**/*
+      - betas/**/*
   pull_request:
-    branches: [build]
+    paths:
+      - releases/**/*
+      - alphas/**/*
+      - betas/**/*
   workflow_dispatch:
 
 jobs:
@@ -175,11 +181,9 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist/wasm
-          cp target/wasm32-unknown-unknown/release/*.wasm dist/wasm/ || true
-          mkdir -p dist/wasm/pkg
           wasm-bindgen \
             --target web \
-            --out-dir dist/wasm/pkg \
+            --out-dir dist/wasm \
             --out-name vulfram_core \
             target/wasm32-unknown-unknown/release/vulfram_core.wasm
 
@@ -188,7 +192,7 @@ jobs:
         with:
           name: vulfram-wasm
           path: dist/wasm
-          retention-days: 1
+          retention-days: 7
 
   merge:
     name: Merge Artifacts - ${{ matrix.binding }}
@@ -210,3 +214,4 @@ jobs:
         with:
           name: vulfram-${{ matrix.binding }}
           path: merged-dist/
+          retention-days: 7

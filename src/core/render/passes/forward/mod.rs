@@ -244,7 +244,10 @@ pub fn pass_forward(
                             stencil: wgpu::StencilState::default(),
                             bias: wgpu::DepthBiasState::default(),
                         }),
-                        multisample: wgpu::MultisampleState::default(),
+                        multisample: wgpu::MultisampleState {
+                            count: sample_count,
+                            ..Default::default()
+                        },
                         multiview_mask: None,
                         cache: None,
                     })

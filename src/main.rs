@@ -213,6 +213,22 @@ fn demo_002(window_id: u32) -> bool {
     let base_material_id: u32 = 300;
 
     let mut setup_cmds = vec![
+        EngineCmd::CmdEnvironmentUpdate(CmdEnvironmentUpdateArgs {
+            window_id,
+            config: EnvironmentConfig {
+                msaa: MsaaConfig {
+                    enabled: true,
+                    sample_count: 4,
+                },
+                skybox: SkyboxConfig {
+                    mode: SkyboxMode::None,
+                    intensity: 1.0,
+                    rotation: 0.0,
+                    tint: Vec3::ONE,
+                    cubemap_texture_id: None,
+                },
+            },
+        }),
         create_camera_cmd(
             camera_id,
             "Primitives Camera",
@@ -282,6 +298,7 @@ fn demo_002(window_id: u32) -> bool {
 
     run_loop(window_id, None, |total_ms, _delta_ms| {
         let mut frame_cmds = vec![];
+        frame_cmds.extend(draw_axes_gizmos());
         let time_f = total_ms as f32 / 1000.0;
 
         for (index, (model_id, position)) in primitive_models.iter().enumerate() {
@@ -738,12 +755,12 @@ fn create_shadow_config_cmd(window_id: u32) -> EngineCmd {
     EngineCmd::CmdShadowConfigure(CmdShadowConfigureArgs {
         window_id,
         config: ShadowConfig {
-            tile_resolution: 2048,
+            tile_resolution: 512,
             atlas_tiles_w: 16,
             atlas_tiles_h: 16,
             atlas_layers: 2,
             virtual_grid_size: 1,
-            smoothing: 2,
+            smoothing: 1,
             normal_bias: 0.01,
         },
     })

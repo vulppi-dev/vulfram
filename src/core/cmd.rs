@@ -9,6 +9,7 @@ use crate::core::system::SystemEvent;
 use crate::core::window::WindowEvent;
 
 pub use crate::core::buffers as buf;
+pub use crate::core::render::cmd as render;
 pub use crate::core::render::gizmos as gizmo;
 pub use crate::core::resources as res;
 pub use crate::core::system as sys;
@@ -45,6 +46,7 @@ pub enum EngineCmd {
     CmdCameraDispose(res::CmdCameraDisposeArgs),
     CmdModelCreate(res::CmdModelCreateArgs),
     CmdModelUpdate(res::CmdModelUpdateArgs),
+    CmdPoseUpdate(res::CmdPoseUpdateArgs),
     CmdModelDispose(res::CmdModelDisposeArgs),
     CmdLightCreate(res::CmdLightCreateArgs),
     CmdLightUpdate(res::CmdLightUpdateArgs),
@@ -59,7 +61,11 @@ pub enum EngineCmd {
     CmdGeometryUpdate(res::CmdGeometryUpdateArgs),
     CmdGeometryDispose(res::CmdGeometryDisposeArgs),
     CmdPrimitiveGeometryCreate(res::CmdPrimitiveGeometryCreateArgs),
+    CmdEnvironmentCreate(res::CmdEnvironmentCreateArgs),
+    CmdEnvironmentUpdate(res::CmdEnvironmentUpdateArgs),
+    CmdEnvironmentDispose(res::CmdEnvironmentDisposeArgs),
     CmdShadowConfigure(res::shadow::CmdShadowConfigureArgs),
+    CmdRenderGraphSet(render::CmdRenderGraphSetArgs),
     CmdModelList(res::CmdModelListArgs),
     CmdMaterialList(res::CmdMaterialListArgs),
     CmdTextureList(res::CmdTextureListArgs),
@@ -113,6 +119,7 @@ pub enum CommandResponse {
     CameraDispose(res::CmdResultCameraDispose),
     ModelCreate(res::CmdResultModelCreate),
     ModelUpdate(res::CmdResultModelUpdate),
+    PoseUpdate(res::CmdResultPoseUpdate),
     ModelDispose(res::CmdResultModelDispose),
     LightCreate(res::CmdResultLightCreate),
     LightUpdate(res::CmdResultLightUpdate),
@@ -127,7 +134,11 @@ pub enum CommandResponse {
     GeometryUpdate(res::CmdResultGeometryUpdate),
     GeometryDispose(res::CmdResultGeometryDispose),
     PrimitiveGeometryCreate(res::CmdResultPrimitiveGeometryCreate),
+    EnvironmentCreate(res::CmdResultEnvironment),
+    EnvironmentUpdate(res::CmdResultEnvironment),
+    EnvironmentDispose(res::CmdResultEnvironment),
     ShadowConfigure(res::shadow::CmdResultShadowConfigure),
+    RenderGraphSet(render::CmdResultRenderGraphSet),
     ModelList(res::CmdResultModelList),
     MaterialList(res::CmdResultMaterialList),
     TextureList(res::CmdResultTextureList),
@@ -139,6 +150,7 @@ pub enum CommandResponse {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct EngineCmdEnvelope {
     pub id: u64,
     #[serde(flatten)]
@@ -146,6 +158,7 @@ pub struct EngineCmdEnvelope {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct CommandResponseEnvelope {
     pub id: u64,
     #[serde(flatten)]
@@ -366,6 +379,13 @@ pub fn engine_process_batch(
                     response: CommandResponse::ModelUpdate(result),
                 });
             }
+            EngineCmd::CmdPoseUpdate(args) => {
+                let result = res::engine_cmd_pose_update(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::PoseUpdate(result),
+                });
+            }
             EngineCmd::CmdModelDispose(args) => {
                 let result = res::engine_cmd_model_dispose(engine, &args);
                 engine.response_queue.push(CommandResponseEnvelope {
@@ -464,11 +484,39 @@ pub fn engine_process_batch(
                     response: CommandResponse::PrimitiveGeometryCreate(result),
                 });
             }
+            EngineCmd::CmdEnvironmentCreate(args) => {
+                let result = res::engine_cmd_environment_create(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::EnvironmentCreate(result),
+                });
+            }
+            EngineCmd::CmdEnvironmentUpdate(args) => {
+                let result = res::engine_cmd_environment_update(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::EnvironmentUpdate(result),
+                });
+            }
+            EngineCmd::CmdEnvironmentDispose(args) => {
+                let result = res::engine_cmd_environment_dispose(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::EnvironmentDispose(result),
+                });
+            }
             EngineCmd::CmdShadowConfigure(args) => {
                 let result = res::shadow::engine_cmd_shadow_configure(engine, &args);
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::ShadowConfigure(result),
+                });
+            }
+            EngineCmd::CmdRenderGraphSet(args) => {
+                let result = render::engine_cmd_render_graph_set(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::RenderGraphSet(result),
                 });
             }
             EngineCmd::CmdModelList(args) => {

@@ -201,15 +201,25 @@ Parameters:
   `BufferId` chosen by the host. Used to reference this upload in later commands.
 
 - `type`
-  Numeric enum representing the kind of upload, e.g.:
+  Upload type (host-facing values are kebab-case strings):
 
-  - `Raw` (0)
-  - `ShaderSource` (1) (reserved)
-  - `GeometryData` (2)
-  - `VertexData` (3)
-  - `IndexData` (4)
-  - `ImageData` (5)
-  - `BinaryAsset` (6)
+  - `"raw"`
+  - `"shader-source"` (reserved)
+  - `"geometry-data"`
+  - `"vertex-data"`
+  - `"index-data"`
+  - `"image-data"`
+  - `"binary-asset"`
+
+  For the C ABI, pass the numeric mapping:
+
+  - `raw` (0)
+  - `shader-source` (1)
+  - `geometry-data` (2)
+  - `vertex-data` (3)
+  - `index-data` (4)
+  - `image-data` (5)
+  - `binary-asset` (6)
 
 - `buffer`, `length`
   Pointer and size of the raw data.

@@ -1,22 +1,31 @@
 mod core;
 
+use crate::core::VulframResult;
 use crate::core::buffers::state::UploadType;
 use crate::core::cmd::{
     CommandResponse, CommandResponseEnvelope, EngineCmd, EngineCmdEnvelope, EngineEvent,
 };
+use crate::core::render::cmd::CmdRenderGraphSetArgs;
 use crate::core::render::gizmos::{CmdGizmoDrawAabbArgs, CmdGizmoDrawLineArgs};
+use crate::core::render::graph::{
+    LogicalId, RenderGraphDesc, RenderGraphEdge, RenderGraphEdgeReason, RenderGraphLifetime,
+    RenderGraphNode, RenderGraphResource, RenderGraphResourceKind,
+};
 use crate::core::resources::shadow::{CmdShadowConfigureArgs, ShadowConfig};
 use crate::core::resources::{
-    CameraKind, CmdCameraCreateArgs, CmdLightCreateArgs, CmdMaterialCreateArgs, CmdModelCreateArgs,
-    CmdModelUpdateArgs, CmdPrimitiveGeometryCreateArgs, CmdTextureCreateFromBufferArgs, LightKind,
-    MaterialKind, MaterialOptions, MaterialSampler, PrimitiveShape, StandardOptions,
+    CameraKind, CmdCameraCreateArgs, CmdEnvironmentUpdateArgs, CmdGeometryCreateArgs,
+    CmdLightCreateArgs, CmdMaterialCreateArgs, CmdModelCreateArgs, CmdModelUpdateArgs,
+    CmdPoseUpdateArgs, CmdPrimitiveGeometryCreateArgs, CmdTextureCreateFromBufferArgs,
+    EnvironmentConfig, GeometryPrimitiveEntry, LightKind, MaterialKind, MaterialOptions,
+    MaterialSampler, MsaaConfig, PrimitiveShape, SkyboxConfig, SkyboxMode, StandardOptions,
     TextureCreateMode,
 };
 use crate::core::window::{CmdWindowCloseArgs, CmdWindowCreateArgs, WindowEvent};
-use crate::core::VulframResult;
+use bytemuck::cast_slice;
 use glam::{Mat4, UVec2, Vec2, Vec3, Vec4};
 use rand::Rng;
 use rmp_serde::{from_slice, to_vec_named};
+use std::collections::HashMap;
 use std::fs;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -27,6 +36,8 @@ static ENGINE_GUARD: Mutex<()> = Mutex::new(());
 enum DemoKind {
     Demo001,
     Demo002,
+    Demo003,
+    Demo004,
 }
 
 impl DemoKind {
@@ -34,6 +45,8 @@ impl DemoKind {
         match value.trim().to_ascii_lowercase().as_str() {
             "demo_001" | "demo001" | "1" => Some(Self::Demo001),
             "demo_002" | "demo002" | "2" => Some(Self::Demo002),
+            "demo_003" | "demo003" | "3" => Some(Self::Demo003),
+            "demo_004" | "demo004" | "4" => Some(Self::Demo004),
             _ => None,
         }
     }
@@ -42,6 +55,8 @@ impl DemoKind {
         match self {
             Self::Demo001 => "Vulfram Demo 001",
             Self::Demo002 => "Vulfram Demo 002",
+            Self::Demo003 => "Vulfram Demo 003",
+            Self::Demo004 => "Vulfram Demo 004",
         }
     }
 }
@@ -61,6 +76,8 @@ fn main() {
     let close_sent = match demo {
         DemoKind::Demo001 => demo_001(window_id),
         DemoKind::Demo002 => demo_002(window_id),
+        DemoKind::Demo003 => demo_003(window_id),
+        DemoKind::Demo004 => demo_004(window_id),
     };
 
     if !close_sent {
@@ -131,7 +148,11 @@ fn demo_001(window_id: u32) -> bool {
         ),
     ];
 
-    setup_cmds.push(create_floor_cmd(window_id, geometry_cube, material_instance));
+    setup_cmds.push(create_floor_cmd(
+        window_id,
+        geometry_cube,
+        material_instance,
+    ));
     let (mut cubes, cube_cmds) =
         create_instanced_cubes(window_id, geometry_cube, material_instance);
     setup_cmds.extend(cube_cmds);
@@ -192,6 +213,22 @@ fn demo_002(window_id: u32) -> bool {
     let base_material_id: u32 = 300;
 
     let mut setup_cmds = vec![
+        EngineCmd::CmdEnvironmentUpdate(CmdEnvironmentUpdateArgs {
+            window_id,
+            config: EnvironmentConfig {
+                msaa: MsaaConfig {
+                    enabled: true,
+                    sample_count: 4,
+                },
+                skybox: SkyboxConfig {
+                    mode: SkyboxMode::None,
+                    intensity: 1.0,
+                    rotation: 0.0,
+                    tint: Vec3::ONE,
+                    cubemap_texture_id: None,
+                },
+            },
+        }),
         create_camera_cmd(
             camera_id,
             "Primitives Camera",
@@ -222,13 +259,15 @@ fn demo_002(window_id: u32) -> bool {
         let label = format!("{:?}", shape);
         let color = palette[index % palette.len()];
 
-        setup_cmds.push(EngineCmd::CmdPrimitiveGeometryCreate(CmdPrimitiveGeometryCreateArgs {
-            window_id,
-            geometry_id,
-            label: Some(label.clone()),
-            shape: *shape,
-            options: None,
-        }));
+        setup_cmds.push(EngineCmd::CmdPrimitiveGeometryCreate(
+            CmdPrimitiveGeometryCreateArgs {
+                window_id,
+                geometry_id,
+                label: Some(label.clone()),
+                shape: *shape,
+                options: None,
+            },
+        ));
 
         setup_cmds.push(create_standard_material_cmd(
             window_id,
@@ -259,6 +298,7 @@ fn demo_002(window_id: u32) -> bool {
 
     run_loop(window_id, None, |total_ms, _delta_ms| {
         let mut frame_cmds = vec![];
+        frame_cmds.extend(draw_axes_gizmos());
         let time_f = total_ms as f32 / 1000.0;
 
         for (index, (model_id, position)) in primitive_models.iter().enumerate() {
@@ -281,6 +321,286 @@ fn demo_002(window_id: u32) -> bool {
         }
 
         frame_cmds
+    })
+}
+
+fn demo_003(window_id: u32) -> bool {
+    let geometry_id: u32 = 400;
+    let model_id: u32 = 401;
+    let material_id: u32 = 402;
+    let camera_id: u32 = 1;
+    let bone_count: u32 = 16;
+
+    let (positions, normals, uvs, joints, weights, indices) =
+        build_skinned_plane(64, 64, 10.0, bone_count);
+
+    upload_buffer(2000, UploadType::VertexData, &positions);
+    upload_buffer(2001, UploadType::VertexData, &normals);
+    upload_buffer(2002, UploadType::VertexData, &uvs);
+    upload_buffer(2003, UploadType::VertexData, &joints);
+    upload_buffer(2004, UploadType::VertexData, &weights);
+    upload_buffer(2005, UploadType::IndexData, &indices);
+
+    let setup_cmds = vec![
+        EngineCmd::CmdGeometryCreate(CmdGeometryCreateArgs {
+            window_id,
+            geometry_id,
+            label: Some("Skinned Plane".into()),
+            entries: vec![
+                GeometryPrimitiveEntry {
+                    primitive_type: crate::core::resources::GeometryPrimitiveType::Index,
+                    buffer_id: 2005,
+                },
+                GeometryPrimitiveEntry {
+                    primitive_type: crate::core::resources::GeometryPrimitiveType::Position,
+                    buffer_id: 2000,
+                },
+                GeometryPrimitiveEntry {
+                    primitive_type: crate::core::resources::GeometryPrimitiveType::Normal,
+                    buffer_id: 2001,
+                },
+                GeometryPrimitiveEntry {
+                    primitive_type: crate::core::resources::GeometryPrimitiveType::UV,
+                    buffer_id: 2002,
+                },
+                GeometryPrimitiveEntry {
+                    primitive_type: crate::core::resources::GeometryPrimitiveType::SkinJoints,
+                    buffer_id: 2003,
+                },
+                GeometryPrimitiveEntry {
+                    primitive_type: crate::core::resources::GeometryPrimitiveType::SkinWeights,
+                    buffer_id: 2004,
+                },
+            ],
+        }),
+        create_camera_cmd(
+            camera_id,
+            "Skinned Camera",
+            Mat4::look_at_rh(Vec3::new(0.0, 6.0, 12.0), Vec3::ZERO, Vec3::Y).inverse(),
+        ),
+        create_point_light_cmd(window_id, 2, Vec4::new(0.0, 6.0, 0.0, 1.0)),
+        create_ambient_light_cmd(window_id, 3, Vec4::new(0.3, 0.3, 0.3, 1.0), 0.4),
+        create_standard_material_cmd(window_id, material_id, "Skinned Material", Vec4::ONE, None),
+        EngineCmd::CmdModelCreate(CmdModelCreateArgs {
+            window_id,
+            model_id,
+            label: Some("Skinned Plane".into()),
+            geometry_id,
+            material_id: Some(material_id),
+            transform: Mat4::IDENTITY,
+            layer_mask: crate::core::resources::common::default_layer_mask(),
+            cast_shadow: true,
+            receive_shadow: true,
+        }),
+        create_shadow_config_cmd(window_id),
+    ];
+
+    assert_eq!(send_commands(setup_cmds), VulframResult::Success);
+    let _ = receive_responses();
+
+    let pose_buffer_id: u64 = 9000;
+
+    run_loop(window_id, None, |total_ms, _delta_ms| {
+        let time_f = total_ms as f32 / 1000.0;
+        let mut bones: Vec<Mat4> = Vec::with_capacity(bone_count as usize);
+        for i in 0..bone_count {
+            let phase = time_f * 4.5 + i as f32 * 1.4;
+            let offset_y = phase.sin() * 1.2;
+            bones.push(Mat4::from_translation(Vec3::new(0.0, offset_y, 0.0)));
+        }
+
+        upload_buffer(pose_buffer_id, UploadType::Raw, &bones);
+
+        vec![EngineCmd::CmdPoseUpdate(CmdPoseUpdateArgs {
+            window_id,
+            model_id,
+            bone_count,
+            matrices_buffer_id: pose_buffer_id,
+        })]
+    })
+}
+
+fn demo_004(window_id: u32) -> bool {
+    let geometry_id: u32 = 500;
+    let model_id: u32 = 501;
+    let material_id: u32 = 502;
+    let camera_id: u32 = 1;
+
+    let graph = RenderGraphDesc {
+        graph_id: LogicalId::Str("demo_004_graph".into()),
+        nodes: vec![
+            RenderGraphNode {
+                node_id: LogicalId::Str("shadow_pass".into()),
+                pass_id: "shadow".into(),
+                inputs: Vec::new(),
+                outputs: vec![LogicalId::Str("shadow_atlas".into())],
+                params: HashMap::new(),
+            },
+            RenderGraphNode {
+                node_id: LogicalId::Str("light_cull_pass".into()),
+                pass_id: "light-cull".into(),
+                inputs: Vec::new(),
+                outputs: Vec::new(),
+                params: HashMap::new(),
+            },
+            RenderGraphNode {
+                node_id: LogicalId::Str("skybox_pass".into()),
+                pass_id: "skybox".into(),
+                inputs: Vec::new(),
+                outputs: Vec::new(),
+                params: HashMap::new(),
+            },
+            RenderGraphNode {
+                node_id: LogicalId::Str("custom_node".into()),
+                pass_id: "custom-pass".into(),
+                inputs: Vec::new(),
+                outputs: Vec::new(),
+                params: HashMap::new(),
+            },
+            RenderGraphNode {
+                node_id: LogicalId::Str("forward_pass".into()),
+                pass_id: "forward".into(),
+                inputs: vec![LogicalId::Str("shadow_atlas".into())],
+                outputs: vec![
+                    LogicalId::Str("hdr_color".into()),
+                    LogicalId::Str("depth".into()),
+                ],
+                params: HashMap::new(),
+            },
+            RenderGraphNode {
+                node_id: LogicalId::Str("compose_pass".into()),
+                pass_id: "compose".into(),
+                inputs: vec![LogicalId::Str("hdr_color".into())],
+                outputs: vec![LogicalId::Str("swapchain".into())],
+                params: HashMap::new(),
+            },
+        ],
+        edges: vec![
+            RenderGraphEdge {
+                from_node_id: LogicalId::Str("shadow_pass".into()),
+                to_node_id: LogicalId::Str("forward_pass".into()),
+                reason: Some(RenderGraphEdgeReason::ReadAfterWrite),
+            },
+            RenderGraphEdge {
+                from_node_id: LogicalId::Str("forward_pass".into()),
+                to_node_id: LogicalId::Str("compose_pass".into()),
+                reason: Some(RenderGraphEdgeReason::ReadAfterWrite),
+            },
+        ],
+        resources: vec![
+            RenderGraphResource {
+                res_id: LogicalId::Str("shadow_atlas".into()),
+                kind: RenderGraphResourceKind::Texture,
+                desc: HashMap::new(),
+                lifetime: RenderGraphLifetime::Frame,
+                alias_group: None,
+            },
+            RenderGraphResource {
+                res_id: LogicalId::Str("hdr_color".into()),
+                kind: RenderGraphResourceKind::Texture,
+                desc: HashMap::new(),
+                lifetime: RenderGraphLifetime::Frame,
+                alias_group: None,
+            },
+            RenderGraphResource {
+                res_id: LogicalId::Str("depth".into()),
+                kind: RenderGraphResourceKind::Texture,
+                desc: HashMap::new(),
+                lifetime: RenderGraphLifetime::Frame,
+                alias_group: None,
+            },
+            RenderGraphResource {
+                res_id: LogicalId::Str("swapchain".into()),
+                kind: RenderGraphResourceKind::Attachment,
+                desc: HashMap::new(),
+                lifetime: RenderGraphLifetime::Frame,
+                alias_group: None,
+            },
+        ],
+        fallback: true,
+    };
+
+    let setup_cmds = vec![
+        EngineCmd::CmdEnvironmentUpdate(CmdEnvironmentUpdateArgs {
+            window_id,
+            config: EnvironmentConfig {
+                msaa: MsaaConfig {
+                    enabled: true,
+                    sample_count: 4,
+                },
+                skybox: SkyboxConfig {
+                    mode: SkyboxMode::Procedural,
+                    intensity: 1.0,
+                    rotation: 0.0,
+                    tint: Vec3::new(0.05, 0.1, 0.2),
+                    cubemap_texture_id: None,
+                },
+            },
+        }),
+        EngineCmd::CmdRenderGraphSet(CmdRenderGraphSetArgs { window_id, graph }),
+        EngineCmd::CmdPrimitiveGeometryCreate(CmdPrimitiveGeometryCreateArgs {
+            window_id,
+            geometry_id,
+            label: Some("Graph Cube".into()),
+            shape: PrimitiveShape::Cube,
+            options: None,
+        }),
+        create_camera_cmd(
+            camera_id,
+            "Graph Camera",
+            Mat4::look_at_rh(Vec3::new(0.0, 3.5, 8.0), Vec3::ZERO, Vec3::Y).inverse(),
+        ),
+        create_point_light_cmd(window_id, 2, Vec4::new(0.0, 5.0, 2.0, 1.0)),
+        create_ambient_light_cmd(window_id, 3, Vec4::new(0.3, 0.3, 0.3, 1.0), 0.6),
+        create_standard_material_cmd(
+            window_id,
+            material_id,
+            "Graph Material",
+            Vec4::new(0.75, 0.9, 1.0, 1.0),
+            None,
+        ),
+        EngineCmd::CmdModelCreate(CmdModelCreateArgs {
+            window_id,
+            model_id,
+            label: Some("Graph Cube".into()),
+            geometry_id,
+            material_id: Some(material_id),
+            transform: Mat4::IDENTITY,
+            layer_mask: 0xFFFFFFFF,
+            cast_shadow: true,
+            receive_shadow: true,
+        }),
+        create_shadow_config_cmd(window_id),
+    ];
+
+    assert_eq!(send_commands(setup_cmds), VulframResult::Success);
+    let responses = receive_responses();
+    for response in responses {
+        if let CommandResponse::RenderGraphSet(result) = response.response {
+            println!(
+                "RenderGraphSet: success={} fallback={} message={}",
+                result.success, result.fallback_used, result.message
+            );
+        }
+    }
+
+    run_loop(window_id, None, |total_ms, _delta_ms| {
+        let time_f = total_ms as f32 / 1000.0;
+        let transform = Mat4::from_translation(Vec3::new(0.0, time_f.sin() * 0.4, 0.0))
+            * Mat4::from_euler(glam::EulerRot::XYZ, time_f, time_f * 0.6, 0.0)
+            * Mat4::from_scale(Vec3::splat(1.2));
+
+        vec![EngineCmd::CmdModelUpdate(CmdModelUpdateArgs {
+            window_id,
+            model_id,
+            label: None,
+            geometry_id: None,
+            material_id: None,
+            transform: Some(transform),
+            layer_mask: None,
+            cast_shadow: None,
+            receive_shadow: None,
+        })]
     })
 }
 
@@ -361,12 +681,7 @@ fn create_standard_material_cmd(
     })
 }
 
-fn create_texture_cmd(
-    window_id: u32,
-    texture_id: u32,
-    label: &str,
-    buffer_id: u64,
-) -> EngineCmd {
+fn create_texture_cmd(window_id: u32, texture_id: u32, label: &str, buffer_id: u64) -> EngineCmd {
     EngineCmd::CmdTextureCreateFromBuffer(CmdTextureCreateFromBufferArgs {
         window_id,
         texture_id,
@@ -440,12 +755,13 @@ fn create_shadow_config_cmd(window_id: u32) -> EngineCmd {
     EngineCmd::CmdShadowConfigure(CmdShadowConfigureArgs {
         window_id,
         config: ShadowConfig {
-            tile_resolution: 512,
+            tile_resolution: 2048,
             atlas_tiles_w: 16,
             atlas_tiles_h: 16,
             atlas_layers: 2,
             virtual_grid_size: 1,
-            smoothing: 2,
+            smoothing: 1,
+            normal_bias: 0.01,
         },
     })
 }
@@ -484,12 +800,97 @@ fn upload_texture(path: &str, buffer_id: u64) {
     assert_eq!(
         core::vulfram_upload_buffer(
             buffer_id,
-            UploadType::ImageData as u32,
+            upload_type_to_u32(UploadType::ImageData),
             texture_bytes.as_ptr(),
             texture_bytes.len()
         ),
         VulframResult::Success
     );
+}
+
+fn upload_buffer<T: bytemuck::Pod>(buffer_id: u64, upload_type: UploadType, data: &[T]) {
+    let bytes = cast_slice(data);
+    assert_eq!(
+        core::vulfram_upload_buffer(
+            buffer_id,
+            upload_type_to_u32(upload_type),
+            bytes.as_ptr() as *const u8,
+            bytes.len()
+        ),
+        VulframResult::Success
+    );
+}
+
+fn upload_type_to_u32(upload_type: UploadType) -> u32 {
+    match upload_type {
+        UploadType::Raw => 0,
+        UploadType::ShaderSource => 1,
+        UploadType::GeometryData => 2,
+        UploadType::VertexData => 3,
+        UploadType::IndexData => 4,
+        UploadType::ImageData => 5,
+        UploadType::BinaryAsset => 6,
+    }
+}
+
+fn build_skinned_plane(
+    grid_x: u32,
+    grid_z: u32,
+    size: f32,
+    bone_count: u32,
+) -> (
+    Vec<[f32; 3]>,
+    Vec<[f32; 3]>,
+    Vec<[f32; 2]>,
+    Vec<[u16; 4]>,
+    Vec<[f32; 4]>,
+    Vec<u32>,
+) {
+    let mut positions = Vec::new();
+    let mut normals = Vec::new();
+    let mut uvs = Vec::new();
+    let mut joints = Vec::new();
+    let mut weights = Vec::new();
+    let mut indices = Vec::new();
+
+    let step_x = 1.0 / grid_x as f32;
+    let step_z = 1.0 / grid_z as f32;
+    let half = size * 0.5;
+    let segments = (bone_count - 1).max(1) as f32;
+    let smoothstep = |t: f32| t * t * (3.0 - 2.0 * t);
+
+    for z in 0..=grid_z {
+        for x in 0..=grid_x {
+            let fx = x as f32 * step_x;
+            let fz = z as f32 * step_z;
+            let pos_x = fx * size - half;
+            let pos_z = fz * size - half;
+
+            positions.push([pos_x, 0.0, pos_z]);
+            normals.push([0.0, 1.0, 0.0]);
+            uvs.push([fx, fz]);
+
+            let bone_f = fx * segments;
+            let bone_idx = bone_f.floor() as u32;
+            let next_idx = (bone_idx + 1).min(bone_count - 1);
+            let t = smoothstep(bone_f - bone_idx as f32);
+            joints.push([bone_idx as u16, next_idx as u16, 0, 0]);
+            weights.push([1.0 - t, t, 0.0, 0.0]);
+        }
+    }
+
+    let verts_x = grid_x + 1;
+    for z in 0..grid_z {
+        for x in 0..grid_x {
+            let i0 = z * verts_x + x;
+            let i1 = i0 + 1;
+            let i2 = i0 + verts_x;
+            let i3 = i2 + 1;
+            indices.extend_from_slice(&[i0, i2, i1, i1, i2, i3]);
+        }
+    }
+
+    (positions, normals, uvs, joints, weights, indices)
 }
 
 fn run_loop<F>(window_id: u32, max_duration: Option<Duration>, mut on_frame: F) -> bool
@@ -525,6 +926,11 @@ where
         );
 
         let _ = receive_responses();
+        if total_ms % 1000 == 0 {
+            if let Some(profiling) = get_profiling() {
+                println!("Profiling: {:?}", profiling);
+            }
+        }
 
         if handle_close_events(window_id) {
             let _ = send_commands(vec![EngineCmd::CmdWindowClose(CmdWindowCloseArgs {
@@ -540,12 +946,26 @@ where
     }
 }
 
+fn get_profiling() -> Option<core::profiling::cmd::ProfilingData> {
+    let mut ptr = std::ptr::null();
+    let mut len: usize = 0;
+    let result = core::vulfram_get_profiling(&mut ptr, &mut len);
+    if result != VulframResult::Success || len == 0 {
+        return None;
+    }
+    let bytes = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, len)) };
+    let profiling = from_slice(&bytes).ok()?;
+    Some(profiling)
+}
+
 fn handle_close_events(window_id: u32) -> bool {
     let events = receive_events();
     for event in events {
         match event {
-            EngineEvent::Window(WindowEvent::OnCloseRequest { window_id: id }) if id == window_id => {
-                return true
+            EngineEvent::Window(WindowEvent::OnCloseRequest { window_id: id })
+                if id == window_id =>
+            {
+                return true;
             }
             EngineEvent::System(sys_event) => {
                 println!("Received system event: {:?}", sys_event);

@@ -12,4 +12,9 @@ pub struct TickProfiling {
     pub total_events_dispatched: usize,
     pub total_events_cached: usize,
     pub custom_events_ns: u64,
+    pub gpu_shadow_ns: u64,
+    pub gpu_light_cull_ns: u64,
+    pub gpu_forward_ns: u64,
+    pub gpu_compose_ns: u64,
+    pub gpu_total_ns: u64,
 }

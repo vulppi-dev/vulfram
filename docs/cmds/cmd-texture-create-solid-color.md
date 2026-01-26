@@ -11,7 +11,7 @@ Creates a 1x1 texture with a solid color.
 | label        | Option<String>              | (Optional) Semantic name                            |
 | color        | Vec4                        | Color in RGBA                                       |
 | srgb         | Option<bool>                | (Optional) Use sRGB (default: true)                 |
-| mode         | TextureCreateMode           | (Optional) Standalone (0) or ForwardAtlas (1) (default: 0) |
+| mode         | TextureCreateMode           | (Optional) "standalone" or "forward-atlas" (default: "standalone") |
 | atlasOptions | Option<ForwardAtlasOptions> | (Optional) Options for atlas allocation             |
 
 ### ForwardAtlasOptions

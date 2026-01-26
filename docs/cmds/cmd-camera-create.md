@@ -9,7 +9,7 @@ Creates a new camera resource.
 | cameraId     | u32                  | Unique ID for the camera                           |
 | label        | Option<String>       | (Optional) Semantic name                           |
 | transform    | Mat4                 | Matrix for camera view transformation              |
-| kind         | CameraKind           | Type of camera (Orthographic, Perspective)         |
+| kind         | CameraKind           | Type of camera ("orthographic", "perspective")     |
 | flags        | u32                  | (Optional) Bitmask for camera options (default: 0) |
 | nearFar      | Vec2                 | Near and far clipping planes [near, far]           |
 | layerMask    | u32                  | (Optional) Visibility mask (default: 0xFFFFFFFF)   |

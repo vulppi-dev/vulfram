@@ -8,7 +8,7 @@ Sets the icon of a window using an uploaded image buffer.
 
 ## Notes
 
-- `bufferId` must refer to an upload with `UploadType::ImageData`.
+- `bufferId` must refer to an upload with `uploadType = "image-data"`.
 - Supported formats: PNG, JPEG, WebP, AVIF.
 
 ## Arguments

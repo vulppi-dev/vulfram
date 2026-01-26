@@ -56,7 +56,10 @@ struct ShadowParams {
     bias_slope: f32,
     point_bias_min: f32,
     point_bias_slope: f32,
-    _padding: f32,
+    normal_bias: f32,
+    _padding0: f32,
+    _padding1: f32,
+    _padding2: f32,
 }
 
 struct Model {
@@ -64,7 +67,7 @@ struct Model {
     translation: vec4<f32>,
     rotation: vec4<f32>,
     scale: vec4<f32>,
-    flags: vec4<u32>,
+    flags: vec4<u32>, // x: flags, y: bone_offset, z: bone_count
 }
 
 struct MaterialStandardParams {
@@ -110,6 +113,7 @@ struct MaterialStandardParams {
 @group(1) @binding(8) var material_tex5: texture_2d<f32>;
 @group(1) @binding(9) var material_tex6: texture_2d<f32>;
 @group(1) @binding(10) var material_tex7: texture_2d<f32>;
+@group(1) @binding(11) var<storage, read> bones: array<mat4x4<f32>>;
 
 const STANDARD_INVALID_SLOT: u32 = 0xFFFFFFFFu;
 const SURFACE_MASKED: u32 = 1u;
@@ -262,6 +266,8 @@ struct VertexInput {
     @location(1) normal: vec3<f32>,
     @location(4) uv0: vec2<f32>,
     @location(3) color0: vec4<f32>,
+    @location(6) joints: vec4<u32>,
+    @location(7) weights: vec4<f32>,
 }
 
 struct VertexOutput {
@@ -281,6 +287,59 @@ fn compute_table_id(light_base: u32, grid_x: u32, grid_y: u32, grid_size_u: u32)
     let grid_area = grid_size_u * grid_size_u;
     let linear_id = light_base * grid_area + grid_y * grid_size_u + grid_x;
     return linear_id % shadow_params.table_capacity;
+}
+
+// -----------------------------------------------------------------------------
+// Skinning helpers
+// -----------------------------------------------------------------------------
+
+fn bone_at(index: u32, bone_offset: u32, bone_count: u32) -> mat4x4<f32> {
+    if (index < bone_count) {
+        return bones[bone_offset + index];
+    }
+    return mat4x4<f32>(
+        vec4<f32>(1.0, 0.0, 0.0, 0.0),
+        vec4<f32>(0.0, 1.0, 0.0, 0.0),
+        vec4<f32>(0.0, 0.0, 1.0, 0.0),
+        vec4<f32>(0.0, 0.0, 0.0, 1.0),
+    );
+}
+
+fn skin_position(
+    position: vec3<f32>,
+    joints: vec4<u32>,
+    weights: vec4<f32>,
+    bone_offset: u32,
+    bone_count: u32,
+) -> vec3<f32> {
+    let m0 = bone_at(joints.x, bone_offset, bone_count);
+    let m1 = bone_at(joints.y, bone_offset, bone_count);
+    let m2 = bone_at(joints.z, bone_offset, bone_count);
+    let m3 = bone_at(joints.w, bone_offset, bone_count);
+    let p = vec4<f32>(position, 1.0);
+    let skinned = (m0 * p) * weights.x
+        + (m1 * p) * weights.y
+        + (m2 * p) * weights.z
+        + (m3 * p) * weights.w;
+    return skinned.xyz;
+}
+
+fn skin_normal(
+    normal: vec3<f32>,
+    joints: vec4<u32>,
+    weights: vec4<f32>,
+    bone_offset: u32,
+    bone_count: u32,
+) -> vec3<f32> {
+    let m0 = bone_at(joints.x, bone_offset, bone_count);
+    let m1 = bone_at(joints.y, bone_offset, bone_count);
+    let m2 = bone_at(joints.z, bone_offset, bone_count);
+    let m3 = bone_at(joints.w, bone_offset, bone_count);
+    let n0 = (mat3x3<f32>(m0[0].xyz, m0[1].xyz, m0[2].xyz) * normal) * weights.x;
+    let n1 = (mat3x3<f32>(m1[0].xyz, m1[1].xyz, m1[2].xyz) * normal) * weights.y;
+    let n2 = (mat3x3<f32>(m2[0].xyz, m2[1].xyz, m2[2].xyz) * normal) * weights.z;
+    let n3 = (mat3x3<f32>(m3[0].xyz, m3[1].xyz, m3[2].xyz) * normal) * weights.w;
+    return normalize(n0 + n1 + n2 + n3);
 }
 
 fn sample_shadow_page_at(
@@ -419,18 +478,25 @@ fn point_shadow_factor(light: Light, world_pos: vec3<f32>, ndotl: f32) -> f32 {
     return select(1.0, shadow, dist_valid);
 }
 
-fn get_shadow_factor(light: Light, world_pos: vec3<f32>, ndotl: f32, instance_id: u32) -> f32 {
+fn get_shadow_factor(
+    light: Light,
+    world_pos: vec3<f32>,
+    shadow_normal: vec3<f32>,
+    ndotl: f32,
+    instance_id: u32
+) -> f32 {
     let model = models[instance_id];
     let model_receive_shadow = (model.flags.x & 1u) != 0u;
     let light_cast_shadow = (light.kind_flags.y & 1u) != 0u;
     let shadow_enabled = model_receive_shadow && light_cast_shadow && ndotl > 0.0;
-    let light_clip = light.view_projection * vec4<f32>(world_pos, 1.0);
+    let offset_pos = world_pos + shadow_normal * shadow_params.normal_bias;
+    let light_clip = light.view_projection * vec4<f32>(offset_pos, 1.0);
     let light_ndc = light_clip.xyz / light_clip.w;
     let shadow_idx = light.shadow_index;
     let light_base = shadow_idx * 6u + 0u;
     let directional_shadow =
         sample_shadow_page_at(light_base, light_ndc, ndotl, shadow_params.bias_min, shadow_params.bias_slope);
-    let point_shadow = point_shadow_factor(light, world_pos, ndotl);
+    let point_shadow = point_shadow_factor(light, offset_pos, ndotl);
     let is_point = light.kind_flags.x == 1u;
     let shadow = select(directional_shadow, point_shadow, is_point);
     return select(1.0, shadow, shadow_enabled);
@@ -452,7 +518,7 @@ fn calculate_directional_light(
     let l = normalize(-light.direction.xyz);
     let ndotl = max(dot(normal, l), 0.0);
     let ndotl_shadow = max(dot(shadow_normal, l), 0.0);
-    let shadow = get_shadow_factor(light, world_pos, ndotl_shadow, instance_id);
+    let shadow = get_shadow_factor(light, world_pos, shadow_normal, ndotl_shadow, instance_id);
     let diffuse = diffuse_term(ndotl, toon_slot, toon_sampler);
     let lighting = light.color.rgb * light.intensity_range.x * diffuse * shadow;
     return select(vec3<f32>(0.0), lighting, ndotl > 0.0);
@@ -493,7 +559,7 @@ fn calculate_spot_light(
     let spot_intensity = clamp((theta - outer) / epsilon, 0.0, 1.0);
     let ndotl = max(dot(normal, l), 0.0);
     let ndotl_shadow = max(dot(shadow_normal, l), 0.0);
-    let shadow = get_shadow_factor(light, world_pos, ndotl_shadow, instance_id);
+    let shadow = get_shadow_factor(light, world_pos, shadow_normal, ndotl_shadow, instance_id);
     let diffuse = diffuse_term(ndotl, toon_slot, toon_sampler);
     let lighting = light.color.rgb * light.intensity_range.x * diffuse * attenuation * spot_intensity * shadow;
     let enabled = dist_valid && in_range && ndotl > 0.0;
@@ -520,7 +586,7 @@ fn calculate_point_light(
     let attenuation = pow(clamp(1.0 - dist / safe_range, 0.0, 1.0), 2.0);
     let ndotl = max(dot(normal, l), 0.0);
     let ndotl_shadow = max(dot(shadow_normal, l), 0.0);
-    let shadow = get_shadow_factor(light, world_pos, ndotl_shadow, instance_id);
+    let shadow = get_shadow_factor(light, world_pos, shadow_normal, ndotl_shadow, instance_id);
     let diffuse = diffuse_term(ndotl, toon_slot, toon_sampler);
     let lighting = light.color.rgb * light.intensity_range.x * diffuse * attenuation * shadow;
     let enabled = dist_valid && in_range && ndotl > 0.0;
@@ -535,10 +601,18 @@ fn calculate_point_light(
 fn vs_main(in: VertexInput, @builtin(instance_index) instance_id: u32) -> VertexOutput {
     var out: VertexOutput;
     let model = models[instance_id];
-    let world_pos = model.transform * vec4<f32>(in.position, 1.0);
+    let bone_offset = model.flags.y;
+    let bone_count = model.flags.z;
+    var local_pos = in.position;
+    var local_normal = in.normal;
+    if (bone_count > 0u) {
+        local_pos = skin_position(in.position, in.joints, in.weights, bone_offset, bone_count);
+        local_normal = skin_normal(in.normal, in.joints, in.weights, bone_offset, bone_count);
+    }
+    let world_pos = model.transform * vec4<f32>(local_pos, 1.0);
     out.clip_position = camera.view_projection * world_pos;
     out.world_position = world_pos.xyz;
-    out.normal = (model.transform * vec4<f32>(in.normal, 0.0)).xyz;
+    out.normal = (model.transform * vec4<f32>(local_normal, 0.0)).xyz;
     out.uv0 = in.uv0;
     out.color0 = in.color0;
     out.instance_id = instance_id;

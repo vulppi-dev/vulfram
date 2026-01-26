@@ -11,7 +11,7 @@ Configures mouse cursor grabbing/locking.
 | Field    | Type           | Description                              |
 | -------- | -------------- | ---------------------------------------- |
 | windowId | u32            | ID of the window                         |
-| mode     | CursorGrabMode | Grab mode (None=0, Confined=1, Locked=2) |
+| mode     | CursorGrabMode | Grab mode ("none", "confined", "locked") |
 
 ## Response
 

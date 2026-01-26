@@ -3,7 +3,7 @@ use super::{
     VertexAllocError, VertexAllocatorSystem, VertexStream, align4, all_streams, pad_to_4,
 };
 use crate::core::resources::geometry::Aabb;
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::ops::Range;
 use wgpu::BufferDescriptor;
 
@@ -17,7 +17,7 @@ impl VertexAllocatorSystem {
         let mut index_bytes: Option<Vec<u8>> = None;
         let mut stream_bytes: [Option<Vec<u8>>; 8] = [(); 8].map(|_| None);
         let mut uv_seen = 0;
-        let mut seen_prim: HashMap<u32, ()> = HashMap::new();
+        let mut seen_prim: HashSet<GeometryPrimitiveType> = HashSet::new();
 
         for (prim, bytes) in input.drain(..) {
             match prim {
@@ -28,37 +28,25 @@ impl VertexAllocatorSystem {
                     index_bytes = Some(bytes);
                 }
                 GeometryPrimitiveType::Position => {
-                    if seen_prim
-                        .insert(GeometryPrimitiveType::Position as u32, ())
-                        .is_some()
-                    {
+                    if !seen_prim.insert(GeometryPrimitiveType::Position) {
                         return Err(VertexAllocError::DuplicateStream(prim));
                     }
                     stream_bytes[VertexStream::Position as usize] = Some(bytes);
                 }
                 GeometryPrimitiveType::Normal => {
-                    if seen_prim
-                        .insert(GeometryPrimitiveType::Normal as u32, ())
-                        .is_some()
-                    {
+                    if !seen_prim.insert(GeometryPrimitiveType::Normal) {
                         return Err(VertexAllocError::DuplicateStream(prim));
                     }
                     stream_bytes[VertexStream::Normal as usize] = Some(bytes);
                 }
                 GeometryPrimitiveType::Tangent => {
-                    if seen_prim
-                        .insert(GeometryPrimitiveType::Tangent as u32, ())
-                        .is_some()
-                    {
+                    if !seen_prim.insert(GeometryPrimitiveType::Tangent) {
                         return Err(VertexAllocError::DuplicateStream(prim));
                     }
                     stream_bytes[VertexStream::Tangent as usize] = Some(bytes);
                 }
                 GeometryPrimitiveType::Color => {
-                    if seen_prim
-                        .insert(GeometryPrimitiveType::Color as u32, ())
-                        .is_some()
-                    {
+                    if !seen_prim.insert(GeometryPrimitiveType::Color) {
                         return Err(VertexAllocError::DuplicateStream(prim));
                     }
                     stream_bytes[VertexStream::Color0 as usize] = Some(bytes);
@@ -75,19 +63,13 @@ impl VertexAllocatorSystem {
                     uv_seen += 1;
                 }
                 GeometryPrimitiveType::SkinJoints => {
-                    if seen_prim
-                        .insert(GeometryPrimitiveType::SkinJoints as u32, ())
-                        .is_some()
-                    {
+                    if !seen_prim.insert(GeometryPrimitiveType::SkinJoints) {
                         return Err(VertexAllocError::DuplicateStream(prim));
                     }
                     stream_bytes[VertexStream::Joints as usize] = Some(bytes);
                 }
                 GeometryPrimitiveType::SkinWeights => {
-                    if seen_prim
-                        .insert(GeometryPrimitiveType::SkinWeights as u32, ())
-                        .is_some()
-                    {
+                    if !seen_prim.insert(GeometryPrimitiveType::SkinWeights) {
                         return Err(VertexAllocError::DuplicateStream(prim));
                     }
                     stream_bytes[VertexStream::Weights as usize] = Some(bytes);

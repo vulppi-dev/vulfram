@@ -50,7 +50,12 @@ impl RenderState {
             forward_atlas: None,
             cache: RenderCache::new(),
             forward_depth_target: None,
+            forward_msaa_target: None,
             collector: DrawCollector::default(),
+            skinning: crate::core::render::state::SkinningSystem::default(),
+            render_graph: crate::core::render::graph::RenderGraphState::new(),
+            environment: crate::core::resources::EnvironmentConfig::default(),
+            environment_is_configured: false,
         }
     }
 
@@ -78,6 +83,11 @@ impl RenderState {
         self.forward_atlas = None;
         self.cache.clear();
         self.forward_depth_target = None;
+        self.forward_msaa_target = None;
+        self.skinning.clear();
+        self.render_graph.reset_to_fallback();
+        self.environment = crate::core::resources::EnvironmentConfig::default();
+        self.environment_is_configured = false;
     }
 
     pub fn begin_frame(&mut self, frame_index: u64) {
@@ -102,6 +112,7 @@ impl RenderState {
             bindings.material_standard_inputs.begin_frame(frame_index);
             bindings.material_pbr_pool.begin_frame(frame_index);
             bindings.material_pbr_inputs.begin_frame(frame_index);
+            bindings.bones_pool.begin_frame(frame_index);
         }
         if let Some(light_system) = self.light_system.as_mut() {
             light_system.lights.begin_frame(frame_index);

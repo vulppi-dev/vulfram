@@ -1,6 +1,6 @@
 # CmdMaterialCreate
 
-Creates a new material resource (Standard or PBR).
+Creates a new material resource ("standard" or "pbr").
 
 Texture references are **lazy**:
 
@@ -15,21 +15,21 @@ Texture references are **lazy**:
 | windowId   | u32                     | ID of the window                         |
 | materialId | u32                     | Unique ID for the material               |
 | label      | Option<String>          | (Optional) Semantic name                 |
-| kind       | MaterialKind            | Type of material (Standard, Pbr)         |
+| kind       | MaterialKind            | Type of material ("standard", "pbr")     |
 | options    | Option<MaterialOptions> | (Optional) StandardOptions or PbrOptions |
 
 ### SurfaceType (Enum)
 
-- `Opaque`
-- `Masked`
-- `Transparent`
+- `opaque`
+- `masked`
+- `transparent`
 
 ### MaterialSampler (Enum)
 
-- `PointClamp`
-- `LinearClamp`
-- `PointRepeat`
-- `LinearRepeat`
+- `point-clamp`
+- `linear-clamp`
+- `point-repeat`
+- `linear-repeat`
 
 ### StandardOptions
 

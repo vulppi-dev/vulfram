@@ -27,6 +27,7 @@ impl RenderState {
             material_standard_inputs: StorageBufferPool::new(device, queue, Some(256), 0),
             material_pbr_pool: UniformBufferPool::new(device, queue, Some(256), alignment),
             material_pbr_inputs: StorageBufferPool::new(device, queue, Some(256), 0),
+            bones_pool: StorageBufferPool::new(device, queue, Some(256), 0),
             shared_group: None,
             model_bind_group: None,
             shadow_model_bind_group: None,

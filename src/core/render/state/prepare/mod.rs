@@ -48,6 +48,7 @@ impl RenderState {
         check_pool("mat_std_in", bindings.material_standard_inputs.version());
         check_pool("mat_pbr", bindings.material_pbr_pool.version());
         check_pool("mat_pbr_in", bindings.material_pbr_inputs.version());
+        check_pool("bones", bindings.bones_pool.version());
 
         if let Some(light_system) = self.light_system.as_ref() {
             check_pool("light_cull", light_system.lights.version());

@@ -11,6 +11,7 @@ pub struct GizmoVertex {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct CmdGizmoDrawLineArgs {
     pub start: Vec3,
     pub end: Vec3,
@@ -18,6 +19,7 @@ pub struct CmdGizmoDrawLineArgs {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct CmdGizmoDrawAabbArgs {
     pub min: Vec3,
     pub max: Vec3,
@@ -25,6 +27,7 @@ pub struct CmdGizmoDrawAabbArgs {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct CmdResultGizmoDraw {
     pub status: u32,
 }

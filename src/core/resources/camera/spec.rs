@@ -1,17 +1,34 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Quat, UVec2, Vec2, Vec3, Vec4};
 use serde::{Deserialize, Serialize};
-use serde_repr::{Deserialize_repr, Serialize_repr};
 use wgpu::Extent3d;
 
-#[derive(Debug, Clone, Copy, Deserialize_repr, Serialize_repr)]
-#[repr(u32)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum CameraKind {
     Perspective = 0,
     Orthographic,
 }
 
+impl CameraKind {
+    pub fn to_u32(self) -> u32 {
+        match self {
+            CameraKind::Perspective => 0,
+            CameraKind::Orthographic => 1,
+        }
+    }
+
+    pub fn from_u32(value: u32) -> Option<Self> {
+        match value {
+            0 => Some(CameraKind::Perspective),
+            1 => Some(CameraKind::Orthographic),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Pod, Zeroable, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
 #[repr(C)]
 pub struct CameraComponent {
     pub position: Vec4,
@@ -75,7 +92,7 @@ impl CameraComponent {
             direction: direction.extend(0.0),
             up: up.extend(0.0),
             near_far,
-            kind_flags: UVec2::new(kind as u32, flags),
+            kind_flags: UVec2::new(kind.to_u32(), flags),
             projection,
             view,
             view_projection,
@@ -100,11 +117,7 @@ impl CameraComponent {
         });
 
         let kind = kind.unwrap_or_else(|| {
-            if self.kind_flags.x == 0 {
-                CameraKind::Perspective
-            } else {
-                CameraKind::Orthographic
-            }
+            CameraKind::from_u32(self.kind_flags.x).unwrap_or(CameraKind::Perspective)
         });
 
         let flags = flags.unwrap_or(self.kind_flags.y);
@@ -115,7 +128,7 @@ impl CameraComponent {
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
-#[serde(tag = "type", content = "value", rename_all = "camelCase")]
+#[serde(tag = "type", content = "value", rename_all = "kebab-case")]
 pub enum ViewValue {
     Relative(f32),
     Absolute(u32),
@@ -179,15 +192,25 @@ pub struct RenderTarget {
     pub _texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub format: wgpu::TextureFormat,
+    pub sample_count: u32,
 }
 
 impl RenderTarget {
     pub fn new(device: &wgpu::Device, size: Extent3d, format: wgpu::TextureFormat) -> Self {
+        Self::new_with_samples(device, size, format, 1)
+    }
+
+    pub fn new_with_samples(
+        device: &wgpu::Device,
+        size: Extent3d,
+        format: wgpu::TextureFormat,
+        sample_count: u32,
+    ) -> Self {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Camera RenderTarget"),
             size,
             mip_level_count: 1,
-            sample_count: 1,
+            sample_count,
             dimension: wgpu::TextureDimension::D2,
             format,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT
@@ -202,6 +225,7 @@ impl RenderTarget {
             _texture: texture,
             view,
             format,
+            sample_count,
         }
     }
 }

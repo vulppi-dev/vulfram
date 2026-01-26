@@ -8,6 +8,7 @@ pub fn get_pipeline<'a>(
     device: &wgpu::Device,
     library: &ResourceLibrary,
     surface: SurfaceType,
+    sample_count: u32,
 ) -> &'a wgpu::RenderPipeline {
     let (blend, depth_write, depth_compare, cull_mode) = match surface {
         SurfaceType::Transparent => (
@@ -27,7 +28,7 @@ pub fn get_pipeline<'a>(
         shader_id: ShaderId::ForwardPbr as u64,
         color_format: wgpu::TextureFormat::Rgba16Float,
         depth_format: Some(wgpu::TextureFormat::Depth32Float), // Reverse Z
-        sample_count: 1,
+        sample_count,
         topology: wgpu::PrimitiveTopology::TriangleList,
         cull_mode,
         front_face: wgpu::FrontFace::Ccw,

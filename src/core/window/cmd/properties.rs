@@ -227,7 +227,7 @@ pub fn engine_cmd_window_set_size(
     CmdResultWindowSetSize {
         success: false,
         message: format!(
-            "Window size is not supported in wasm (window_id={})",
+            "Window size is not supported in browser (window_id={})",
             args.window_id
         ),
     }

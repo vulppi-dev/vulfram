@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use serde_repr::{Deserialize_repr, Serialize_repr};
 
 #[cfg(not(feature = "wasm"))]
 use crate::core::platform::winit;
@@ -58,8 +57,8 @@ pub fn engine_cmd_window_set_cursor_visible(
 // MARK: - Set Cursor Grab
 
 /// Cursor grab modes
-#[repr(u32)]
-#[derive(Debug, Deserialize_repr, Serialize_repr, Clone, Copy)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
+#[serde(rename_all = "kebab-case")]
 pub enum CursorGrabMode {
     /// No grabbing
     None = 0,
@@ -156,8 +155,8 @@ pub fn engine_cmd_window_set_cursor_grab(
 // MARK: - Set Cursor Icon
 
 /// Cursor icon types
-#[repr(u32)]
-#[derive(Debug, Deserialize_repr, Serialize_repr, Clone, Copy)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
+#[serde(rename_all = "kebab-case")]
 pub enum CursorIcon {
     /// Default cursor
     Default = 0,

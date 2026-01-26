@@ -1,8 +1,10 @@
 use bytemuck;
-use glam::{Vec2, Vec3, Vec4};
+use glam::{Vec2, Vec3};
 
 use crate::core::resources::geometry::primitives::TorusOptions;
 use crate::core::resources::vertex::GeometryPrimitiveType;
+
+use super::compute_tangents;
 
 pub fn generate_torus(options: &TorusOptions) -> Vec<(GeometryPrimitiveType, Vec<u8>)> {
     let major_radius = options.major_radius;
@@ -13,7 +15,6 @@ pub fn generate_torus(options: &TorusOptions) -> Vec<(GeometryPrimitiveType, Vec
     let mut positions = Vec::new();
     let mut normals = Vec::new();
     let mut uvs = Vec::new();
-    let mut tangents = Vec::new();
     let mut indices = Vec::new();
 
     for i in 0..=major_segments {
@@ -39,7 +40,6 @@ pub fn generate_torus(options: &TorusOptions) -> Vec<(GeometryPrimitiveType, Vec
                 j as f32 / minor_segments as f32,
             ));
 
-            tangents.push(Vec4::new(-major_sin, 0.0, major_cos, 1.0));
         }
     }
 
@@ -58,6 +58,7 @@ pub fn generate_torus(options: &TorusOptions) -> Vec<(GeometryPrimitiveType, Vec
             i2 += 1;
         }
     }
+    let tangents = compute_tangents(&positions, &normals, &uvs, &indices);
 
     vec![
         (

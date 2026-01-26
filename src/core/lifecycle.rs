@@ -8,6 +8,10 @@ use super::state::EngineState;
 /// Initialize the engine (must be called from the main thread)
 pub fn vulfram_init() -> VulframResult {
     let _ = env_logger::try_init();
+    #[cfg(all(feature = "wasm", target_arch = "wasm32"))]
+    if web_sys::window().is_none() {
+        return VulframResult::NotInBrowser;
+    }
     let current_id = thread::current().id();
 
     if let Err(_) = MAIN_THREAD_ID.set(current_id) {

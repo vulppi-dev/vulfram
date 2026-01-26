@@ -1,8 +1,10 @@
 use bytemuck;
-use glam::{Vec2, Vec3, Vec4};
+use glam::{Vec2, Vec3};
 
 use crate::core::resources::geometry::primitives::CylinderOptions;
 use crate::core::resources::vertex::GeometryPrimitiveType;
+
+use super::compute_tangents;
 
 pub fn generate_cylinder(options: &CylinderOptions) -> Vec<(GeometryPrimitiveType, Vec<u8>)> {
     let radius = options.radius;
@@ -12,7 +14,6 @@ pub fn generate_cylinder(options: &CylinderOptions) -> Vec<(GeometryPrimitiveTyp
     let mut positions = Vec::new();
     let mut normals = Vec::new();
     let mut uvs = Vec::new();
-    let mut tangents = Vec::new();
     let mut indices = Vec::new();
 
     // Side
@@ -26,20 +27,10 @@ pub fn generate_cylinder(options: &CylinderOptions) -> Vec<(GeometryPrimitiveTyp
         positions.push(pos_top);
         normals.push(normal);
         uvs.push(Vec2::new(i as f32 / sectors as f32, 1.0));
-        let tangent_top = Vec3::new(-pos_top.z, 0.0, pos_top.x).normalize_or_zero();
-        tangents.push(Vec4::new(tangent_top.x, tangent_top.y, tangent_top.z, 1.0));
-
         let pos_bottom = Vec3::new(x, -height / 2.0, z);
         positions.push(pos_bottom);
         normals.push(normal);
         uvs.push(Vec2::new(i as f32 / sectors as f32, 0.0));
-        let tangent_bottom = Vec3::new(-pos_bottom.z, 0.0, pos_bottom.x).normalize_or_zero();
-        tangents.push(Vec4::new(
-            tangent_bottom.x,
-            tangent_bottom.y,
-            tangent_bottom.z,
-            1.0,
-        ));
     }
 
     for i in 0..sectors {
@@ -67,9 +58,6 @@ pub fn generate_cylinder(options: &CylinderOptions) -> Vec<(GeometryPrimitiveTyp
     positions.push(top_pos);
     normals.push(Vec3::new(0.0, 1.0, 0.0));
     uvs.push(Vec2::new(0.5, 0.5));
-    let top_tangent = Vec3::new(-top_pos.z, 0.0, top_pos.x).normalize_or_zero();
-    tangents.push(Vec4::new(top_tangent.x, top_tangent.y, top_tangent.z, 1.0));
-
     for i in 0..=sectors {
         let angle = std::f32::consts::PI * 2.0 / sectors as f32 * i as f32;
         let x = radius * angle.cos();
@@ -78,8 +66,6 @@ pub fn generate_cylinder(options: &CylinderOptions) -> Vec<(GeometryPrimitiveTyp
         positions.push(pos);
         normals.push(Vec3::new(0.0, 1.0, 0.0));
         uvs.push(Vec2::new(x * uv_scale + 0.5, z * uv_scale + 0.5));
-        let tangent = Vec3::new(-pos.z, 0.0, pos.x).normalize_or_zero();
-        tangents.push(Vec4::new(tangent.x, tangent.y, tangent.z, 1.0));
     }
 
     for i in 0..sectors {
@@ -94,14 +80,6 @@ pub fn generate_cylinder(options: &CylinderOptions) -> Vec<(GeometryPrimitiveTyp
     positions.push(bottom_pos);
     normals.push(Vec3::new(0.0, -1.0, 0.0));
     uvs.push(Vec2::new(0.5, 0.5));
-    let bottom_tangent = Vec3::new(-bottom_pos.z, 0.0, bottom_pos.x).normalize_or_zero();
-    tangents.push(Vec4::new(
-        bottom_tangent.x,
-        bottom_tangent.y,
-        bottom_tangent.z,
-        1.0,
-    ));
-
     for i in 0..=sectors {
         let angle = std::f32::consts::PI * 2.0 / sectors as f32 * i as f32;
         let x = radius * angle.cos();
@@ -110,8 +88,6 @@ pub fn generate_cylinder(options: &CylinderOptions) -> Vec<(GeometryPrimitiveTyp
         positions.push(pos);
         normals.push(Vec3::new(0.0, -1.0, 0.0));
         uvs.push(Vec2::new(x * uv_scale + 0.5, z * uv_scale + 0.5));
-        let tangent = Vec3::new(-pos.z, 0.0, pos.x).normalize_or_zero();
-        tangents.push(Vec4::new(tangent.x, tangent.y, tangent.z, 1.0));
     }
 
     for i in 0..sectors {
@@ -119,6 +95,7 @@ pub fn generate_cylinder(options: &CylinderOptions) -> Vec<(GeometryPrimitiveTyp
         indices.push(bottom_center_index + i as u32 + 1);
         indices.push(bottom_center_index + i as u32 + 2);
     }
+    let tangents = compute_tangents(&positions, &normals, &uvs, &indices);
 
     vec![
         (

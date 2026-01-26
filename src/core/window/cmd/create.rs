@@ -27,6 +27,7 @@ use wasm_bindgen_futures::spawn_local;
 use web_sys::HtmlCanvasElement;
 
 use super::{EngineWindowState, window_size_default};
+use crate::core::profiling::gpu::GpuProfiler;
 use crate::core::state::EngineState;
 #[cfg(any(not(feature = "wasm"), all(feature = "wasm", target_arch = "wasm32")))]
 use crate::core::window::WindowState;
@@ -114,8 +115,8 @@ pub fn engine_cmd_window_create_async(
         }
     };
 
-    let window_width = args.size.x.max(1);
-    let window_height = args.size.y.max(1);
+    let window_width = canvas.client_width().max(1) as u32;
+    let window_height = canvas.client_height().max(1) as u32;
     canvas.set_width(window_width);
     canvas.set_height(window_height);
 
@@ -169,11 +170,21 @@ pub fn engine_cmd_window_create_async(
             }
         };
 
+        let adapter_features = adapter.features();
+        let mut required_features = wgpu::Features::empty();
+        let gpu_profiling_supported = adapter_features.contains(
+            wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS,
+        );
+        if gpu_profiling_supported {
+            required_features |=
+                wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS;
+        }
+
         let required_limits = wgpu::Limits::downlevel_webgl2_defaults();
         let (device, queue) = match adapter
             .request_device(&wgpu::DeviceDescriptor {
                 label: None,
-                required_features: wgpu::Features::empty(),
+                required_features,
                 required_limits,
                 memory_hints: wgpu::MemoryHints::default(),
                 ..Default::default()
@@ -267,6 +278,17 @@ pub fn engine_cmd_window_create_async(
                     message: "Canvas window created successfully".into(),
                 }),
             });
+            if gpu_profiling_supported && engine.state.gpu_profiler.is_none() {
+                if let (Some(device), Some(queue)) =
+                    (engine.state.device.as_ref(), engine.state.queue.as_ref())
+                {
+                    engine.state.gpu_profiler = Some(GpuProfiler::new(
+                        device,
+                        queue,
+                        engine.state.window.states.len(),
+                    ));
+                }
+            }
         });
     });
 
@@ -337,6 +359,7 @@ pub fn engine_cmd_window_create(
     };
 
     // Get or create adapter and device
+    let mut gpu_profiling_supported = false;
     let (adapter, is_new_device) = if engine.device.is_none() {
         // First window - create new adapter and device
         let adapter =
@@ -354,10 +377,20 @@ pub fn engine_cmd_window_create(
                 }
             };
 
+        let adapter_features = adapter.features();
+        let mut required_features = wgpu::Features::empty();
+        gpu_profiling_supported = adapter_features.contains(
+            wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS,
+        );
+        if gpu_profiling_supported {
+            required_features |=
+                wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS;
+        }
+
         let (device, queue) = match adapter
             .request_device(&wgpu::DeviceDescriptor {
                 label: None,
-                required_features: wgpu::Features::empty(),
+                required_features,
                 required_limits: wgpu::Limits::default(),
                 memory_hints: wgpu::MemoryHints::default(),
                 ..Default::default()
@@ -470,6 +503,12 @@ pub fn engine_cmd_window_create(
             fps_instant: 0.0,
         },
     );
+
+    if is_new_device && gpu_profiling_supported && engine.gpu_profiler.is_none() {
+        if let (Some(device), Some(queue)) = (&engine.device, &engine.queue) {
+            engine.gpu_profiler = Some(GpuProfiler::new(device, queue, engine.window.states.len()));
+        }
+    }
 
     // Initialize window cache
     let cache = engine.window.cache.get_or_create(win_id);

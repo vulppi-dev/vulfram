@@ -1,6 +1,5 @@
 use glam::Vec4;
 use serde::{Deserialize, Serialize};
-use serde_repr::{Deserialize_repr, Serialize_repr};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -40,8 +39,8 @@ impl Default for ForwardAtlasOptions {
     }
 }
 
-#[derive(Debug, Deserialize_repr, Serialize_repr, Clone, Copy)]
-#[repr(u32)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
+#[serde(rename_all = "kebab-case")]
 pub enum TextureCreateMode {
     Standalone = 0,
     ForwardAtlas = 1,

@@ -3,14 +3,14 @@ use glam::Vec4;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 pub enum MaterialKind {
     Standard,
     Pbr,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 #[repr(u32)]
 pub enum MaterialSampler {
     PointClamp = 0,
@@ -108,7 +108,7 @@ impl Default for PbrOptions {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(tag = "type", content = "content", rename_all = "camelCase")]
+#[serde(tag = "type", content = "content", rename_all = "kebab-case")]
 pub enum MaterialOptions {
     Standard(StandardOptions),
     Pbr(PbrOptions),

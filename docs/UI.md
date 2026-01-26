@@ -27,44 +27,44 @@ Game Engine Experimental • Marca: Vulfram
 
 ```css
 :root {
-  --primary-1: oklch(17.8% 0.0162 1.462);
-  --primary-2: oklch(20.5% 0.025 1.462);
-  --primary-3: oklch(25.5% 0.0672 1.462);
-  --primary-4: oklch(29.3% 0.1066 1.462);
-  --primary-5: oklch(33.2% 0.1179 1.462);
-  --primary-6: oklch(38.2% 0.1228 1.462);
-  --primary-7: oklch(45% 0.1355 1.462);
-  --primary-8: oklch(54.2% 0.1672 1.462);
-  --primary-9: oklch(66.6% 0.2405 1.462);
-  --primary-10: oklch(62.7% 0.2221 1.462);
-  --primary-11: oklch(78.7% 0.1885 1.462);
-  --primary-12: oklch(90.9% 0.061 1.462);
+  --primary-1: oklch(17.8% 0.0203 1.44);
+  --primary-2: oklch(20.5% 0.0314 1.44);
+  --primary-3: oklch(25.5% 0.0845 1.44);
+  --primary-4: oklch(29.3% 0.1341 1.44);
+  --primary-5: oklch(33.2% 0.1483 1.44);
+  --primary-6: oklch(38.2% 0.1544 1.44);
+  --primary-7: oklch(45% 0.1704 1.44);
+  --primary-8: oklch(54.2% 0.2104 1.44);
+  --primary-9: oklch(54.2% 0.2104 1.44);
+  --primary-10: oklch(49.6% 0.2104 1.44);
+  --primary-11: oklch(78.7% 0.2104 1.44);
+  --primary-12: oklch(90.9% 0.0768 1.44);
 
-  --secondary-1: oklch(17.8% 0.0281 334.4);
-  --secondary-2: oklch(20.5% 0.0505 334.4);
-  --secondary-3: oklch(26% 0.0987 334.4);
-  --secondary-4: oklch(29.9% 0.1574 334.4);
-  --secondary-5: oklch(33.8% 0.1681 334.4);
-  --secondary-6: oklch(38.9% 0.173 334.4);
-  --secondary-7: oklch(45.9% 0.1925 334.4);
-  --secondary-8: oklch(54.5% 0.2338 334.4);
-  --secondary-9: oklch(43.3% 0.1925 334.4);
-  --secondary-10: oklch(37.7% 0.173 334.4);
-  --secondary-11: oklch(78.9% 0.2338 334.4);
-  --secondary-12: oklch(90.5% 0.0946 334.4);
+  --secondary-1: oklch(17.8% 0.03 329.1);
+  --secondary-2: oklch(20.5% 0.0538 329.1);
+  --secondary-3: oklch(26.1% 0.1053 329.1);
+  --secondary-4: oklch(29.9% 0.1663 329.1);
+  --secondary-5: oklch(33.8% 0.1776 329.1);
+  --secondary-6: oklch(38.9% 0.1827 329.1);
+  --secondary-7: oklch(45.8% 0.2029 329.1);
+  --secondary-8: oklch(54.5% 0.2461 329.1);
+  --secondary-9: oklch(44.3% 0.2029 329.1);
+  --secondary-10: oklch(38.8% 0.1827 329.1);
+  --secondary-11: oklch(78.8% 0.2461 329.1);
+  --secondary-12: oklch(90.5% 0.1001 329.1);
 
-  --tertiary-1: oklch(17.8% 0.0405 283.9);
-  --tertiary-2: oklch(20.6% 0.0543 283.9);
-  --tertiary-3: oklch(27.2% 0.1267 283.9);
-  --tertiary-4: oklch(31.8% 0.1877 283.9);
-  --tertiary-5: oklch(35.7% 0.2012 283.9);
-  --tertiary-6: oklch(39.8% 0.2059 283.9);
-  --tertiary-7: oklch(44.8% 0.2214 283.9);
-  --tertiary-8: oklch(50.8% 0.255 283.9);
-  --tertiary-9: oklch(54% 0.2816 283.9);
-  --tertiary-10: oklch(49.4% 0.255 283.9);
-  --tertiary-11: oklch(77.6% 0.2433 283.9);
-  --tertiary-12: oklch(91.4% 0.0779 283.9);
+  --tertiary-1: oklch(17.8% 0.0374 283.9);
+  --tertiary-2: oklch(20.6% 0.0506 283.9);
+  --tertiary-3: oklch(27.2% 0.1187 283.9);
+  --tertiary-4: oklch(31.8% 0.1764 283.9);
+  --tertiary-5: oklch(35.8% 0.1891 283.9);
+  --tertiary-6: oklch(39.9% 0.1934 283.9);
+  --tertiary-7: oklch(44.8% 0.2078 283.9);
+  --tertiary-8: oklch(50.7% 0.2389 283.9);
+  --tertiary-9: oklch(54% 0.2646 283.9);
+  --tertiary-10: oklch(49.3% 0.2389 283.9);
+  --tertiary-11: oklch(77.6% 0.2268 283.9);
+  --tertiary-12: oklch(91.4% 0.0725 283.9);
 
   --neutral-1: oklch(17.8% 0.014 307.3);
   --neutral-2: oklch(21.5% 0.0134 307.3);
@@ -85,22 +85,7 @@ Game Engine Experimental • Marca: Vulfram
 
 ## 3. Neutros para Dark Scheme
 
-Paleta de neutros para fundos, bordas, contornos e texto:
-
-- 1: `#150c1e`
-- 2: `#1e1526`
-- 3: `#291c35`
-- 4: `#31223f`
-- 5: `#392947`
-- 6: `#423351`
-- 7: `#504060`
-- 8: `#69597a`
-- 9: `#768`
-- 10: `#857496`
-- 11: `#bdabd0`
-- 12: `#f2ebfb`
-
-Uso sugerido:
+Paleta de neutros para fundos, bordas, contornos e texto, uso sugerido:
 
 - tons 1–4: fundos principais (UI, editor, overlay);
 - tons 5–8: elementos de destaque e separadores;

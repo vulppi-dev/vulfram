@@ -4,7 +4,7 @@ use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 pub enum PrimitiveShape {
     Cube,
     Plane,
@@ -113,7 +113,7 @@ impl Default for PyramidOptions {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(tag = "type", content = "content", rename_all = "camelCase")]
+#[serde(tag = "type", content = "content", rename_all = "kebab-case")]
 pub enum PrimitiveOptions {
     Cube(CubeOptions),
     Plane(PlaneOptions),

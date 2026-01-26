@@ -103,7 +103,7 @@ pub fn engine_cmd_geometry_create(
     let mut seen_types = std::collections::HashSet::new();
     for entry in &args.entries {
         if !matches!(entry.primitive_type, GeometryPrimitiveType::UV) {
-            if !seen_types.insert(entry.primitive_type as u32) {
+            if !seen_types.insert(entry.primitive_type) {
                 return CmdResultGeometryCreate {
                     success: false,
                     message: format!("Duplicate primitive type: {:?}", entry.primitive_type),
@@ -263,7 +263,7 @@ pub fn engine_cmd_geometry_update(
     let mut seen_types = std::collections::HashSet::new();
     for entry in entries {
         if !matches!(entry.primitive_type, GeometryPrimitiveType::UV) {
-            if !seen_types.insert(entry.primitive_type as u32) {
+            if !seen_types.insert(entry.primitive_type) {
                 return CmdResultGeometryUpdate {
                     success: false,
                     message: format!("Duplicate primitive type: {:?}", entry.primitive_type),

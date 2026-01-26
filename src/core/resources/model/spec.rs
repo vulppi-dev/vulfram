@@ -3,19 +3,29 @@ use glam::{Mat4, UVec4, Vec4};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Pod, Zeroable, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[repr(C)]
 pub struct ModelComponent {
     pub transform: Mat4,
     pub translation: Vec4,
     pub rotation: Vec4,
     pub scale: Vec4,
-    pub flags: UVec4, // x: flags (bit 0: receive_shadow), yzw: padding
+    pub flags: UVec4, // x: flags (bit 0: receive_shadow), y: bone_offset, z: bone_count
 }
 
 impl ModelComponent {
     pub const FLAG_RECEIVE_SHADOW: u32 = 1 << 0;
 
     pub fn new(transform: Mat4, receive_shadow: bool) -> Self {
+        Self::new_with_skin(transform, receive_shadow, 0, 0)
+    }
+
+    pub fn new_with_skin(
+        transform: Mat4,
+        receive_shadow: bool,
+        bone_offset: u32,
+        bone_count: u32,
+    ) -> Self {
         let (scale, rotation, translation) = transform.to_scale_rotation_translation();
         let rotation = rotation.normalize();
 
@@ -29,7 +39,7 @@ impl ModelComponent {
             translation: translation.extend(1.0),
             rotation: Vec4::new(rotation.x, rotation.y, rotation.z, rotation.w),
             scale: scale.extend(0.0),
-            flags: UVec4::new(flags, 0, 0, 0),
+            flags: UVec4::new(flags, bone_offset, bone_count, 0),
         }
     }
 
@@ -37,7 +47,14 @@ impl ModelComponent {
         let transform = transform.unwrap_or(self.transform);
         let receive_shadow =
             receive_shadow.unwrap_or((self.flags.x & Self::FLAG_RECEIVE_SHADOW) != 0);
-        *self = Self::new(transform, receive_shadow);
+        let bone_offset = self.flags.y;
+        let bone_count = self.flags.z;
+        *self = Self::new_with_skin(transform, receive_shadow, bone_offset, bone_count);
+    }
+
+    pub fn set_skinning(&mut self, bone_offset: u32, bone_count: u32) {
+        self.flags.y = bone_offset;
+        self.flags.z = bone_count;
     }
 }
 

@@ -9,7 +9,7 @@ Creates a new light source in the scene.
 | windowId       | u32               | ID of the window                           |
 | lightId        | u32               | Unique ID for the light                    |
 | label          | Option<String>    | (Optional) Semantic name                   |
-| kind           | Option<LightKind> | (Optional) Type (Point, Directional, Spot) |
+| kind           | Option<LightKind> | (Optional) Type ("point", "directional", "spot", "ambient", "hemisphere") |
 | position       | Option<Vec4>      | (Optional) Light position                  |
 | direction      | Option<Vec4>      | (Optional) Light direction                 |
 | color          | Option<Vec4>      | (Optional) Light color (RGBA)              |

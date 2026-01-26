@@ -136,6 +136,14 @@ impl RenderState {
                         resource: wgpu::BindingResource::TextureView(view),
                     });
                 }
+                entries.push(wgpu::BindGroupEntry {
+                    binding: 11,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: bindings.bones_pool.buffer(),
+                        offset: 0,
+                        size: None,
+                    }),
+                });
 
                 record.bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
                     label: Some("BindGroup Material Standard"),
@@ -271,6 +279,14 @@ impl RenderState {
                         resource: wgpu::BindingResource::TextureView(view),
                     });
                 }
+                entries.push(wgpu::BindGroupEntry {
+                    binding: 11,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: bindings.bones_pool.buffer(),
+                        offset: 0,
+                        size: None,
+                    }),
+                });
 
                 record.bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
                     label: Some("BindGroup Material PBR"),

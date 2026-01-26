@@ -15,40 +15,40 @@ Sets the system cursor icon for a window.
 
 ### CursorIcon (Enum)
 
-- `Default` = 0
-- `ContextMenu` = 1
-- `Help` = 2
-- `Pointer` = 3
-- `Progress` = 4
-- `Wait` = 5
-- `Cell` = 6
-- `Crosshair` = 7
-- `Text` = 8
-- `VerticalText` = 9
-- `Alias` = 10
-- `Copy` = 11
-- `Move` = 12
-- `NoDrop` = 13
-- `NotAllowed` = 14
-- `Grab` = 15
-- `Grabbing` = 16
-- `EResize` = 17
-- `NResize` = 18
-- `NeResize` = 19
-- `NwResize` = 20
-- `SResize` = 21
-- `SeResize` = 22
-- `SwResize` = 23
-- `WResize` = 24
-- `EwResize` = 25
-- `NsResize` = 26
-- `NeswResize` = 27
-- `NwseResize` = 28
-- `ColResize` = 29
-- `RowResize` = 30
-- `AllScroll` = 31
-- `ZoomIn` = 32
-- `ZoomOut` = 33
+- `default`
+- `context-menu`
+- `help`
+- `pointer`
+- `progress`
+- `wait`
+- `cell`
+- `crosshair`
+- `text`
+- `vertical-text`
+- `alias`
+- `copy`
+- `move`
+- `no-drop`
+- `not-allowed`
+- `grab`
+- `grabbing`
+- `e-resize`
+- `n-resize`
+- `ne-resize`
+- `nw-resize`
+- `s-resize`
+- `se-resize`
+- `sw-resize`
+- `w-resize`
+- `ew-resize`
+- `ns-resize`
+- `nesw-resize`
+- `nwse-resize`
+- `col-resize`
+- `row-resize`
+- `all-scroll`
+- `zoom-in`
+- `zoom-out`
 
 ## Response
 

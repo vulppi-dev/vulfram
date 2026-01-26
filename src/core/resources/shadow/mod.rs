@@ -22,17 +22,19 @@ pub struct ShadowConfig {
     pub atlas_layers: u32,
     pub virtual_grid_size: u32,
     pub smoothing: u32,
+    pub normal_bias: f32,
 }
 
 impl Default for ShadowConfig {
     fn default() -> Self {
         Self {
-            tile_resolution: 1024,
-            atlas_tiles_w: 8,
-            atlas_tiles_h: 8,
-            atlas_layers: 1,
+            tile_resolution: 2048,
+            atlas_tiles_w: 16,
+            atlas_tiles_h: 16,
+            atlas_layers: 2,
             virtual_grid_size: 1,
-            smoothing: 1,
+            smoothing: 2,
+            normal_bias: 0.01,
         }
     }
 }
@@ -48,7 +50,8 @@ pub struct ShadowParams {
     pub bias_slope: f32,
     pub point_bias_min: f32,
     pub point_bias_slope: f32,
-    pub _padding: f32,
+    pub normal_bias: f32,
+    pub _padding: [f32; 3],
 }
 
 /// Unique identifier for a virtual shadow page
@@ -138,7 +141,8 @@ impl ShadowManager {
                 bias_slope: 0.0001,
                 point_bias_min: 0.0001,
                 point_bias_slope: 0.0005,
-                _padding: 0.0,
+                normal_bias: config.normal_bias,
+                _padding: [0.0; 3],
             },
         );
 
@@ -159,6 +163,10 @@ impl ShadowManager {
             || config.atlas_tiles_w != self.config.atlas_tiles_w
             || config.atlas_tiles_h != self.config.atlas_tiles_h
             || config.atlas_layers != self.config.atlas_layers;
+        let grid_changed = config.virtual_grid_size != self.config.virtual_grid_size;
+        let params_changed = grid_changed
+            || config.smoothing != self.config.smoothing
+            || config.normal_bias != self.config.normal_bias;
 
         self.config = config;
 
@@ -172,7 +180,8 @@ impl ShadowManager {
                 bias_slope: 0.0001,
                 point_bias_min: 0.0001,
                 point_bias_slope: 0.0005,
-                _padding: 0.0,
+                normal_bias: config.normal_bias,
+                _padding: [0.0; 3],
             },
         );
 
@@ -188,6 +197,13 @@ impl ShadowManager {
             };
             self.atlas = ShadowAtlasSystem::new(device, atlas_desc);
             self.cache.clear();
+            self.is_dirty = true;
+        } else if grid_changed {
+            // Virtual grid change invalidates page keys.
+            self.cache.clear();
+            self.is_dirty = true;
+        } else if params_changed {
+            // Params-only changes still need a refresh of cached pages.
             self.is_dirty = true;
         }
     }

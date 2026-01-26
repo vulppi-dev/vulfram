@@ -11,6 +11,11 @@ on:
       - releases/**/*
       - alphas/**/*
       - betas/**/*
+  create:
+    branches:
+      - releases/**
+      - alphas/**
+      - betas/**
   workflow_dispatch:
 
 jobs:

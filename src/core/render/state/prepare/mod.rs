@@ -43,6 +43,7 @@ impl RenderState {
         check_pool("camera", bindings.camera_pool.version());
         check_pool("model", bindings.model_pool.version());
         check_pool("instance", bindings.instance_pool.version());
+        check_pool("outline_instance", bindings.outline_instance_pool.version());
         check_pool("shadow_instance", bindings.shadow_instance_pool.version());
         check_pool("mat_std", bindings.material_standard_pool.version());
         check_pool("mat_std_in", bindings.material_standard_inputs.version());
@@ -71,6 +72,7 @@ impl RenderState {
         if any_pool_resized {
             bindings.shared_group = None;
             bindings.model_bind_group = None;
+            bindings.outline_model_bind_group = None;
             bindings.shadow_model_bind_group = None;
             // Clear material bind groups
             for mat in self.scene.materials_standard.values_mut() {

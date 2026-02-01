@@ -230,6 +230,31 @@ impl RenderTarget {
     }
 }
 
+pub fn ensure_render_target(
+    device: &wgpu::Device,
+    target: &mut Option<RenderTarget>,
+    width: u32,
+    height: u32,
+    format: wgpu::TextureFormat,
+) {
+    let needs_target = match target.as_ref() {
+        Some(existing) => {
+            let size = existing._texture.size();
+            size.width != width || size.height != height || existing.format != format
+        }
+        None => true,
+    };
+
+    if needs_target {
+        let size = wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        };
+        *target = Some(RenderTarget::new(device, size, format));
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CameraRecord {
     pub label: Option<String>,
@@ -239,6 +264,8 @@ pub struct CameraRecord {
     pub is_dirty: bool,
     pub ortho_scale: f32,
     pub render_target: Option<RenderTarget>,
+    pub post_target: Option<RenderTarget>,
+    pub outline_target: Option<RenderTarget>,
     pub view_position: Option<ViewPosition>,
 }
 
@@ -259,6 +286,8 @@ impl CameraRecord {
             is_dirty: true,
             ortho_scale,
             render_target: None,
+            post_target: None,
+            outline_target: None,
             view_position,
         }
     }
@@ -271,7 +300,5 @@ impl CameraRecord {
         self.is_dirty = false;
     }
 
-    pub fn set_render_target(&mut self, target: RenderTarget) {
-        self.render_target = Some(target);
-    }
+    // Render targets are managed via ensure_render_target helper.
 }

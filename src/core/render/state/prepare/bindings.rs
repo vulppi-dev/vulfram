@@ -183,6 +183,33 @@ impl RenderState {
                 }));
         }
 
+        // 3.1 Create Outline Model Bind Group (Group 1 for outline pass)
+        if bindings.outline_model_bind_group.is_none() {
+            bindings.outline_model_bind_group =
+                Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("BindGroup Outline Object (Dynamic Instance Data)"),
+                    layout: &library.layout_object,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                                buffer: bindings.outline_instance_pool.buffer(),
+                                offset: 0,
+                                size: None,
+                            }),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                                buffer: bindings.bones_pool.buffer(),
+                                offset: 0,
+                                size: None,
+                            }),
+                        },
+                    ],
+                }));
+        }
+
         // 4. Create Shadow Model Bind Group (Group 1 for shadow pass)
         if bindings.shadow_model_bind_group.is_none() {
             bindings.shadow_model_bind_group =

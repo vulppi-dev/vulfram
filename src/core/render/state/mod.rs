@@ -36,6 +36,7 @@ pub struct RenderState {
     pub cache: RenderCache,
     pub forward_depth_target: Option<crate::core::resources::RenderTarget>,
     pub forward_msaa_target: Option<crate::core::resources::RenderTarget>,
+    pub post_uniform_buffer: Option<wgpu::Buffer>,
     pub environment: EnvironmentConfig,
     pub environment_is_configured: bool,
     pub skinning: SkinningSystem,
@@ -68,27 +69,27 @@ impl RenderState {
                 .map(|vp| vp.resolve_size(width, height))
                 .unwrap_or((width, height));
 
-            let needs_target = match record.render_target.as_ref() {
-                Some(target) => {
-                    let size = target._texture.size();
-                    size.width != target_width || size.height != target_height
-                }
-                None => true,
-            };
-
-            if needs_target {
-                let size = wgpu::Extent3d {
-                    width: target_width,
-                    height: target_height,
-                    depth_or_array_layers: 1,
-                };
-                let target = crate::core::resources::RenderTarget::new(
-                    device,
-                    size,
-                    wgpu::TextureFormat::Rgba16Float,
-                );
-                record.set_render_target(target);
-            }
+            crate::core::resources::ensure_render_target(
+                device,
+                &mut record.render_target,
+                target_width,
+                target_height,
+                wgpu::TextureFormat::Rgba16Float,
+            );
+            crate::core::resources::ensure_render_target(
+                device,
+                &mut record.post_target,
+                target_width,
+                target_height,
+                wgpu::TextureFormat::Rgba16Float,
+            );
+            crate::core::resources::ensure_render_target(
+                device,
+                &mut record.outline_target,
+                target_width,
+                target_height,
+                wgpu::TextureFormat::Rgba8Unorm,
+            );
 
             record.data.update(
                 None,

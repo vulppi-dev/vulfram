@@ -10,6 +10,7 @@ pub struct BindingSystem {
     pub camera_pool: UniformBufferPool<CameraComponent>,
     pub model_pool: UniformBufferPool<ModelComponent>,
     pub instance_pool: StorageBufferPool<ModelComponent>,
+    pub outline_instance_pool: StorageBufferPool<ModelComponent>,
     pub shadow_instance_pool: StorageBufferPool<ModelComponent>,
     pub material_standard_pool: UniformBufferPool<MaterialStandardParams>,
     pub material_standard_inputs: StorageBufferPool<glam::Vec4>,
@@ -18,6 +19,7 @@ pub struct BindingSystem {
     pub bones_pool: StorageBufferPool<glam::Mat4>,
     pub shared_group: Option<wgpu::BindGroup>,
     pub model_bind_group: Option<wgpu::BindGroup>,
+    pub outline_model_bind_group: Option<wgpu::BindGroup>,
     pub shadow_model_bind_group: Option<wgpu::BindGroup>,
 
     // Version tracking for bind group invalidation

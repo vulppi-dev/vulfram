@@ -28,6 +28,11 @@ struct VertexInput {
     @location(7) weights: vec4<f32>,
 }
 
+struct VertexOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) color: vec4<f32>,
+}
+
 fn bone_at(index: u32, bone_offset: u32, bone_count: u32) -> mat4x4<f32> {
     if (index < bone_count) {
         return bones[bone_offset + index];
@@ -60,7 +65,7 @@ fn skin_position(
 }
 
 @vertex
-fn vs_main(in: VertexInput, @builtin(instance_index) instance_id: u32) -> @builtin(position) vec4<f32> {
+fn vs_main(in: VertexInput, @builtin(instance_index) instance_id: u32) -> VertexOutput {
     let model = models[instance_id];
     let bone_offset = model.flags.y;
     let bone_count = model.flags.z;
@@ -69,5 +74,13 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_id: u32) -> @built
         local_pos = skin_position(in.position, in.joints, in.weights, bone_offset, bone_count);
     }
     let world_pos = model.transform * vec4<f32>(local_pos, 1.0);
-    return camera.view_projection * world_pos;
+    var out: VertexOutput;
+    out.position = camera.view_projection * world_pos;
+    out.color = model.outline_color;
+    return out;
+}
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    return in.color;
 }

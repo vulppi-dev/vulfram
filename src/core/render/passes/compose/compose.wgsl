@@ -15,11 +15,9 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
 
 @group(0) @binding(0) var t_diffuse: texture_2d<f32>;
 @group(0) @binding(1) var s_diffuse: sampler;
+@group(0) @binding(2) var<uniform> _post: vec4<f32>;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let color = textureSample(t_diffuse, s_diffuse, in.uv);
-    // Simple Tonemapping (Reinhard) since we are coming from Rgba32Float
-    let mapped = color.rgb / (color.rgb + vec3<f32>(1.0));
-    return vec4<f32>(mapped, color.a);
+    return textureSample(t_diffuse, s_diffuse, in.uv);
 }

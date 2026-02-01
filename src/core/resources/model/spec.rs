@@ -11,18 +11,20 @@ pub struct ModelComponent {
     pub rotation: Vec4,
     pub scale: Vec4,
     pub flags: UVec4, // x: flags (bit 0: receive_shadow), y: bone_offset, z: bone_count
+    pub outline_color: Vec4,
 }
 
 impl ModelComponent {
     pub const FLAG_RECEIVE_SHADOW: u32 = 1 << 0;
 
-    pub fn new(transform: Mat4, receive_shadow: bool) -> Self {
-        Self::new_with_skin(transform, receive_shadow, 0, 0)
+    pub fn new(transform: Mat4, receive_shadow: bool, outline_color: Vec4) -> Self {
+        Self::new_with_skin(transform, receive_shadow, outline_color, 0, 0)
     }
 
     pub fn new_with_skin(
         transform: Mat4,
         receive_shadow: bool,
+        outline_color: Vec4,
         bone_offset: u32,
         bone_count: u32,
     ) -> Self {
@@ -40,16 +42,23 @@ impl ModelComponent {
             rotation: Vec4::new(rotation.x, rotation.y, rotation.z, rotation.w),
             scale: scale.extend(0.0),
             flags: UVec4::new(flags, bone_offset, bone_count, 0),
+            outline_color,
         }
     }
 
-    pub fn update(&mut self, transform: Option<Mat4>, receive_shadow: Option<bool>) {
+    pub fn update(
+        &mut self,
+        transform: Option<Mat4>,
+        receive_shadow: Option<bool>,
+        outline_color: Option<Vec4>,
+    ) {
         let transform = transform.unwrap_or(self.transform);
         let receive_shadow =
             receive_shadow.unwrap_or((self.flags.x & Self::FLAG_RECEIVE_SHADOW) != 0);
         let bone_offset = self.flags.y;
         let bone_count = self.flags.z;
-        *self = Self::new_with_skin(transform, receive_shadow, bone_offset, bone_count);
+        let outline_color = outline_color.unwrap_or(self.outline_color);
+        *self = Self::new_with_skin(transform, receive_shadow, outline_color, bone_offset, bone_count);
     }
 
     pub fn set_skinning(&mut self, bone_offset: u32, bone_count: u32) {
@@ -67,6 +76,7 @@ pub struct ModelRecord {
     pub layer_mask: u32,
     pub cast_shadow: bool,
     pub receive_shadow: bool,
+    pub cast_outline: bool,
     pub is_dirty: bool,
 }
 
@@ -79,6 +89,7 @@ impl ModelRecord {
         layer_mask: u32,
         cast_shadow: bool,
         receive_shadow: bool,
+        cast_outline: bool,
     ) -> Self {
         Self {
             label,
@@ -88,6 +99,7 @@ impl ModelRecord {
             layer_mask,
             cast_shadow,
             receive_shadow,
+            cast_outline,
             is_dirty: true,
         }
     }

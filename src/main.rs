@@ -5,6 +5,7 @@ use crate::core::buffers::state::UploadType;
 use crate::core::cmd::{
     CommandResponse, CommandResponseEnvelope, EngineCmd, EngineCmdEnvelope, EngineEvent,
 };
+use crate::core::input::events::{ElementState, KeyboardEvent};
 use crate::core::render::cmd::CmdRenderGraphSetArgs;
 use crate::core::render::gizmos::{CmdGizmoDrawAabbArgs, CmdGizmoDrawLineArgs};
 use crate::core::render::graph::{
@@ -17,8 +18,8 @@ use crate::core::resources::{
     CmdLightCreateArgs, CmdMaterialCreateArgs, CmdModelCreateArgs, CmdModelUpdateArgs,
     CmdPoseUpdateArgs, CmdPrimitiveGeometryCreateArgs, CmdTextureCreateFromBufferArgs,
     EnvironmentConfig, GeometryPrimitiveEntry, LightKind, MaterialKind, MaterialOptions,
-    MaterialSampler, MsaaConfig, PrimitiveShape, SkyboxConfig, SkyboxMode, StandardOptions,
-    TextureCreateMode,
+    MaterialSampler, MsaaConfig, PostProcessConfig, PrimitiveShape, SkyboxConfig, SkyboxMode,
+    StandardOptions, TextureCreateMode,
 };
 use crate::core::window::{CmdWindowCloseArgs, CmdWindowCreateArgs, WindowEvent};
 use bytemuck::cast_slice;
@@ -189,6 +190,8 @@ fn demo_001(window_id: u32) -> bool {
                 layer_mask: None,
                 cast_shadow: None,
                 receive_shadow: None,
+                cast_outline: None,
+                outline_color: None,
             }));
         }
 
@@ -226,6 +229,25 @@ fn demo_002(window_id: u32) -> bool {
                     rotation: 0.0,
                     tint: Vec3::ONE,
                     cubemap_texture_id: None,
+                },
+                post: PostProcessConfig {
+                    enabled: true,
+                    exposure: 1.0,
+                    gamma: 2.2,
+                    saturation: 1.05,
+                    contrast: 1.1,
+                    vignette: 0.12,
+                    grain: 0.02,
+                    chromatic_aberration: 0.2,
+                    blur: 0.0,
+                    sharpen: 0.1,
+                    outline_enabled: false,
+                    outline_strength: 0.0,
+                    outline_threshold: 0.2,
+                    outline_width: 1.0,
+                    outline_quality: 0.0,
+                    posterize_steps: 0.0,
+                    cell_shading: false,
                 },
             },
         }),
@@ -288,6 +310,8 @@ fn demo_002(window_id: u32) -> bool {
             layer_mask: 0xFFFFFFFF,
             cast_shadow: true,
             receive_shadow: true,
+            cast_outline: false,
+            outline_color: Vec4::ZERO,
         }));
 
         primitive_models.push((model_id, position));
@@ -317,6 +341,8 @@ fn demo_002(window_id: u32) -> bool {
                 layer_mask: None,
                 cast_shadow: None,
                 receive_shadow: None,
+                cast_outline: None,
+                outline_color: None,
             }));
         }
 
@@ -391,6 +417,8 @@ fn demo_003(window_id: u32) -> bool {
             layer_mask: crate::core::resources::common::default_layer_mask(),
             cast_shadow: true,
             receive_shadow: true,
+            cast_outline: false,
+            outline_color: Vec4::ZERO,
         }),
         create_shadow_config_cmd(window_id),
     ];
@@ -422,8 +450,17 @@ fn demo_003(window_id: u32) -> bool {
 
 fn demo_004(window_id: u32) -> bool {
     let geometry_id: u32 = 500;
-    let model_id: u32 = 501;
     let material_id: u32 = 502;
+    let floor_material_id: u32 = 503;
+    let cube_models = [
+        (
+            501,
+            Vec3::new(-2.5, 0.0, 0.0),
+            Vec4::new(1.0, 0.1, 0.1, 1.0),
+        ),
+        (502, Vec3::new(0.0, 0.0, 0.0), Vec4::new(0.1, 1.0, 0.1, 1.0)),
+        (503, Vec3::new(2.5, 0.0, 0.0), Vec4::new(0.1, 0.1, 1.0, 1.0)),
+    ];
     let camera_id: u32 = 1;
 
     let graph = RenderGraphDesc {
@@ -468,9 +505,26 @@ fn demo_004(window_id: u32) -> bool {
                 params: HashMap::new(),
             },
             RenderGraphNode {
+                node_id: LogicalId::Str("outline_pass".into()),
+                pass_id: "outline".into(),
+                inputs: vec![LogicalId::Str("depth".into())],
+                outputs: vec![LogicalId::Str("outline_color".into())],
+                params: HashMap::new(),
+            },
+            RenderGraphNode {
+                node_id: LogicalId::Str("post_pass".into()),
+                pass_id: "post".into(),
+                inputs: vec![
+                    LogicalId::Str("hdr_color".into()),
+                    LogicalId::Str("outline_color".into()),
+                ],
+                outputs: vec![LogicalId::Str("post_color".into())],
+                params: HashMap::new(),
+            },
+            RenderGraphNode {
                 node_id: LogicalId::Str("compose_pass".into()),
                 pass_id: "compose".into(),
-                inputs: vec![LogicalId::Str("hdr_color".into())],
+                inputs: vec![LogicalId::Str("post_color".into())],
                 outputs: vec![LogicalId::Str("swapchain".into())],
                 params: HashMap::new(),
             },
@@ -483,6 +537,16 @@ fn demo_004(window_id: u32) -> bool {
             },
             RenderGraphEdge {
                 from_node_id: LogicalId::Str("forward_pass".into()),
+                to_node_id: LogicalId::Str("outline_pass".into()),
+                reason: Some(RenderGraphEdgeReason::ReadAfterWrite),
+            },
+            RenderGraphEdge {
+                from_node_id: LogicalId::Str("outline_pass".into()),
+                to_node_id: LogicalId::Str("post_pass".into()),
+                reason: Some(RenderGraphEdgeReason::ReadAfterWrite),
+            },
+            RenderGraphEdge {
+                from_node_id: LogicalId::Str("post_pass".into()),
                 to_node_id: LogicalId::Str("compose_pass".into()),
                 reason: Some(RenderGraphEdgeReason::ReadAfterWrite),
             },
@@ -497,6 +561,20 @@ fn demo_004(window_id: u32) -> bool {
             },
             RenderGraphResource {
                 res_id: LogicalId::Str("hdr_color".into()),
+                kind: RenderGraphResourceKind::Texture,
+                desc: HashMap::new(),
+                lifetime: RenderGraphLifetime::Frame,
+                alias_group: None,
+            },
+            RenderGraphResource {
+                res_id: LogicalId::Str("post_color".into()),
+                kind: RenderGraphResourceKind::Texture,
+                desc: HashMap::new(),
+                lifetime: RenderGraphLifetime::Frame,
+                alias_group: None,
+            },
+            RenderGraphResource {
+                res_id: LogicalId::Str("outline_color".into()),
                 kind: RenderGraphResourceKind::Texture,
                 desc: HashMap::new(),
                 lifetime: RenderGraphLifetime::Frame,
@@ -535,6 +613,25 @@ fn demo_004(window_id: u32) -> bool {
                     tint: Vec3::new(0.05, 0.1, 0.2),
                     cubemap_texture_id: None,
                 },
+                post: PostProcessConfig {
+                    enabled: true,
+                    exposure: 1.0,
+                    gamma: 2.2,
+                    saturation: 1.15,
+                    contrast: 1.2,
+                    vignette: 0.18,
+                    grain: 0.03,
+                    chromatic_aberration: 0.25,
+                    blur: 0.0,
+                    sharpen: 0.15,
+                    outline_enabled: true,
+                    outline_strength: 0.6,
+                    outline_threshold: 0.0,
+                    outline_width: 2.0,
+                    outline_quality: 1.0,
+                    posterize_steps: 4.0,
+                    cell_shading: true,
+                },
             },
         }),
         EngineCmd::CmdRenderGraphSet(CmdRenderGraphSetArgs { window_id, graph }),
@@ -552,24 +649,54 @@ fn demo_004(window_id: u32) -> bool {
         ),
         create_point_light_cmd(window_id, 2, Vec4::new(0.0, 5.0, 2.0, 1.0)),
         create_ambient_light_cmd(window_id, 3, Vec4::new(0.3, 0.3, 0.3, 1.0), 0.6),
+        create_standard_material_cmd(window_id, material_id, "Graph Material", Vec4::ONE, None),
         create_standard_material_cmd(
             window_id,
-            material_id,
-            "Graph Material",
-            Vec4::new(0.75, 0.9, 1.0, 1.0),
+            floor_material_id,
+            "Graph Floor Material",
+            Vec4::ONE,
             None,
         ),
         EngineCmd::CmdModelCreate(CmdModelCreateArgs {
             window_id,
-            model_id,
-            label: Some("Graph Cube".into()),
+            model_id: cube_models[0].0,
+            label: Some("Graph Cube R".into()),
             geometry_id,
             material_id: Some(material_id),
-            transform: Mat4::IDENTITY,
+            transform: Mat4::from_translation(cube_models[0].1),
             layer_mask: 0xFFFFFFFF,
             cast_shadow: true,
             receive_shadow: true,
+            cast_outline: true,
+            outline_color: cube_models[0].2,
         }),
+        EngineCmd::CmdModelCreate(CmdModelCreateArgs {
+            window_id,
+            model_id: cube_models[1].0,
+            label: Some("Graph Cube G".into()),
+            geometry_id,
+            material_id: Some(material_id),
+            transform: Mat4::from_translation(cube_models[1].1),
+            layer_mask: 0xFFFFFFFF,
+            cast_shadow: true,
+            receive_shadow: true,
+            cast_outline: true,
+            outline_color: cube_models[1].2,
+        }),
+        EngineCmd::CmdModelCreate(CmdModelCreateArgs {
+            window_id,
+            model_id: cube_models[2].0,
+            label: Some("Graph Cube B".into()),
+            geometry_id,
+            material_id: Some(material_id),
+            transform: Mat4::from_translation(cube_models[2].1),
+            layer_mask: 0xFFFFFFFF,
+            cast_shadow: true,
+            receive_shadow: true,
+            cast_outline: true,
+            outline_color: cube_models[2].2,
+        }),
+        create_floor_cmd(window_id, geometry_id, floor_material_id),
         create_shadow_config_cmd(window_id),
     ];
 
@@ -586,21 +713,29 @@ fn demo_004(window_id: u32) -> bool {
 
     run_loop(window_id, None, |total_ms, _delta_ms| {
         let time_f = total_ms as f32 / 1000.0;
-        let transform = Mat4::from_translation(Vec3::new(0.0, time_f.sin() * 0.4, 0.0))
-            * Mat4::from_euler(glam::EulerRot::XYZ, time_f, time_f * 0.6, 0.0)
-            * Mat4::from_scale(Vec3::splat(1.2));
+        let mut cmds = Vec::new();
+        for (index, (model_id, base_pos, _outline)) in cube_models.iter().enumerate() {
+            let wobble = time_f + index as f32 * 0.6;
+            let transform =
+                Mat4::from_translation(*base_pos + Vec3::new(0.0, wobble.sin() * 0.4, 0.0))
+                    * Mat4::from_euler(glam::EulerRot::XYZ, wobble, wobble * 0.6, 0.0)
+                    * Mat4::from_scale(Vec3::splat(1.2));
+            cmds.push(EngineCmd::CmdModelUpdate(CmdModelUpdateArgs {
+                window_id,
+                model_id: *model_id,
+                label: None,
+                geometry_id: None,
+                material_id: None,
+                transform: Some(transform),
+                layer_mask: None,
+                cast_shadow: None,
+                receive_shadow: None,
+                cast_outline: None,
+                outline_color: None,
+            }));
+        }
 
-        vec![EngineCmd::CmdModelUpdate(CmdModelUpdateArgs {
-            window_id,
-            model_id,
-            label: None,
-            geometry_id: None,
-            material_id: None,
-            transform: Some(transform),
-            layer_mask: None,
-            cast_shadow: None,
-            receive_shadow: None,
-        })]
+        cmds
     })
 }
 
@@ -705,6 +840,8 @@ fn create_floor_cmd(window_id: u32, geometry_id: u32, material_id: u32) -> Engin
         layer_mask: 0xFFFFFFFF,
         cast_shadow: false,
         receive_shadow: true,
+        cast_outline: false,
+        outline_color: Vec4::ZERO,
     })
 }
 
@@ -745,6 +882,8 @@ fn create_instanced_cubes(
             layer_mask: 0xFFFFFFFF,
             cast_shadow: true,
             receive_shadow: true,
+            cast_outline: false,
+            outline_color: Vec4::ZERO,
         }));
     }
 
@@ -965,6 +1104,14 @@ fn handle_close_events(window_id: u32) -> bool {
             EngineEvent::Window(WindowEvent::OnCloseRequest { window_id: id })
                 if id == window_id =>
             {
+                return true;
+            }
+            EngineEvent::Keyboard(KeyboardEvent::OnInput {
+                window_id: id,
+                key_code,
+                state: ElementState::Pressed,
+                ..
+            }) if id == window_id && key_code == 106 => {
                 return true;
             }
             EngineEvent::System(sys_event) => {

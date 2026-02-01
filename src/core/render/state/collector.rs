@@ -20,6 +20,8 @@ pub struct DrawCollector {
     pub pbr_transparent: Vec<DrawItem>,
     pub instance_data: Vec<ModelComponent>,
     pub shadow_instance_data: Vec<ModelComponent>,
+    pub outline_items: Vec<(u32, u32)>,
+    pub outline_instance_data: Vec<ModelComponent>,
 }
 
 impl DrawCollector {
@@ -32,5 +34,7 @@ impl DrawCollector {
         self.pbr_transparent.clear();
         self.instance_data.clear();
         self.shadow_instance_data.clear();
+        self.outline_items.clear();
+        self.outline_instance_data.clear();
     }
 }

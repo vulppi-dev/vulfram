@@ -57,6 +57,13 @@ impl RenderState {
                 immediate_size: 0,
             });
 
+        let outline_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Outline Pipeline Layout"),
+                bind_group_layouts: &[&layouts.shared, &layouts.object],
+                immediate_size: 0,
+            });
+
         let light_cull_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("LightCull Pipeline Layout"),
@@ -71,6 +78,8 @@ impl RenderState {
         let forward_pbr_shader = device.create_shader_module(wgpu::include_wgsl!(
             "../../passes/forward/branches/forward_pbr.wgsl"
         ));
+        let post_shader =
+            device.create_shader_module(wgpu::include_wgsl!("../../passes/post/post.wgsl"));
         let compose_shader =
             device.create_shader_module(wgpu::include_wgsl!("../../passes/compose/compose.wgsl"));
         let light_cull_shader = device.create_shader_module(wgpu::include_wgsl!(
@@ -78,8 +87,17 @@ impl RenderState {
         ));
         let shadow_shader =
             device.create_shader_module(wgpu::include_wgsl!("../../passes/shadow/shadow.wgsl"));
+        let outline_shader =
+            device.create_shader_module(wgpu::include_wgsl!("../../passes/outline/outline.wgsl"));
         let gizmo_shader =
             device.create_shader_module(wgpu::include_wgsl!("../../gizmos/gizmo.wgsl"));
+
+        let post_uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("PostProcess Uniform Buffer"),
+            size: 64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
 
         // 7. Initialize library
         self.library = Some(ResourceLibrary {
@@ -92,9 +110,12 @@ impl RenderState {
             forward_standard_pipeline_layout,
             forward_pbr_pipeline_layout,
             shadow_pipeline_layout,
+            outline_pipeline_layout,
             forward_standard_shader,
             forward_pbr_shader,
+            post_shader,
             compose_shader,
+            outline_shader,
             light_cull_shader,
             shadow_shader,
             gizmo_shader,
@@ -108,5 +129,7 @@ impl RenderState {
             _fallback_shadow_texture: fallbacks.shadow_texture,
             fallback_shadow_view: fallbacks.shadow_view,
         });
+
+        self.post_uniform_buffer = Some(post_uniform_buffer);
     }
 }

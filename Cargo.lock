@@ -3384,6 +3384,7 @@ dependencies = [
  "js-sys",
  "log",
  "mlua",
+ "naga",
  "napi",
  "napi-derive",
  "notify-rust",

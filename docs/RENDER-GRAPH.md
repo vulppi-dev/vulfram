@@ -59,6 +59,16 @@ This document describes the host-facing render graph format. The host builds a g
 
 Logical IDs can be strings or numeric values. The core maps them to internal IDs once per `graphId` and caches the result to avoid per-frame cost.
 
+## Known Pass IDs
+
+- `shadow`
+- `light-cull`
+- `skybox`
+- `forward`
+- `outline`
+- `post`
+- `compose`
+
 ## Minimal Example
 
 ```json
@@ -67,16 +77,22 @@ Logical IDs can be strings or numeric values. The core maps them to internal IDs
   "nodes": [
     { "nodeId": "shadow_pass", "passId": "shadow", "inputs": [], "outputs": ["shadow_atlas"] },
     { "nodeId": "forward_pass", "passId": "forward", "inputs": ["shadow_atlas"], "outputs": ["hdr_color", "depth"] },
-    { "nodeId": "compose_pass", "passId": "compose", "inputs": ["hdr_color"], "outputs": ["swapchain"] }
+    { "nodeId": "outline_pass", "passId": "outline", "inputs": ["depth"], "outputs": ["outline_color"] },
+    { "nodeId": "post_pass", "passId": "post", "inputs": ["hdr_color", "outline_color"], "outputs": ["post_color"] },
+    { "nodeId": "compose_pass", "passId": "compose", "inputs": ["post_color"], "outputs": ["swapchain"] }
   ],
   "edges": [
     { "fromNodeId": "shadow_pass", "toNodeId": "forward_pass" },
-    { "fromNodeId": "forward_pass", "toNodeId": "compose_pass" }
+    { "fromNodeId": "forward_pass", "toNodeId": "outline_pass" },
+    { "fromNodeId": "outline_pass", "toNodeId": "post_pass" },
+    { "fromNodeId": "post_pass", "toNodeId": "compose_pass" }
   ],
   "resources": [
     { "resId": "shadow_atlas", "kind": "texture", "desc": { "format": "depth24", "size": "shadow_res" }, "lifetime": "frame" },
     { "resId": "hdr_color", "kind": "texture", "desc": { "format": "rgba16f", "size": "screen" }, "lifetime": "frame" },
     { "resId": "depth", "kind": "texture", "desc": { "format": "depth24", "size": "screen" }, "lifetime": "frame" },
+    { "resId": "outline_color", "kind": "texture", "desc": { "format": "rgba16f", "size": "screen" }, "lifetime": "frame" },
+    { "resId": "post_color", "kind": "texture", "desc": { "format": "rgba16f", "size": "screen" }, "lifetime": "frame" },
     { "resId": "swapchain", "kind": "attachment", "desc": { "format": "swapchain" }, "lifetime": "frame" }
   ],
   "fallback": true
@@ -103,7 +119,7 @@ The fallback graph represents the default rendering pipeline that always works. 
 Example fallback:
 
 ```
-shadow -> forward -> compose
+shadow -> forward -> outline -> post -> compose
 ```
 
 ## Performance Notes

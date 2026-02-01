@@ -24,11 +24,19 @@ _Refatoração para suportar efeitos avançados._
 
 _Features que dependem de acesso a buffers e transformações espaciais._
 
+- [x] **Post-Processing (Fase 3.1)**: Pass de pós-processamento + targets por câmera + demo inicial.
+- [ ] **Post-Processing (Fase 3.2)**: SSAO com blur bilateral e integração na composição.
+- [ ] **Post-Processing (Fase 3.3)**: Bloom + Glow (downsample/blur/upsample) e controle de intensidade.
+- [ ] **Post-Processing (Fase 3.4)**: HDR pipeline avançado (exposure, tone mapping configurável).
+- [x] **Post-Processing (Fase 3.5)**: Outline com máscara e cor por modelo (pass outline + pós).
+- [ ] **Post-Processing (Fase 3.6)**: Focus/DoF baseado em depth (CoC + blur variável).
+- [x] **Post-Processing (Fase 3.7)**: Efeitos extras (vignette, grain, chromatic aberration, sharpen, posterize).
+- [x] **Cell Shading**: Posterize + bandas de luz no pós-processamento inicial.
 - [ ] **Áudio 3D (Core System)**: Integração com a crate `kira`. Suporte a emissores amarrados a `Models` e cálculo de atenuação/doppler sincronizado com as transformações do Core.
 - [ ] **Bloom & HDR**: Pipeline de alta dinâmica com tonemapping.
 - [ ] **Decals (Decalques)**: Projeção de texturas via shader.
 - [ ] **SSAO**: Oclusão de ambiente em screen-space.
-- [ ] **GPU Particles**: Sistemas de partículas simulados na GPU.
+- [ ] **Particles (CPU/GPU)**: Sistemas de partículas com dois modos (CPU e GPU).
 
 ## 🔵 Fase 4: Responsabilidades do Host (Plugins & Lógica)
 
@@ -45,3 +53,7 @@ _Funcionalidades que serão implementadas como bibliotecas/plugins no lado do Ho
 - [ ] **Custom Materials via Graph Nodes**: Sistema no Core que recebe estruturas de "nós" e gera shaders dinâmicos.
 - [ ] **Projective Spot Lights**: Luzes com projeção de textura.
 - [ ] **Occlusion Culling**: Otimização avançada baseada em visibilidade de pixels.
+
+## 🧰 Tooling
+
+- [x] **Check script**: `scripts/check.sh` roda `cargo check --lib` + valida WGSL.

@@ -4,6 +4,8 @@ use std::collections::HashMap;
 #[repr(u64)]
 pub enum ShaderId {
     Compose = 0,
+    Post,
+    Outline,
     Shadow,
     LightCull,
     ForwardStandard,

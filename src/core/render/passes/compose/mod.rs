@@ -1,11 +1,14 @@
 use crate::core::render::RenderState;
 use crate::core::render::cache::{PipelineKey, ShaderId};
 use crate::core::render::state::ResourceLibrary;
+use crate::core::render::passes::update_post_uniform_buffer;
 
 fn build_compose_bind_group(
     device: &wgpu::Device,
     library: &ResourceLibrary,
     target_view: &wgpu::TextureView,
+    outline_view: &wgpu::TextureView,
+    uniform_buffer: &wgpu::Buffer,
 ) -> wgpu::BindGroup {
     device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some("Compose Bind Group"),
@@ -19,6 +22,14 @@ fn build_compose_bind_group(
                 binding: 1,
                 resource: wgpu::BindingResource::Sampler(&library.samplers.point_clamp),
             },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: uniform_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: wgpu::BindingResource::TextureView(outline_view),
+            },
         ],
     })
 }
@@ -26,7 +37,7 @@ fn build_compose_bind_group(
 pub fn pass_compose(
     render_state: &mut RenderState,
     device: &wgpu::Device,
-    _queue: &wgpu::Queue,
+    queue: &wgpu::Queue,
     encoder: &mut wgpu::CommandEncoder,
     surface_texture: &wgpu::SurfaceTexture,
     config: &wgpu::SurfaceConfiguration,
@@ -36,15 +47,22 @@ pub fn pass_compose(
         .texture
         .create_view(&wgpu::TextureViewDescriptor::default());
 
-    // 1. Sort cameras by order
-    let mut sorted_cameras: Vec<_> = render_state.scene.cameras.iter().collect();
-    sorted_cameras.sort_by_key(|(_, record)| record.order);
-
     // 2. Get or Create Compose Pipeline
     let library = match render_state.library.as_ref() {
         Some(l) => l,
         None => return,
     };
+
+    let post_config = render_state.environment.post.clone();
+    let uniform_buffer = match render_state.post_uniform_buffer.as_ref() {
+        Some(buffer) => buffer,
+        None => return,
+    };
+    update_post_uniform_buffer(&post_config, uniform_buffer, queue, frame_index);
+
+    // 1. Sort cameras by order
+    let mut sorted_cameras: Vec<_> = render_state.scene.cameras.iter().collect();
+    sorted_cameras.sort_by_key(|(_, record)| record.order);
 
     let cache = &mut render_state.cache;
     let key = PipelineKey {
@@ -115,10 +133,15 @@ pub fn pass_compose(
     render_pass.set_pipeline(pipeline);
 
     for (_id, record) in sorted_cameras {
-        let target = match &record.render_target {
+        let target = match record.post_target.as_ref().or(record.render_target.as_ref()) {
             Some(t) => t,
             None => continue,
         };
+        let outline_view = record
+            .outline_target
+            .as_ref()
+            .map(|target| &target.view)
+            .unwrap_or(&library.fallback_view);
 
         // 4. Resolve viewport
         let (x, y) = record
@@ -136,7 +159,8 @@ pub fn pass_compose(
         render_pass.set_viewport(x as f32, y as f32, width as f32, height as f32, 0.0, 1.0);
 
         // 5. Create Bind Group for this camera's target
-        let bind_group = build_compose_bind_group(device, library, &target.view);
+        let bind_group =
+            build_compose_bind_group(device, library, &target.view, outline_view, uniform_buffer);
 
         render_pass.set_bind_group(0, &bind_group, &[]);
         render_pass.draw(0..3, 0..1);

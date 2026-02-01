@@ -68,6 +68,7 @@ struct Model {
     rotation: vec4<f32>,
     scale: vec4<f32>,
     flags: vec4<u32>, // x: flags, y: bone_offset, z: bone_count
+    outline_color: vec4<f32>,
 }
 
 struct MaterialPbrParams {

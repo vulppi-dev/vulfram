@@ -290,6 +290,12 @@ fn execute_window_graph(
                     write_gpu_timestamp(encoder, gpu_profiler, base + 3, &mut gpu_written);
                 }
             }
+            "outline" => {
+                passes::pass_outline(render_state, device, queue, encoder, frame_index);
+            }
+            "post" => {
+                passes::pass_post(render_state, device, queue, encoder, frame_index);
+            }
             "compose" => {
                 if let Some(base) = gpu_base {
                     write_gpu_timestamp(encoder, gpu_profiler, base + 4, &mut gpu_written);

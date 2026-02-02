@@ -30,16 +30,22 @@ _Features que dependem de acesso a buffers e transformações espaciais._
 - [x] **Glow baseado em emissive**: Saída emissive no forward + bloom usa emissive quando disponível.
 - [x] **Post-Processing (Fase 3.4)**: HDR pipeline avançado (exposure, tone mapping configurável).
 - [x] **Post-Processing (Fase 3.5)**: Outline com máscara e cor por modelo (pass outline + pós).
-- [ ] **Post-Processing (Fase 3.6)**: Focus/DoF baseado em depth (CoC + blur variável).
 - [x] **Post-Processing (Fase 3.7)**: Efeitos extras (vignette, grain, chromatic aberration, sharpen, posterize).
 - [x] **Cell Shading**: Posterize + bandas de luz no pós-processamento inicial.
 - [ ] **Áudio 3D (Core System)**: Integração com a crate `kira`. Suporte a emissores amarrados a `Models` e cálculo de atenuação/doppler sincronizado com as transformações do Core.
 - [x] **Bloom & HDR**: Pipeline de alta dinâmica com tonemapping.
-- [ ] **Decals (Decalques)**: Projeção de texturas via shader.
 - [x] **SSAO**: Oclusão de ambiente em screen-space.
+
+## 🔴 Opcionais, futuras melhorias
+
+- [ ] **Custom Materials via Graph Nodes**: Sistema no Core que recebe estruturas de "nós" e gera shaders dinâmicos.
+- [ ] **Projective Spot Lights**: Luzes com projeção de textura.
+- [ ] **Occlusion Culling**: Otimização avançada baseada em visibilidade de pixels.
+- [ ] **Post-Processing**: Focus/DoF baseado em depth (CoC + blur variável).
+- [ ] **Decals (Decalques)**: Projeção de texturas via shader.
 - [ ] **Particles (CPU/GPU)**: Sistemas de partículas com dois modos (CPU e GPU).
 
-## 🔵 Fase 4: Responsabilidades do Host (Plugins & Lógica)
+## 🔵 Responsabilidades do Host (Plugins & Lógica)
 
 _Funcionalidades que serão implementadas como bibliotecas/plugins no lado do Host._
 
@@ -48,13 +54,3 @@ _Funcionalidades que serão implementadas como bibliotecas/plugins no lado do Ho
 - [ ] **Spatial Audio (Host)**: Gerenciamento de áudio 3D direto no Host.
 - [ ] **LOD System (Host)**: Lógica de troca de meshes baseada em distância rodando no Host.
 - [ ] **Input Mapping (Host)**: Abstração de input bruto para ações complexas.
-
-## 🔴 Fase 5: Especialização Final (Core)
-
-- [ ] **Custom Materials via Graph Nodes**: Sistema no Core que recebe estruturas de "nós" e gera shaders dinâmicos.
-- [ ] **Projective Spot Lights**: Luzes com projeção de textura.
-- [ ] **Occlusion Culling**: Otimização avançada baseada em visibilidade de pixels.
-
-## 🧰 Tooling
-
-- [x] **Check script**: `scripts/check.sh` roda `cargo check --lib` + valida WGSL.

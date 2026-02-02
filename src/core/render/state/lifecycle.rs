@@ -56,6 +56,7 @@ impl RenderState {
             ssao_uniform_buffer: None,
             ssao_blur_uniform_buffer: None,
             bloom_uniform_buffer: None,
+            skybox_uniform_buffer: None,
             collector: DrawCollector::default(),
             skinning: crate::core::render::state::SkinningSystem::default(),
             render_graph: crate::core::render::graph::RenderGraphState::new(),
@@ -94,6 +95,7 @@ impl RenderState {
         self.ssao_uniform_buffer = None;
         self.ssao_blur_uniform_buffer = None;
         self.bloom_uniform_buffer = None;
+        self.skybox_uniform_buffer = None;
         self.skinning.clear();
         self.render_graph.reset_to_fallback();
         self.environment = crate::core::resources::EnvironmentConfig::default();

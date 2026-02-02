@@ -14,12 +14,12 @@ use crate::core::render::graph::{
 };
 use crate::core::resources::shadow::{CmdShadowConfigureArgs, ShadowConfig};
 use crate::core::resources::{
-    CameraKind, CmdCameraCreateArgs, CmdEnvironmentUpdateArgs, CmdGeometryCreateArgs,
-    CmdLightCreateArgs, CmdMaterialCreateArgs, CmdModelCreateArgs, CmdModelUpdateArgs,
-    CmdPoseUpdateArgs, CmdPrimitiveGeometryCreateArgs, CmdTextureCreateFromBufferArgs,
-    EnvironmentConfig, GeometryPrimitiveEntry, LightKind, MaterialKind, MaterialOptions,
-    MaterialSampler, MsaaConfig, PostProcessConfig, PrimitiveShape, SkyboxConfig, SkyboxMode,
-    StandardOptions, TextureCreateMode,
+    CameraKind, CmdCameraCreateArgs, CmdCameraUpdateArgs, CmdEnvironmentUpdateArgs,
+    CmdGeometryCreateArgs, CmdLightCreateArgs, CmdMaterialCreateArgs, CmdModelCreateArgs,
+    CmdModelUpdateArgs, CmdPoseUpdateArgs, CmdPrimitiveGeometryCreateArgs,
+    CmdTextureCreateFromBufferArgs, EnvironmentConfig, GeometryPrimitiveEntry, LightKind,
+    MaterialKind, MaterialOptions, MaterialSampler, MsaaConfig, PostProcessConfig, PrimitiveShape,
+    SkyboxConfig, SkyboxMode, StandardOptions, TextureCreateMode,
 };
 use crate::core::window::{CmdWindowCloseArgs, CmdWindowCreateArgs, WindowEvent};
 use bytemuck::cast_slice;
@@ -228,7 +228,9 @@ fn demo_002(window_id: u32) -> bool {
                     mode: SkyboxMode::None,
                     intensity: 1.0,
                     rotation: 0.0,
-                    tint: Vec3::ONE,
+                    ground_color: Vec3::new(0.02, 0.03, 0.04),
+                    horizon_color: Vec3::new(0.12, 0.16, 0.22),
+                    sky_color: Vec3::new(0.2, 0.35, 0.6),
                     cubemap_texture_id: None,
                 },
                 post: PostProcessConfig {
@@ -475,6 +477,8 @@ fn demo_004(window_id: u32) -> bool {
     let material_id: u32 = 502;
     let floor_material_id: u32 = 503;
     let emissive_material_id: u32 = 504;
+    let skybox_texture_id: u32 = 900;
+    let skybox_buffer_id: u64 = 9000;
     let cube_models = [
         (
             501,
@@ -517,13 +521,6 @@ fn demo_004(window_id: u32) -> bool {
             RenderGraphNode {
                 node_id: LogicalId::Str("skybox_pass".into()),
                 pass_id: "skybox".into(),
-                inputs: Vec::new(),
-                outputs: Vec::new(),
-                params: HashMap::new(),
-            },
-            RenderGraphNode {
-                node_id: LogicalId::Str("custom_node".into()),
-                pass_id: "custom-pass".into(),
                 inputs: Vec::new(),
                 outputs: Vec::new(),
                 params: HashMap::new(),
@@ -695,6 +692,39 @@ fn demo_004(window_id: u32) -> bool {
         fallback: true,
     };
 
+    let post_config = PostProcessConfig {
+        filter_enabled: true,
+        filter_exposure: 1.0,
+        filter_gamma: 1.0,
+        filter_saturation: 1.0,
+        filter_contrast: 1.0,
+        filter_vignette: 0.0,
+        filter_grain: 0.0,
+        filter_chromatic_aberration: 0.0,
+        filter_blur: 0.0,
+        filter_sharpen: 0.0,
+        filter_tonemap_mode: 1,
+        outline_enabled: true,
+        outline_strength: 0.6,
+        outline_threshold: 0.0,
+        outline_width: 2.0,
+        outline_quality: 1.0,
+        filter_posterize_steps: 1.0,
+        cell_shading: false,
+        ssao_enabled: true,
+        ssao_strength: 0.75,
+        ssao_radius: 0.9,
+        ssao_bias: 0.02,
+        ssao_power: 1.3,
+        ssao_blur_radius: 2.0,
+        ssao_blur_depth_threshold: 0.02,
+        bloom_enabled: true,
+        bloom_threshold: 1.0,
+        bloom_knee: 0.8,
+        bloom_intensity: 1.0,
+        bloom_scatter: 1.0,
+    };
+
     let setup_cmds = vec![
         EngineCmd::CmdEnvironmentUpdate(CmdEnvironmentUpdateArgs {
             window_id,
@@ -707,41 +737,12 @@ fn demo_004(window_id: u32) -> bool {
                     mode: SkyboxMode::Procedural,
                     intensity: 1.0,
                     rotation: 0.0,
-                    tint: Vec3::new(0.05, 0.1, 0.2),
+                    ground_color: Vec3::new(1.0, 0.0, 0.0),
+                    horizon_color: Vec3::new(1.00, 1.0, 1.0),
+                    sky_color: Vec3::new(0.18, 0.32, 0.55),
                     cubemap_texture_id: None,
                 },
-                post: PostProcessConfig {
-                    filter_enabled: true,
-                    filter_exposure: 1.0,
-                    filter_gamma: 1.0,
-                    filter_saturation: 1.0,
-                    filter_contrast: 1.0,
-                    filter_vignette: 0.0,
-                    filter_grain: 0.0,
-                    filter_chromatic_aberration: 0.0,
-                    filter_blur: 0.0,
-                    filter_sharpen: 0.0,
-                    filter_tonemap_mode: 1,
-                    outline_enabled: true,
-                    outline_strength: 0.6,
-                    outline_threshold: 0.0,
-                    outline_width: 2.0,
-                    outline_quality: 1.0,
-                    filter_posterize_steps: 1.0,
-                    cell_shading: false,
-                    ssao_enabled: true,
-                    ssao_strength: 0.75,
-                    ssao_radius: 0.9,
-                    ssao_bias: 0.02,
-                    ssao_power: 1.3,
-                    ssao_blur_radius: 2.0,
-                    ssao_blur_depth_threshold: 0.02,
-                    bloom_enabled: true,
-                    bloom_threshold: 1.0,
-                    bloom_knee: 0.8,
-                    bloom_intensity: 1.0,
-                    bloom_scatter: 1.0,
-                },
+                post: post_config.clone(),
             },
         }),
         EngineCmd::CmdRenderGraphSet(CmdRenderGraphSetArgs { window_id, graph }),
@@ -876,9 +877,78 @@ fn demo_004(window_id: u32) -> bool {
         }
     }
 
-    run_loop(window_id, None, |total_ms, _delta_ms| {
+    let skybox_bytes: std::sync::Arc<Mutex<Option<Vec<u8>>>> =
+        std::sync::Arc::new(Mutex::new(None));
+    {
+        let skybox_bytes = std::sync::Arc::clone(&skybox_bytes);
+        std::thread::spawn(move || {
+            let bytes = load_texture_bytes("assets/skybox.exr");
+            if let Ok(mut slot) = skybox_bytes.lock() {
+                *slot = Some(bytes);
+            }
+        });
+    }
+
+    run_loop(window_id, None, move |total_ms, _delta_ms| {
         let time_f = total_ms as f32 / 1000.0;
         let mut cmds = Vec::new();
+        let camera_radius = 8.0;
+        let camera_base_height = 3.0;
+        let camera_angle = time_f * 0.35;
+        let camera_height = camera_base_height + (time_f * 0.7).sin() * 1.25;
+        let camera_pos = Vec3::new(
+            camera_radius * camera_angle.cos(),
+            camera_height,
+            camera_radius * camera_angle.sin(),
+        );
+        let camera_transform = Mat4::look_at_rh(camera_pos, Vec3::ZERO, Vec3::Y).inverse();
+        cmds.push(EngineCmd::CmdCameraUpdate(CmdCameraUpdateArgs {
+            camera_id,
+            label: None,
+            transform: Some(camera_transform),
+            kind: None,
+            flags: None,
+            near_far: None,
+            layer_mask: None,
+            order: None,
+            view_position: None,
+            ortho_scale: None,
+        }));
+        if let Ok(mut slot) = skybox_bytes.lock() {
+            if let Some(bytes) = slot.take() {
+                upload_texture_bytes(&bytes, skybox_buffer_id);
+                cmds.push(EngineCmd::CmdTextureCreateFromBuffer(
+                    CmdTextureCreateFromBufferArgs {
+                        window_id,
+                        texture_id: skybox_texture_id,
+                        label: Some("Skybox Texture".into()),
+                        buffer_id: skybox_buffer_id,
+                        srgb: Some(false),
+                        mode: TextureCreateMode::Standalone,
+                        atlas_options: None,
+                    },
+                ));
+                cmds.push(EngineCmd::CmdEnvironmentUpdate(CmdEnvironmentUpdateArgs {
+                    window_id,
+                    config: EnvironmentConfig {
+                        msaa: MsaaConfig {
+                            enabled: true,
+                            sample_count: 4,
+                        },
+                        skybox: SkyboxConfig {
+                            mode: SkyboxMode::Cubemap,
+                            intensity: 1.0,
+                            rotation: 0.0,
+                            ground_color: Vec3::new(0.01, 0.02, 0.03),
+                            horizon_color: Vec3::new(0.08, 0.12, 0.18),
+                            sky_color: Vec3::new(0.18, 0.32, 0.55),
+                            cubemap_texture_id: Some(skybox_texture_id),
+                        },
+                        post: post_config.clone(),
+                    },
+                }));
+            }
+        }
         for (index, (model_id, base_pos, _outline)) in cube_models.iter().enumerate() {
             let wobble = time_f + index as f32 * 0.6;
             let transform =
@@ -1106,17 +1176,25 @@ fn default_camera_transform() -> Mat4 {
     .inverse()
 }
 
-fn upload_texture(path: &str, buffer_id: u64) {
-    let texture_bytes = fs::read(path).expect("failed to read texture");
+fn load_texture_bytes(path: &str) -> Vec<u8> {
+    fs::read(path).expect("failed to read texture")
+}
+
+fn upload_texture_bytes(bytes: &[u8], buffer_id: u64) {
     assert_eq!(
         core::vulfram_upload_buffer(
             buffer_id,
             upload_type_to_u32(UploadType::ImageData),
-            texture_bytes.as_ptr(),
-            texture_bytes.len()
+            bytes.as_ptr(),
+            bytes.len()
         ),
         VulframResult::Success
     );
+}
+
+fn upload_texture(path: &str, buffer_id: u64) {
+    let texture_bytes = load_texture_bytes(path);
+    upload_texture_bytes(&texture_bytes, buffer_id);
 }
 
 fn upload_buffer<T: bytemuck::Pod>(buffer_id: u64, upload_type: UploadType, data: &[T]) {

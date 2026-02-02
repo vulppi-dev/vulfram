@@ -132,6 +132,16 @@ The environment config now includes a post-processing block used by the `post` p
 - `skybox`
 - `post`
 
+`SkyboxConfig` highlights:
+
+- `mode`: `none`, `procedural`, `cubemap`
+- `intensity`: overall multiplier
+- `rotation`: radians, applied around Y
+- `ground_color`: ground/low hemisphere color
+- `horizon_color`: horizon blend color
+- `sky_color`: upper sky color
+- `cubemap_texture_id`: 2D equirect sky texture ID (lat/long); sampled only when `mode = cubemap`
+
 `PostProcessConfig` highlights:
 
 - `filter_enabled`: master enable for filters

@@ -1,7 +1,7 @@
 use super::types::*;
 use super::utils::*;
 use crate::core::buffers::state::UploadType;
-use crate::core::image::ImageDecoder;
+use crate::core::image::{ImageDecoder, ImagePixels};
 use crate::core::resources::texture::{ForwardAtlasDesc, ForwardAtlasEntry, TextureRecord};
 use crate::core::state::EngineState;
 use glam::{UVec2, Vec4};
@@ -82,15 +82,39 @@ pub fn engine_cmd_texture_create_from_buffer(
         None => {
             return CmdResultTextureCreateFromBuffer {
                 success: false,
-                message: "Failed to decode image. Supported formats: PNG, JPEG, WebP, AVIF".into(),
+                message: "Failed to decode image. Supported formats: PNG, JPEG, WebP, AVIF, EXR, HDR".into(),
             };
         }
     };
 
-    let format = if args.srgb.unwrap_or(true) {
-        wgpu::TextureFormat::Rgba8UnormSrgb
-    } else {
-        wgpu::TextureFormat::Rgba8Unorm
+    let (format, bytes_per_row, rows_per_image, pixel_data) = match image.pixels {
+        ImagePixels::Rgba8(data) => {
+            let format = if args.srgb.unwrap_or(true) {
+                wgpu::TextureFormat::Rgba8UnormSrgb
+            } else {
+                wgpu::TextureFormat::Rgba8Unorm
+            };
+            (
+                format,
+                Some(4 * image.width),
+                Some(image.height),
+                data,
+            )
+        }
+        ImagePixels::Rgba16F(data) => {
+            if matches!(args.mode, TextureCreateMode::ForwardAtlas) {
+                return CmdResultTextureCreateFromBuffer {
+                    success: false,
+                    message: "Float textures are not supported in forward atlas".into(),
+                };
+            }
+            (
+                wgpu::TextureFormat::Rgba16Float,
+                Some(8 * image.width),
+                Some(image.height),
+                bytemuck::cast_slice(&data).to_vec(),
+            )
+        }
     };
 
     let size = wgpu::Extent3d {
@@ -114,11 +138,11 @@ pub fn engine_cmd_texture_create_from_buffer(
 
             queue.write_texture(
                 texture.as_image_copy(),
-                &image.data,
+                &pixel_data,
                 wgpu::TexelCopyBufferLayout {
                     offset: 0,
-                    bytes_per_row: Some(4 * image.width),
-                    rows_per_image: Some(image.height),
+                    bytes_per_row,
+                    rows_per_image,
                 },
                 size,
             );
@@ -189,11 +213,11 @@ pub fn engine_cmd_texture_create_from_buffer(
                         origin: wgpu::Origin3d { x, y, z: layer },
                         aspect: wgpu::TextureAspect::All,
                     },
-                    &image.data,
+                    &pixel_data,
                     wgpu::TexelCopyBufferLayout {
                         offset: 0,
-                        bytes_per_row: Some(4 * image.width),
-                        rows_per_image: Some(image.height),
+                        bytes_per_row,
+                        rows_per_image,
                     },
                     wgpu::Extent3d {
                         width: image.width,

@@ -33,7 +33,8 @@ gilrs = { version = "0.11", optional = true }
 notify-rust = { version = "4.11", optional = true }
 
 # Images
-image = { version = "0.25", default-features = false, features = ["bmp", "png", "jpeg", "webp", "avif"] }
+image = { version = "0.25", default-features = false, features = ["bmp", "png", "jpeg", "webp", "avif", "exr", "hdr", "ico"] }
+half = "2.4"
 
 # Tooling (WGSL validation)
 naga = { version = "28.0.0", features = ["wgsl-in"] }

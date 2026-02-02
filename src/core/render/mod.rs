@@ -266,7 +266,7 @@ fn execute_window_graph(
                 continue;
             }
             "skybox" => {
-                passes::pass_skybox(render_state, device, encoder, frame_index);
+                passes::pass_skybox(render_state, device, queue, encoder, frame_index);
                 skybox_done = true;
             }
             "light-cull" => {

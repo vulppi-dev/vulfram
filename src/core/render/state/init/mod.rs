@@ -105,6 +105,13 @@ impl RenderState {
                 immediate_size: 0,
             });
 
+        let skybox_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Skybox Pipeline Layout"),
+                bind_group_layouts: &[&layouts.skybox],
+                immediate_size: 0,
+            });
+
         // 6. Initialize shaders
         let forward_standard_shader = device.create_shader_module(wgpu::include_wgsl!(
             "../../passes/forward/branches/forward_standard.wgsl"
@@ -133,6 +140,8 @@ impl RenderState {
             .create_shader_module(wgpu::include_wgsl!("../../passes/ssao/ssao_blur_msaa.wgsl"));
         let bloom_shader =
             device.create_shader_module(wgpu::include_wgsl!("../../passes/bloom/bloom.wgsl"));
+        let skybox_shader =
+            device.create_shader_module(wgpu::include_wgsl!("../../passes/skybox/skybox.wgsl"));
         let gizmo_shader =
             device.create_shader_module(wgpu::include_wgsl!("../../gizmos/gizmo.wgsl"));
 
@@ -163,6 +172,12 @@ impl RenderState {
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
+        let skybox_uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Skybox Uniform Buffer"),
+            size: 160,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
 
         // 7. Initialize library
         self.library = Some(ResourceLibrary {
@@ -177,6 +192,7 @@ impl RenderState {
             layout_ssao_msaa: layouts.ssao_msaa,
             layout_ssao_blur_msaa: layouts.ssao_blur_msaa,
             layout_bloom: layouts.bloom,
+            layout_skybox: layouts.skybox,
             forward_standard_pipeline_layout,
             forward_pbr_pipeline_layout,
             shadow_pipeline_layout,
@@ -186,6 +202,7 @@ impl RenderState {
             ssao_msaa_pipeline_layout,
             ssao_blur_msaa_pipeline_layout,
             bloom_pipeline_layout,
+            skybox_pipeline_layout,
             forward_standard_shader,
             forward_pbr_shader,
             post_shader,
@@ -196,6 +213,7 @@ impl RenderState {
             ssao_msaa_shader,
             ssao_blur_msaa_shader,
             bloom_shader,
+            skybox_shader,
             light_cull_shader,
             shadow_shader,
             gizmo_shader,
@@ -214,5 +232,6 @@ impl RenderState {
         self.ssao_uniform_buffer = Some(ssao_uniform_buffer);
         self.ssao_blur_uniform_buffer = Some(ssao_blur_uniform_buffer);
         self.bloom_uniform_buffer = Some(bloom_uniform_buffer);
+        self.skybox_uniform_buffer = Some(skybox_uniform_buffer);
     }
 }

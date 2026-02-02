@@ -41,6 +41,7 @@ pub struct RenderState {
     pub ssao_uniform_buffer: Option<wgpu::Buffer>,
     pub ssao_blur_uniform_buffer: Option<wgpu::Buffer>,
     pub bloom_uniform_buffer: Option<wgpu::Buffer>,
+    pub skybox_uniform_buffer: Option<wgpu::Buffer>,
     pub environment: EnvironmentConfig,
     pub environment_is_configured: bool,
     pub skinning: SkinningSystem,

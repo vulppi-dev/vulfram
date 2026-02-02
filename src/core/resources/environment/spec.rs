@@ -31,7 +31,9 @@ pub struct SkyboxConfig {
     pub mode: SkyboxMode,
     pub intensity: f32,
     pub rotation: f32,
-    pub tint: Vec3,
+    pub ground_color: Vec3,
+    pub horizon_color: Vec3,
+    pub sky_color: Vec3,
     #[serde(default)]
     pub cubemap_texture_id: Option<u32>,
 }
@@ -42,7 +44,9 @@ impl Default for SkyboxConfig {
             mode: SkyboxMode::None,
             intensity: 1.0,
             rotation: 0.0,
-            tint: Vec3::ONE,
+            ground_color: Vec3::new(0.02, 0.03, 0.04),
+            horizon_color: Vec3::new(0.12, 0.16, 0.22),
+            sky_color: Vec3::new(0.2, 0.35, 0.6),
             cubemap_texture_id: None,
         }
     }

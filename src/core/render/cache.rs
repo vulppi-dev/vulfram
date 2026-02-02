@@ -15,6 +15,7 @@ pub enum ShaderId {
     BloomDownsample,
     BloomUpsample,
     BloomCombine,
+    Skybox,
     Shadow,
     LightCull,
     ForwardStandard,

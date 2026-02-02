@@ -9,6 +9,7 @@ use crate::core::system::SystemEvent;
 use crate::core::window::WindowEvent;
 
 pub use crate::core::buffers as buf;
+pub use crate::core::audio as audio;
 pub use crate::core::render::cmd as render;
 pub use crate::core::render::gizmos as gizmo;
 pub use crate::core::resources as res;
@@ -57,6 +58,16 @@ pub enum EngineCmd {
     CmdTextureCreateFromBuffer(res::CmdTextureCreateFromBufferArgs),
     CmdTextureCreateSolidColor(res::CmdTextureCreateSolidColorArgs),
     CmdTextureDispose(res::CmdTextureDisposeArgs),
+    CmdAudioInit(audio::CmdAudioInitArgs),
+    CmdAudioListenerUpdate(audio::CmdAudioListenerUpdateArgs),
+    CmdAudioListenerBindModel(audio::CmdAudioListenerBindModelArgs),
+    CmdAudioBufferCreateFromBuffer(audio::CmdAudioBufferCreateFromBufferArgs),
+    CmdAudioSourceCreate(audio::CmdAudioSourceCreateArgs),
+    CmdAudioSourceUpdate(audio::CmdAudioSourceUpdateArgs),
+    CmdAudioSourcePlay(audio::CmdAudioSourcePlayArgs),
+    CmdAudioSourcePause(audio::CmdAudioSourcePauseArgs),
+    CmdAudioSourceStop(audio::CmdAudioSourceStopArgs),
+    CmdAudioDispose(audio::CmdAudioDisposeArgs),
     CmdGeometryCreate(res::CmdGeometryCreateArgs),
     CmdGeometryUpdate(res::CmdGeometryUpdateArgs),
     CmdGeometryDispose(res::CmdGeometryDisposeArgs),
@@ -130,6 +141,16 @@ pub enum CommandResponse {
     TextureCreateFromBuffer(res::CmdResultTextureCreateFromBuffer),
     TextureCreateSolidColor(res::CmdResultTextureCreateSolidColor),
     TextureDispose(res::CmdResultTextureDispose),
+    AudioInit(audio::CmdResultAudioInit),
+    AudioListenerUpdate(audio::CmdResultAudioListenerUpdate),
+    AudioListenerBindModel(audio::CmdResultAudioListenerBindModel),
+    AudioBufferCreateFromBuffer(audio::CmdResultAudioBufferCreateFromBuffer),
+    AudioSourceCreate(audio::CmdResultAudioSourceCreate),
+    AudioSourceUpdate(audio::CmdResultAudioSourceUpdate),
+    AudioSourcePlay(audio::CmdResultAudioSourcePlay),
+    AudioSourcePause(audio::CmdResultAudioSourcePause),
+    AudioSourceStop(audio::CmdResultAudioSourceStop),
+    AudioDispose(audio::CmdResultAudioDispose),
     GeometryCreate(res::CmdResultGeometryCreate),
     GeometryUpdate(res::CmdResultGeometryUpdate),
     GeometryDispose(res::CmdResultGeometryDispose),
@@ -454,6 +475,76 @@ pub fn engine_process_batch(
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::TextureDispose(result),
+                });
+            }
+            EngineCmd::CmdAudioInit(args) => {
+                let result = audio::engine_cmd_audio_init(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::AudioInit(result),
+                });
+            }
+            EngineCmd::CmdAudioListenerUpdate(args) => {
+                let result = audio::engine_cmd_audio_listener_update(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::AudioListenerUpdate(result),
+                });
+            }
+            EngineCmd::CmdAudioListenerBindModel(args) => {
+                let result = audio::engine_cmd_audio_listener_bind_model(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::AudioListenerBindModel(result),
+                });
+            }
+            EngineCmd::CmdAudioBufferCreateFromBuffer(args) => {
+                let result = audio::engine_cmd_audio_buffer_create_from_buffer(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::AudioBufferCreateFromBuffer(result),
+                });
+            }
+            EngineCmd::CmdAudioSourceCreate(args) => {
+                let result = audio::engine_cmd_audio_source_create(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::AudioSourceCreate(result),
+                });
+            }
+            EngineCmd::CmdAudioSourceUpdate(args) => {
+                let result = audio::engine_cmd_audio_source_update(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::AudioSourceUpdate(result),
+                });
+            }
+            EngineCmd::CmdAudioSourcePlay(args) => {
+                let result = audio::engine_cmd_audio_source_play(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::AudioSourcePlay(result),
+                });
+            }
+            EngineCmd::CmdAudioSourcePause(args) => {
+                let result = audio::engine_cmd_audio_source_pause(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::AudioSourcePause(result),
+                });
+            }
+            EngineCmd::CmdAudioSourceStop(args) => {
+                let result = audio::engine_cmd_audio_source_stop(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::AudioSourceStop(result),
+                });
+            }
+            EngineCmd::CmdAudioDispose(args) => {
+                let result = audio::engine_cmd_audio_dispose(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::AudioDispose(result),
                 });
             }
             EngineCmd::CmdGeometryCreate(args) => {

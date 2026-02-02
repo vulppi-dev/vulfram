@@ -35,6 +35,10 @@ _Features que dependem de acesso a buffers e transformações espaciais._
 - [x] **Bloom & HDR**: Pipeline de alta dinâmica com tonemapping.
 - [x] **SSAO**: Oclusão de ambiente em screen-space.
 - [ ] **Áudio 3D (Core System)**: Integração com a crate `kira`. Suporte a emissores amarrados a `Models` e cálculo de atenuação/doppler sincronizado com as transformações do Core.
+  - [x] API base + proxy (desktop/web) e comandos de áudio no Core.
+  - [x] Backend desktop (Kira) + backend web (WebAudio).
+  - [x] Decodificação async + eventos de ready/erro.
+  - [ ] Streaming de áudio (cursor/chunks) para músicas longas.
 
 ## 🔴 Opcionais, futuras melhorias
 

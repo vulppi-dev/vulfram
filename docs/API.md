@@ -184,8 +184,27 @@ Async texture decode:
 
 The outline mask is rendered in a dedicated `outline` pass into `outline_color`
 (now `rgba8`), and sampled by the `post` pass for final composition.
-  - `material_id` (optional)
-  - `layer_mask`
+
+---
+
+## 6. Audio (Core, WIP)
+
+The audio system is proxy-based (desktop = Kira, browser = WebAudio). The API is shared across backends.
+
+Commands (core/audio/cmd.rs):
+- `CmdAudioInit`
+- `CmdAudioListenerUpdate { position, velocity, forward, up }`
+- `CmdAudioListenerBindModel { windowId, modelId }`
+- `CmdAudioBufferCreateFromBuffer { audioId, bufferId }` (UploadType::BinaryAsset)
+- `CmdAudioSourceCreate { sourceId, audioId, looping, position, velocity, orientation, gain, pitch, spatial }`
+- `CmdAudioSourceUpdate { sourceId, position, velocity, orientation, gain, pitch, spatial }`
+- `CmdAudioSourcePlay/Stop/Pause { sourceId }`
+- `CmdAudioDispose { audioId?, sourceId? }`
+
+Events:
+- `SystemEvent::AudioReady { audioId, success, message }` (async decode)
+  - Emitted when the audio buffer finishes decoding (desktop and web).
+  - Use this to decide when `CmdAudioSourcePlay` is safe to call.
 
 The visibility rule uses `layer_mask`:
 

@@ -1,4 +1,5 @@
 pub mod buffers;
+pub mod audio;
 pub mod cmd;
 pub mod gamepad;
 pub mod image;

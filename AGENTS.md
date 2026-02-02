@@ -14,3 +14,4 @@
 - Sempre atualizar a documentação relacionada ao terminar uma fase.
 - Em auditorias futuras, ignorar retenção por recursos host-side sem dispose.
 - `scripts/check.sh` roda `cargo check --lib` + valida WGSL.
+- Decode de imagens/texturas deve ser assíncrono por padrão; no browser tentar Worker e, se indisponível, usar Promises/async com divisão em chunks para não travar o loop.

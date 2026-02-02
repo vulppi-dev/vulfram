@@ -23,25 +23,7 @@ impl ImageDecoder {
     /// Try to decode image data. Returns Some(ImageBuffer) if successful, None otherwise.
     pub fn try_decode(data: &[u8]) -> Option<ImageBuffer> {
         let format = image::guess_format(data).ok();
-        let start = std::time::Instant::now();
-        let result = Self::decode_with_image_crate(data, format);
-        if let Some(fmt) = format {
-            println!(
-                "ImageDecoder: format={:?} bytes={} decoded={} in {:?}",
-                fmt,
-                data.len(),
-                result.is_some(),
-                start.elapsed()
-            );
-        } else {
-            println!(
-                "ImageDecoder: format=unknown bytes={} decoded={} in {:?}",
-                data.len(),
-                result.is_some(),
-                start.elapsed()
-            );
-        }
-        result
+        Self::decode_with_image_crate(data, format)
     }
 
     /// Decode PNG, JPEG, WebP, and AVIF using the image crate
@@ -50,7 +32,6 @@ impl ImageDecoder {
         let max_dim: u32 = 2048;
 
         if matches!(format, Some(ImageFormat::OpenExr | ImageFormat::Hdr)) {
-            let decode_start = std::time::Instant::now();
             let (width, height) = img.dimensions();
             let largest = width.max(height);
             if largest > max_dim {
@@ -65,13 +46,6 @@ impl ImageDecoder {
             for value in rgba.into_raw() {
                 out.push(f16::from_f32(value).to_bits());
             }
-            println!(
-                "ImageDecoder: EXR/HDR size={}x{} downscale={} elapsed={:?}",
-                img.width(),
-                img.height(),
-                largest > max_dim,
-                decode_start.elapsed()
-            );
             return Some(ImageBuffer {
                 width: img.width(),
                 height: img.height(),

@@ -87,7 +87,12 @@ pub fn engine_cmd_texture_create_from_buffer(
         }
     };
 
-    let (format, bytes_per_row, rows_per_image, pixel_data) = match image.pixels {
+    enum PixelUpload {
+        Rgba8(Vec<u8>),
+        Rgba16F(Vec<u16>),
+    }
+
+    let (format, bytes_per_row, rows_per_image, pixel_upload) = match image.pixels {
         ImagePixels::Rgba8(data) => {
             let format = if args.srgb.unwrap_or(true) {
                 wgpu::TextureFormat::Rgba8UnormSrgb
@@ -98,7 +103,7 @@ pub fn engine_cmd_texture_create_from_buffer(
                 format,
                 Some(4 * image.width),
                 Some(image.height),
-                data,
+                PixelUpload::Rgba8(data),
             )
         }
         ImagePixels::Rgba16F(data) => {
@@ -112,7 +117,7 @@ pub fn engine_cmd_texture_create_from_buffer(
                 wgpu::TextureFormat::Rgba16Float,
                 Some(8 * image.width),
                 Some(image.height),
-                bytemuck::cast_slice(&data).to_vec(),
+                PixelUpload::Rgba16F(data),
             )
         }
     };
@@ -136,9 +141,14 @@ pub fn engine_cmd_texture_create_from_buffer(
                 view_formats: &[],
             });
 
+            let pixel_data: &[u8] = match &pixel_upload {
+                PixelUpload::Rgba8(data) => data.as_slice(),
+                PixelUpload::Rgba16F(data) => bytemuck::cast_slice(data),
+            };
+
             queue.write_texture(
                 texture.as_image_copy(),
-                &pixel_data,
+                pixel_data,
                 wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row,
@@ -206,6 +216,11 @@ pub fn engine_cmd_texture_create_from_buffer(
                         };
                     }
                 };
+                let pixel_data: &[u8] = match &pixel_upload {
+                    PixelUpload::Rgba8(data) => data.as_slice(),
+                    PixelUpload::Rgba16F(data) => bytemuck::cast_slice(data),
+                };
+
                 queue.write_texture(
                     wgpu::TexelCopyTextureInfo {
                         texture: atlas.texture(),
@@ -213,7 +228,7 @@ pub fn engine_cmd_texture_create_from_buffer(
                         origin: wgpu::Origin3d { x, y, z: layer },
                         aspect: wgpu::TextureAspect::All,
                     },
-                    &pixel_data,
+                    pixel_data,
                     wgpu::TexelCopyBufferLayout {
                         offset: 0,
                         bytes_per_row,

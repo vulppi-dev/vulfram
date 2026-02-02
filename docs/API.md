@@ -142,6 +142,9 @@ The environment config now includes a post-processing block used by the `post` p
 - `sky_color`: upper sky color
 - `cubemap_texture_id`: 2D equirect sky texture ID (lat/long); sampled only when `mode = cubemap`
 
+Texture loading notes:
+- EXR/HDR inputs decode to `rgba16f` textures (not supported in forward atlas).
+
 `PostProcessConfig` highlights:
 
 - `filter_enabled`: master enable for filters

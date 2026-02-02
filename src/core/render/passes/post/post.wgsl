@@ -9,6 +9,7 @@ struct PostParams {
     params2: vec4<f32>, // outline_strength, outline_threshold, posterize_steps, flags
     params3: vec4<f32>, // time, sharpen, outline_width, outline_quality
     params4: vec4<f32>, // ssao_strength, ssao_power, unused, unused
+    params5: vec4<f32>, // bloom_threshold, bloom_knee, bloom_intensity, bloom_scatter
 }
 
 @vertex
@@ -26,6 +27,7 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
 @group(0) @binding(2) var<uniform> post: PostParams;
 @group(0) @binding(3) var t_outline: texture_2d<f32>;
 @group(0) @binding(4) var t_ssao: texture_2d<f32>;
+@group(0) @binding(5) var t_bloom: texture_2d<f32>;
 
 fn luma(color: vec3<f32>) -> f32 {
     return dot(color, vec3<f32>(0.299, 0.587, 0.114));
@@ -46,6 +48,10 @@ fn sample_outline(uv: vec2<f32>) -> vec4<f32> {
 
 fn sample_ssao(uv: vec2<f32>) -> f32 {
     return textureSample(t_ssao, s_diffuse, uv).r;
+}
+
+fn sample_bloom(uv: vec2<f32>) -> vec3<f32> {
+    return textureSample(t_bloom, s_diffuse, uv).rgb;
 }
 
 @fragment
@@ -69,7 +75,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let cell_shading = (flags & 2u) != 0u;
     let outline_enabled = (flags & 4u) != 0u;
     let ssao_enabled = (flags & 8u) != 0u;
+    let bloom_enabled = (flags & 16u) != 0u;
     let ssao_strength = post.params4.x;
+    let bloom_intensity = post.params5.z;
     let sharpen = post.params3.y;
     let outline_width = clamp(post.params3.z, 0.5, 8.0);
     let outline_quality = clamp(post.params3.w, 0.0, 1.0);
@@ -177,6 +185,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let band = floor(lum * levels) / levels;
         let shaded = color.rgb * mix(0.5, 1.5, band);
         color = vec4<f32>(shaded, color.a);
+    }
+
+    if (bloom_enabled && bloom_intensity > 0.0001) {
+        let bloom = sample_bloom(in.uv);
+        color = vec4<f32>(color.rgb + bloom * bloom_intensity, color.a);
     }
 
     if (ssao_enabled && ssao_strength > 0.0001) {

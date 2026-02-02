@@ -11,6 +11,7 @@ struct PostProcessUniform {
     params2: [f32; 4],
     params3: [f32; 4],
     params4: [f32; 4],
+    params5: [f32; 4],
 }
 
 impl PostProcessUniform {
@@ -27,6 +28,9 @@ impl PostProcessUniform {
         }
         if config.ssao_enabled {
             flags |= 1 << 3;
+        }
+        if config.bloom_enabled {
+            flags |= 1 << 4;
         }
 
         let outline_threshold = config.outline_threshold.clamp(0.0, 0.999);
@@ -57,11 +61,12 @@ impl PostProcessUniform {
                 config.outline_width,
                 outline_quality,
             ],
-            params4: [
-                config.ssao_strength,
-                config.ssao_power,
-                0.0,
-                0.0,
+            params4: [config.ssao_strength, config.ssao_power, 0.0, 0.0],
+            params5: [
+                config.bloom_threshold,
+                config.bloom_knee,
+                config.bloom_intensity,
+                config.bloom_scatter,
             ],
         }
     }
@@ -83,6 +88,7 @@ fn build_post_bind_group(
     target_view: &wgpu::TextureView,
     outline_view: &wgpu::TextureView,
     ssao_view: &wgpu::TextureView,
+    bloom_view: &wgpu::TextureView,
     uniform_buffer: &wgpu::Buffer,
 ) -> wgpu::BindGroup {
     device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -108,6 +114,10 @@ fn build_post_bind_group(
             wgpu::BindGroupEntry {
                 binding: 4,
                 resource: wgpu::BindingResource::TextureView(ssao_view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 5,
+                resource: wgpu::BindingResource::TextureView(bloom_view),
             },
         ],
     })
@@ -208,12 +218,18 @@ pub fn pass_post(
             .as_ref()
             .map(|target| &target.view)
             .unwrap_or(&library.fallback_view);
+        let bloom_view = record
+            .bloom_target
+            .as_ref()
+            .map(|target| &target.view)
+            .unwrap_or(&library.fallback_view);
         let bind_group = build_post_bind_group(
             device,
             library,
             &input_target.view,
             outline_view,
             ssao_view,
+            bloom_view,
             uniform_buffer,
         );
 

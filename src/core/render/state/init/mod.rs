@@ -98,6 +98,13 @@ impl RenderState {
                 immediate_size: 0,
             });
 
+        let bloom_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Bloom Pipeline Layout"),
+                bind_group_layouts: &[&layouts.bloom],
+                immediate_size: 0,
+            });
+
         // 6. Initialize shaders
         let forward_standard_shader = device.create_shader_module(wgpu::include_wgsl!(
             "../../passes/forward/branches/forward_standard.wgsl"
@@ -122,15 +129,16 @@ impl RenderState {
             device.create_shader_module(wgpu::include_wgsl!("../../passes/ssao/ssao_blur.wgsl"));
         let ssao_msaa_shader =
             device.create_shader_module(wgpu::include_wgsl!("../../passes/ssao/ssao_msaa.wgsl"));
-        let ssao_blur_msaa_shader = device.create_shader_module(wgpu::include_wgsl!(
-            "../../passes/ssao/ssao_blur_msaa.wgsl"
-        ));
+        let ssao_blur_msaa_shader = device
+            .create_shader_module(wgpu::include_wgsl!("../../passes/ssao/ssao_blur_msaa.wgsl"));
+        let bloom_shader =
+            device.create_shader_module(wgpu::include_wgsl!("../../passes/bloom/bloom.wgsl"));
         let gizmo_shader =
             device.create_shader_module(wgpu::include_wgsl!("../../gizmos/gizmo.wgsl"));
 
         let post_uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("PostProcess Uniform Buffer"),
-            size: 80,
+            size: 96,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -149,6 +157,13 @@ impl RenderState {
             mapped_at_creation: false,
         });
 
+        let bloom_uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Bloom Uniform Buffer"),
+            size: 32,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
         // 7. Initialize library
         self.library = Some(ResourceLibrary {
             layout_shared: layouts.shared,
@@ -161,6 +176,7 @@ impl RenderState {
             layout_ssao_blur: layouts.ssao_blur,
             layout_ssao_msaa: layouts.ssao_msaa,
             layout_ssao_blur_msaa: layouts.ssao_blur_msaa,
+            layout_bloom: layouts.bloom,
             forward_standard_pipeline_layout,
             forward_pbr_pipeline_layout,
             shadow_pipeline_layout,
@@ -169,6 +185,7 @@ impl RenderState {
             ssao_blur_pipeline_layout,
             ssao_msaa_pipeline_layout,
             ssao_blur_msaa_pipeline_layout,
+            bloom_pipeline_layout,
             forward_standard_shader,
             forward_pbr_shader,
             post_shader,
@@ -178,6 +195,7 @@ impl RenderState {
             ssao_blur_shader,
             ssao_msaa_shader,
             ssao_blur_msaa_shader,
+            bloom_shader,
             light_cull_shader,
             shadow_shader,
             gizmo_shader,
@@ -195,5 +213,6 @@ impl RenderState {
         self.post_uniform_buffer = Some(post_uniform_buffer);
         self.ssao_uniform_buffer = Some(ssao_uniform_buffer);
         self.ssao_blur_uniform_buffer = Some(ssao_blur_uniform_buffer);
+        self.bloom_uniform_buffer = Some(bloom_uniform_buffer);
     }
 }

@@ -1,7 +1,7 @@
 use crate::core::render::RenderState;
 use crate::core::render::cache::{PipelineKey, ShaderId};
-use crate::core::resources::geometry::Frustum;
 use crate::core::resources::VertexStream;
+use crate::core::resources::geometry::Frustum;
 
 pub fn pass_outline(
     render_state: &mut RenderState,
@@ -25,12 +25,14 @@ pub fn pass_outline(
         render_state.vertex.as_mut(),
         render_state.light_system.as_mut(),
     ) {
-        (Some(bindings), Some(vertex_sys), Some(light_system)) => {
-            (bindings, vertex_sys, light_system, &mut render_state.collector)
-        }
+        (Some(bindings), Some(vertex_sys), Some(light_system)) => (
+            bindings,
+            vertex_sys,
+            light_system,
+            &mut render_state.collector,
+        ),
         _ => return,
     };
-
 
     let mut sorted_cameras: Vec<_> = scene.cameras.iter().collect();
     sorted_cameras.sort_by_key(|(_, record)| record.order);

@@ -69,6 +69,7 @@ Logical IDs can be strings or numeric values. The core maps them to internal IDs
 - `outline`
 - `ssao`
 - `ssao-blur`
+- `bloom`
 - `post`
 - `compose`
 
@@ -83,7 +84,8 @@ Logical IDs can be strings or numeric values. The core maps them to internal IDs
     { "nodeId": "outline_pass", "passId": "outline", "inputs": ["depth"], "outputs": ["outline_color"] },
     { "nodeId": "ssao_pass", "passId": "ssao", "inputs": ["depth"], "outputs": ["ssao_raw"] },
     { "nodeId": "ssao_blur_pass", "passId": "ssao-blur", "inputs": ["ssao_raw", "depth"], "outputs": ["ssao_blur"] },
-    { "nodeId": "post_pass", "passId": "post", "inputs": ["hdr_color", "outline_color", "ssao_blur"], "outputs": ["post_color"] },
+    { "nodeId": "bloom_pass", "passId": "bloom", "inputs": ["hdr_color"], "outputs": ["bloom_color"] },
+    { "nodeId": "post_pass", "passId": "post", "inputs": ["hdr_color", "outline_color", "ssao_blur", "bloom_color"], "outputs": ["post_color"] },
     { "nodeId": "compose_pass", "passId": "compose", "inputs": ["post_color"], "outputs": ["swapchain"] }
   ],
   "edges": [
@@ -92,6 +94,8 @@ Logical IDs can be strings or numeric values. The core maps them to internal IDs
     { "fromNodeId": "forward_pass", "toNodeId": "ssao_pass" },
     { "fromNodeId": "ssao_pass", "toNodeId": "ssao_blur_pass" },
     { "fromNodeId": "ssao_blur_pass", "toNodeId": "post_pass" },
+    { "fromNodeId": "forward_pass", "toNodeId": "bloom_pass" },
+    { "fromNodeId": "bloom_pass", "toNodeId": "post_pass" },
     { "fromNodeId": "outline_pass", "toNodeId": "post_pass" },
     { "fromNodeId": "post_pass", "toNodeId": "compose_pass" }
   ],
@@ -102,6 +106,7 @@ Logical IDs can be strings or numeric values. The core maps them to internal IDs
     { "resId": "outline_color" },
     { "resId": "ssao_raw" },
     { "resId": "ssao_blur" },
+    { "resId": "bloom_color" },
     { "resId": "post_color" },
     { "resId": "swapchain", "kind": "attachment" }
   ],
@@ -129,7 +134,7 @@ The fallback graph represents the default rendering pipeline that always works. 
 Example fallback:
 
 ```
-shadow -> forward -> outline + ssao -> ssao-blur -> post -> compose
+shadow -> forward -> outline + ssao -> ssao-blur + bloom -> post -> compose
 ```
 
 ## Performance Notes

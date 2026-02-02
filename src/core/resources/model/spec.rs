@@ -58,7 +58,13 @@ impl ModelComponent {
         let bone_offset = self.flags.y;
         let bone_count = self.flags.z;
         let outline_color = outline_color.unwrap_or(self.outline_color);
-        *self = Self::new_with_skin(transform, receive_shadow, outline_color, bone_offset, bone_count);
+        *self = Self::new_with_skin(
+            transform,
+            receive_shadow,
+            outline_color,
+            bone_offset,
+            bone_count,
+        );
     }
 
     pub fn set_skinning(&mut self, bone_offset: u32, bone_count: u32) {

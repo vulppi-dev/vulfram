@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::core::resources::common::default_layer_mask;
 use crate::core::resources::{
-    ensure_render_target, CameraComponent, CameraKind, CameraRecord, ViewPosition,
+    CameraComponent, CameraKind, CameraRecord, ViewPosition, ensure_render_target,
 };
 use crate::core::state::EngineState;
 
@@ -118,6 +118,24 @@ pub fn engine_cmd_camera_create(
                 target_height,
                 wgpu::TextureFormat::Rgba16Float,
             );
+            ensure_render_target(
+                device,
+                &mut record.bloom_target,
+                target_width,
+                target_height,
+                wgpu::TextureFormat::Rgba16Float,
+            );
+            for (level, target) in record.bloom_chain.iter_mut().enumerate() {
+                let level_width = crate::core::render::bloom_chain_size(target_width, level);
+                let level_height = crate::core::render::bloom_chain_size(target_height, level);
+                ensure_render_target(
+                    device,
+                    target,
+                    level_width,
+                    level_height,
+                    wgpu::TextureFormat::Rgba16Float,
+                );
+            }
         }
         window_state
             .render_state
@@ -243,6 +261,24 @@ pub fn engine_cmd_camera_update(
                     target_height,
                     wgpu::TextureFormat::Rgba16Float,
                 );
+                ensure_render_target(
+                    device,
+                    &mut record.bloom_target,
+                    target_width,
+                    target_height,
+                    wgpu::TextureFormat::Rgba16Float,
+                );
+                for (level, target) in record.bloom_chain.iter_mut().enumerate() {
+                    let level_width = crate::core::render::bloom_chain_size(target_width, level);
+                    let level_height = crate::core::render::bloom_chain_size(target_height, level);
+                    ensure_render_target(
+                        device,
+                        target,
+                        level_width,
+                        level_height,
+                        wgpu::TextureFormat::Rgba16Float,
+                    );
+                }
             }
 
             if let Some(layer_mask) = args.layer_mask {

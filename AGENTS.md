@@ -11,3 +11,4 @@
 - Texturas de cor devem usar formato float (ex.: `rgba16f`) por padrão; depth também pode ser float quando aplicável.
 - A árvore do render graph não deve declarar formatos de textura; o core define padrões.
 - Sempre atualizar a documentação relacionada ao terminar uma fase.
+- Em auditorias futuras, ignorar retenção por recursos host-side sem dispose.

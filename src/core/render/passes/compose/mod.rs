@@ -1,7 +1,7 @@
 use crate::core::render::RenderState;
 use crate::core::render::cache::{PipelineKey, ShaderId};
-use crate::core::render::state::ResourceLibrary;
 use crate::core::render::passes::update_post_uniform_buffer;
+use crate::core::render::state::ResourceLibrary;
 
 fn build_compose_bind_group(
     device: &wgpu::Device,
@@ -9,6 +9,7 @@ fn build_compose_bind_group(
     target_view: &wgpu::TextureView,
     outline_view: &wgpu::TextureView,
     ssao_view: &wgpu::TextureView,
+    bloom_view: &wgpu::TextureView,
     uniform_buffer: &wgpu::Buffer,
 ) -> wgpu::BindGroup {
     device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -34,6 +35,10 @@ fn build_compose_bind_group(
             wgpu::BindGroupEntry {
                 binding: 4,
                 resource: wgpu::BindingResource::TextureView(ssao_view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 5,
+                resource: wgpu::BindingResource::TextureView(bloom_view),
             },
         ],
     })
@@ -138,7 +143,11 @@ pub fn pass_compose(
     render_pass.set_pipeline(pipeline);
 
     for (_id, record) in sorted_cameras {
-        let target = match record.post_target.as_ref().or(record.render_target.as_ref()) {
+        let target = match record
+            .post_target
+            .as_ref()
+            .or(record.render_target.as_ref())
+        {
             Some(t) => t,
             None => continue,
         };
@@ -149,6 +158,11 @@ pub fn pass_compose(
             .unwrap_or(&library.fallback_view);
         let ssao_view = record
             .ssao_blur_target
+            .as_ref()
+            .map(|target| &target.view)
+            .unwrap_or(&library.fallback_view);
+        let bloom_view = record
+            .bloom_target
             .as_ref()
             .map(|target| &target.view)
             .unwrap_or(&library.fallback_view);
@@ -169,15 +183,15 @@ pub fn pass_compose(
         render_pass.set_viewport(x as f32, y as f32, width as f32, height as f32, 0.0, 1.0);
 
         // 5. Create Bind Group for this camera's target
-        let bind_group =
-            build_compose_bind_group(
-                device,
-                library,
-                &target.view,
-                outline_view,
-                ssao_view,
-                uniform_buffer,
-            );
+        let bind_group = build_compose_bind_group(
+            device,
+            library,
+            &target.view,
+            outline_view,
+            ssao_view,
+            bloom_view,
+            uniform_buffer,
+        );
 
         render_pass.set_bind_group(0, &bind_group, &[]);
         render_pass.draw(0..3, 0..1);

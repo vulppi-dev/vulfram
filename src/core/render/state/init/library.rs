@@ -12,6 +12,7 @@ pub(crate) struct Layouts {
     pub(crate) ssao_blur: wgpu::BindGroupLayout,
     pub(crate) ssao_msaa: wgpu::BindGroupLayout,
     pub(crate) ssao_blur_msaa: wgpu::BindGroupLayout,
+    pub(crate) bloom: wgpu::BindGroupLayout,
 }
 
 impl RenderState {
@@ -540,6 +541,16 @@ impl RenderState {
                     },
                     count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 5,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
             ],
         });
 
@@ -668,6 +679,38 @@ impl RenderState {
                 ],
             });
 
+        let layout_bloom = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("BindGroupLayout Bloom"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
+        });
+
         let layout_light_cull = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("BindGroupLayout LightCull"),
             entries: &[
@@ -735,6 +778,7 @@ impl RenderState {
             ssao_blur: layout_ssao_blur,
             ssao_msaa: layout_ssao_msaa,
             ssao_blur_msaa: layout_ssao_blur_msaa,
+            bloom: layout_bloom,
         }
     }
 }

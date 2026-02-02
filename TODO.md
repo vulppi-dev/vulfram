@@ -26,7 +26,7 @@ _Features que dependem de acesso a buffers e transformações espaciais._
 
 - [x] **Post-Processing (Fase 3.1)**: Pass de pós-processamento + targets por câmera + demo inicial.
 - [x] **Post-Processing (Fase 3.2)**: SSAO com blur bilateral e integração na composição.
-- [ ] **Post-Processing (Fase 3.3)**: Bloom + Glow (downsample/blur/upsample) e controle de intensidade.
+- [x] **Post-Processing (Fase 3.3)**: Bloom + Glow (downsample/blur/upsample) e controle de intensidade.
 - [ ] **Post-Processing (Fase 3.4)**: HDR pipeline avançado (exposure, tone mapping configurável).
 - [x] **Post-Processing (Fase 3.5)**: Outline com máscara e cor por modelo (pass outline + pós).
 - [ ] **Post-Processing (Fase 3.6)**: Focus/DoF baseado em depth (CoC + blur variável).

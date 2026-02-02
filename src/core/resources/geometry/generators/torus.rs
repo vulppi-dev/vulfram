@@ -39,7 +39,6 @@ pub fn generate_torus(options: &TorusOptions) -> Vec<(GeometryPrimitiveType, Vec
                 i as f32 / major_segments as f32,
                 j as f32 / minor_segments as f32,
             ));
-
         }
     }
 

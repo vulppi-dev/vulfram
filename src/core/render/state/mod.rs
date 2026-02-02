@@ -39,6 +39,7 @@ pub struct RenderState {
     pub post_uniform_buffer: Option<wgpu::Buffer>,
     pub ssao_uniform_buffer: Option<wgpu::Buffer>,
     pub ssao_blur_uniform_buffer: Option<wgpu::Buffer>,
+    pub bloom_uniform_buffer: Option<wgpu::Buffer>,
     pub environment: EnvironmentConfig,
     pub environment_is_configured: bool,
     pub skinning: SkinningSystem,
@@ -106,6 +107,24 @@ impl RenderState {
                 target_height,
                 wgpu::TextureFormat::Rgba16Float,
             );
+            crate::core::resources::ensure_render_target(
+                device,
+                &mut record.bloom_target,
+                target_width,
+                target_height,
+                wgpu::TextureFormat::Rgba16Float,
+            );
+            for (level, target) in record.bloom_chain.iter_mut().enumerate() {
+                let level_width = crate::core::render::bloom_chain_size(target_width, level);
+                let level_height = crate::core::render::bloom_chain_size(target_height, level);
+                crate::core::resources::ensure_render_target(
+                    device,
+                    target,
+                    level_width,
+                    level_height,
+                    wgpu::TextureFormat::Rgba16Float,
+                );
+            }
 
             record.data.update(
                 None,

@@ -93,6 +93,11 @@ pub struct PostProcessConfig {
     pub ssao_power: f32,
     pub ssao_blur_radius: f32,
     pub ssao_blur_depth_threshold: f32,
+    pub bloom_enabled: bool,
+    pub bloom_threshold: f32,
+    pub bloom_knee: f32,
+    pub bloom_intensity: f32,
+    pub bloom_scatter: f32,
 }
 
 impl Default for PostProcessConfig {
@@ -122,6 +127,11 @@ impl Default for PostProcessConfig {
             ssao_power: 1.5,
             ssao_blur_radius: 2.0,
             ssao_blur_depth_threshold: 0.02,
+            bloom_enabled: false,
+            bloom_threshold: 1.0,
+            bloom_knee: 0.5,
+            bloom_intensity: 0.8,
+            bloom_scatter: 0.7,
         }
     }
 }

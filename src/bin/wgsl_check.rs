@@ -29,7 +29,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let source = fs::read_to_string(&path)?;
         if let Err(err) = naga::front::wgsl::parse_str(&source) {
             had_error = true;
-            eprintln!("WGSL error in {}:\n{}", path.display(), err.emit_to_string(&source));
+            eprintln!(
+                "WGSL error in {}:\n{}",
+                path.display(),
+                err.emit_to_string(&source)
+            );
         }
     }
 

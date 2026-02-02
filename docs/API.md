@@ -147,6 +147,11 @@ The environment config now includes a post-processing block used by the `post` p
 - `ssao_blur_radius`: bilateral blur radius (pixels)
 - `ssao_blur_depth_threshold`: depth threshold for blur weights
 - SSAO suporta depth MSAA (amostra média por pixel quando MSAA está ativo)
+- `bloom_enabled`: enable bloom/glow composition in post
+- `bloom_threshold`: threshold for bright pass
+- `bloom_knee`: soft knee for thresholding
+- `bloom_intensity`: bloom mix intensity in post
+- `bloom_scatter`: scatter factor during upsample
 
 The outline mask is rendered in a dedicated `outline` pass into `outline_color`
 (now `rgba8`), and sampled by the `post` pass for final composition.

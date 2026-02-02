@@ -9,6 +9,10 @@ use crate::core::render::graph::RenderGraphPlan;
 use crate::core::state::EngineState;
 pub use state::RenderState;
 
+pub fn bloom_chain_size(base: u32, level: usize) -> u32 {
+    passes::bloom_chain_size(base, level)
+}
+
 #[cfg(feature = "wasm")]
 use js_sys::Date;
 
@@ -298,6 +302,9 @@ fn execute_window_graph(
             }
             "ssao-blur" => {
                 passes::pass_ssao_blur(render_state, device, queue, encoder, frame_index);
+            }
+            "bloom" => {
+                passes::pass_bloom(render_state, device, queue, encoder, frame_index);
             }
             "post" => {
                 passes::pass_post(render_state, device, queue, encoder, frame_index);

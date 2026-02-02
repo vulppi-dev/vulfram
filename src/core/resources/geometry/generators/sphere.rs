@@ -33,7 +33,6 @@ pub fn generate_sphere(options: &SphereOptions) -> Vec<(GeometryPrimitiveType, V
                 j as f32 / sectors as f32,
                 i as f32 / stacks as f32,
             ));
-
         }
     }
 

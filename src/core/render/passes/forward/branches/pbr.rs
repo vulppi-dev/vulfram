@@ -27,6 +27,7 @@ pub fn get_pipeline<'a>(
     let key = PipelineKey {
         shader_id: ShaderId::ForwardPbr as u64,
         color_format: wgpu::TextureFormat::Rgba16Float,
+        color_target_count: 2,
         depth_format: Some(wgpu::TextureFormat::Depth32Float), // Reverse Z
         sample_count,
         topology: wgpu::PrimitiveTopology::TriangleList,
@@ -131,11 +132,18 @@ pub fn get_pipeline<'a>(
             fragment: Some(wgpu::FragmentState {
                 module: &library.forward_pbr_shader,
                 entry_point: Some("fs_main"),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: key.color_format,
-                    blend: key.blend,
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
+                targets: &[
+                    Some(wgpu::ColorTargetState {
+                        format: key.color_format,
+                        blend: key.blend,
+                        write_mask: wgpu::ColorWrites::ALL,
+                    }),
+                    Some(wgpu::ColorTargetState {
+                        format: wgpu::TextureFormat::Rgba16Float,
+                        blend: key.blend,
+                        write_mask: wgpu::ColorWrites::ALL,
+                    }),
+                ],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             primitive: wgpu::PrimitiveState {

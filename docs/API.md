@@ -134,6 +134,17 @@ The environment config now includes a post-processing block used by the `post` p
 
 `PostProcessConfig` highlights:
 
+- `filter_enabled`: master enable for filters
+- `filter_exposure`: HDR exposure multiplier
+- `filter_gamma`: gamma correction
+- `filter_saturation`: color saturation
+- `filter_contrast`: color contrast
+- `filter_vignette`: vignette strength
+- `filter_grain`: film grain
+- `filter_chromatic_aberration`: chromatic aberration strength
+- `filter_blur`: blur amount
+- `filter_sharpen`: sharpen amount
+- `filter_posterize_steps`: number of posterize steps (0 disables)
 - `outline_enabled`: enables outline composition in post
 - `outline_strength`: mix amount for outline color
 - `outline_threshold`: edge threshold (clamped to `[0, 1)`)

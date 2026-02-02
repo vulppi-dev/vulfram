@@ -92,6 +92,13 @@ pub fn engine_cmd_camera_create(
             );
             ensure_render_target(
                 device,
+                &mut record.emissive_target,
+                target_width,
+                target_height,
+                wgpu::TextureFormat::Rgba16Float,
+            );
+            ensure_render_target(
+                device,
                 &mut record.post_target,
                 target_width,
                 target_height,
@@ -229,6 +236,13 @@ pub fn engine_cmd_camera_update(
                 ensure_render_target(
                     device,
                     &mut record.render_target,
+                    target_width,
+                    target_height,
+                    wgpu::TextureFormat::Rgba16Float,
+                );
+                ensure_render_target(
+                    device,
+                    &mut record.emissive_target,
                     target_width,
                     target_height,
                     wgpu::TextureFormat::Rgba16Float,

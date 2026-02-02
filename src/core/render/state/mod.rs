@@ -36,6 +36,7 @@ pub struct RenderState {
     pub cache: RenderCache,
     pub forward_depth_target: Option<crate::core::resources::RenderTarget>,
     pub forward_msaa_target: Option<crate::core::resources::RenderTarget>,
+    pub forward_emissive_msaa_target: Option<crate::core::resources::RenderTarget>,
     pub post_uniform_buffer: Option<wgpu::Buffer>,
     pub ssao_uniform_buffer: Option<wgpu::Buffer>,
     pub ssao_blur_uniform_buffer: Option<wgpu::Buffer>,
@@ -63,6 +64,7 @@ impl RenderState {
         // Depth target is now managed per-frame or lazily by passes
         self.forward_depth_target = None;
         self.forward_msaa_target = None;
+        self.forward_emissive_msaa_target = None;
 
         let mut any_camera_dirty = false;
         for record in self.scene.cameras.values_mut() {
@@ -75,6 +77,13 @@ impl RenderState {
             crate::core::resources::ensure_render_target(
                 device,
                 &mut record.render_target,
+                target_width,
+                target_height,
+                wgpu::TextureFormat::Rgba16Float,
+            );
+            crate::core::resources::ensure_render_target(
+                device,
+                &mut record.emissive_target,
                 target_width,
                 target_height,
                 wgpu::TextureFormat::Rgba16Float,

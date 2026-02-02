@@ -235,6 +235,7 @@ pub fn pass_shadow_update(
         let shadow_pipeline_key = PipelineKey {
             shader_id: crate::core::render::cache::ShaderId::Shadow as u64,
             color_format: wgpu::TextureFormat::Rgba8UnormSrgb, // Dummy, not used
+            color_target_count: 1,
             depth_format: Some(wgpu::TextureFormat::Depth32Float),
             sample_count: 1,
             topology: wgpu::PrimitiveTopology::TriangleList,

@@ -73,6 +73,8 @@ Logical IDs can be strings or numeric values. The core maps them to internal IDs
 - `post`
 - `compose`
 
+Bloom uses the emissive output from the forward pass when available and falls back to the HDR color buffer otherwise.
+
 ## Minimal Example
 
 ```json

@@ -149,6 +149,7 @@ pub fn pass_ssao(
             let key = PipelineKey {
                 shader_id: ShaderId::SsaoMsaa as u64,
                 color_format: target.format,
+                color_target_count: 1,
                 depth_format: None,
                 sample_count: 1,
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -206,6 +207,7 @@ pub fn pass_ssao(
             let key = PipelineKey {
                 shader_id: ShaderId::Ssao as u64,
                 color_format: target.format,
+                color_target_count: 1,
                 depth_format: None,
                 sample_count: 1,
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -332,6 +334,7 @@ pub fn pass_ssao_blur(
             let key = PipelineKey {
                 shader_id: ShaderId::SsaoBlurMsaa as u64,
                 color_format: output_target.format,
+                color_target_count: 1,
                 depth_format: None,
                 sample_count: 1,
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -393,6 +396,7 @@ pub fn pass_ssao_blur(
             let key = PipelineKey {
                 shader_id: ShaderId::SsaoBlur as u64,
                 color_format: output_target.format,
+                color_target_count: 1,
                 depth_format: None,
                 sample_count: 1,
                 topology: wgpu::PrimitiveTopology::TriangleList,

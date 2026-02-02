@@ -168,6 +168,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         outline_rgb = max_color;
     }
 
+    if (bloom_enabled && bloom_intensity > 0.0001) {
+        let bloom = sample_bloom(in.uv);
+        color = vec4<f32>(color.rgb + bloom * bloom_intensity, color.a);
+    }
+
+    if (ssao_enabled && ssao_strength > 0.0001) {
+        let ao = mix(1.0, sample_ssao(in.uv), clamp(ssao_strength, 0.0, 1.0));
+        color = vec4<f32>(color.rgb * ao, color.a);
+    }
+
     // Simple Reinhard tonemapping
     let tone_in = color.rgb * exposure;
     let tone_mapped = tone_in / (tone_in + vec3<f32>(1.0));
@@ -185,16 +195,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let band = floor(lum * levels) / levels;
         let shaded = color.rgb * mix(0.5, 1.5, band);
         color = vec4<f32>(shaded, color.a);
-    }
-
-    if (bloom_enabled && bloom_intensity > 0.0001) {
-        let bloom = sample_bloom(in.uv);
-        color = vec4<f32>(color.rgb + bloom * bloom_intensity, color.a);
-    }
-
-    if (ssao_enabled && ssao_strength > 0.0001) {
-        let ao = mix(1.0, sample_ssao(in.uv), clamp(ssao_strength, 0.0, 1.0));
-        color = vec4<f32>(color.rgb * ao, color.a);
     }
 
     let lum = luma(color.rgb);

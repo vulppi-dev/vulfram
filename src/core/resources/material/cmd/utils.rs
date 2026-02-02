@@ -105,6 +105,19 @@ pub(crate) fn pack_standard_material(
             );
         }
     }
+    if let Some(tex_id) = opts.emissive_tex_id {
+        let slot = 4;
+        if slot < STANDARD_TEXTURE_SLOTS {
+            record.texture_ids[slot] = tex_id;
+            assign_slot(&mut texture_slots, 4, slot as u32);
+            assign_sampler(
+                &mut sampler_indices,
+                4,
+                opts.emissive_sampler
+                    .unwrap_or(MaterialSampler::LinearClamp) as u32,
+            );
+        }
+    }
 
     record.data.texture_slots = texture_slots;
     record.data.sampler_indices = sampler_indices;
@@ -122,8 +135,11 @@ pub(crate) fn pack_standard_material(
     record.inputs[0] = opts.base_color;
     record.inputs[1] = opts.spec_color.unwrap_or(Vec4::ONE);
     record.inputs[2] = Vec4::new(opts.spec_power.unwrap_or(32.0), 0.0, 0.0, 0.0);
+    record.inputs[3] = opts.emissive_color;
     if let Some(toon_params) = opts.toon_params {
-        record.inputs[3] = toon_params;
+        if record.inputs.len() > 4 {
+            record.inputs[4] = toon_params;
+        }
     }
 }
 

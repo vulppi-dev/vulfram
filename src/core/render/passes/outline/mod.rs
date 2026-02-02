@@ -92,6 +92,7 @@ pub fn pass_outline(
         let key = PipelineKey {
             shader_id: ShaderId::Outline as u64,
             color_format: outline_target.format,
+            color_target_count: 1,
             depth_format: None,
             sample_count: 1,
             topology: wgpu::PrimitiveTopology::TriangleList,

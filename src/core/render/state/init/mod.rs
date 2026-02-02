@@ -158,9 +158,9 @@ impl RenderState {
         });
 
         let bloom_uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Bloom Uniform Buffer"),
+            label: Some("Bloom Storage Buffer"),
             size: 32,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 

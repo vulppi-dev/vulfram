@@ -17,7 +17,7 @@ struct PostProcessUniform {
 impl PostProcessUniform {
     fn from_config(config: &PostProcessConfig, frame_index: u64) -> Self {
         let mut flags = 0u32;
-        if config.enabled {
+        if config.filter_enabled {
             flags |= 1;
         }
         if config.cell_shading {
@@ -38,26 +38,26 @@ impl PostProcessUniform {
 
         Self {
             params0: [
-                config.exposure,
-                config.gamma.max(0.001),
-                config.saturation,
-                config.contrast,
+                config.filter_exposure,
+                config.filter_gamma.max(0.001),
+                config.filter_saturation,
+                config.filter_contrast,
             ],
             params1: [
-                config.vignette,
-                config.grain,
-                config.chromatic_aberration,
-                config.blur,
+                config.filter_vignette,
+                config.filter_grain,
+                config.filter_chromatic_aberration,
+                config.filter_blur,
             ],
             params2: [
                 config.outline_strength,
                 outline_threshold,
-                config.posterize_steps,
+                config.filter_posterize_steps,
                 flags as f32,
             ],
             params3: [
                 frame_index as f32,
-                config.sharpen,
+                config.filter_sharpen,
                 config.outline_width,
                 outline_quality,
             ],
@@ -164,6 +164,7 @@ pub fn pass_post(
         let key = PipelineKey {
             shader_id: ShaderId::Post as u64,
             color_format: output_target.format,
+            color_target_count: 1,
             depth_format: None,
             sample_count: output_target.sample_count,
             topology: wgpu::PrimitiveTopology::TriangleList,

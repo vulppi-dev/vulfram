@@ -10,7 +10,8 @@ pub enum ShaderId {
     SsaoBlur,
     SsaoMsaa,
     SsaoBlurMsaa,
-    BloomPrefilter,
+    BloomPrefilterH,
+    BloomPrefilterV,
     BloomDownsample,
     BloomUpsample,
     BloomCombine,
@@ -25,6 +26,7 @@ pub enum ShaderId {
 pub struct PipelineKey {
     pub shader_id: u64,
     pub color_format: wgpu::TextureFormat,
+    pub color_target_count: u8,
     pub depth_format: Option<wgpu::TextureFormat>,
     pub sample_count: u32,
     pub topology: wgpu::PrimitiveTopology,

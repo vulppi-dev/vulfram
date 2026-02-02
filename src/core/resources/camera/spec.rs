@@ -266,6 +266,8 @@ pub struct CameraRecord {
     pub render_target: Option<RenderTarget>,
     pub post_target: Option<RenderTarget>,
     pub outline_target: Option<RenderTarget>,
+    pub ssao_target: Option<RenderTarget>,
+    pub ssao_blur_target: Option<RenderTarget>,
     pub view_position: Option<ViewPosition>,
 }
 
@@ -288,6 +290,8 @@ impl CameraRecord {
             render_target: None,
             post_target: None,
             outline_target: None,
+            ssao_target: None,
+            ssao_blur_target: None,
             view_position,
         }
     }

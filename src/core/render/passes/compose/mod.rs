@@ -8,6 +8,7 @@ fn build_compose_bind_group(
     library: &ResourceLibrary,
     target_view: &wgpu::TextureView,
     outline_view: &wgpu::TextureView,
+    ssao_view: &wgpu::TextureView,
     uniform_buffer: &wgpu::Buffer,
 ) -> wgpu::BindGroup {
     device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -29,6 +30,10 @@ fn build_compose_bind_group(
             wgpu::BindGroupEntry {
                 binding: 3,
                 resource: wgpu::BindingResource::TextureView(outline_view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: wgpu::BindingResource::TextureView(ssao_view),
             },
         ],
     })
@@ -142,6 +147,11 @@ pub fn pass_compose(
             .as_ref()
             .map(|target| &target.view)
             .unwrap_or(&library.fallback_view);
+        let ssao_view = record
+            .ssao_blur_target
+            .as_ref()
+            .map(|target| &target.view)
+            .unwrap_or(&library.fallback_view);
 
         // 4. Resolve viewport
         let (x, y) = record
@@ -160,7 +170,14 @@ pub fn pass_compose(
 
         // 5. Create Bind Group for this camera's target
         let bind_group =
-            build_compose_bind_group(device, library, &target.view, outline_view, uniform_buffer);
+            build_compose_bind_group(
+                device,
+                library,
+                &target.view,
+                outline_view,
+                ssao_view,
+                uniform_buffer,
+            );
 
         render_pass.set_bind_group(0, &bind_group, &[]);
         render_pass.draw(0..3, 0..1);

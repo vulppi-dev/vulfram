@@ -52,6 +52,8 @@ impl RenderState {
             forward_depth_target: None,
             forward_msaa_target: None,
             post_uniform_buffer: None,
+            ssao_uniform_buffer: None,
+            ssao_blur_uniform_buffer: None,
             collector: DrawCollector::default(),
             skinning: crate::core::render::state::SkinningSystem::default(),
             render_graph: crate::core::render::graph::RenderGraphState::new(),
@@ -86,6 +88,8 @@ impl RenderState {
         self.forward_depth_target = None;
         self.forward_msaa_target = None;
         self.post_uniform_buffer = None;
+        self.ssao_uniform_buffer = None;
+        self.ssao_blur_uniform_buffer = None;
         self.skinning.clear();
         self.render_graph.reset_to_fallback();
         self.environment = crate::core::resources::EnvironmentConfig::default();

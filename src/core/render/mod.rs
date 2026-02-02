@@ -293,6 +293,12 @@ fn execute_window_graph(
             "outline" => {
                 passes::pass_outline(render_state, device, queue, encoder, frame_index);
             }
+            "ssao" => {
+                passes::pass_ssao(render_state, device, queue, encoder, frame_index);
+            }
+            "ssao-blur" => {
+                passes::pass_ssao_blur(render_state, device, queue, encoder, frame_index);
+            }
             "post" => {
                 passes::pass_post(render_state, device, queue, encoder, frame_index);
             }

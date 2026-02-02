@@ -139,6 +139,14 @@ The environment config now includes a post-processing block used by the `post` p
 - `outline_threshold`: edge threshold (clamped to `[0, 1)`)
 - `outline_width`: pixel width used by edge kernel
 - `outline_quality`: 0 = 3×3 kernel, 1 = 5×5 kernel
+- `ssao_enabled`: enable SSAO composition in post
+- `ssao_strength`: SSAO mix strength in post
+- `ssao_radius`: sampling radius for SSAO
+- `ssao_bias`: depth bias to reduce self-occlusion
+- `ssao_power`: contrast curve for SSAO output
+- `ssao_blur_radius`: bilateral blur radius (pixels)
+- `ssao_blur_depth_threshold`: depth threshold for blur weights
+- SSAO suporta depth MSAA (amostra média por pixel quando MSAA está ativo)
 
 The outline mask is rendered in a dedicated `outline` pass into `outline_color`
 (now `rgba8`), and sampled by the `post` pass for final composition.

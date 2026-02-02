@@ -67,6 +67,8 @@ Logical IDs can be strings or numeric values. The core maps them to internal IDs
 - `skybox`
 - `forward`
 - `outline`
+- `ssao`
+- `ssao-blur`
 - `post`
 - `compose`
 
@@ -79,12 +81,17 @@ Logical IDs can be strings or numeric values. The core maps them to internal IDs
     { "nodeId": "shadow_pass", "passId": "shadow", "inputs": [], "outputs": ["shadow_atlas"] },
     { "nodeId": "forward_pass", "passId": "forward", "inputs": ["shadow_atlas"], "outputs": ["hdr_color", "depth"] },
     { "nodeId": "outline_pass", "passId": "outline", "inputs": ["depth"], "outputs": ["outline_color"] },
-    { "nodeId": "post_pass", "passId": "post", "inputs": ["hdr_color", "outline_color"], "outputs": ["post_color"] },
+    { "nodeId": "ssao_pass", "passId": "ssao", "inputs": ["depth"], "outputs": ["ssao_raw"] },
+    { "nodeId": "ssao_blur_pass", "passId": "ssao-blur", "inputs": ["ssao_raw", "depth"], "outputs": ["ssao_blur"] },
+    { "nodeId": "post_pass", "passId": "post", "inputs": ["hdr_color", "outline_color", "ssao_blur"], "outputs": ["post_color"] },
     { "nodeId": "compose_pass", "passId": "compose", "inputs": ["post_color"], "outputs": ["swapchain"] }
   ],
   "edges": [
     { "fromNodeId": "shadow_pass", "toNodeId": "forward_pass" },
     { "fromNodeId": "forward_pass", "toNodeId": "outline_pass" },
+    { "fromNodeId": "forward_pass", "toNodeId": "ssao_pass" },
+    { "fromNodeId": "ssao_pass", "toNodeId": "ssao_blur_pass" },
+    { "fromNodeId": "ssao_blur_pass", "toNodeId": "post_pass" },
     { "fromNodeId": "outline_pass", "toNodeId": "post_pass" },
     { "fromNodeId": "post_pass", "toNodeId": "compose_pass" }
   ],
@@ -93,6 +100,8 @@ Logical IDs can be strings or numeric values. The core maps them to internal IDs
     { "resId": "hdr_color" },
     { "resId": "depth" },
     { "resId": "outline_color" },
+    { "resId": "ssao_raw" },
+    { "resId": "ssao_blur" },
     { "resId": "post_color" },
     { "resId": "swapchain", "kind": "attachment" }
   ],
@@ -120,7 +129,7 @@ The fallback graph represents the default rendering pipeline that always works. 
 Example fallback:
 
 ```
-shadow -> forward -> outline -> post -> compose
+shadow -> forward -> outline + ssao -> ssao-blur -> post -> compose
 ```
 
 ## Performance Notes

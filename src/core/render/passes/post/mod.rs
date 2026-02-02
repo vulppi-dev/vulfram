@@ -10,6 +10,7 @@ struct PostProcessUniform {
     params1: [f32; 4],
     params2: [f32; 4],
     params3: [f32; 4],
+    params4: [f32; 4],
 }
 
 impl PostProcessUniform {
@@ -23,6 +24,9 @@ impl PostProcessUniform {
         }
         if config.outline_enabled {
             flags |= 1 << 2;
+        }
+        if config.ssao_enabled {
+            flags |= 1 << 3;
         }
 
         let outline_threshold = config.outline_threshold.clamp(0.0, 0.999);
@@ -53,6 +57,12 @@ impl PostProcessUniform {
                 config.outline_width,
                 outline_quality,
             ],
+            params4: [
+                config.ssao_strength,
+                config.ssao_power,
+                0.0,
+                0.0,
+            ],
         }
     }
 }
@@ -72,6 +82,7 @@ fn build_post_bind_group(
     library: &crate::core::render::state::ResourceLibrary,
     target_view: &wgpu::TextureView,
     outline_view: &wgpu::TextureView,
+    ssao_view: &wgpu::TextureView,
     uniform_buffer: &wgpu::Buffer,
 ) -> wgpu::BindGroup {
     device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -93,6 +104,10 @@ fn build_post_bind_group(
             wgpu::BindGroupEntry {
                 binding: 3,
                 resource: wgpu::BindingResource::TextureView(outline_view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: wgpu::BindingResource::TextureView(ssao_view),
             },
         ],
     })
@@ -188,11 +203,17 @@ pub fn pass_post(
             .as_ref()
             .map(|target| &target.view)
             .unwrap_or(&library.fallback_view);
+        let ssao_view = record
+            .ssao_blur_target
+            .as_ref()
+            .map(|target| &target.view)
+            .unwrap_or(&library.fallback_view);
         let bind_group = build_post_bind_group(
             device,
             library,
             &input_target.view,
             outline_view,
+            ssao_view,
             uniform_buffer,
         );
 

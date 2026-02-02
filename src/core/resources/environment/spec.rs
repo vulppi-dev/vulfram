@@ -86,6 +86,13 @@ pub struct PostProcessConfig {
     pub outline_quality: f32,
     pub posterize_steps: f32,
     pub cell_shading: bool,
+    pub ssao_enabled: bool,
+    pub ssao_strength: f32,
+    pub ssao_radius: f32,
+    pub ssao_bias: f32,
+    pub ssao_power: f32,
+    pub ssao_blur_radius: f32,
+    pub ssao_blur_depth_threshold: f32,
 }
 
 impl Default for PostProcessConfig {
@@ -108,6 +115,13 @@ impl Default for PostProcessConfig {
             outline_quality: 1.0,
             posterize_steps: 0.0,
             cell_shading: false,
+            ssao_enabled: false,
+            ssao_strength: 1.0,
+            ssao_radius: 0.75,
+            ssao_bias: 0.025,
+            ssao_power: 1.5,
+            ssao_blur_radius: 2.0,
+            ssao_blur_depth_threshold: 0.02,
         }
     }
 }

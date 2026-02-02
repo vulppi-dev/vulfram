@@ -298,7 +298,15 @@ fn topo_sort(nodes: &[RenderGraphNode], edges: &[RenderGraphEdge]) -> Result<Vec
 fn is_known_pass(pass_id: &str) -> bool {
     matches!(
         pass_id,
-        "shadow" | "light-cull" | "skybox" | "forward" | "outline" | "post" | "compose"
+        "shadow"
+            | "light-cull"
+            | "skybox"
+            | "forward"
+            | "outline"
+            | "ssao"
+            | "ssao-blur"
+            | "post"
+            | "compose"
     )
 }
 
@@ -338,11 +346,29 @@ pub fn fallback_graph() -> RenderGraphDesc {
                 params: HashMap::new(),
             },
             RenderGraphNode {
+                node_id: LogicalId::Str("ssao_pass".into()),
+                pass_id: "ssao".into(),
+                inputs: vec![LogicalId::Str("depth".into())],
+                outputs: vec![LogicalId::Str("ssao_raw".into())],
+                params: HashMap::new(),
+            },
+            RenderGraphNode {
+                node_id: LogicalId::Str("ssao_blur_pass".into()),
+                pass_id: "ssao-blur".into(),
+                inputs: vec![
+                    LogicalId::Str("ssao_raw".into()),
+                    LogicalId::Str("depth".into()),
+                ],
+                outputs: vec![LogicalId::Str("ssao_blur".into())],
+                params: HashMap::new(),
+            },
+            RenderGraphNode {
                 node_id: LogicalId::Str("post_pass".into()),
                 pass_id: "post".into(),
                 inputs: vec![
                     LogicalId::Str("hdr_color".into()),
                     LogicalId::Str("outline_color".into()),
+                    LogicalId::Str("ssao_blur".into()),
                 ],
                 outputs: vec![LogicalId::Str("post_color".into())],
                 params: HashMap::new(),
@@ -364,6 +390,21 @@ pub fn fallback_graph() -> RenderGraphDesc {
             RenderGraphEdge {
                 from_node_id: LogicalId::Str("forward_pass".into()),
                 to_node_id: LogicalId::Str("outline_pass".into()),
+                reason: Some(RenderGraphEdgeReason::ReadAfterWrite),
+            },
+            RenderGraphEdge {
+                from_node_id: LogicalId::Str("forward_pass".into()),
+                to_node_id: LogicalId::Str("ssao_pass".into()),
+                reason: Some(RenderGraphEdgeReason::ReadAfterWrite),
+            },
+            RenderGraphEdge {
+                from_node_id: LogicalId::Str("ssao_pass".into()),
+                to_node_id: LogicalId::Str("ssao_blur_pass".into()),
+                reason: Some(RenderGraphEdgeReason::ReadAfterWrite),
+            },
+            RenderGraphEdge {
+                from_node_id: LogicalId::Str("ssao_blur_pass".into()),
+                to_node_id: LogicalId::Str("post_pass".into()),
                 reason: Some(RenderGraphEdgeReason::ReadAfterWrite),
             },
             RenderGraphEdge {
@@ -398,6 +439,18 @@ pub fn fallback_graph() -> RenderGraphDesc {
             },
             RenderGraphResource {
                 res_id: LogicalId::Str("outline_color".into()),
+                kind: RenderGraphResourceKind::Texture,
+                lifetime: RenderGraphLifetime::Frame,
+                alias_group: None,
+            },
+            RenderGraphResource {
+                res_id: LogicalId::Str("ssao_raw".into()),
+                kind: RenderGraphResourceKind::Texture,
+                lifetime: RenderGraphLifetime::Frame,
+                alias_group: None,
+            },
+            RenderGraphResource {
+                res_id: LogicalId::Str("ssao_blur".into()),
                 kind: RenderGraphResourceKind::Texture,
                 lifetime: RenderGraphLifetime::Frame,
                 alias_group: None,

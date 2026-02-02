@@ -248,6 +248,13 @@ fn demo_002(window_id: u32) -> bool {
                     outline_quality: 0.0,
                     posterize_steps: 0.0,
                     cell_shading: false,
+                    ssao_enabled: false,
+                    ssao_strength: 1.0,
+                    ssao_radius: 0.75,
+                    ssao_bias: 0.025,
+                    ssao_power: 1.5,
+                    ssao_blur_radius: 2.0,
+                    ssao_blur_depth_threshold: 0.02,
                 },
             },
         }),
@@ -460,6 +467,17 @@ fn demo_004(window_id: u32) -> bool {
         ),
         (502, Vec3::new(0.0, 0.0, 0.0), Vec4::new(0.1, 1.0, 0.1, 1.0)),
         (503, Vec3::new(2.5, 0.0, 0.0), Vec4::new(0.1, 0.1, 1.0, 1.0)),
+        (
+            504,
+            Vec3::new(-0.6, 0.2, -0.2),
+            Vec4::new(1.0, 0.6, 0.1, 1.0),
+        ),
+        (505, Vec3::new(0.4, 0.1, 0.3), Vec4::new(0.6, 1.0, 0.9, 1.0)),
+        (
+            506,
+            Vec3::new(0.0, -0.1, 0.8),
+            Vec4::new(0.9, 0.4, 1.0, 1.0),
+        ),
     ];
     let camera_id: u32 = 1;
 
@@ -512,11 +530,29 @@ fn demo_004(window_id: u32) -> bool {
                 params: HashMap::new(),
             },
             RenderGraphNode {
+                node_id: LogicalId::Str("ssao_pass".into()),
+                pass_id: "ssao".into(),
+                inputs: vec![LogicalId::Str("depth".into())],
+                outputs: vec![LogicalId::Str("ssao_raw".into())],
+                params: HashMap::new(),
+            },
+            RenderGraphNode {
+                node_id: LogicalId::Str("ssao_blur_pass".into()),
+                pass_id: "ssao-blur".into(),
+                inputs: vec![
+                    LogicalId::Str("ssao_raw".into()),
+                    LogicalId::Str("depth".into()),
+                ],
+                outputs: vec![LogicalId::Str("ssao_blur".into())],
+                params: HashMap::new(),
+            },
+            RenderGraphNode {
                 node_id: LogicalId::Str("post_pass".into()),
                 pass_id: "post".into(),
                 inputs: vec![
                     LogicalId::Str("hdr_color".into()),
                     LogicalId::Str("outline_color".into()),
+                    LogicalId::Str("ssao_blur".into()),
                 ],
                 outputs: vec![LogicalId::Str("post_color".into())],
                 params: HashMap::new(),
@@ -538,6 +574,21 @@ fn demo_004(window_id: u32) -> bool {
             RenderGraphEdge {
                 from_node_id: LogicalId::Str("forward_pass".into()),
                 to_node_id: LogicalId::Str("outline_pass".into()),
+                reason: Some(RenderGraphEdgeReason::ReadAfterWrite),
+            },
+            RenderGraphEdge {
+                from_node_id: LogicalId::Str("forward_pass".into()),
+                to_node_id: LogicalId::Str("ssao_pass".into()),
+                reason: Some(RenderGraphEdgeReason::ReadAfterWrite),
+            },
+            RenderGraphEdge {
+                from_node_id: LogicalId::Str("ssao_pass".into()),
+                to_node_id: LogicalId::Str("ssao_blur_pass".into()),
+                reason: Some(RenderGraphEdgeReason::ReadAfterWrite),
+            },
+            RenderGraphEdge {
+                from_node_id: LogicalId::Str("ssao_blur_pass".into()),
+                to_node_id: LogicalId::Str("post_pass".into()),
                 reason: Some(RenderGraphEdgeReason::ReadAfterWrite),
             },
             RenderGraphEdge {
@@ -572,6 +623,18 @@ fn demo_004(window_id: u32) -> bool {
             },
             RenderGraphResource {
                 res_id: LogicalId::Str("outline_color".into()),
+                kind: RenderGraphResourceKind::Texture,
+                lifetime: RenderGraphLifetime::Frame,
+                alias_group: None,
+            },
+            RenderGraphResource {
+                res_id: LogicalId::Str("ssao_raw".into()),
+                kind: RenderGraphResourceKind::Texture,
+                lifetime: RenderGraphLifetime::Frame,
+                alias_group: None,
+            },
+            RenderGraphResource {
+                res_id: LogicalId::Str("ssao_blur".into()),
                 kind: RenderGraphResourceKind::Texture,
                 lifetime: RenderGraphLifetime::Frame,
                 alias_group: None,
@@ -625,6 +688,13 @@ fn demo_004(window_id: u32) -> bool {
                     outline_quality: 1.0,
                     posterize_steps: 4.0,
                     cell_shading: true,
+                    ssao_enabled: true,
+                    ssao_strength: 0.75,
+                    ssao_radius: 0.9,
+                    ssao_bias: 0.02,
+                    ssao_power: 1.3,
+                    ssao_blur_radius: 2.0,
+                    ssao_blur_depth_threshold: 0.02,
                 },
             },
         }),
@@ -690,6 +760,45 @@ fn demo_004(window_id: u32) -> bool {
             cast_outline: true,
             outline_color: cube_models[2].2,
         }),
+        EngineCmd::CmdModelCreate(CmdModelCreateArgs {
+            window_id,
+            model_id: cube_models[3].0,
+            label: Some("Graph Cube D".into()),
+            geometry_id,
+            material_id: Some(material_id),
+            transform: Mat4::from_translation(cube_models[3].1),
+            layer_mask: 0xFFFFFFFF,
+            cast_shadow: true,
+            receive_shadow: true,
+            cast_outline: true,
+            outline_color: cube_models[3].2,
+        }),
+        EngineCmd::CmdModelCreate(CmdModelCreateArgs {
+            window_id,
+            model_id: cube_models[4].0,
+            label: Some("Graph Cube E".into()),
+            geometry_id,
+            material_id: Some(material_id),
+            transform: Mat4::from_translation(cube_models[4].1),
+            layer_mask: 0xFFFFFFFF,
+            cast_shadow: true,
+            receive_shadow: true,
+            cast_outline: true,
+            outline_color: cube_models[4].2,
+        }),
+        EngineCmd::CmdModelCreate(CmdModelCreateArgs {
+            window_id,
+            model_id: cube_models[5].0,
+            label: Some("Graph Cube F".into()),
+            geometry_id,
+            material_id: Some(material_id),
+            transform: Mat4::from_translation(cube_models[5].1),
+            layer_mask: 0xFFFFFFFF,
+            cast_shadow: true,
+            receive_shadow: true,
+            cast_outline: true,
+            outline_color: cube_models[5].2,
+        }),
         create_floor_cmd(window_id, geometry_id, floor_material_id),
         create_shadow_config_cmd(window_id),
     ];
@@ -711,9 +820,14 @@ fn demo_004(window_id: u32) -> bool {
         for (index, (model_id, base_pos, _outline)) in cube_models.iter().enumerate() {
             let wobble = time_f + index as f32 * 0.6;
             let transform =
-                Mat4::from_translation(*base_pos + Vec3::new(0.0, wobble.sin() * 0.4, 0.0))
-                    * Mat4::from_euler(glam::EulerRot::XYZ, wobble, wobble * 0.6, 0.0)
-                    * Mat4::from_scale(Vec3::splat(1.2));
+                Mat4::from_translation(*base_pos + Vec3::new(0.0, wobble.sin() * 0.25, 0.0))
+                    * Mat4::from_euler(
+                        glam::EulerRot::XYZ,
+                        wobble * 0.9,
+                        wobble * 0.6,
+                        wobble * 0.3,
+                    )
+                    * Mat4::from_scale(Vec3::splat(1.15));
             cmds.push(EngineCmd::CmdModelUpdate(CmdModelUpdateArgs {
                 window_id,
                 model_id: *model_id,

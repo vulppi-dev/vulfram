@@ -37,6 +37,8 @@ pub struct RenderState {
     pub forward_depth_target: Option<crate::core::resources::RenderTarget>,
     pub forward_msaa_target: Option<crate::core::resources::RenderTarget>,
     pub post_uniform_buffer: Option<wgpu::Buffer>,
+    pub ssao_uniform_buffer: Option<wgpu::Buffer>,
+    pub ssao_blur_uniform_buffer: Option<wgpu::Buffer>,
     pub environment: EnvironmentConfig,
     pub environment_is_configured: bool,
     pub skinning: SkinningSystem,
@@ -89,6 +91,20 @@ impl RenderState {
                 target_width,
                 target_height,
                 wgpu::TextureFormat::Rgba8Unorm,
+            );
+            crate::core::resources::ensure_render_target(
+                device,
+                &mut record.ssao_target,
+                target_width,
+                target_height,
+                wgpu::TextureFormat::Rgba16Float,
+            );
+            crate::core::resources::ensure_render_target(
+                device,
+                &mut record.ssao_blur_target,
+                target_width,
+                target_height,
+                wgpu::TextureFormat::Rgba16Float,
             );
 
             record.data.update(

@@ -104,6 +104,20 @@ pub fn engine_cmd_camera_create(
                 target_height,
                 wgpu::TextureFormat::Rgba8Unorm,
             );
+            ensure_render_target(
+                device,
+                &mut record.ssao_target,
+                target_width,
+                target_height,
+                wgpu::TextureFormat::Rgba16Float,
+            );
+            ensure_render_target(
+                device,
+                &mut record.ssao_blur_target,
+                target_width,
+                target_height,
+                wgpu::TextureFormat::Rgba16Float,
+            );
         }
         window_state
             .render_state
@@ -214,6 +228,20 @@ pub fn engine_cmd_camera_update(
                     target_width,
                     target_height,
                     wgpu::TextureFormat::Rgba8Unorm,
+                );
+                ensure_render_target(
+                    device,
+                    &mut record.ssao_target,
+                    target_width,
+                    target_height,
+                    wgpu::TextureFormat::Rgba16Float,
+                );
+                ensure_render_target(
+                    device,
+                    &mut record.ssao_blur_target,
+                    target_width,
+                    target_height,
+                    wgpu::TextureFormat::Rgba16Float,
                 );
             }
 

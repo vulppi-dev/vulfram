@@ -144,6 +144,7 @@ The environment config now includes a post-processing block used by the `post` p
 - `filter_chromatic_aberration`: chromatic aberration strength
 - `filter_blur`: blur amount
 - `filter_sharpen`: sharpen amount
+- `filter_tonemap_mode`: 0 = none, 1 = Reinhard, 2 = ACES
 - `filter_posterize_steps`: number of posterize steps (0 disables)
 - `outline_enabled`: enables outline composition in post
 - `outline_strength`: mix amount for outline color

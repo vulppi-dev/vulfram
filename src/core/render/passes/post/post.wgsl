@@ -54,6 +54,23 @@ fn sample_bloom(uv: vec2<f32>) -> vec3<f32> {
     return textureSample(t_bloom, s_diffuse, uv).rgb;
 }
 
+fn tonemap(color: vec3<f32>, mode: u32) -> vec3<f32> {
+    if (mode == 0u) {
+        return color;
+    }
+    if (mode == 2u) {
+        let a = 2.51;
+        let b = 0.03;
+        let c = 2.43;
+        let d = 0.59;
+        let e = 0.14;
+        let num = color * (a * color + b);
+        let den = color * (c * color + d) + vec3<f32>(e);
+        return clamp(num / den, vec3<f32>(0.0), vec3<f32>(1.0));
+    }
+    return color / (color + vec3<f32>(1.0));
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let exposure = post.params0.x;
@@ -77,6 +94,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let ssao_enabled = (flags & 8u) != 0u;
     let bloom_enabled = (flags & 16u) != 0u;
     let ssao_strength = post.params4.x;
+    let tone_mode = u32(post.params4.z + 0.5);
     let bloom_intensity = post.params5.z;
     let sharpen = post.params3.y;
     let outline_width = clamp(post.params3.z, 0.5, 8.0);
@@ -178,9 +196,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         color = vec4<f32>(color.rgb * ao, color.a);
     }
 
-    // Simple Reinhard tonemapping
     let tone_in = color.rgb * exposure;
-    let tone_mapped = tone_in / (tone_in + vec3<f32>(1.0));
+    let tone_mapped = tonemap(tone_in, tone_mode);
     color = vec4<f32>(tone_mapped, color.a);
 
     if (posterize_steps > 1.0) {

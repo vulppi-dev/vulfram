@@ -61,7 +61,12 @@ impl PostProcessUniform {
                 config.outline_width,
                 outline_quality,
             ],
-            params4: [config.ssao_strength, config.ssao_power, 0.0, 0.0],
+            params4: [
+                config.ssao_strength,
+                config.ssao_power,
+                config.filter_tonemap_mode as f32,
+                0.0,
+            ],
             params5: [
                 config.bloom_threshold,
                 config.bloom_knee,

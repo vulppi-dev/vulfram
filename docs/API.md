@@ -145,6 +145,10 @@ The environment config now includes a post-processing block used by the `post` p
 Texture loading notes:
 - EXR/HDR inputs decode to `rgba16f` textures (not supported in forward atlas).
 
+Async texture decode:
+- `CmdTextureCreateFromBuffer` returns `{ pending: true }` when decode is queued.
+- The engine later emits `SystemEvent::TextureReady { windowId, textureId, success, message }`.
+
 `PostProcessConfig` highlights:
 
 - `filter_enabled`: master enable for filters

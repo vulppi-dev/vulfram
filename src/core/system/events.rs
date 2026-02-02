@@ -21,4 +21,12 @@ pub enum SystemEvent {
 
     /// Notification was dismissed or expired
     OnNotificationDismissed { id: String },
+
+    /// Async texture decode finished
+    TextureReady {
+        window_id: u32,
+        texture_id: u32,
+        success: bool,
+        message: String,
+    },
 }

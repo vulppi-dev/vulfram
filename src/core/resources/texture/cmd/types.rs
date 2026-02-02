@@ -21,6 +21,7 @@ pub struct CmdTextureCreateFromBufferArgs {
 pub struct CmdResultTextureCreateFromBuffer {
     pub success: bool,
     pub message: String,
+    pub pending: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

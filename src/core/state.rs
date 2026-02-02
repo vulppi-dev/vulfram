@@ -5,6 +5,7 @@ use crate::core::gamepad::state::GamepadState;
 use crate::core::input::InputState;
 use crate::core::profiling::TickProfiling;
 use crate::core::profiling::gpu::GpuProfiler;
+use crate::core::resources::TextureAsyncManager;
 use crate::core::window::WindowManager;
 
 /// Main engine state holding all runtime data
@@ -19,6 +20,7 @@ pub struct EngineState {
     pub queue: Option<wgpu::Queue>,
 
     pub buffers: BufferStorage,
+    pub texture_async: TextureAsyncManager,
 
     pub cmd_queue: EngineBatchCmds,
     pub event_queue: EngineBatchEvents,
@@ -68,6 +70,7 @@ impl EngineState {
             device: None,
             queue: None,
             buffers: BufferStorage::new(),
+            texture_async: TextureAsyncManager::new(),
             cmd_queue: Vec::new(),
             event_queue: Vec::new(),
             response_queue: Vec::new(),

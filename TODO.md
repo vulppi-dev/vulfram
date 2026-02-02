@@ -32,13 +32,14 @@ _Features que dependem de acesso a buffers e transformações espaciais._
 - [x] **Post-Processing (Fase 3.5)**: Outline com máscara e cor por modelo (pass outline + pós).
 - [x] **Post-Processing (Fase 3.7)**: Efeitos extras (vignette, grain, chromatic aberration, sharpen, posterize).
 - [x] **Cell Shading**: Posterize + bandas de luz no pós-processamento inicial.
-- [ ] **Áudio 3D (Core System)**: Integração com a crate `kira`. Suporte a emissores amarrados a `Models` e cálculo de atenuação/doppler sincronizado com as transformações do Core.
 - [x] **Bloom & HDR**: Pipeline de alta dinâmica com tonemapping.
 - [x] **SSAO**: Oclusão de ambiente em screen-space.
+- [ ] **Áudio 3D (Core System)**: Integração com a crate `kira`. Suporte a emissores amarrados a `Models` e cálculo de atenuação/doppler sincronizado com as transformações do Core.
 
 ## 🔴 Opcionais, futuras melhorias
 
 - [ ] **Custom Materials via Graph Nodes**: Sistema no Core que recebe estruturas de "nós" e gera shaders dinâmicos.
+- [ ] **Custom Effects via Graph Nodes**: Sistema no Core que recebe estruturas de "nós" e gera efeitos dinâmicos para o render graph.
 - [ ] **Projective Spot Lights**: Luzes com projeção de textura.
 - [ ] **Occlusion Culling**: Otimização avançada baseada em visibilidade de pixels.
 - [ ] **Post-Processing**: Focus/DoF baseado em depth (CoC + blur variável).

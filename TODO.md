@@ -34,9 +34,9 @@ _Features que dependem de acesso a buffers e transformações espaciais._
 - [x] **Post-Processing (Fase 3.7)**: Efeitos extras (vignette, grain, chromatic aberration, sharpen, posterize).
 - [x] **Cell Shading**: Posterize + bandas de luz no pós-processamento inicial.
 - [ ] **Áudio 3D (Core System)**: Integração com a crate `kira`. Suporte a emissores amarrados a `Models` e cálculo de atenuação/doppler sincronizado com as transformações do Core.
-- [ ] **Bloom & HDR**: Pipeline de alta dinâmica com tonemapping.
+- [x] **Bloom & HDR**: Pipeline de alta dinâmica com tonemapping.
 - [ ] **Decals (Decalques)**: Projeção de texturas via shader.
-- [ ] **SSAO**: Oclusão de ambiente em screen-space.
+- [x] **SSAO**: Oclusão de ambiente em screen-space.
 - [ ] **Particles (CPU/GPU)**: Sistemas de partículas com dois modos (CPU e GPU).
 
 ## 🔵 Fase 4: Responsabilidades do Host (Plugins & Lógica)

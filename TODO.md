@@ -16,7 +16,7 @@ _Otimização do fluxo de dados e ferramentas de debug._
 
 _Refatoração para suportar efeitos avançados._
 
-- [ ] **Render Graph**: Substituir o `Compose` por um grafo real para encadeamento de efeitos.
+- [x] **Render Graph**: Substituir o `Compose` por um grafo real para encadeamento de efeitos.
 - [x] **Advanced Profiler**: Exporta métricas detalhadas de GPU para o Host via MessagePack.
 - [x] **Skeletal Animation (Skinning)**: Implementar interpolação de ossos via GPU (Shader).
 

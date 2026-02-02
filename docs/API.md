@@ -118,6 +118,30 @@ The render state keeps a **scene** with camera/model records:
   - `label: Option<String>` (semantic name)
   - `data: ModelComponent` (transform + derived TRS)
   - `geometry_id` (required)
+  - `cast_outline` and `outline_color` (outline mask + color for post)
+
+---
+
+## 5. Environment & Post-Processing (Current)
+
+The environment config now includes a post-processing block used by the `post` pass.
+
+`EnvironmentConfig` (core/resources/environment/spec.rs):
+
+- `msaa`
+- `skybox`
+- `post`
+
+`PostProcessConfig` highlights:
+
+- `outline_enabled`: enables outline composition in post
+- `outline_strength`: mix amount for outline color
+- `outline_threshold`: edge threshold (clamped to `[0, 1)`)
+- `outline_width`: pixel width used by edge kernel
+- `outline_quality`: 0 = 3×3 kernel, 1 = 5×5 kernel
+
+The outline mask is rendered in a dedicated `outline` pass into `outline_color`
+(now `rgba8`), and sampled by the `post` pass for final composition.
   - `material_id` (optional)
   - `layer_mask`
 

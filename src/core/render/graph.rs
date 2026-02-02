@@ -25,6 +25,12 @@ pub enum RenderGraphResourceKind {
     Attachment,
 }
 
+impl Default for RenderGraphResourceKind {
+    fn default() -> Self {
+        RenderGraphResourceKind::Texture
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum RenderGraphLifetime {
@@ -88,9 +94,8 @@ impl From<f64> for RenderGraphValue {
 #[serde(rename_all = "camelCase")]
 pub struct RenderGraphResource {
     pub res_id: LogicalId,
-    pub kind: RenderGraphResourceKind,
     #[serde(default)]
-    pub desc: HashMap<String, RenderGraphValue>,
+    pub kind: RenderGraphResourceKind,
     #[serde(default)]
     pub lifetime: RenderGraphLifetime,
     #[serde(default)]
@@ -125,6 +130,7 @@ pub struct RenderGraphDesc {
     pub graph_id: LogicalId,
     pub nodes: Vec<RenderGraphNode>,
     pub edges: Vec<RenderGraphEdge>,
+    #[serde(default)]
     pub resources: Vec<RenderGraphResource>,
     #[serde(default)]
     pub fallback: bool,
@@ -229,20 +235,10 @@ pub fn validate_graph(desc: &RenderGraphDesc) -> Result<RenderGraphPlan, String>
 
     for node in &desc.nodes {
         for input in &node.inputs {
-            if !res_ids.contains(input) {
-                return Err(format!(
-                    "Node {} references missing input resource {}",
-                    node.node_id, input
-                ));
-            }
+            res_ids.insert(input.clone());
         }
         for output in &node.outputs {
-            if !res_ids.contains(output) {
-                return Err(format!(
-                    "Node {} references missing output resource {}",
-                    node.node_id, output
-                ));
-            }
+            res_ids.insert(output.clone());
         }
     }
 
@@ -385,42 +381,36 @@ pub fn fallback_graph() -> RenderGraphDesc {
             RenderGraphResource {
                 res_id: LogicalId::Str("shadow_atlas".into()),
                 kind: RenderGraphResourceKind::Texture,
-                desc: HashMap::new(),
                 lifetime: RenderGraphLifetime::Frame,
                 alias_group: None,
             },
             RenderGraphResource {
                 res_id: LogicalId::Str("hdr_color".into()),
                 kind: RenderGraphResourceKind::Texture,
-                desc: HashMap::new(),
                 lifetime: RenderGraphLifetime::Frame,
                 alias_group: None,
             },
             RenderGraphResource {
                 res_id: LogicalId::Str("depth".into()),
                 kind: RenderGraphResourceKind::Texture,
-                desc: HashMap::new(),
                 lifetime: RenderGraphLifetime::Frame,
                 alias_group: None,
             },
             RenderGraphResource {
                 res_id: LogicalId::Str("outline_color".into()),
                 kind: RenderGraphResourceKind::Texture,
-                desc: HashMap::new(),
                 lifetime: RenderGraphLifetime::Frame,
                 alias_group: None,
             },
             RenderGraphResource {
                 res_id: LogicalId::Str("post_color".into()),
                 kind: RenderGraphResourceKind::Texture,
-                desc: HashMap::new(),
                 lifetime: RenderGraphLifetime::Frame,
                 alias_group: None,
             },
             RenderGraphResource {
                 res_id: LogicalId::Str("swapchain".into()),
                 kind: RenderGraphResourceKind::Attachment,
-                desc: HashMap::new(),
                 lifetime: RenderGraphLifetime::Frame,
                 alias_group: None,
             },

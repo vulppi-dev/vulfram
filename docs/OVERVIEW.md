@@ -272,7 +272,8 @@ This supports:
 - A single material can be referenced by many models.
 - A single texture can be referenced by many materials.
 
-There is no ownership tracking. If a resource is disposed while still referenced,
+There is no ownership tracking. The host is responsible for disposing resources
+when no longer needed; if a resource is disposed while still referenced,
 rendering falls back gracefully.
 
 ---

@@ -2,6 +2,8 @@
 
 This document describes the host-facing render graph format. The host builds a graph using logical IDs; the core validates, maps, and executes it. If the graph is missing or invalid, the core executes a safe fallback graph.
 
+The core infers any missing resources from node inputs/outputs using default values (texture + frame lifetime).
+
 ## Goals
 
 - **Host control**: The host defines the render sequence and dependencies.
@@ -42,9 +44,8 @@ This document describes the host-facing render graph format. The host builds a g
 | Field       | Type      | Description |
 |------------|-----------|-------------|
 | resId      | LogicalId  | Logical resource identifier |
-| kind       | string     | "texture", "buffer", "attachment" |
-| desc       | Map        | Logical descriptor (format, size, usage) |
-| lifetime   | string     | "frame" or "persistent" |
+| kind       | string     | "texture", "buffer", "attachment" (defaults to "texture") |
+| lifetime   | string     | "frame" or "persistent" (defaults to "frame") |
 | aliasGroup | LogicalId? | Optional alias group for memory reuse |
 
 ### Edge
@@ -88,12 +89,12 @@ Logical IDs can be strings or numeric values. The core maps them to internal IDs
     { "fromNodeId": "post_pass", "toNodeId": "compose_pass" }
   ],
   "resources": [
-    { "resId": "shadow_atlas", "kind": "texture", "desc": { "format": "depth24", "size": "shadow_res" }, "lifetime": "frame" },
-    { "resId": "hdr_color", "kind": "texture", "desc": { "format": "rgba16f", "size": "screen" }, "lifetime": "frame" },
-    { "resId": "depth", "kind": "texture", "desc": { "format": "depth24", "size": "screen" }, "lifetime": "frame" },
-    { "resId": "outline_color", "kind": "texture", "desc": { "format": "rgba16f", "size": "screen" }, "lifetime": "frame" },
-    { "resId": "post_color", "kind": "texture", "desc": { "format": "rgba16f", "size": "screen" }, "lifetime": "frame" },
-    { "resId": "swapchain", "kind": "attachment", "desc": { "format": "swapchain" }, "lifetime": "frame" }
+    { "resId": "shadow_atlas" },
+    { "resId": "hdr_color" },
+    { "resId": "depth" },
+    { "resId": "outline_color" },
+    { "resId": "post_color" },
+    { "resId": "swapchain", "kind": "attachment" }
   ],
   "fallback": true
 }

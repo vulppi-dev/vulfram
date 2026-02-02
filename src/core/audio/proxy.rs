@@ -57,6 +57,15 @@ impl Default for AudioSourceParams {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AudioPlayMode {
+    Once,
+    Loop,
+    Reverse,
+    LoopReverse,
+    PingPong,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct AudioListenerBinding {
     pub window_id: u32,
@@ -84,12 +93,17 @@ pub trait AudioProxy: Send {
         &mut self,
         source_id: u32,
         audio_id: u32,
-        looping: bool,
         params: AudioSourceParams,
     ) -> Result<(), String>;
 
     fn source_update(&mut self, source_id: u32, params: AudioSourceParams) -> Result<(), String>;
-    fn source_play(&mut self, source_id: u32) -> Result<(), String>;
+    fn source_play(
+        &mut self,
+        source_id: u32,
+        mode: AudioPlayMode,
+        delay_ms: Option<u32>,
+        intensity: f32,
+    ) -> Result<(), String>;
     fn source_pause(&mut self, source_id: u32) -> Result<(), String>;
     fn source_stop(&mut self, source_id: u32) -> Result<(), String>;
 

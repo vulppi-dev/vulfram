@@ -10,7 +10,7 @@ use web_sys::{
 };
 
 use crate::core::audio::{
-    AudioListenerState, AudioProxy, AudioReadyEvent, AudioSourceParams,
+    AudioListenerState, AudioPlayMode, AudioProxy, AudioReadyEvent, AudioSourceParams,
 };
 
 struct DecodeResult {
@@ -20,7 +20,6 @@ struct DecodeResult {
 
 struct WebAudioSource {
     audio_id: u32,
-    looping: bool,
     params: AudioSourceParams,
     panner: PannerNode,
     gain: GainNode,
@@ -86,7 +85,8 @@ impl WebAudioProxy {
         context: &AudioContext,
         buffer: &AudioBuffer,
         params: AudioSourceParams,
-        looping: bool,
+        mode: AudioPlayMode,
+        intensity: f32,
         panner: &PannerNode,
         gain: &GainNode,
     ) -> Result<AudioBufferSourceNode, String> {
@@ -94,13 +94,21 @@ impl WebAudioProxy {
             .create_buffer_source()
             .map_err(|_| "Failed to create AudioBufferSourceNode".to_string())?;
         source.set_buffer(Some(buffer));
-        source.set_loop(looping);
-        source.playback_rate().set_value(params.pitch);
+        let loop_enabled = matches!(
+            mode,
+            AudioPlayMode::Loop | AudioPlayMode::LoopReverse | AudioPlayMode::PingPong
+        );
+        source.set_loop(loop_enabled);
+        let rate = match mode {
+            AudioPlayMode::Reverse | AudioPlayMode::LoopReverse => -params.pitch.abs(),
+            _ => params.pitch,
+        };
+        source.playback_rate().set_value(rate);
         source.connect_with_audio_node(panner).map_err(|_| "Failed to connect panner".to_string())?;
         panner.connect_with_audio_node(gain).map_err(|_| "Failed to connect gain".to_string())?;
         gain.connect_with_audio_node(&context.destination())
             .map_err(|_| "Failed to connect destination".to_string())?;
-        gain.gain().set_value(params.gain);
+        gain.gain().set_value(params.gain * intensity.clamp(0.0, 1.0));
         Ok(source)
     }
 }
@@ -155,7 +163,6 @@ impl AudioProxy for WebAudioProxy {
         &mut self,
         source_id: u32,
         audio_id: u32,
-        looping: bool,
         params: AudioSourceParams,
     ) -> Result<(), String> {
         self.ensure_initialized()?;
@@ -176,7 +183,6 @@ impl AudioProxy for WebAudioProxy {
             source_id,
             WebAudioSource {
                 audio_id,
-                looping,
                 params,
                 panner,
                 gain,
@@ -200,7 +206,13 @@ impl AudioProxy for WebAudioProxy {
         Ok(())
     }
 
-    fn source_play(&mut self, source_id: u32) -> Result<(), String> {
+    fn source_play(
+        &mut self,
+        source_id: u32,
+        mode: AudioPlayMode,
+        delay_ms: Option<u32>,
+        intensity: f32,
+    ) -> Result<(), String> {
         self.ensure_initialized()?;
         let context = self
             .context
@@ -221,11 +233,18 @@ impl AudioProxy for WebAudioProxy {
             context,
             buffer,
             source.params,
-            source.looping,
+            mode,
+            intensity,
             &source.panner,
             &source.gain,
         )?;
-        node.start().map_err(|_| "Failed to start audio".to_string())?;
+        if let Some(delay) = delay_ms {
+            let when = context.current_time() + (delay as f64 / 1000.0);
+            node.start_with_when(when)
+                .map_err(|_| "Failed to start audio".to_string())?;
+        } else {
+            node.start().map_err(|_| "Failed to start audio".to_string())?;
+        }
         source.current = Some(node);
         Ok(())
     }

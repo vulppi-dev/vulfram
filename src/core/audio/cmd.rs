@@ -7,17 +7,6 @@ use crate::core::audio::{AudioListenerState, AudioSourceParams};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct CmdAudioInitArgs {}
-
-#[derive(Debug, Default, Deserialize, Serialize, Clone)]
-#[serde(default, rename_all = "camelCase")]
-pub struct CmdResultAudioInit {
-    pub success: bool,
-    pub message: String,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
 pub struct CmdAudioListenerUpdateArgs {
     pub position: Vec3,
     pub velocity: Vec3,
@@ -27,14 +16,27 @@ pub struct CmdAudioListenerUpdateArgs {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct CmdAudioListenerBindModelArgs {
+pub struct CmdAudioListenerCreateArgs {
     pub window_id: u32,
     pub model_id: u32,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
-pub struct CmdResultAudioListenerBindModel {
+pub struct CmdResultAudioListenerCreate {
+    pub success: bool,
+    pub message: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CmdAudioListenerDisposeArgs {
+    pub window_id: u32,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+#[serde(default, rename_all = "camelCase")]
+pub struct CmdResultAudioListenerDispose {
     pub success: bool,
     pub message: String,
 }
@@ -48,14 +50,14 @@ pub struct CmdResultAudioListenerUpdate {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct CmdAudioBufferCreateFromBufferArgs {
-    pub audio_id: u32,
+pub struct CmdAudioResourceCreateArgs {
+    pub resource_id: u32,
     pub buffer_id: u64,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
-pub struct CmdResultAudioBufferCreateFromBuffer {
+pub struct CmdResultAudioResourceCreate {
     pub success: bool,
     pub message: String,
     pub pending: bool,
@@ -64,9 +66,10 @@ pub struct CmdResultAudioBufferCreateFromBuffer {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CmdAudioSourceCreateArgs {
+    pub window_id: u32,
     pub source_id: u32,
-    pub audio_id: u32,
-    pub looping: bool,
+    pub resource_id: u32,
+    pub model_id: u32,
     pub position: Vec3,
     pub velocity: Vec3,
     pub orientation: Quat,
@@ -142,6 +145,9 @@ pub struct CmdResultAudioSourceUpdate {
 #[serde(rename_all = "camelCase")]
 pub struct CmdAudioSourcePlayArgs {
     pub source_id: u32,
+    pub intensity: f32,
+    pub delay_ms: Option<u32>,
+    pub mode: AudioPlayModeDto,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -176,32 +182,52 @@ pub struct CmdResultAudioSourceStop {
     pub success: bool,
     pub message: String,
 }
-
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct CmdAudioDisposeArgs {
-    pub audio_id: Option<u32>,
-    pub source_id: Option<u32>,
+pub struct CmdAudioSourceDisposeArgs {
+    pub source_id: u32,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
 #[serde(default, rename_all = "camelCase")]
-pub struct CmdResultAudioDispose {
+pub struct CmdResultAudioSourceDispose {
     pub success: bool,
     pub message: String,
 }
 
-pub fn engine_cmd_audio_init(engine: &mut EngineState, _args: &CmdAudioInitArgs) -> CmdResultAudioInit {
-    match engine.audio.init() {
-        Ok(()) => CmdResultAudioInit {
-            success: true,
-            message: "Audio initialized".into(),
-        },
-        Err(message) => CmdResultAudioInit {
-            success: false,
-            message,
-        },
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "kebab-case")]
+pub enum AudioPlayModeDto {
+    Once,
+    Loop,
+    Reverse,
+    LoopReverse,
+    PingPong,
+}
+
+impl From<AudioPlayModeDto> for crate::core::audio::AudioPlayMode {
+    fn from(value: AudioPlayModeDto) -> Self {
+        match value {
+            AudioPlayModeDto::Once => Self::Once,
+            AudioPlayModeDto::Loop => Self::Loop,
+            AudioPlayModeDto::Reverse => Self::Reverse,
+            AudioPlayModeDto::LoopReverse => Self::LoopReverse,
+            AudioPlayModeDto::PingPong => Self::PingPong,
+        }
     }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CmdAudioResourceDisposeArgs {
+    pub resource_id: u32,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+#[serde(default, rename_all = "camelCase")]
+pub struct CmdResultAudioResourceDispose {
+    pub success: bool,
+    pub message: String,
 }
 
 pub fn engine_cmd_audio_listener_update(
@@ -226,12 +252,12 @@ pub fn engine_cmd_audio_listener_update(
     }
 }
 
-pub fn engine_cmd_audio_listener_bind_model(
+pub fn engine_cmd_audio_listener_create(
     engine: &mut EngineState,
-    args: &CmdAudioListenerBindModelArgs,
-) -> CmdResultAudioListenerBindModel {
+    args: &CmdAudioListenerCreateArgs,
+) -> CmdResultAudioListenerCreate {
     if !engine.window.states.contains_key(&args.window_id) {
-        return CmdResultAudioListenerBindModel {
+        return CmdResultAudioListenerCreate {
             success: false,
             message: format!("Window {} not found", args.window_id),
         };
@@ -240,9 +266,31 @@ pub fn engine_cmd_audio_listener_bind_model(
         window_id: args.window_id,
         model_id: args.model_id,
     });
-    CmdResultAudioListenerBindModel {
+    CmdResultAudioListenerCreate {
         success: true,
         message: "Listener bound to model".into(),
+    }
+}
+
+pub fn engine_cmd_audio_listener_dispose(
+    engine: &mut EngineState,
+    args: &CmdAudioListenerDisposeArgs,
+) -> CmdResultAudioListenerDispose {
+    let should_clear = match engine.audio_listener_binding {
+        Some(binding) => binding.window_id == args.window_id,
+        None => false,
+    };
+    if should_clear {
+        engine.audio_listener_binding = None;
+        CmdResultAudioListenerDispose {
+            success: true,
+            message: "Listener disposed".into(),
+        }
+    } else {
+        CmdResultAudioListenerDispose {
+            success: false,
+            message: "Listener not found".into(),
+        }
     }
 }
 
@@ -273,12 +321,12 @@ pub fn process_audio_listener_binding(engine: &mut EngineState) {
 
 pub fn engine_cmd_audio_buffer_create_from_buffer(
     engine: &mut EngineState,
-    args: &CmdAudioBufferCreateFromBufferArgs,
-) -> CmdResultAudioBufferCreateFromBuffer {
+    args: &CmdAudioResourceCreateArgs,
+) -> CmdResultAudioResourceCreate {
     let buffer = match engine.buffers.remove_upload(args.buffer_id) {
         Some(b) => b,
         None => {
-            return CmdResultAudioBufferCreateFromBuffer {
+            return CmdResultAudioResourceCreate {
                 success: false,
                 message: format!("Buffer with id {} not found", args.buffer_id),
                 pending: false,
@@ -287,7 +335,7 @@ pub fn engine_cmd_audio_buffer_create_from_buffer(
     };
 
     if buffer.upload_type != UploadType::BinaryAsset {
-        return CmdResultAudioBufferCreateFromBuffer {
+        return CmdResultAudioResourceCreate {
             success: false,
             message: format!(
                 "Invalid buffer type. Expected BinaryAsset, got {:?}",
@@ -297,13 +345,13 @@ pub fn engine_cmd_audio_buffer_create_from_buffer(
         };
     }
 
-    match engine.audio.buffer_create_from_bytes(args.audio_id, buffer.data) {
-        Ok(()) => CmdResultAudioBufferCreateFromBuffer {
+    match engine.audio.buffer_create_from_bytes(args.resource_id, buffer.data) {
+        Ok(()) => CmdResultAudioResourceCreate {
             success: true,
             message: "Audio buffer queued".into(),
             pending: true,
         },
-        Err(message) => CmdResultAudioBufferCreateFromBuffer {
+        Err(message) => CmdResultAudioResourceCreate {
             success: false,
             message,
             pending: false,
@@ -315,6 +363,12 @@ pub fn engine_cmd_audio_source_create(
     engine: &mut EngineState,
     args: &CmdAudioSourceCreateArgs,
 ) -> CmdResultAudioSourceCreate {
+    if !engine.window.states.contains_key(&args.window_id) {
+        return CmdResultAudioSourceCreate {
+            success: false,
+            message: format!("Window {} not found", args.window_id),
+        };
+    }
     let params = AudioSourceParams {
         position: args.position,
         velocity: args.velocity,
@@ -324,9 +378,17 @@ pub fn engine_cmd_audio_source_create(
         spatial: args.spatial.clone().into(),
     };
 
+    engine.audio_source_params.insert(args.source_id, params);
+    engine.audio_source_bindings.insert(
+        args.source_id,
+        crate::core::audio::AudioListenerBinding {
+            window_id: args.window_id,
+            model_id: args.model_id,
+        },
+    );
     match engine
         .audio
-        .source_create(args.source_id, args.audio_id, args.looping, params)
+        .source_create(args.source_id, args.resource_id, params)
     {
         Ok(()) => CmdResultAudioSourceCreate {
             success: true,
@@ -351,6 +413,7 @@ pub fn engine_cmd_audio_source_update(
         pitch: args.pitch,
         spatial: args.spatial.clone().into(),
     };
+    engine.audio_source_params.insert(args.source_id, params);
     match engine.audio.source_update(args.source_id, params) {
         Ok(()) => CmdResultAudioSourceUpdate {
             success: true,
@@ -367,7 +430,11 @@ pub fn engine_cmd_audio_source_play(
     engine: &mut EngineState,
     args: &CmdAudioSourcePlayArgs,
 ) -> CmdResultAudioSourcePlay {
-    match engine.audio.source_play(args.source_id) {
+    let intensity = args.intensity.clamp(0.0, 1.0);
+    match engine
+        .audio
+        .source_play(args.source_id, args.mode.clone().into(), args.delay_ms, intensity)
+    {
         Ok(()) => CmdResultAudioSourcePlay {
             success: true,
             message: "Source playing".into(),
@@ -411,24 +478,77 @@ pub fn engine_cmd_audio_source_stop(
     }
 }
 
-pub fn engine_cmd_audio_dispose(
+pub fn engine_cmd_audio_source_dispose(
     engine: &mut EngineState,
-    args: &CmdAudioDisposeArgs,
-) -> CmdResultAudioDispose {
-    let mut ok = true;
-    let mut message = "Disposed".to_string();
-    if let Some(audio_id) = args.audio_id {
-        if let Err(err) = engine.audio.buffer_dispose(audio_id) {
-            ok = false;
-            message = err;
-        }
+    args: &CmdAudioSourceDisposeArgs,
+) -> CmdResultAudioSourceDispose {
+    engine.audio_source_bindings.remove(&args.source_id);
+    engine.audio_source_params.remove(&args.source_id);
+    match engine.audio.source_dispose(args.source_id) {
+        Ok(()) => CmdResultAudioSourceDispose {
+            success: true,
+            message: "Source disposed".into(),
+        },
+        Err(message) => CmdResultAudioSourceDispose {
+            success: false,
+            message,
+        },
     }
-    if let Some(source_id) = args.source_id {
-        if let Err(err) = engine.audio.source_dispose(source_id) {
-            ok = false;
-            message = err;
-        }
-    }
+}
 
-    CmdResultAudioDispose { success: ok, message }
+pub fn engine_cmd_audio_resource_dispose(
+    engine: &mut EngineState,
+    args: &CmdAudioResourceDisposeArgs,
+) -> CmdResultAudioResourceDispose {
+    match engine.audio.buffer_dispose(args.resource_id) {
+        Ok(()) => CmdResultAudioResourceDispose {
+            success: true,
+            message: "Resource disposed".into(),
+        },
+        Err(message) => CmdResultAudioResourceDispose {
+            success: false,
+            message,
+        },
+    }
+}
+
+pub fn process_audio_source_bindings(engine: &mut EngineState) {
+    let listener_binding = engine.audio_listener_binding;
+    let Some(listener_binding) = listener_binding else {
+        return;
+    };
+    let window_state = match engine.window.states.get(&listener_binding.window_id) {
+        Some(state) => state,
+        None => return,
+    };
+    let listener_record = match window_state.render_state.scene.models.get(&listener_binding.model_id) {
+        Some(record) => record,
+        None => return,
+    };
+    let (_, listener_rotation, listener_translation) =
+        listener_record.data.transform.to_scale_rotation_translation();
+    for (source_id, binding) in engine.audio_source_bindings.iter() {
+        if binding.window_id != listener_binding.window_id {
+            continue;
+        }
+        let record = match window_state.render_state.scene.models.get(&binding.model_id) {
+            Some(record) => record,
+            None => continue,
+        };
+        let (_, rotation, translation) = record.data.transform.to_scale_rotation_translation();
+        let mut params = match engine.audio_source_params.get(source_id) {
+            Some(params) => *params,
+            None => continue,
+        };
+        params.position = translation;
+        params.orientation = rotation;
+        if binding.model_id == listener_binding.model_id {
+            params.position = listener_translation;
+            params.orientation = listener_rotation;
+            params.spatial.min_distance = 0.0;
+            params.spatial.max_distance = 0.01;
+            params.spatial.rolloff = 0.0;
+        }
+        let _ = engine.audio.source_update(*source_id, params);
+    }
 }

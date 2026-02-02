@@ -10,11 +10,11 @@ use kira::spatial::emitter::{EmitterHandle, EmitterSettings};
 use kira::spatial::listener::{ListenerHandle, ListenerSettings};
 use kira::spatial::scene::{SpatialSceneHandle, SpatialSceneSettings};
 use kira::tween::Tween;
-use kira::Volume;
+use kira::{StartTime, Volume};
 use mint::{Quaternion, Vector3};
 
 use crate::core::audio::{
-    AudioListenerState, AudioProxy, AudioReadyEvent, AudioSourceParams,
+    AudioListenerState, AudioPlayMode, AudioProxy, AudioReadyEvent, AudioSourceParams,
 };
 
 struct DecodeResult {
@@ -24,7 +24,6 @@ struct DecodeResult {
 
 struct KiraSource {
     audio_id: u32,
-    looping: bool,
     params: AudioSourceParams,
     emitter: EmitterHandle,
     handle: Option<StaticSoundHandle>,
@@ -116,15 +115,28 @@ impl KiraAudioProxy {
         base: &StaticSoundData,
         emitter: &EmitterHandle,
         params: AudioSourceParams,
-        looping: bool,
+        mode: AudioPlayMode,
+        delay_ms: Option<u32>,
+        intensity: f32,
     ) -> StaticSoundData {
         let mut data = base.clone();
-        if looping {
-            data = data.loop_region(..);
+        let delay = delay_ms
+            .map(|ms| StartTime::Delayed(std::time::Duration::from_millis(ms as u64)))
+            .unwrap_or(StartTime::Immediate);
+        let intensity = intensity.clamp(0.0, 1.0);
+        match mode {
+            AudioPlayMode::Loop | AudioPlayMode::LoopReverse | AudioPlayMode::PingPong => {
+                data = data.loop_region(..);
+            }
+            _ => {}
+        }
+        if matches!(mode, AudioPlayMode::Reverse | AudioPlayMode::LoopReverse) {
+            data = data.reverse(true);
         }
         data.output_destination(emitter)
-            .volume(Volume::Amplitude(params.gain as f64))
+            .volume(Volume::Amplitude((params.gain * intensity) as f64))
             .playback_rate(PlaybackRate::Factor(params.pitch as f64))
+            .start_time(delay)
     }
 
     fn update_handle(handle: &mut StaticSoundHandle, params: AudioSourceParams) {
@@ -175,7 +187,6 @@ impl AudioProxy for KiraAudioProxy {
         &mut self,
         source_id: u32,
         audio_id: u32,
-        looping: bool,
         params: AudioSourceParams,
     ) -> Result<(), String> {
         self.ensure_initialized()?;
@@ -194,7 +205,6 @@ impl AudioProxy for KiraAudioProxy {
             source_id,
             KiraSource {
                 audio_id,
-                looping,
                 params,
                 emitter,
                 handle: None,
@@ -218,7 +228,13 @@ impl AudioProxy for KiraAudioProxy {
         Ok(())
     }
 
-    fn source_play(&mut self, source_id: u32) -> Result<(), String> {
+    fn source_play(
+        &mut self,
+        source_id: u32,
+        mode: AudioPlayMode,
+        delay_ms: Option<u32>,
+        intensity: f32,
+    ) -> Result<(), String> {
         self.ensure_initialized()?;
         let manager = self
             .manager
@@ -236,7 +252,14 @@ impl AudioProxy for KiraAudioProxy {
             .buffers
             .get(&source.audio_id)
             .ok_or_else(|| format!("Audio buffer {} not ready", source.audio_id))?;
-        let sound = Self::build_sound_data(buffer, &source.emitter, source.params, source.looping);
+        let sound = Self::build_sound_data(
+            buffer,
+            &source.emitter,
+            source.params,
+            mode,
+            delay_ms,
+            intensity,
+        );
         let handle = manager.play(sound).map_err(|err| err.to_string())?;
         source.handle = Some(handle);
         Ok(())

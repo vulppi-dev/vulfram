@@ -192,14 +192,23 @@ The outline mask is rendered in a dedicated `outline` pass into `outline_color`
 The audio system is proxy-based (desktop = Kira, browser = WebAudio). The API is shared across backends.
 
 Commands (core/audio/cmd.rs):
-- `CmdAudioInit`
 - `CmdAudioListenerUpdate { position, velocity, forward, up }`
-- `CmdAudioListenerBindModel { windowId, modelId }`
-- `CmdAudioBufferCreateFromBuffer { audioId, bufferId }` (UploadType::BinaryAsset)
-- `CmdAudioSourceCreate { sourceId, audioId, looping, position, velocity, orientation, gain, pitch, spatial }`
+- `CmdAudioListenerCreate { windowId, modelId }`
+- `CmdAudioListenerDispose { windowId }`
+- `CmdAudioResourceCreate { resourceId, bufferId }` (UploadType::BinaryAsset)
+- `CmdAudioSourceCreate { windowId, sourceId, resourceId, modelId, position, velocity, orientation, gain, pitch, spatial }`
 - `CmdAudioSourceUpdate { sourceId, position, velocity, orientation, gain, pitch, spatial }`
-- `CmdAudioSourcePlay/Stop/Pause { sourceId }`
-- `CmdAudioDispose { audioId?, sourceId? }`
+- `CmdAudioSourcePlay { sourceId, intensity, delayMs?, mode }`
+- `CmdAudioSourcePause { sourceId }`
+- `CmdAudioSourceStop { sourceId }`
+- `CmdAudioSourceDispose { sourceId }`
+- `CmdAudioResourceDispose { resourceId }`
+
+Notes:
+- `intensity` is a 0..1 scalar applied on top of `gain` when playing.
+- `mode` supports `once`, `loop`, `reverse`, `loop-reverse`, `ping-pong`.
+- When a source is bound to a model, the core updates its position every tick.
+- If the bound source model is the same as the bound listener model, spatialization is bypassed.
 
 Events:
 - `SystemEvent::AudioReady { audioId, success, message }` (async decode)

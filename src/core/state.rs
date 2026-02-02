@@ -10,8 +10,9 @@ use crate::core::resources::TextureAsyncManager;
 use crate::core::audio::KiraAudioProxy;
 #[cfg(feature = "wasm")]
 use crate::core::audio::WebAudioProxy;
-use crate::core::audio::AudioListenerBinding;
+use crate::core::audio::{AudioListenerBinding, AudioSourceParams};
 use crate::core::window::WindowManager;
+use std::collections::HashMap;
 
 /// Main engine state holding all runtime data
 pub struct EngineState {
@@ -28,6 +29,8 @@ pub struct EngineState {
     pub texture_async: TextureAsyncManager,
     pub audio: Box<dyn crate::core::audio::AudioProxy>,
     pub audio_listener_binding: Option<AudioListenerBinding>,
+    pub audio_source_bindings: HashMap<u32, AudioListenerBinding>,
+    pub audio_source_params: HashMap<u32, AudioSourceParams>,
 
     pub cmd_queue: EngineBatchCmds,
     pub event_queue: EngineBatchEvents,
@@ -83,6 +86,8 @@ impl EngineState {
             #[cfg(feature = "wasm")]
             audio: Box::new(WebAudioProxy::default()),
             audio_listener_binding: None,
+            audio_source_bindings: HashMap::new(),
+            audio_source_params: HashMap::new(),
             cmd_queue: Vec::new(),
             event_queue: Vec::new(),
             response_queue: Vec::new(),

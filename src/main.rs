@@ -2,8 +2,8 @@ mod core;
 
 use crate::core::VulframResult;
 use crate::core::audio::{
-    AudioSpatialParamsDto, CmdAudioBufferCreateFromBufferArgs, CmdAudioInitArgs,
-    CmdAudioListenerBindModelArgs, CmdAudioSourceCreateArgs, CmdAudioSourcePauseArgs,
+    AudioPlayModeDto, AudioSpatialParamsDto, CmdAudioListenerCreateArgs,
+    CmdAudioResourceCreateArgs, CmdAudioSourceCreateArgs, CmdAudioSourcePauseArgs,
     CmdAudioSourcePlayArgs,
 };
 use crate::core::buffers::state::UploadType;
@@ -709,7 +709,7 @@ fn demo_004(window_id: u32) -> bool {
     };
 
     let post_config = PostProcessConfig {
-        filter_enabled: true,
+        filter_enabled: false,
         filter_exposure: 1.0,
         filter_gamma: 1.0,
         filter_saturation: 1.0,
@@ -745,7 +745,6 @@ fn demo_004(window_id: u32) -> bool {
     upload_binary_bytes(&audio_bytes, audio_buffer_id);
 
     let setup_cmds = vec![
-        EngineCmd::CmdAudioInit(CmdAudioInitArgs {}),
         EngineCmd::CmdEnvironmentUpdate(CmdEnvironmentUpdateArgs {
             window_id,
             config: EnvironmentConfig {
@@ -925,18 +924,19 @@ fn demo_004(window_id: u32) -> bool {
         }),
         create_floor_cmd(window_id, geometry_id, floor_material_id),
         create_shadow_config_cmd(window_id),
-        EngineCmd::CmdAudioListenerBindModel(CmdAudioListenerBindModelArgs {
+        EngineCmd::CmdAudioListenerCreate(CmdAudioListenerCreateArgs {
             window_id,
             model_id: listener_model_id,
         }),
-        EngineCmd::CmdAudioBufferCreateFromBuffer(CmdAudioBufferCreateFromBufferArgs {
-            audio_id,
+        EngineCmd::CmdAudioResourceCreate(CmdAudioResourceCreateArgs {
+            resource_id: audio_id,
             buffer_id: audio_buffer_id,
         }),
         EngineCmd::CmdAudioSourceCreate(CmdAudioSourceCreateArgs {
+            window_id,
             source_id: audio_source_id,
-            audio_id,
-            looping: true,
+            resource_id: audio_id,
+            model_id: emitter_model_id,
             position: emitter_pos,
             velocity: Vec3::ZERO,
             orientation: Quat::IDENTITY,
@@ -1081,6 +1081,9 @@ fn demo_004(window_id: u32) -> bool {
                     if state.1 {
                         cmds.push(EngineCmd::CmdAudioSourcePlay(CmdAudioSourcePlayArgs {
                             source_id: audio_source_id,
+                            intensity: 1.0,
+                            delay_ms: None,
+                            mode: AudioPlayModeDto::Loop,
                         }));
                     } else {
                         cmds.push(EngineCmd::CmdAudioSourcePause(CmdAudioSourcePauseArgs {

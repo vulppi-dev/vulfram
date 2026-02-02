@@ -15,3 +15,4 @@
 - Em auditorias futuras, ignorar retenção por recursos host-side sem dispose.
 - `scripts/check.sh` roda `cargo check --lib` + valida WGSL.
 - Decode de imagens/texturas deve ser assíncrono por padrão; no browser tentar Worker e, se indisponível, usar Promises/async com divisão em chunks para não travar o loop.
+- Recursos de áudio devem seguir o mesmo padrão de recursos de textura: IDs lógicos, bind a modelo para emissor/receptor, play com delay opcional e modo (once/loop/reverse/loop-reverse/ping-pong), e bypass de spatialização quando emissor e receptor forem o mesmo modelo.

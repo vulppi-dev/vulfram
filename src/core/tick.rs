@@ -1,5 +1,5 @@
 use crate::core::cmd::engine_process_batch;
-use crate::core::audio::process_audio_listener_binding;
+use crate::core::audio::{process_audio_listener_binding, process_audio_source_bindings};
 use crate::core::platforms::PlatformProxy;
 
 #[cfg(feature = "wasm")]
@@ -57,6 +57,7 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
         }
 
         process_audio_listener_binding(&mut engine.state);
+        process_audio_source_bindings(&mut engine.state);
         crate::core::resources::process_async_texture_results(&mut engine.state);
         let audio_events = engine.state.audio.drain_events();
         for event in audio_events {

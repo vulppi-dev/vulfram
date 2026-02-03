@@ -36,4 +36,12 @@ pub enum SystemEvent {
         success: bool,
         message: String,
     },
+
+    /// Async audio stream progress
+    AudioStreamProgress {
+        resource_id: u32,
+        received_bytes: u64,
+        total_bytes: u64,
+        complete: bool,
+    },
 }

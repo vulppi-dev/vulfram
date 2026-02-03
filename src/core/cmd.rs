@@ -62,6 +62,7 @@ pub enum EngineCmd {
     CmdAudioListenerCreate(audio::CmdAudioListenerCreateArgs),
     CmdAudioListenerDispose(audio::CmdAudioListenerDisposeArgs),
     CmdAudioResourceCreate(audio::CmdAudioResourceCreateArgs),
+    CmdAudioResourcePush(audio::CmdAudioResourcePushArgs),
     CmdAudioSourceCreate(audio::CmdAudioSourceCreateArgs),
     CmdAudioSourceUpdate(audio::CmdAudioSourceUpdateArgs),
     CmdAudioSourcePlay(audio::CmdAudioSourcePlayArgs),
@@ -146,6 +147,7 @@ pub enum CommandResponse {
     AudioListenerCreate(audio::CmdResultAudioListenerCreate),
     AudioListenerDispose(audio::CmdResultAudioListenerDispose),
     AudioResourceCreate(audio::CmdResultAudioResourceCreate),
+    AudioResourcePush(audio::CmdResultAudioResourcePush),
     AudioSourceCreate(audio::CmdResultAudioSourceCreate),
     AudioSourceUpdate(audio::CmdResultAudioSourceUpdate),
     AudioSourcePlay(audio::CmdResultAudioSourcePlay),
@@ -505,6 +507,13 @@ pub fn engine_process_batch(
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::AudioResourceCreate(result),
+                });
+            }
+            EngineCmd::CmdAudioResourcePush(args) => {
+                let result = audio::engine_cmd_audio_resource_push(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::AudioResourcePush(result),
                 });
             }
             EngineCmd::CmdAudioSourceCreate(args) => {

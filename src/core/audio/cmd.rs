@@ -53,6 +53,8 @@ pub struct CmdResultAudioListenerUpdate {
 pub struct CmdAudioResourceCreateArgs {
     pub resource_id: u32,
     pub buffer_id: u64,
+    pub total_bytes: Option<u64>,
+    pub offset_bytes: Option<u64>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -61,6 +63,24 @@ pub struct CmdResultAudioResourceCreate {
     pub success: bool,
     pub message: String,
     pub pending: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CmdAudioResourcePushArgs {
+    pub resource_id: u32,
+    pub buffer_id: u64,
+    pub offset_bytes: u64,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+#[serde(default, rename_all = "camelCase")]
+pub struct CmdResultAudioResourcePush {
+    pub success: bool,
+    pub message: String,
+    pub received_bytes: u64,
+    pub total_bytes: u64,
+    pub complete: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -214,6 +234,72 @@ impl From<AudioPlayModeDto> for crate::core::audio::AudioPlayMode {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct AudioStreamState {
+    pub total_bytes: u64,
+    pub received_bytes: u64,
+    pub data: Vec<u8>,
+    pub ranges: Vec<(u64, u64)>,
+}
+
+impl AudioStreamState {
+    pub fn new(total_bytes: u64) -> Result<Self, String> {
+        let size = usize::try_from(total_bytes)
+            .map_err(|_| "Audio stream size exceeds addressable memory".to_string())?;
+        Ok(Self {
+            total_bytes,
+            received_bytes: 0,
+            data: vec![0; size],
+            ranges: Vec::new(),
+        })
+    }
+
+    pub fn apply_chunk(&mut self, offset: u64, bytes: &[u8]) -> Result<u64, String> {
+        if offset >= self.total_bytes {
+            return Err("Chunk offset exceeds total size".into());
+        }
+        let end = (offset + bytes.len() as u64).min(self.total_bytes);
+        let write_len = (end - offset) as usize;
+        if write_len == 0 {
+            return Ok(0);
+        }
+        let start_index = offset as usize;
+        self.data[start_index..start_index + write_len].copy_from_slice(&bytes[..write_len]);
+        let added = Self::merge_range(&mut self.ranges, offset, end);
+        self.received_bytes = self.received_bytes.saturating_add(added);
+        Ok(added)
+    }
+
+    fn merge_range(ranges: &mut Vec<(u64, u64)>, mut start: u64, mut end: u64) -> u64 {
+        let mut added = end.saturating_sub(start);
+        let mut i = 0;
+        while i < ranges.len() {
+            let (s, e) = ranges[i];
+            if e < start {
+                i += 1;
+                continue;
+            }
+            if s > end {
+                break;
+            }
+            let overlap_start = start.max(s);
+            let overlap_end = end.min(e);
+            if overlap_end > overlap_start {
+                added = added.saturating_sub(overlap_end - overlap_start);
+            }
+            start = start.min(s);
+            end = end.max(e);
+            ranges.remove(i);
+        }
+        ranges.insert(i, (start, end));
+        added
+    }
+
+    pub fn complete(&self) -> bool {
+        self.received_bytes >= self.total_bytes && self.total_bytes > 0
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CmdAudioResourceDisposeArgs {
@@ -347,20 +433,161 @@ pub fn engine_cmd_audio_buffer_create_from_buffer(
         };
     }
 
-    match engine
-        .audio
-        .buffer_create_from_bytes(args.resource_id, buffer.data)
-    {
-        Ok(()) => CmdResultAudioResourceCreate {
-            success: true,
-            message: "Audio buffer queued".into(),
-            pending: true,
-        },
-        Err(message) => CmdResultAudioResourceCreate {
+    if let Some(total_bytes) = args.total_bytes {
+        let offset = args.offset_bytes.unwrap_or(0);
+        let stream = match engine.audio_streams.entry(args.resource_id) {
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                match AudioStreamState::new(total_bytes) {
+                    Ok(state) => entry.insert(state),
+                    Err(message) => {
+                        return CmdResultAudioResourceCreate {
+                            success: false,
+                            message,
+                            pending: false,
+                        };
+                    }
+                }
+            }
+            std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut(),
+        };
+        if let Err(message) = stream.apply_chunk(offset, &buffer.data) {
+            return CmdResultAudioResourceCreate {
+                success: false,
+                message,
+                pending: false,
+            };
+        }
+        let complete = stream.complete();
+        engine.event_queue.push(crate::core::cmd::EngineEvent::System(
+            crate::core::system::events::SystemEvent::AudioStreamProgress {
+                resource_id: args.resource_id,
+                received_bytes: stream.received_bytes,
+                total_bytes: stream.total_bytes,
+                complete,
+            },
+        ));
+        if complete {
+            let stream = engine.audio_streams.remove(&args.resource_id).unwrap();
+            match engine.audio.buffer_create_from_bytes(args.resource_id, stream.data) {
+                Ok(()) => CmdResultAudioResourceCreate {
+                    success: true,
+                    message: "Audio stream queued".into(),
+                    pending: true,
+                },
+                Err(message) => CmdResultAudioResourceCreate {
+                    success: false,
+                    message,
+                    pending: false,
+                },
+            }
+        } else {
+            CmdResultAudioResourceCreate {
+                success: true,
+                message: "Audio stream chunk queued".into(),
+                pending: true,
+            }
+        }
+    } else {
+        match engine
+            .audio
+            .buffer_create_from_bytes(args.resource_id, buffer.data)
+        {
+            Ok(()) => CmdResultAudioResourceCreate {
+                success: true,
+                message: "Audio buffer queued".into(),
+                pending: true,
+            },
+            Err(message) => CmdResultAudioResourceCreate {
+                success: false,
+                message,
+                pending: false,
+            },
+        }
+    }
+}
+
+pub fn engine_cmd_audio_resource_push(
+    engine: &mut EngineState,
+    args: &CmdAudioResourcePushArgs,
+) -> CmdResultAudioResourcePush {
+    let buffer = match engine.buffers.remove_upload(args.buffer_id) {
+        Some(b) => b,
+        None => {
+            return CmdResultAudioResourcePush {
+                success: false,
+                message: format!("Buffer with id {} not found", args.buffer_id),
+                received_bytes: 0,
+                total_bytes: 0,
+                complete: false,
+            };
+        }
+    };
+    if buffer.upload_type != UploadType::BinaryAsset {
+        return CmdResultAudioResourcePush {
             success: false,
-            message,
-            pending: false,
+            message: format!(
+                "Invalid buffer type. Expected BinaryAsset, got {:?}",
+                buffer.upload_type
+            ),
+            received_bytes: 0,
+            total_bytes: 0,
+            complete: false,
+        };
+    }
+    let (received_bytes, total_bytes, complete) = {
+        let stream = match engine.audio_streams.get_mut(&args.resource_id) {
+            Some(stream) => stream,
+            None => {
+                return CmdResultAudioResourcePush {
+                    success: false,
+                    message: format!("Audio stream {} not found", args.resource_id),
+                    received_bytes: 0,
+                    total_bytes: 0,
+                    complete: false,
+                };
+            }
+        };
+        if let Err(message) = stream.apply_chunk(args.offset_bytes, &buffer.data) {
+            return CmdResultAudioResourcePush {
+                success: false,
+                message,
+                received_bytes: stream.received_bytes,
+                total_bytes: stream.total_bytes,
+                complete: stream.complete(),
+            };
+        }
+        (stream.received_bytes, stream.total_bytes, stream.complete())
+    };
+    engine.event_queue.push(crate::core::cmd::EngineEvent::System(
+        crate::core::system::events::SystemEvent::AudioStreamProgress {
+            resource_id: args.resource_id,
+            received_bytes,
+            total_bytes,
+            complete,
         },
+    ));
+    if complete {
+        let stream = engine.audio_streams.remove(&args.resource_id).unwrap();
+        if let Err(message) = engine.audio.buffer_create_from_bytes(args.resource_id, stream.data) {
+            return CmdResultAudioResourcePush {
+                success: false,
+                message,
+                received_bytes,
+                total_bytes,
+                complete: true,
+            };
+        }
+    }
+    CmdResultAudioResourcePush {
+        success: true,
+        message: if complete {
+            "Audio stream complete".into()
+        } else {
+            "Audio stream chunk queued".into()
+        },
+        received_bytes,
+        total_bytes,
+        complete,
     }
 }
 
@@ -507,6 +734,7 @@ pub fn engine_cmd_audio_resource_dispose(
     engine: &mut EngineState,
     args: &CmdAudioResourceDisposeArgs,
 ) -> CmdResultAudioResourceDispose {
+    engine.audio_streams.remove(&args.resource_id);
     match engine.audio.buffer_dispose(args.resource_id) {
         Ok(()) => CmdResultAudioResourceDispose {
             success: true,

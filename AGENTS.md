@@ -17,5 +17,6 @@
 - Decode de imagens/texturas deve ser assíncrono por padrão; no browser tentar Worker e, se indisponível, usar Promises/async com divisão em chunks para não travar o loop.
 - Dispose de recursos em decode deve cancelar (ou, se impossível, aguardar) e descartar o resultado.
 - `unwrap` em fluxo de comandos deve ser tratado com rollback e retorno de erro; fora de comandos deve emitir evento de erro.
+- Propriedades internas em Rust usam `snake_case`; o serde converte para `camelCase` no host.
 - Recursos de áudio devem seguir o mesmo padrão de recursos de textura: IDs lógicos, bind a modelo para emissor/receptor, play com delay opcional e modo (once/loop/reverse/loop-reverse/ping-pong), e bypass de spatialização quando emissor e receptor forem o mesmo modelo.
 - O sistema de áudio deve separar resource de source: source e listener são vinculados a modelos; play recebe resourceId e timelineId (default 0), reinicia se timeline já estiver ativo; stop pode receber timelineId.

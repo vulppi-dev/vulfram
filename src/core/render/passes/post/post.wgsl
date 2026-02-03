@@ -101,43 +101,41 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let outline_quality = clamp(post.params3.w, 0.0, 1.0);
     let outline_thresh = clamp(outline_threshold, 0.0, 0.999);
 
-    if (!enabled) {
-        return sample_color(in.uv);
-    }
-
     var color = sample_color(in.uv);
 
     let tex_size = vec2<f32>(textureDimensions(t_diffuse));
     let texel = 1.0 / tex_size;
 
-    if (chroma > 0.0001) {
-        let offset = (in.uv - vec2<f32>(0.5, 0.5)) * chroma * 2.0 * texel;
-        let r = sample_color(in.uv + offset).r;
-        let g = color.g;
-        let b = sample_color(in.uv - offset).b;
-        color = vec4<f32>(r, g, b, color.a);
-    }
+    if (enabled) {
+        if (chroma > 0.0001) {
+            let offset = (in.uv - vec2<f32>(0.5, 0.5)) * chroma * 2.0 * texel;
+            let r = sample_color(in.uv + offset).r;
+            let g = color.g;
+            let b = sample_color(in.uv - offset).b;
+            color = vec4<f32>(r, g, b, color.a);
+        }
 
-    if (blur > 0.0001) {
-        let b = blur * texel;
-        var sum = color.rgb * 0.4;
-        sum += sample_color(in.uv + vec2<f32>(b.x, 0.0)).rgb * 0.15;
-        sum += sample_color(in.uv - vec2<f32>(b.x, 0.0)).rgb * 0.15;
-        sum += sample_color(in.uv + vec2<f32>(0.0, b.y)).rgb * 0.15;
-        sum += sample_color(in.uv - vec2<f32>(0.0, b.y)).rgb * 0.15;
-        color = vec4<f32>(sum, color.a);
-    }
+        if (blur > 0.0001) {
+            let b = blur * texel;
+            var sum = color.rgb * 0.4;
+            sum += sample_color(in.uv + vec2<f32>(b.x, 0.0)).rgb * 0.15;
+            sum += sample_color(in.uv - vec2<f32>(b.x, 0.0)).rgb * 0.15;
+            sum += sample_color(in.uv + vec2<f32>(0.0, b.y)).rgb * 0.15;
+            sum += sample_color(in.uv - vec2<f32>(0.0, b.y)).rgb * 0.15;
+            color = vec4<f32>(sum, color.a);
+        }
 
-    if (sharpen > 0.0001) {
-        let t = texel;
-        let c = color.rgb;
-        let n = sample_color(in.uv + vec2<f32>(t.x, 0.0)).rgb;
-        let s = sample_color(in.uv - vec2<f32>(t.x, 0.0)).rgb;
-        let e = sample_color(in.uv + vec2<f32>(0.0, t.y)).rgb;
-        let w = sample_color(in.uv - vec2<f32>(0.0, t.y)).rgb;
-        let edge = (n + s + e + w) * 0.25;
-        let sharpened = mix(c, c + (c - edge), sharpen);
-        color = vec4<f32>(sharpened, color.a);
+        if (sharpen > 0.0001) {
+            let t = texel;
+            let c = color.rgb;
+            let n = sample_color(in.uv + vec2<f32>(t.x, 0.0)).rgb;
+            let s = sample_color(in.uv - vec2<f32>(t.x, 0.0)).rgb;
+            let e = sample_color(in.uv + vec2<f32>(0.0, t.y)).rgb;
+            let w = sample_color(in.uv - vec2<f32>(0.0, t.y)).rgb;
+            let edge = (n + s + e + w) * 0.25;
+            let sharpened = mix(c, c + (c - edge), sharpen);
+            color = vec4<f32>(sharpened, color.a);
+        }
     }
 
     var outline_mask = 0.0;
@@ -200,37 +198,39 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let tone_mapped = tonemap(tone_in, tone_mode);
     color = vec4<f32>(tone_mapped, color.a);
 
-    if (posterize_steps > 1.0) {
-        let steps = max(posterize_steps, 2.0);
-        let posterized = floor(color.rgb * steps) / steps;
-        color = vec4<f32>(posterized, color.a);
-    }
+    if (enabled) {
+        if (posterize_steps > 1.0) {
+            let steps = max(posterize_steps, 2.0);
+            let posterized = floor(color.rgb * steps) / steps;
+            color = vec4<f32>(posterized, color.a);
+        }
 
-    if (cell_shading) {
-        let levels = max(posterize_steps, 4.0);
+        if (cell_shading) {
+            let levels = max(posterize_steps, 4.0);
+            let lum = luma(color.rgb);
+            let band = floor(lum * levels) / levels;
+            let shaded = color.rgb * mix(0.5, 1.5, band);
+            color = vec4<f32>(shaded, color.a);
+        }
+
         let lum = luma(color.rgb);
-        let band = floor(lum * levels) / levels;
-        let shaded = color.rgb * mix(0.5, 1.5, band);
-        color = vec4<f32>(shaded, color.a);
-    }
+        let sat = mix(vec3<f32>(lum), color.rgb, saturation);
+        let con = (sat - vec3<f32>(0.5)) * contrast + vec3<f32>(0.5);
+        let gam = pow(max(con, vec3<f32>(0.0)), vec3<f32>(1.0 / gamma));
+        color = vec4<f32>(gam, color.a);
 
-    let lum = luma(color.rgb);
-    let sat = mix(vec3<f32>(lum), color.rgb, saturation);
-    let con = (sat - vec3<f32>(0.5)) * contrast + vec3<f32>(0.5);
-    let gam = pow(max(con, vec3<f32>(0.0)), vec3<f32>(1.0 / gamma));
-    color = vec4<f32>(gam, color.a);
+        if (vignette > 0.0001) {
+            let d = distance(in.uv, vec2<f32>(0.5, 0.5));
+            let v = smoothstep(0.7, 0.95, d);
+            let vcol = color.rgb * mix(1.0, 1.0 - vignette, v);
+            color = vec4<f32>(vcol, color.a);
+        }
 
-    if (vignette > 0.0001) {
-        let d = distance(in.uv, vec2<f32>(0.5, 0.5));
-        let v = smoothstep(0.7, 0.95, d);
-        let vcol = color.rgb * mix(1.0, 1.0 - vignette, v);
-        color = vec4<f32>(vcol, color.a);
-    }
-
-    if (grain > 0.0001) {
-        let noise = rand(in.uv * 2048.0, post.params3.x) - 0.5;
-        let gcol = color.rgb + noise * grain;
-        color = vec4<f32>(gcol, color.a);
+        if (grain > 0.0001) {
+            let noise = rand(in.uv * 2048.0, post.params3.x) - 0.5;
+            let gcol = color.rgb + noise * grain;
+            color = vec4<f32>(gcol, color.a);
+        }
     }
 
     if (outline_mask > 0.0) {

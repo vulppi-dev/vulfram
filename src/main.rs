@@ -1,6 +1,11 @@
 mod core;
 
 use crate::core::VulframResult;
+use crate::core::audio::{
+    AudioPlayModeDto, AudioSpatialParamsDto, CmdAudioListenerCreateArgs,
+    CmdAudioResourceCreateArgs, CmdAudioSourceCreateArgs, CmdAudioSourcePlayArgs,
+    CmdAudioSourceStopArgs,
+};
 use crate::core::buffers::state::UploadType;
 use crate::core::cmd::{
     CommandResponse, CommandResponseEnvelope, EngineCmd, EngineCmdEnvelope, EngineEvent,
@@ -21,13 +26,16 @@ use crate::core::resources::{
     MaterialKind, MaterialOptions, MaterialSampler, MsaaConfig, PostProcessConfig, PrimitiveShape,
     SkyboxConfig, SkyboxMode, StandardOptions, TextureCreateMode,
 };
+use crate::core::system::events::SystemEvent;
 use crate::core::window::{CmdWindowCloseArgs, CmdWindowCreateArgs, WindowEvent};
 use bytemuck::cast_slice;
-use glam::{Mat4, UVec2, Vec2, Vec3, Vec4};
+use glam::{Mat4, Quat, UVec2, Vec2, Vec3, Vec4};
 use rand::Rng;
 use rmp_serde::{from_slice, to_vec_named};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs;
+use std::rc::Rc;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -479,6 +487,14 @@ fn demo_004(window_id: u32) -> bool {
     let emissive_material_id: u32 = 504;
     let skybox_texture_id: u32 = 900;
     let skybox_buffer_id: u64 = 9000;
+    let audio_id: u32 = 910;
+    let audio_source_id: u32 = 911;
+    let audio_buffer_id: u64 = 9100;
+    let listener_model_id: u32 = 920;
+    let emitter_geometry_id: u32 = 930;
+    let emitter_material_id: u32 = 931;
+    let emitter_model_id: u32 = 932;
+    let emitter_pos = Vec3::new(8.0, -5.2, 8.0);
     let cube_models = [
         (
             501,
@@ -693,7 +709,7 @@ fn demo_004(window_id: u32) -> bool {
     };
 
     let post_config = PostProcessConfig {
-        filter_enabled: true,
+        filter_enabled: false,
         filter_exposure: 1.0,
         filter_gamma: 1.0,
         filter_saturation: 1.0,
@@ -725,6 +741,9 @@ fn demo_004(window_id: u32) -> bool {
         bloom_scatter: 1.0,
     };
 
+    let audio_bytes = load_texture_bytes("assets/audio.wav");
+    upload_binary_bytes(&audio_bytes, audio_buffer_id);
+
     let setup_cmds = vec![
         EngineCmd::CmdEnvironmentUpdate(CmdEnvironmentUpdateArgs {
             window_id,
@@ -751,6 +770,13 @@ fn demo_004(window_id: u32) -> bool {
             geometry_id,
             label: Some("Graph Cube".into()),
             shape: PrimitiveShape::Cube,
+            options: None,
+        }),
+        EngineCmd::CmdPrimitiveGeometryCreate(CmdPrimitiveGeometryCreateArgs {
+            window_id,
+            geometry_id: emitter_geometry_id,
+            label: Some("Audio Emitter".into()),
+            shape: PrimitiveShape::Sphere,
             options: None,
         }),
         create_camera_cmd(
@@ -783,6 +809,14 @@ fn demo_004(window_id: u32) -> bool {
             Vec4::ONE,
             None,
             Some(Vec4::new(5.0, 5.0, 5.0, 1.0)),
+        ),
+        create_standard_material_cmd(
+            window_id,
+            emitter_material_id,
+            "Audio Emitter Material",
+            Vec4::new(1.0, 0.8, 0.2, 1.0),
+            None,
+            Some(Vec4::new(2.5, 1.6, 0.4, 1.0)),
         ),
         EngineCmd::CmdModelCreate(CmdModelCreateArgs {
             window_id,
@@ -862,8 +896,53 @@ fn demo_004(window_id: u32) -> bool {
             cast_outline: true,
             outline_color: cube_models[5].2,
         }),
+        EngineCmd::CmdModelCreate(CmdModelCreateArgs {
+            window_id,
+            model_id: listener_model_id,
+            label: Some("Audio Listener".into()),
+            geometry_id,
+            material_id: Some(material_id),
+            transform: Mat4::from_translation(Vec3::new(0.0, 3.5, 8.0)),
+            layer_mask: 0,
+            cast_shadow: false,
+            receive_shadow: false,
+            cast_outline: false,
+            outline_color: Vec4::ZERO,
+        }),
+        EngineCmd::CmdModelCreate(CmdModelCreateArgs {
+            window_id,
+            model_id: emitter_model_id,
+            label: Some("Audio Emitter Sphere".into()),
+            geometry_id: emitter_geometry_id,
+            material_id: Some(emitter_material_id),
+            transform: Mat4::from_translation(emitter_pos) * Mat4::from_scale(Vec3::splat(0.6)),
+            layer_mask: 0xFFFFFFFF,
+            cast_shadow: false,
+            receive_shadow: true,
+            cast_outline: false,
+            outline_color: Vec4::ZERO,
+        }),
         create_floor_cmd(window_id, geometry_id, floor_material_id),
         create_shadow_config_cmd(window_id),
+        EngineCmd::CmdAudioListenerCreate(CmdAudioListenerCreateArgs {
+            window_id,
+            model_id: listener_model_id,
+        }),
+        EngineCmd::CmdAudioResourceCreate(CmdAudioResourceCreateArgs {
+            resource_id: audio_id,
+            buffer_id: audio_buffer_id,
+        }),
+        EngineCmd::CmdAudioSourceCreate(CmdAudioSourceCreateArgs {
+            window_id,
+            source_id: audio_source_id,
+            model_id: emitter_model_id,
+            position: emitter_pos,
+            velocity: Vec3::ZERO,
+            orientation: Quat::IDENTITY,
+            gain: 1.0,
+            pitch: 1.0,
+            spatial: AudioSpatialParamsDto::default(),
+        }),
     ];
 
     assert_eq!(send_commands(setup_cmds), VulframResult::Success);
@@ -889,70 +968,90 @@ fn demo_004(window_id: u32) -> bool {
         });
     }
 
-    run_loop(window_id, None, move |total_ms, _delta_ms| {
-        let time_f = total_ms as f32 / 1000.0;
-        let mut cmds = Vec::new();
-        let camera_radius = 8.0;
-        let camera_base_height = 3.0;
-        let camera_angle = time_f * 0.35;
-        let camera_height = camera_base_height + (time_f * 0.7).sin() * 1.25;
-        let camera_pos = Vec3::new(
-            camera_radius * camera_angle.cos(),
-            camera_height,
-            camera_radius * camera_angle.sin(),
-        );
-        let camera_transform = Mat4::look_at_rh(camera_pos, Vec3::ZERO, Vec3::Y).inverse();
-        cmds.push(EngineCmd::CmdCameraUpdate(CmdCameraUpdateArgs {
-            camera_id,
-            label: None,
-            transform: Some(camera_transform),
-            kind: None,
-            flags: None,
-            near_far: None,
-            layer_mask: None,
-            order: None,
-            view_position: None,
-            ortho_scale: None,
-        }));
-        if let Ok(mut slot) = skybox_bytes.lock() {
-            if let Some(bytes) = slot.take() {
-                upload_texture_bytes(&bytes, skybox_buffer_id);
-                cmds.push(EngineCmd::CmdTextureCreateFromBuffer(
-                    CmdTextureCreateFromBufferArgs {
+    let audio_state = Rc::new(RefCell::new((false, false, false)));
+
+    let audio_state_frame = Rc::clone(&audio_state);
+    let audio_state_events = Rc::clone(&audio_state);
+    run_loop_with_events(
+        window_id,
+        None,
+        move |total_ms, _delta_ms| {
+            let time_f = total_ms as f32 / 1000.0;
+            let mut cmds = Vec::new();
+            let camera_radius = 8.0;
+            let camera_base_height = 3.0;
+            let camera_angle = time_f * 0.35;
+            let camera_height = camera_base_height + (time_f * 0.7).sin() * 1.25;
+            let camera_pos = Vec3::new(
+                camera_radius * camera_angle.cos(),
+                camera_height,
+                camera_radius * camera_angle.sin(),
+            );
+            let camera_transform = Mat4::look_at_rh(camera_pos, Vec3::ZERO, Vec3::Y).inverse();
+            cmds.push(EngineCmd::CmdCameraUpdate(CmdCameraUpdateArgs {
+                camera_id,
+                label: None,
+                transform: Some(camera_transform),
+                kind: None,
+                flags: None,
+                near_far: None,
+                layer_mask: None,
+                order: None,
+                view_position: None,
+                ortho_scale: None,
+            }));
+            cmds.push(EngineCmd::CmdModelUpdate(CmdModelUpdateArgs {
+                window_id,
+                model_id: listener_model_id,
+                label: None,
+                geometry_id: None,
+                material_id: None,
+                transform: Some(camera_transform),
+                layer_mask: None,
+                cast_shadow: None,
+                receive_shadow: None,
+                cast_outline: None,
+                outline_color: None,
+            }));
+            if let Ok(mut slot) = skybox_bytes.lock() {
+                if let Some(bytes) = slot.take() {
+                    upload_texture_bytes(&bytes, skybox_buffer_id);
+                    cmds.push(EngineCmd::CmdTextureCreateFromBuffer(
+                        CmdTextureCreateFromBufferArgs {
+                            window_id,
+                            texture_id: skybox_texture_id,
+                            label: Some("Skybox Texture".into()),
+                            buffer_id: skybox_buffer_id,
+                            srgb: Some(false),
+                            mode: TextureCreateMode::Standalone,
+                            atlas_options: None,
+                        },
+                    ));
+                    cmds.push(EngineCmd::CmdEnvironmentUpdate(CmdEnvironmentUpdateArgs {
                         window_id,
-                        texture_id: skybox_texture_id,
-                        label: Some("Skybox Texture".into()),
-                        buffer_id: skybox_buffer_id,
-                        srgb: Some(false),
-                        mode: TextureCreateMode::Standalone,
-                        atlas_options: None,
-                    },
-                ));
-                cmds.push(EngineCmd::CmdEnvironmentUpdate(CmdEnvironmentUpdateArgs {
-                    window_id,
-                    config: EnvironmentConfig {
-                        msaa: MsaaConfig {
-                            enabled: true,
-                            sample_count: 4,
+                        config: EnvironmentConfig {
+                            msaa: MsaaConfig {
+                                enabled: true,
+                                sample_count: 4,
+                            },
+                            skybox: SkyboxConfig {
+                                mode: SkyboxMode::Cubemap,
+                                intensity: 1.0,
+                                rotation: 0.0,
+                                ground_color: Vec3::new(0.01, 0.02, 0.03),
+                                horizon_color: Vec3::new(0.08, 0.12, 0.18),
+                                sky_color: Vec3::new(0.18, 0.32, 0.55),
+                                cubemap_texture_id: Some(skybox_texture_id),
+                            },
+                            post: post_config.clone(),
                         },
-                        skybox: SkyboxConfig {
-                            mode: SkyboxMode::Cubemap,
-                            intensity: 1.0,
-                            rotation: 0.0,
-                            ground_color: Vec3::new(0.01, 0.02, 0.03),
-                            horizon_color: Vec3::new(0.08, 0.12, 0.18),
-                            sky_color: Vec3::new(0.18, 0.32, 0.55),
-                            cubemap_texture_id: Some(skybox_texture_id),
-                        },
-                        post: post_config.clone(),
-                    },
-                }));
+                    }));
+                }
             }
-        }
-        for (index, (model_id, base_pos, _outline)) in cube_models.iter().enumerate() {
-            let wobble = time_f + index as f32 * 0.6;
-            let transform =
-                Mat4::from_translation(*base_pos + Vec3::new(0.0, wobble.sin() * 0.25, 0.0))
+            for (index, (model_id, base_pos, _outline)) in cube_models.iter().enumerate() {
+                let wobble = time_f + index as f32 * 0.6;
+                let position = *base_pos + Vec3::new(0.0, wobble.sin() * 0.25, 0.0);
+                let transform = Mat4::from_translation(position)
                     * Mat4::from_euler(
                         glam::EulerRot::XYZ,
                         wobble * 0.9,
@@ -960,23 +1059,69 @@ fn demo_004(window_id: u32) -> bool {
                         wobble * 0.3,
                     )
                     * Mat4::from_scale(Vec3::splat(1.15));
-            cmds.push(EngineCmd::CmdModelUpdate(CmdModelUpdateArgs {
-                window_id,
-                model_id: *model_id,
-                label: None,
-                geometry_id: None,
-                material_id: None,
-                transform: Some(transform),
-                layer_mask: None,
-                cast_shadow: None,
-                receive_shadow: None,
-                cast_outline: None,
-                outline_color: None,
-            }));
-        }
+                cmds.push(EngineCmd::CmdModelUpdate(CmdModelUpdateArgs {
+                    window_id,
+                    model_id: *model_id,
+                    label: None,
+                    geometry_id: None,
+                    material_id: None,
+                    transform: Some(transform),
+                    layer_mask: None,
+                    cast_shadow: None,
+                    receive_shadow: None,
+                    cast_outline: None,
+                    outline_color: None,
+                }));
+            }
+            {
+                let mut state = audio_state_frame.borrow_mut();
+                if state.0 && state.1 != state.2 {
+                    state.2 = state.1;
+                    if state.1 {
+                        cmds.push(EngineCmd::CmdAudioSourcePlay(CmdAudioSourcePlayArgs {
+                            source_id: audio_source_id,
+                            resource_id: audio_id,
+                            timeline_id: None,
+                            intensity: 1.0,
+                            delay_ms: None,
+                            mode: AudioPlayModeDto::Loop,
+                        }));
+                    } else {
+                        cmds.push(EngineCmd::CmdAudioSourceStop(CmdAudioSourceStopArgs {
+                            source_id: audio_source_id,
+                            timeline_id: None,
+                        }));
+                    }
+                }
+            }
 
-        cmds
-    })
+            cmds
+        },
+        move |event| {
+            match &event {
+                EngineEvent::System(SystemEvent::AudioReady {
+                    resource_id: ready_id,
+                    success,
+                    message,
+                }) if *ready_id == audio_id => {
+                    let mut state = audio_state_events.borrow_mut();
+                    state.0 = *success;
+                    println!("AudioReady: success={} message={}", success, message);
+                }
+                EngineEvent::Keyboard(KeyboardEvent::OnInput {
+                    window_id: id,
+                    key_code,
+                    state: ElementState::Pressed,
+                    ..
+                }) if *id == window_id && *key_code == 62 => {
+                    let mut state = audio_state_events.borrow_mut();
+                    state.1 = !state.1;
+                }
+                _ => {}
+            }
+            false
+        },
+    )
 }
 
 fn create_camera_cmd(camera_id: u32, label: &str, transform: Mat4) -> EngineCmd {
@@ -1192,6 +1337,18 @@ fn upload_texture_bytes(bytes: &[u8], buffer_id: u64) {
     );
 }
 
+fn upload_binary_bytes(bytes: &[u8], buffer_id: u64) {
+    assert_eq!(
+        core::vulfram_upload_buffer(
+            buffer_id,
+            upload_type_to_u32(UploadType::BinaryAsset),
+            bytes.as_ptr(),
+            bytes.len()
+        ),
+        VulframResult::Success
+    );
+}
+
 fn upload_texture(path: &str, buffer_id: u64) {
     let texture_bytes = load_texture_bytes(path);
     upload_texture_bytes(&texture_bytes, buffer_id);
@@ -1282,9 +1439,22 @@ fn build_skinned_plane(
     (positions, normals, uvs, joints, weights, indices)
 }
 
-fn run_loop<F>(window_id: u32, max_duration: Option<Duration>, mut on_frame: F) -> bool
+fn run_loop<F>(window_id: u32, max_duration: Option<Duration>, on_frame: F) -> bool
 where
     F: FnMut(u64, u32) -> Vec<EngineCmd>,
+{
+    run_loop_with_events(window_id, max_duration, on_frame, |_| false)
+}
+
+fn run_loop_with_events<F, G>(
+    window_id: u32,
+    max_duration: Option<Duration>,
+    mut on_frame: F,
+    mut on_event: G,
+) -> bool
+where
+    F: FnMut(u64, u32) -> Vec<EngineCmd>,
+    G: FnMut(EngineEvent) -> bool,
 {
     let start_time = Instant::now();
     let mut last_frame_time = Instant::now();
@@ -1321,7 +1491,7 @@ where
             }
         }
 
-        if handle_close_events(window_id) {
+        if handle_events(window_id, &mut on_event) {
             let _ = send_commands(vec![EngineCmd::CmdWindowClose(CmdWindowCloseArgs {
                 window_id,
             })]);
@@ -1335,6 +1505,37 @@ where
     }
 }
 
+fn is_close_event(window_id: u32, event: &EngineEvent) -> bool {
+    match event {
+        EngineEvent::Window(WindowEvent::OnCloseRequest { window_id: id }) if *id == window_id => {
+            true
+        }
+        EngineEvent::Keyboard(KeyboardEvent::OnInput {
+            window_id: id,
+            key_code,
+            state: ElementState::Pressed,
+            ..
+        }) if *id == window_id && *key_code == 106 => true,
+        _ => false,
+    }
+}
+
+fn handle_events<F>(window_id: u32, on_event: &mut F) -> bool
+where
+    F: FnMut(EngineEvent) -> bool,
+{
+    let events = receive_events();
+    for event in events {
+        if is_close_event(window_id, &event) {
+            return true;
+        }
+        if on_event(event) {
+            return true;
+        }
+    }
+    false
+}
+
 fn get_profiling() -> Option<core::profiling::cmd::ProfilingData> {
     let mut ptr = std::ptr::null();
     let mut len: usize = 0;
@@ -1345,33 +1546,6 @@ fn get_profiling() -> Option<core::profiling::cmd::ProfilingData> {
     let bytes = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(ptr as *mut u8, len)) };
     let profiling = from_slice(&bytes).ok()?;
     Some(profiling)
-}
-
-fn handle_close_events(window_id: u32) -> bool {
-    let events = receive_events();
-    for event in events {
-        match event {
-            EngineEvent::Window(WindowEvent::OnCloseRequest { window_id: id })
-                if id == window_id =>
-            {
-                return true;
-            }
-            EngineEvent::Keyboard(KeyboardEvent::OnInput {
-                window_id: id,
-                key_code,
-                state: ElementState::Pressed,
-                ..
-            }) if id == window_id && key_code == 106 => {
-                return true;
-            }
-            EngineEvent::System(sys_event) => {
-                println!("Received system event: {:?}", sys_event);
-            }
-            _ => {}
-        }
-    }
-
-    false
 }
 
 fn pump_for(duration: Duration) {

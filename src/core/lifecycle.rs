@@ -26,10 +26,11 @@ pub fn vulfram_init() -> VulframResult {
             return VulframResult::AlreadyInitialized;
         } else {
             let platform = DefaultPlatformProxy::new();
-            *opt = Some(EngineSingleton {
-                state: EngineState::new(),
-                platform,
-            });
+            let mut state = EngineState::new();
+            if let Err(message) = state.audio.init() {
+                eprintln!("Audio init failed: {}", message);
+            }
+            *opt = Some(EngineSingleton { state, platform });
             return VulframResult::Success;
         }
     })

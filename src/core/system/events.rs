@@ -29,4 +29,11 @@ pub enum SystemEvent {
         success: bool,
         message: String,
     },
+
+    /// Async audio decode finished
+    AudioReady {
+        resource_id: u32,
+        success: bool,
+        message: String,
+    },
 }

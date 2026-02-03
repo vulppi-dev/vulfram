@@ -184,8 +184,25 @@ Async texture decode:
 
 The outline mask is rendered in a dedicated `outline` pass into `outline_color`
 (now `rgba8`), and sampled by the `post` pass for final composition.
-  - `material_id` (optional)
-  - `layer_mask`
+
+---
+
+## 6. Audio (Core, WIP)
+
+The audio system is proxy-based (desktop = Kira, browser = WebAudio). The API is shared across backends.
+
+Command definitions live in `docs/cmds`.
+
+Notes:
+- `intensity` is a 0..1 scalar applied on top of `gain` when playing.
+- `mode` supports `once`, `loop`, `reverse`, `loop-reverse`, `ping-pong`.
+- When a source is bound to a model, the core updates its position every tick.
+- If the bound source model is the same as the bound listener model, spatialization is bypassed.
+
+Events:
+- `SystemEvent::AudioReady { resourceId, success, message }` (async decode)
+  - Emitted when the audio buffer finishes decoding (desktop and web).
+  - Use this to decide when `CmdAudioSourcePlay` is safe to call.
 
 The visibility rule uses `layer_mask`:
 
@@ -210,18 +227,7 @@ then decoded into internal Rust enums.
 
 ### 5.2 Command Representation
 
-Current command enum (`EngineCmd`) includes:
-
-- **Window**: Create, Close, SetTitle, SetPosition, GetPosition, SetSize, GetSize, GetOuterSize, GetSurfaceSize, SetState, GetState, SetIcon, SetDecorations, HasDecorations, SetResizable, IsResizable, RequestAttention, Focus, SetCursorVisible, SetCursorGrab, SetCursorIcon.
-- **Camera**: Create, Update, Dispose, List.
-- **Model**: Create, Update, Dispose, List.
-- **Light**: Create, Update, Dispose, List.
-- **Material**: Create, Update, Dispose, List.
-- **Texture**: CreateFromBuffer, CreateSolidColor, Dispose, List.
-- **Geometry**: Create, Update, Dispose, List.
-- **Primitive Geometry**: Create (Cube, Plane, Sphere, Cylinder, Torus, Pyramid).
-- **Shadow**: Configure.
-- **Gizmo**: DrawLine, DrawAabb.
+`EngineCmd` is the internal command enum; see `docs/cmds` for the command surface.
 
 ### 5.3 Command Execution
 

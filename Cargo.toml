@@ -1,6 +1,6 @@
 [package]
 name = "vulfram-core"
-version = "0.13.1-alpha"
+version = "0.14.4-alpha"
 edition = "2024"
 default-run = "vulfram-core"
 
@@ -45,6 +45,7 @@ napi = { version = "3.8", optional = true }
 napi-derive = { version = "3.5", optional = true }
 pyo3 = { version = "0.27", features = ["extension-module"], optional = true }
 rand = "0.9.2"
+mint = "0.5"
 
 # Wasm
 js-sys = { version = "0.3", optional = true }
@@ -71,14 +72,23 @@ web-sys = { version = "0.3", optional = true, features = [
     "Navigator",
     "Gamepad",
     "GamepadButton",
+    "AudioBuffer",
+    "AudioBufferSourceNode",
+    "AudioContext",
+    "AudioDestinationNode",
+    "AudioListener",
+    "AudioParam",
+    "GainNode",
+    "PannerNode",
+    "PannerOptions",
 ] }
 
 [lib]
 crate-type = ["cdylib"]
 path = "src/lib.rs"
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = { version = "0.3", features = ["wasm_js"] }
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+kira = "0.9"
 
 [features]
 default = ["napi"]  # Default to N-API export

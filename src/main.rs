@@ -3,8 +3,8 @@ mod core;
 use crate::core::VulframResult;
 use crate::core::audio::{
     AudioPlayModeDto, AudioSpatialParamsDto, CmdAudioListenerCreateArgs,
-    CmdAudioResourceCreateArgs, CmdAudioSourceCreateArgs, CmdAudioSourcePlayArgs,
-    CmdAudioSourceStopArgs,
+    CmdAudioResourceCreateArgs, CmdAudioResourcePushArgs, CmdAudioSourceCreateArgs,
+    CmdAudioSourcePlayArgs, CmdAudioSourceStopArgs,
 };
 use crate::core::buffers::state::UploadType;
 use crate::core::cmd::{
@@ -742,7 +742,13 @@ fn demo_004(window_id: u32) -> bool {
     };
 
     let audio_bytes = load_texture_bytes("assets/audio.wav");
-    upload_binary_bytes(&audio_bytes, audio_buffer_id);
+    let audio_chunk_size = 64 * 1024;
+    let mut audio_chunk_ids = Vec::new();
+    for (index, chunk) in audio_bytes.chunks(audio_chunk_size).enumerate() {
+        let buffer_id = audio_buffer_id + index as u64;
+        upload_binary_bytes(chunk, buffer_id);
+        audio_chunk_ids.push((buffer_id, index as u64 * audio_chunk_size as u64));
+    }
 
     let setup_cmds = vec![
         EngineCmd::CmdEnvironmentUpdate(CmdEnvironmentUpdateArgs {
@@ -930,9 +936,12 @@ fn demo_004(window_id: u32) -> bool {
         }),
         EngineCmd::CmdAudioResourceCreate(CmdAudioResourceCreateArgs {
             resource_id: audio_id,
-            buffer_id: audio_buffer_id,
-            total_bytes: None,
-            offset_bytes: None,
+            buffer_id: audio_chunk_ids
+                .first()
+                .map(|(buffer_id, _)| *buffer_id)
+                .unwrap_or(audio_buffer_id),
+            total_bytes: Some(audio_bytes.len() as u64),
+            offset_bytes: Some(0),
         }),
         EngineCmd::CmdAudioSourceCreate(CmdAudioSourceCreateArgs {
             window_id,
@@ -948,6 +957,17 @@ fn demo_004(window_id: u32) -> bool {
     ];
 
     assert_eq!(send_commands(setup_cmds), VulframResult::Success);
+    if audio_chunk_ids.len() > 1 {
+        let mut chunk_cmds = Vec::new();
+        for (buffer_id, offset_bytes) in audio_chunk_ids.iter().skip(1) {
+            chunk_cmds.push(EngineCmd::CmdAudioResourcePush(CmdAudioResourcePushArgs {
+                resource_id: audio_id,
+                buffer_id: *buffer_id,
+                offset_bytes: *offset_bytes,
+            }));
+        }
+        assert_eq!(send_commands(chunk_cmds), VulframResult::Success);
+    }
     let responses = receive_responses();
     for response in responses {
         if let CommandResponse::RenderGraphSet(result) = response.response {

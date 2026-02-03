@@ -6,9 +6,7 @@ use js_sys::{Function, Reflect, Uint8Array};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::spawn_local;
-use web_sys::{
-    AudioBuffer, AudioBufferSourceNode, AudioContext, GainNode, PannerNode, PannerOptions,
-};
+use web_sys::{AudioBuffer, AudioBufferSourceNode, AudioContext, GainNode, PannerNode};
 
 use crate::core::audio::{
     AudioListenerState, AudioPlayMode, AudioProxy, AudioReadyEvent, AudioSourceParams,
@@ -78,9 +76,13 @@ impl WebAudioProxy {
     }
 
     fn update_panner(panner: &PannerNode, params: AudioSourceParams) {
-        panner.set_position(params.position.x, params.position.y, params.position.z);
+        panner.set_position(
+            params.position.x as f64,
+            params.position.y as f64,
+            params.position.z as f64,
+        );
         let forward = params.orientation * Vec3::NEG_Z;
-        panner.set_orientation(forward.x, forward.y, forward.z);
+        panner.set_orientation(forward.x as f64, forward.y as f64, forward.z as f64);
         panner.set_ref_distance(params.spatial.min_distance as f64);
         panner.set_max_distance(params.spatial.max_distance as f64);
         panner.set_rolloff_factor(params.spatial.rolloff as f64);
@@ -91,9 +93,19 @@ impl WebAudioProxy {
 
     fn apply_listener(context: &AudioContext, state: AudioListenerState) {
         let listener = context.listener();
-        listener.set_position(state.position.x, state.position.y, state.position.z);
-        listener.set_forward(state.forward.x, state.forward.y, state.forward.z);
-        listener.set_up(state.up.x, state.up.y, state.up.z);
+        listener.set_position(
+            state.position.x as f64,
+            state.position.y as f64,
+            state.position.z as f64,
+        );
+        listener.set_orientation(
+            state.forward.x as f64,
+            state.forward.y as f64,
+            state.forward.z as f64,
+            state.up.x as f64,
+            state.up.y as f64,
+            state.up.z as f64,
+        );
     }
 
     fn build_source_node(
@@ -148,6 +160,17 @@ impl WebAudioProxy {
         }
         Ok(())
     }
+
+    fn stop_node(node: &AudioBufferSourceNode) -> Result<(), String> {
+        let func = Reflect::get(node, &JsValue::from_str("stop"))
+            .map_err(|_| "Failed to access stop".to_string())?;
+        let func = func
+            .dyn_into::<Function>()
+            .map_err(|_| "stop is not a function".to_string())?;
+        func.call0(&JsValue::from(node))
+            .map_err(|_| "Failed to stop audio".to_string())?;
+        Ok(())
+    }
 }
 
 impl AudioProxy for WebAudioProxy {
@@ -180,7 +203,16 @@ impl AudioProxy for WebAudioProxy {
         let buffer = Uint8Array::from(bytes.as_slice()).buffer();
         self.pending.insert(resource_id);
         spawn_local(async move {
-            let promise = context.decode_audio_data(&buffer);
+            let promise = match context.decode_audio_data(&buffer) {
+                Ok(promise) => promise,
+                Err(_) => {
+                    let _ = sender.send(DecodeResult {
+                        resource_id,
+                        buffer: Err("Failed to decode audio".to_string()),
+                    });
+                    return;
+                }
+            };
             let result = wasm_bindgen_futures::JsFuture::from(promise).await;
             let decode = match result {
                 Ok(audio) => audio
@@ -202,9 +234,8 @@ impl AudioProxy for WebAudioProxy {
             .context
             .as_ref()
             .ok_or_else(|| "AudioContext not initialized".to_string())?;
-        let options = PannerOptions::new();
         let panner = context
-            .create_panner_with_options(&options)
+            .create_panner()
             .map_err(|_| "Failed to create PannerNode".to_string())?;
         Self::update_panner(&panner, params);
         panner
@@ -265,11 +296,11 @@ impl AudioProxy for WebAudioProxy {
             .ok_or_else(|| format!("Audio buffer {} not ready", resource_id))?;
         let duration = buffer.duration();
         let mut cursor = 0.0;
-        let rate = source.params.pitch;
+        let mut rate = source.params.pitch;
         if let Some(mut layer) = source.layers.remove(&timeline_id) {
             if !layer.paused {
                 if let Some(node) = layer.node.take() {
-                    let _ = node.stop();
+                    let _ = Self::stop_node(&node);
                 }
             }
             cursor = layer.cursor;
@@ -328,7 +359,7 @@ impl AudioProxy for WebAudioProxy {
                             layer.cursor %= layer.duration;
                         }
                     }
-                    let _ = node.stop();
+                    let _ = Self::stop_node(&node);
                 }
                 if !layer.paused {
                     layer.paused = true;
@@ -346,7 +377,7 @@ impl AudioProxy for WebAudioProxy {
                         layer.cursor %= layer.duration;
                     }
                 }
-                let _ = node.stop();
+                let _ = Self::stop_node(&node);
             }
             if !layer.paused {
                 layer.paused = true;
@@ -363,14 +394,14 @@ impl AudioProxy for WebAudioProxy {
         if let Some(timeline_id) = timeline_id {
             if let Some(layer) = source.layers.remove(&timeline_id) {
                 if let Some(node) = layer.node {
-                    let _ = node.stop();
+                    let _ = Self::stop_node(&node);
                 }
             }
             return Ok(());
         }
         for (_timeline, layer) in source.layers.drain() {
             if let Some(node) = layer.node {
-                let _ = node.stop();
+                let _ = Self::stop_node(&node);
             }
         }
         Ok(())
@@ -390,7 +421,7 @@ impl AudioProxy for WebAudioProxy {
             for timeline_id in to_stop {
                 if let Some(layer) = source.layers.remove(&timeline_id) {
                     if let Some(node) = layer.node {
-                        let _ = node.stop();
+                        let _ = Self::stop_node(&node);
                     }
                 }
             }
@@ -402,7 +433,7 @@ impl AudioProxy for WebAudioProxy {
         if let Some(mut source) = self.sources.remove(&source_id) {
             for (_timeline, layer) in source.layers.drain() {
                 if let Some(node) = layer.node {
-                    let _ = node.stop();
+                    let _ = Self::stop_node(&node);
                 }
             }
         }

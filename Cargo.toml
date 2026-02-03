@@ -90,6 +90,9 @@ path = "src/lib.rs"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 kira = "0.9"
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.3", features = ["wasm_js"] }
+
 [features]
 default = ["napi"]  # Default to N-API export
 ffi = ["dep:winit", "dep:gilrs", "dep:notify-rust", "dep:ctrlc"]  # C ABI / FFI export

@@ -191,18 +191,7 @@ The outline mask is rendered in a dedicated `outline` pass into `outline_color`
 
 The audio system is proxy-based (desktop = Kira, browser = WebAudio). The API is shared across backends.
 
-Commands (core/audio/cmd.rs):
-- `CmdAudioListenerUpdate { position, velocity, forward, up }`
-- `CmdAudioListenerCreate { windowId, modelId }`
-- `CmdAudioListenerDispose { windowId }`
-- `CmdAudioResourceCreate { resourceId, bufferId }` (UploadType::BinaryAsset)
-- `CmdAudioSourceCreate { windowId, sourceId, resourceId, modelId, position, velocity, orientation, gain, pitch, spatial }`
-- `CmdAudioSourceUpdate { sourceId, position, velocity, orientation, gain, pitch, spatial }`
-- `CmdAudioSourcePlay { sourceId, intensity, delayMs?, mode }`
-- `CmdAudioSourcePause { sourceId }`
-- `CmdAudioSourceStop { sourceId }`
-- `CmdAudioSourceDispose { sourceId }`
-- `CmdAudioResourceDispose { resourceId }`
+Command definitions live in `docs/cmds`.
 
 Notes:
 - `intensity` is a 0..1 scalar applied on top of `gain` when playing.
@@ -211,7 +200,7 @@ Notes:
 - If the bound source model is the same as the bound listener model, spatialization is bypassed.
 
 Events:
-- `SystemEvent::AudioReady { audioId, success, message }` (async decode)
+- `SystemEvent::AudioReady { resourceId, success, message }` (async decode)
   - Emitted when the audio buffer finishes decoding (desktop and web).
   - Use this to decide when `CmdAudioSourcePlay` is safe to call.
 
@@ -238,18 +227,7 @@ then decoded into internal Rust enums.
 
 ### 5.2 Command Representation
 
-Current command enum (`EngineCmd`) includes:
-
-- **Window**: Create, Close, SetTitle, SetPosition, GetPosition, SetSize, GetSize, GetOuterSize, GetSurfaceSize, SetState, GetState, SetIcon, SetDecorations, HasDecorations, SetResizable, IsResizable, RequestAttention, Focus, SetCursorVisible, SetCursorGrab, SetCursorIcon.
-- **Camera**: Create, Update, Dispose, List.
-- **Model**: Create, Update, Dispose, List.
-- **Light**: Create, Update, Dispose, List.
-- **Material**: Create, Update, Dispose, List.
-- **Texture**: CreateFromBuffer, CreateSolidColor, Dispose, List.
-- **Geometry**: Create, Update, Dispose, List.
-- **Primitive Geometry**: Create (Cube, Plane, Sphere, Cylinder, Torus, Pyramid).
-- **Shadow**: Configure.
-- **Gizmo**: DrawLine, DrawAabb.
+`EngineCmd` is the internal command enum; see `docs/cmds` for the command surface.
 
 ### 5.3 Command Execution
 

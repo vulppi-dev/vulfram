@@ -1,12 +1,13 @@
 # CmdAudioSourcePause
 
-Pauses playback for a source.
+Pauses playback for a source. The layer is preserved for resuming.
 
 ## Arguments
 
-| Field    | Type | Description |
-| -------- | ---- | ----------- |
-| sourceId | u32  | Source ID   |
+| Field      | Type        | Description                             |
+| ---------- | ----------- | --------------------------------------- |
+| sourceId   | u32         | Source ID                               |
+| timelineId | Option<u32> | Optional timeline layer (defaults to all)|
 
 ## Response
 

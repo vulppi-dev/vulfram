@@ -3,8 +3,8 @@ mod core;
 use crate::core::VulframResult;
 use crate::core::audio::{
     AudioPlayModeDto, AudioSpatialParamsDto, CmdAudioListenerCreateArgs,
-    CmdAudioResourceCreateArgs, CmdAudioSourceCreateArgs, CmdAudioSourcePauseArgs,
-    CmdAudioSourcePlayArgs,
+    CmdAudioResourceCreateArgs, CmdAudioSourceCreateArgs, CmdAudioSourcePlayArgs,
+    CmdAudioSourceStopArgs,
 };
 use crate::core::buffers::state::UploadType;
 use crate::core::cmd::{
@@ -935,7 +935,6 @@ fn demo_004(window_id: u32) -> bool {
         EngineCmd::CmdAudioSourceCreate(CmdAudioSourceCreateArgs {
             window_id,
             source_id: audio_source_id,
-            resource_id: audio_id,
             model_id: emitter_model_id,
             position: emitter_pos,
             velocity: Vec3::ZERO,
@@ -1081,13 +1080,16 @@ fn demo_004(window_id: u32) -> bool {
                     if state.1 {
                         cmds.push(EngineCmd::CmdAudioSourcePlay(CmdAudioSourcePlayArgs {
                             source_id: audio_source_id,
+                            resource_id: audio_id,
+                            timeline_id: None,
                             intensity: 1.0,
                             delay_ms: None,
                             mode: AudioPlayModeDto::Loop,
                         }));
                     } else {
-                        cmds.push(EngineCmd::CmdAudioSourcePause(CmdAudioSourcePauseArgs {
+                        cmds.push(EngineCmd::CmdAudioSourceStop(CmdAudioSourceStopArgs {
                             source_id: audio_source_id,
+                            timeline_id: None,
                         }));
                     }
                 }
@@ -1098,7 +1100,7 @@ fn demo_004(window_id: u32) -> bool {
         move |event| {
             match &event {
                 EngineEvent::System(SystemEvent::AudioReady {
-                    audio_id: ready_id,
+                    resource_id: ready_id,
                     success,
                     message,
                 }) if *ready_id == audio_id => {

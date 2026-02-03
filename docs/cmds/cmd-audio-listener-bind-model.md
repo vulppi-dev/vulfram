@@ -1,3 +1,3 @@
-# CmdAudioListenerBindModel (Deprecated)
+# CmdAudioListenerCreate
 
-Renamed to `CmdAudioListenerCreate`.
+See `cmd-audio-listener-create.md`.

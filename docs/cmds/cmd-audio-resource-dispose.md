@@ -1,6 +1,6 @@
 # CmdAudioResourceDispose
 
-Disposes an audio resource.
+Disposes an audio resource. Any playing layers using it are stopped.
 
 ## Arguments
 

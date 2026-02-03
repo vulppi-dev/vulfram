@@ -32,7 +32,7 @@ pub enum SystemEvent {
 
     /// Async audio decode finished
     AudioReady {
-        audio_id: u32,
+        resource_id: u32,
         success: bool,
         message: String,
     },

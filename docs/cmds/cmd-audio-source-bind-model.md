@@ -1,3 +1,3 @@
-# CmdAudioSourceBindModel (Deprecated)
+# CmdAudioSourceCreate
 
-Renamed into `CmdAudioSourceCreate` (now includes modelId).
+See `cmd-audio-source-create.md`.

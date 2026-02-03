@@ -64,7 +64,7 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
             engine.state.event_queue.push(
                 crate::core::cmd::EngineEvent::System(
                     crate::core::system::events::SystemEvent::AudioReady {
-                        audio_id: event.audio_id,
+                        resource_id: event.resource_id,
                         success: event.success,
                         message: event.message,
                     },

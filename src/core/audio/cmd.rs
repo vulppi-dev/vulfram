@@ -68,7 +68,6 @@ pub struct CmdResultAudioResourceCreate {
 pub struct CmdAudioSourceCreateArgs {
     pub window_id: u32,
     pub source_id: u32,
-    pub resource_id: u32,
     pub model_id: u32,
     pub position: Vec3,
     pub velocity: Vec3,
@@ -145,6 +144,8 @@ pub struct CmdResultAudioSourceUpdate {
 #[serde(rename_all = "camelCase")]
 pub struct CmdAudioSourcePlayArgs {
     pub source_id: u32,
+    pub resource_id: u32,
+    pub timeline_id: Option<u32>,
     pub intensity: f32,
     pub delay_ms: Option<u32>,
     pub mode: AudioPlayModeDto,
@@ -161,6 +162,7 @@ pub struct CmdResultAudioSourcePlay {
 #[serde(rename_all = "camelCase")]
 pub struct CmdAudioSourcePauseArgs {
     pub source_id: u32,
+    pub timeline_id: Option<u32>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -174,6 +176,7 @@ pub struct CmdResultAudioSourcePause {
 #[serde(rename_all = "camelCase")]
 pub struct CmdAudioSourceStopArgs {
     pub source_id: u32,
+    pub timeline_id: Option<u32>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -388,7 +391,7 @@ pub fn engine_cmd_audio_source_create(
     );
     match engine
         .audio
-        .source_create(args.source_id, args.resource_id, params)
+        .source_create(args.source_id, params)
     {
         Ok(()) => CmdResultAudioSourceCreate {
             success: true,
@@ -431,9 +434,17 @@ pub fn engine_cmd_audio_source_play(
     args: &CmdAudioSourcePlayArgs,
 ) -> CmdResultAudioSourcePlay {
     let intensity = args.intensity.clamp(0.0, 1.0);
+    let timeline_id = args.timeline_id.unwrap_or(0);
     match engine
         .audio
-        .source_play(args.source_id, args.mode.clone().into(), args.delay_ms, intensity)
+        .source_play(
+            args.source_id,
+            args.resource_id,
+            timeline_id,
+            args.mode.clone().into(),
+            args.delay_ms,
+            intensity,
+        )
     {
         Ok(()) => CmdResultAudioSourcePlay {
             success: true,
@@ -450,7 +461,7 @@ pub fn engine_cmd_audio_source_pause(
     engine: &mut EngineState,
     args: &CmdAudioSourcePauseArgs,
 ) -> CmdResultAudioSourcePause {
-    match engine.audio.source_pause(args.source_id) {
+    match engine.audio.source_pause(args.source_id, args.timeline_id) {
         Ok(()) => CmdResultAudioSourcePause {
             success: true,
             message: "Source paused".into(),
@@ -466,7 +477,7 @@ pub fn engine_cmd_audio_source_stop(
     engine: &mut EngineState,
     args: &CmdAudioSourceStopArgs,
 ) -> CmdResultAudioSourceStop {
-    match engine.audio.source_stop(args.source_id) {
+    match engine.audio.source_stop(args.source_id, args.timeline_id) {
         Ok(()) => CmdResultAudioSourceStop {
             success: true,
             message: "Source stopped".into(),

@@ -2,7 +2,8 @@ use std::collections::{HashMap, HashSet};
 use std::sync::mpsc::{Receiver, Sender, channel};
 
 use glam::Vec3;
-use js_sys::Uint8Array;
+use js_sys::{Function, Reflect, Uint8Array};
+use wasm_bindgen::JsValue;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{
@@ -14,16 +15,28 @@ use crate::core::audio::{
 };
 
 struct DecodeResult {
-    audio_id: u32,
+    resource_id: u32,
     buffer: Result<AudioBuffer, String>,
 }
 
+struct WebAudioLayer {
+    resource_id: u32,
+    intensity: f32,
+    mode: AudioPlayMode,
+    paused: bool,
+    cursor: f64,
+    duration: f64,
+    direction: f32,
+    rate: f32,
+    start_time: f64,
+    node: Option<AudioBufferSourceNode>,
+    gain: Option<GainNode>,
+}
+
 struct WebAudioSource {
-    audio_id: u32,
     params: AudioSourceParams,
     panner: PannerNode,
-    gain: GainNode,
-    current: Option<AudioBufferSourceNode>,
+    layers: HashMap<u32, WebAudioLayer>,
 }
 
 pub struct WebAudioProxy {
@@ -88,11 +101,13 @@ impl WebAudioProxy {
         mode: AudioPlayMode,
         intensity: f32,
         panner: &PannerNode,
-        gain: &GainNode,
-    ) -> Result<AudioBufferSourceNode, String> {
+    ) -> Result<(AudioBufferSourceNode, GainNode), String> {
         let source = context
             .create_buffer_source()
             .map_err(|_| "Failed to create AudioBufferSourceNode".to_string())?;
+        let gain = context
+            .create_gain()
+            .map_err(|_| "Failed to create GainNode".to_string())?;
         source.set_buffer(Some(buffer));
         let loop_enabled = matches!(
             mode,
@@ -104,12 +119,37 @@ impl WebAudioProxy {
             _ => params.pitch,
         };
         source.playback_rate().set_value(rate);
-        source.connect_with_audio_node(panner).map_err(|_| "Failed to connect panner".to_string())?;
-        panner.connect_with_audio_node(gain).map_err(|_| "Failed to connect gain".to_string())?;
-        gain.connect_with_audio_node(&context.destination())
-            .map_err(|_| "Failed to connect destination".to_string())?;
+        source
+            .connect_with_audio_node(&gain)
+            .map_err(|_| "Failed to connect gain".to_string())?;
+        gain.connect_with_audio_node(panner)
+            .map_err(|_| "Failed to connect panner".to_string())?;
         gain.gain().set_value(params.gain * intensity.clamp(0.0, 1.0));
-        Ok(source)
+        Ok((source, gain))
+    }
+
+    fn start_node_with_offset(
+        node: &AudioBufferSourceNode,
+        when: f64,
+        offset: f64,
+    ) -> Result<(), String> {
+        let func = Reflect::get(node, &JsValue::from_str("start"))
+            .map_err(|_| "Failed to access start".to_string())?;
+        let func = func
+            .dyn_into::<Function>()
+            .map_err(|_| "start is not a function".to_string())?;
+        if offset > 0.0 {
+            func.call2(
+                &JsValue::from(node),
+                &JsValue::from_f64(when),
+                &JsValue::from_f64(offset),
+            )
+            .map_err(|_| "Failed to start audio".to_string())?;
+        } else {
+            func.call1(&JsValue::from(node), &JsValue::from_f64(when))
+                .map_err(|_| "Failed to start audio".to_string())?;
+        }
+        Ok(())
     }
 }
 
@@ -130,12 +170,12 @@ impl AudioProxy for WebAudioProxy {
 
     fn buffer_create_from_bytes(
         &mut self,
-        audio_id: u32,
+        resource_id: u32,
         bytes: Vec<u8>,
     ) -> Result<(), String> {
         self.ensure_initialized()?;
-        if self.pending.contains(&audio_id) {
-            return Err(format!("Audio {audio_id} already pending"));
+        if self.pending.contains(&resource_id) {
+            return Err(format!("Audio {resource_id} already pending"));
         }
         let context = self
             .context
@@ -144,7 +184,7 @@ impl AudioProxy for WebAudioProxy {
             .clone();
         let sender = self.sender.clone();
         let buffer = Uint8Array::from(bytes.as_slice()).buffer();
-        self.pending.insert(audio_id);
+        self.pending.insert(resource_id);
         spawn_local(async move {
             let promise = context.decode_audio_data(&buffer);
             let result = wasm_bindgen_futures::JsFuture::from(promise).await;
@@ -154,17 +194,15 @@ impl AudioProxy for WebAudioProxy {
                     .map_err(|_| "Failed to decode audio".to_string()),
                 Err(_) => Err("Failed to decode audio".to_string()),
             };
-            let _ = sender.send(DecodeResult { audio_id, buffer: decode });
+            let _ = sender.send(DecodeResult {
+                resource_id,
+                buffer: decode,
+            });
         });
         Ok(())
     }
 
-    fn source_create(
-        &mut self,
-        source_id: u32,
-        audio_id: u32,
-        params: AudioSourceParams,
-    ) -> Result<(), String> {
+    fn source_create(&mut self, source_id: u32, params: AudioSourceParams) -> Result<(), String> {
         self.ensure_initialized()?;
         let context = self
             .context
@@ -174,19 +212,16 @@ impl AudioProxy for WebAudioProxy {
         let panner = context
             .create_panner_with_options(&options)
             .map_err(|_| "Failed to create PannerNode".to_string())?;
-        let gain = context
-            .create_gain()
-            .map_err(|_| "Failed to create GainNode".to_string())?;
         Self::update_panner(&panner, params);
-        gain.gain().set_value(params.gain);
+        panner
+            .connect_with_audio_node(&context.destination())
+            .map_err(|_| "Failed to connect destination".to_string())?;
         self.sources.insert(
             source_id,
             WebAudioSource {
-                audio_id,
                 params,
                 panner,
-                gain,
-                current: None,
+                layers: HashMap::new(),
             },
         );
         Ok(())
@@ -199,9 +234,19 @@ impl AudioProxy for WebAudioProxy {
             .ok_or_else(|| format!("Audio source {source_id} not found"))?;
         source.params = params;
         Self::update_panner(&source.panner, params);
-        source.gain.gain().set_value(params.gain);
-        if let Some(node) = source.current.as_ref() {
-            node.playback_rate().set_value(params.pitch);
+        for layer in source.layers.values_mut() {
+            let intensity = layer.intensity.clamp(0.0, 1.0);
+            if let Some(gain) = layer.gain.as_ref() {
+                gain.gain().set_value(params.gain * intensity);
+            }
+            let rate = match layer.mode {
+                AudioPlayMode::Reverse | AudioPlayMode::LoopReverse => -params.pitch.abs(),
+                _ => params.pitch,
+            };
+            layer.rate = rate;
+            if let Some(node) = layer.node.as_ref() {
+                node.playback_rate().set_value(rate);
+            }
         }
         Ok(())
     }
@@ -209,6 +254,8 @@ impl AudioProxy for WebAudioProxy {
     fn source_play(
         &mut self,
         source_id: u32,
+        resource_id: u32,
+        timeline_id: u32,
         mode: AudioPlayMode,
         delay_ms: Option<u32>,
         intensity: f32,
@@ -224,56 +271,178 @@ impl AudioProxy for WebAudioProxy {
             .ok_or_else(|| format!("Audio source {source_id} not found"))?;
         let buffer = self
             .buffers
-            .get(&source.audio_id)
-            .ok_or_else(|| format!("Audio buffer {} not ready", source.audio_id))?;
-        if let Some(node) = source.current.take() {
-            let _ = node.stop();
+            .get(&resource_id)
+            .ok_or_else(|| format!("Audio buffer {} not ready", resource_id))?;
+        let duration = buffer.duration();
+        let mut cursor = 0.0;
+        let mut paused = false;
+        let mut direction = if matches!(mode, AudioPlayMode::Reverse | AudioPlayMode::LoopReverse) {
+            -1.0
+        } else {
+            1.0
+        };
+        let mut rate = match mode {
+            AudioPlayMode::Reverse | AudioPlayMode::LoopReverse => -source.params.pitch.abs(),
+            _ => source.params.pitch,
+        };
+        if let Some(mut layer) = source.layers.remove(&timeline_id) {
+            if !layer.paused {
+                if let Some(node) = layer.node.take() {
+                    let _ = node.stop();
+                }
+            }
+            cursor = layer.cursor;
+            paused = layer.paused;
+            direction = layer.direction;
+            rate = layer.rate;
         }
-        let node = Self::build_source_node(
+        if direction < 0.0 && cursor <= 0.0 {
+            cursor = duration;
+        } else if direction > 0.0 && cursor >= duration {
+            cursor = 0.0;
+        }
+        let (node, gain) = Self::build_source_node(
             context,
             buffer,
             source.params,
             mode,
             intensity,
             &source.panner,
-            &source.gain,
         )?;
-        if let Some(delay) = delay_ms {
-            let when = context.current_time() + (delay as f64 / 1000.0);
-            node.start_with_when(when)
-                .map_err(|_| "Failed to start audio".to_string())?;
-        } else {
-            node.start().map_err(|_| "Failed to start audio".to_string())?;
-        }
-        source.current = Some(node);
+        let when = context.current_time()
+            + delay_ms.map(|delay| delay as f64 / 1000.0).unwrap_or(0.0);
+        Self::start_node_with_offset(&node, when, cursor)?;
+        let start_time = when;
+        source.layers.insert(
+            timeline_id,
+            WebAudioLayer {
+                resource_id,
+                intensity,
+                mode,
+                paused,
+                cursor,
+                duration,
+                direction,
+                rate,
+                start_time,
+                node: Some(node),
+                gain: Some(gain),
+            },
+        );
         Ok(())
     }
 
-    fn source_pause(&mut self, source_id: u32) -> Result<(), String> {
+    fn source_pause(&mut self, source_id: u32, timeline_id: Option<u32>) -> Result<(), String> {
+        let context = match self.context.as_ref() {
+            Some(context) => context,
+            None => return Ok(()),
+        };
         let source = self
             .sources
             .get_mut(&source_id)
             .ok_or_else(|| format!("Audio source {source_id} not found"))?;
-        if let Some(node) = source.current.take() {
-            let _ = node.stop();
+        if let Some(timeline_id) = timeline_id {
+            if let Some(layer) = source.layers.get_mut(&timeline_id) {
+                if let Some(node) = layer.node.take() {
+                    if !layer.paused {
+                        let elapsed = context.current_time() - layer.start_time;
+                        let delta = (elapsed * layer.rate.abs() as f64).max(0.0);
+                        if layer.direction < 0.0 {
+                            layer.cursor = (layer.cursor - delta).max(0.0);
+                        } else {
+                            layer.cursor = (layer.cursor + delta).min(layer.duration);
+                        }
+                        if matches!(
+                            layer.mode,
+                            AudioPlayMode::Loop | AudioPlayMode::LoopReverse
+                        ) && layer.duration > 0.0
+                        {
+                            layer.cursor %= layer.duration;
+                        }
+                    }
+                    let _ = node.stop();
+                }
+                if !layer.paused {
+                    layer.paused = true;
+                }
+            }
+            return Ok(());
+        }
+        for layer in source.layers.values_mut() {
+            if let Some(node) = layer.node.take() {
+                if !layer.paused {
+                    let elapsed = context.current_time() - layer.start_time;
+                    let delta = (elapsed * layer.rate.abs() as f64).max(0.0);
+                    if layer.direction < 0.0 {
+                        layer.cursor = (layer.cursor - delta).max(0.0);
+                    } else {
+                        layer.cursor = (layer.cursor + delta).min(layer.duration);
+                    }
+                    if matches!(
+                        layer.mode,
+                        AudioPlayMode::Loop | AudioPlayMode::LoopReverse
+                    ) && layer.duration > 0.0
+                    {
+                        layer.cursor %= layer.duration;
+                    }
+                }
+                let _ = node.stop();
+            }
+            if !layer.paused {
+                layer.paused = true;
+            }
         }
         Ok(())
     }
 
-    fn source_stop(&mut self, source_id: u32) -> Result<(), String> {
-        self.source_pause(source_id)
+    fn source_stop(&mut self, source_id: u32, timeline_id: Option<u32>) -> Result<(), String> {
+        let source = self
+            .sources
+            .get_mut(&source_id)
+            .ok_or_else(|| format!("Audio source {source_id} not found"))?;
+        if let Some(timeline_id) = timeline_id {
+            if let Some(layer) = source.layers.remove(&timeline_id) {
+                if let Some(node) = layer.node {
+                    let _ = node.stop();
+                }
+            }
+            return Ok(());
+        }
+        for (_timeline, layer) in source.layers.drain() {
+            if let Some(node) = layer.node {
+                let _ = node.stop();
+            }
+        }
+        Ok(())
     }
 
-    fn buffer_dispose(&mut self, audio_id: u32) -> Result<(), String> {
-        self.buffers.remove(&audio_id);
-        self.pending.remove(&audio_id);
+    fn buffer_dispose(&mut self, resource_id: u32) -> Result<(), String> {
+        self.buffers.remove(&resource_id);
+        self.pending.remove(&resource_id);
+        for source in self.sources.values_mut() {
+            let mut to_stop = Vec::new();
+            for (timeline_id, layer) in source.layers.iter() {
+                if layer.resource_id == resource_id {
+                    to_stop.push(*timeline_id);
+                }
+            }
+            for timeline_id in to_stop {
+                if let Some(layer) = source.layers.remove(&timeline_id) {
+                    if let Some(node) = layer.node {
+                        let _ = node.stop();
+                    }
+                }
+            }
+        }
         Ok(())
     }
 
     fn source_dispose(&mut self, source_id: u32) -> Result<(), String> {
         if let Some(mut source) = self.sources.remove(&source_id) {
-            if let Some(node) = source.current.take() {
-                let _ = node.stop();
+            for (_timeline, layer) in source.layers.drain() {
+                if let Some(node) = layer.node {
+                    let _ = node.stop();
+                }
             }
         }
         Ok(())
@@ -282,19 +451,19 @@ impl AudioProxy for WebAudioProxy {
     fn drain_events(&mut self) -> Vec<AudioReadyEvent> {
         let mut events = Vec::new();
         while let Ok(result) = self.receiver.try_recv() {
-            self.pending.remove(&result.audio_id);
+            self.pending.remove(&result.resource_id);
             match result.buffer {
                 Ok(buffer) => {
-                    self.buffers.insert(result.audio_id, buffer);
+                    self.buffers.insert(result.resource_id, buffer);
                     events.push(AudioReadyEvent {
-                        audio_id: result.audio_id,
+                        resource_id: result.resource_id,
                         success: true,
                         message: "Audio decoded".into(),
                     });
                 }
                 Err(message) => {
                     events.push(AudioReadyEvent {
-                        audio_id: result.audio_id,
+                        resource_id: result.resource_id,
                         success: false,
                         message,
                     });

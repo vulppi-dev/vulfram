@@ -18,15 +18,19 @@ use crate::core::audio::{
 };
 
 struct DecodeResult {
-    audio_id: u32,
+    resource_id: u32,
     data: Result<StaticSoundData, String>,
 }
 
+struct KiraLayer {
+    resource_id: u32,
+    handle: StaticSoundHandle,
+}
+
 struct KiraSource {
-    audio_id: u32,
     params: AudioSourceParams,
     emitter: EmitterHandle,
-    handle: Option<StaticSoundHandle>,
+    handles: HashMap<u32, KiraLayer>,
 }
 
 pub struct KiraAudioProxy {
@@ -166,29 +170,27 @@ impl AudioProxy for KiraAudioProxy {
 
     fn buffer_create_from_bytes(
         &mut self,
-        audio_id: u32,
+        resource_id: u32,
         bytes: Vec<u8>,
     ) -> Result<(), String> {
         self.ensure_initialized()?;
-        if self.pending.contains(&audio_id) {
-            return Err(format!("Audio {audio_id} already pending"));
+        if self.pending.contains(&resource_id) {
+            return Err(format!("Audio {resource_id} already pending"));
         }
-        self.pending.insert(audio_id);
+        self.pending.insert(resource_id);
         let sender = self.sender.clone();
         std::thread::spawn(move || {
             let result = StaticSoundData::from_cursor(Cursor::new(bytes))
                 .map_err(|err| err.to_string());
-            let _ = sender.send(DecodeResult { audio_id, data: result });
+            let _ = sender.send(DecodeResult {
+                resource_id,
+                data: result,
+            });
         });
         Ok(())
     }
 
-    fn source_create(
-        &mut self,
-        source_id: u32,
-        audio_id: u32,
-        params: AudioSourceParams,
-    ) -> Result<(), String> {
+    fn source_create(&mut self, source_id: u32, params: AudioSourceParams) -> Result<(), String> {
         self.ensure_initialized()?;
         let scene = self
             .scene
@@ -204,10 +206,9 @@ impl AudioProxy for KiraAudioProxy {
         self.sources.insert(
             source_id,
             KiraSource {
-                audio_id,
                 params,
                 emitter,
-                handle: None,
+                handles: HashMap::new(),
             },
         );
         Ok(())
@@ -222,8 +223,8 @@ impl AudioProxy for KiraAudioProxy {
         source
             .emitter
             .set_position(Self::to_mint_vec3(params.position), Tween::default());
-        if let Some(handle) = source.handle.as_mut() {
-            Self::update_handle(handle, params);
+        for layer in source.handles.values_mut() {
+            Self::update_handle(&mut layer.handle, params);
         }
         Ok(())
     }
@@ -231,6 +232,8 @@ impl AudioProxy for KiraAudioProxy {
     fn source_play(
         &mut self,
         source_id: u32,
+        resource_id: u32,
+        timeline_id: u32,
         mode: AudioPlayMode,
         delay_ms: Option<u32>,
         intensity: f32,
@@ -244,14 +247,13 @@ impl AudioProxy for KiraAudioProxy {
             .sources
             .get_mut(&source_id)
             .ok_or_else(|| format!("Audio source {source_id} not found"))?;
-        if let Some(handle) = source.handle.as_mut() {
-            handle.resume(Tween::default());
-            return Ok(());
-        }
         let buffer = self
             .buffers
-            .get(&source.audio_id)
-            .ok_or_else(|| format!("Audio buffer {} not ready", source.audio_id))?;
+            .get(&resource_id)
+            .ok_or_else(|| format!("Audio buffer {} not ready", resource_id))?;
+        if let Some(mut layer) = source.handles.remove(&timeline_id) {
+            layer.handle.stop(Tween::default());
+        }
         let sound = Self::build_sound_data(
             buffer,
             &source.emitter,
@@ -261,43 +263,73 @@ impl AudioProxy for KiraAudioProxy {
             intensity,
         );
         let handle = manager.play(sound).map_err(|err| err.to_string())?;
-        source.handle = Some(handle);
+        source.handles.insert(
+            timeline_id,
+            KiraLayer {
+                resource_id,
+                handle,
+            },
+        );
         Ok(())
     }
 
-    fn source_pause(&mut self, source_id: u32) -> Result<(), String> {
+    fn source_pause(&mut self, source_id: u32, timeline_id: Option<u32>) -> Result<(), String> {
         let source = self
             .sources
             .get_mut(&source_id)
             .ok_or_else(|| format!("Audio source {source_id} not found"))?;
-        if let Some(handle) = source.handle.as_mut() {
-            handle.pause(Tween::default());
+        if let Some(timeline_id) = timeline_id {
+            if let Some(layer) = source.handles.get_mut(&timeline_id) {
+                layer.handle.pause(Tween::default());
+            }
             return Ok(());
         }
-        Err(format!("Audio source {source_id} not playing"))
-    }
-
-    fn source_stop(&mut self, source_id: u32) -> Result<(), String> {
-        let source = self
-            .sources
-            .get_mut(&source_id)
-            .ok_or_else(|| format!("Audio source {source_id} not found"))?;
-        if let Some(mut handle) = source.handle.take() {
-            handle.stop(Tween::default());
+        for layer in source.handles.values_mut() {
+            layer.handle.pause(Tween::default());
         }
         Ok(())
     }
 
-    fn buffer_dispose(&mut self, audio_id: u32) -> Result<(), String> {
-        self.buffers.remove(&audio_id);
-        self.pending.remove(&audio_id);
+    fn source_stop(&mut self, source_id: u32, timeline_id: Option<u32>) -> Result<(), String> {
+        let source = self
+            .sources
+            .get_mut(&source_id)
+            .ok_or_else(|| format!("Audio source {source_id} not found"))?;
+        if let Some(timeline_id) = timeline_id {
+            if let Some(mut layer) = source.handles.remove(&timeline_id) {
+                layer.handle.stop(Tween::default());
+            }
+            return Ok(());
+        }
+        for (_timeline, mut layer) in source.handles.drain() {
+            layer.handle.stop(Tween::default());
+        }
+        Ok(())
+    }
+
+    fn buffer_dispose(&mut self, resource_id: u32) -> Result<(), String> {
+        self.buffers.remove(&resource_id);
+        self.pending.remove(&resource_id);
+        for source in self.sources.values_mut() {
+            let mut to_stop = Vec::new();
+            for (timeline_id, layer) in source.handles.iter() {
+                if layer.resource_id == resource_id {
+                    to_stop.push(*timeline_id);
+                }
+            }
+            for timeline_id in to_stop {
+                if let Some(mut layer) = source.handles.remove(&timeline_id) {
+                    layer.handle.stop(Tween::default());
+                }
+            }
+        }
         Ok(())
     }
 
     fn source_dispose(&mut self, source_id: u32) -> Result<(), String> {
         if let Some(mut source) = self.sources.remove(&source_id) {
-            if let Some(mut handle) = source.handle.take() {
-                handle.stop(Tween::default());
+            for (_timeline, mut layer) in source.handles.drain() {
+                layer.handle.stop(Tween::default());
             }
         }
         Ok(())
@@ -306,19 +338,19 @@ impl AudioProxy for KiraAudioProxy {
     fn drain_events(&mut self) -> Vec<AudioReadyEvent> {
         let mut events = Vec::new();
         while let Ok(result) = self.receiver.try_recv() {
-            self.pending.remove(&result.audio_id);
+            self.pending.remove(&result.resource_id);
             match result.data {
                 Ok(data) => {
-                    self.buffers.insert(result.audio_id, data);
+                    self.buffers.insert(result.resource_id, data);
                     events.push(AudioReadyEvent {
-                        audio_id: result.audio_id,
+                        resource_id: result.resource_id,
                         success: true,
                         message: "Audio decoded".into(),
                     });
                 }
                 Err(message) => {
                     events.push(AudioReadyEvent {
-                        audio_id: result.audio_id,
+                        resource_id: result.resource_id,
                         success: false,
                         message,
                     });

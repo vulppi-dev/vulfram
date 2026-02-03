@@ -74,7 +74,7 @@ pub struct AudioListenerBinding {
 
 #[derive(Debug, Clone)]
 pub struct AudioReadyEvent {
-    pub audio_id: u32,
+    pub resource_id: u32,
     pub success: bool,
     pub message: String,
 }
@@ -85,14 +85,13 @@ pub trait AudioProxy: Send {
 
     fn buffer_create_from_bytes(
         &mut self,
-        audio_id: u32,
+        resource_id: u32,
         bytes: Vec<u8>,
     ) -> Result<(), String>;
 
     fn source_create(
         &mut self,
         source_id: u32,
-        audio_id: u32,
         params: AudioSourceParams,
     ) -> Result<(), String>;
 
@@ -100,14 +99,16 @@ pub trait AudioProxy: Send {
     fn source_play(
         &mut self,
         source_id: u32,
+        resource_id: u32,
+        timeline_id: u32,
         mode: AudioPlayMode,
         delay_ms: Option<u32>,
         intensity: f32,
     ) -> Result<(), String>;
-    fn source_pause(&mut self, source_id: u32) -> Result<(), String>;
-    fn source_stop(&mut self, source_id: u32) -> Result<(), String>;
+    fn source_pause(&mut self, source_id: u32, timeline_id: Option<u32>) -> Result<(), String>;
+    fn source_stop(&mut self, source_id: u32, timeline_id: Option<u32>) -> Result<(), String>;
 
-    fn buffer_dispose(&mut self, audio_id: u32) -> Result<(), String>;
+    fn buffer_dispose(&mut self, resource_id: u32) -> Result<(), String>;
     fn source_dispose(&mut self, source_id: u32) -> Result<(), String>;
 
     fn drain_events(&mut self) -> Vec<AudioReadyEvent>;

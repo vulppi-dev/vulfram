@@ -2,7 +2,7 @@
 use crate::core::audio::KiraAudioProxy;
 #[cfg(feature = "wasm")]
 use crate::core::audio::WebAudioProxy;
-use crate::core::audio::{AudioListenerBinding, AudioSourceParams};
+use crate::core::audio::{AudioListenerBinding, AudioSourceParams, AudioStreamState};
 use crate::core::buffers::state::BufferStorage;
 use crate::core::cmd::{EngineBatchCmds, EngineBatchEvents, EngineBatchResponses};
 use crate::core::gamepad::state::GamepadState;
@@ -31,6 +31,7 @@ pub struct EngineState {
     pub audio_listener_binding: Option<AudioListenerBinding>,
     pub audio_source_bindings: HashMap<u32, AudioListenerBinding>,
     pub audio_source_params: HashMap<u32, AudioSourceParams>,
+    pub audio_streams: HashMap<u32, AudioStreamState>,
 
     pub cmd_queue: EngineBatchCmds,
     pub event_queue: EngineBatchEvents,
@@ -88,6 +89,7 @@ impl EngineState {
             audio_listener_binding: None,
             audio_source_bindings: HashMap::new(),
             audio_source_params: HashMap::new(),
+            audio_streams: HashMap::new(),
             cmd_queue: Vec::new(),
             event_queue: Vec::new(),
             response_queue: Vec::new(),

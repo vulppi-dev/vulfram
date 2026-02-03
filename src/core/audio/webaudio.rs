@@ -265,7 +265,6 @@ impl AudioProxy for WebAudioProxy {
             .ok_or_else(|| format!("Audio buffer {} not ready", resource_id))?;
         let duration = buffer.duration();
         let mut cursor = 0.0;
-        let mut paused = false;
         let rate = source.params.pitch;
         if let Some(mut layer) = source.layers.remove(&timeline_id) {
             if !layer.paused {
@@ -274,7 +273,6 @@ impl AudioProxy for WebAudioProxy {
                 }
             }
             cursor = layer.cursor;
-            paused = layer.paused;
             rate = layer.rate;
         }
         if cursor >= duration {
@@ -298,7 +296,7 @@ impl AudioProxy for WebAudioProxy {
                 resource_id,
                 intensity,
                 mode,
-                paused,
+                paused: false,
                 cursor,
                 duration,
                 rate,

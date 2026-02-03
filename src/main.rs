@@ -931,6 +931,8 @@ fn demo_004(window_id: u32) -> bool {
         EngineCmd::CmdAudioResourceCreate(CmdAudioResourceCreateArgs {
             resource_id: audio_id,
             buffer_id: audio_buffer_id,
+            total_bytes: None,
+            offset_bytes: None,
         }),
         EngineCmd::CmdAudioSourceCreate(CmdAudioSourceCreateArgs {
             window_id,

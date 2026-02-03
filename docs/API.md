@@ -195,12 +195,15 @@ Notes:
 - `mode` supports `once`, `loop`.
 - When a source is bound to a model, the core updates its position every tick.
 - If the bound source model is the same as the bound listener model, spatialization is bypassed.
+- Streaming resources emit `SystemEvent::AudioStreamProgress`.
 
 Events:
 
 - `SystemEvent::AudioReady { resourceId, success, message }` (async decode)
   - Emitted when the audio buffer finishes decoding (desktop and web).
   - Use this to decide when `CmdAudioSourcePlay` is safe to call.
+- `SystemEvent::AudioStreamProgress { resourceId, receivedBytes, totalBytes, complete }` (streaming)
+  - Emitted as stream chunks are received.
 
 The visibility rule uses `layer_mask`:
 

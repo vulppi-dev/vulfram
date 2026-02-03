@@ -31,6 +31,7 @@ pub struct TextureAsyncManager {
     sender: Sender<TextureDecodeResult>,
     receiver: Receiver<TextureDecodeResult>,
     pending: HashSet<u32>,
+    canceled: HashSet<u32>,
 }
 
 impl TextureAsyncManager {
@@ -40,6 +41,7 @@ impl TextureAsyncManager {
             sender,
             receiver,
             pending: HashSet::new(),
+            canceled: HashSet::new(),
         }
     }
 
@@ -51,9 +53,19 @@ impl TextureAsyncManager {
         if !self.pending.insert(job.texture_id) {
             return Err(format!("Texture {} is already pending", job.texture_id));
         }
+        self.canceled.remove(&job.texture_id);
         let sender = self.sender.clone();
         spawn_decode(job, sender);
         Ok(())
+    }
+
+    pub fn cancel(&mut self, texture_id: u32) {
+        self.pending.remove(&texture_id);
+        self.canceled.insert(texture_id);
+    }
+
+    pub fn was_canceled(&mut self, texture_id: u32) -> bool {
+        self.canceled.remove(&texture_id)
     }
 
     pub fn drain_results(&mut self) -> Vec<TextureDecodeResult> {

@@ -294,7 +294,6 @@ Draw calls are batched by runs of `(material_id, geometry_id)` after sorting.
 
 - A small set of **C functions** (`vulfram_*`)
 - MessagePack format for:
-
   - commands
   - responses
   - events

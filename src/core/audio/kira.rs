@@ -4,8 +4,8 @@ use std::sync::mpsc::{Receiver, Sender, channel};
 
 use glam::{Mat3, Quat, Vec3};
 use kira::manager::{AudioManager, AudioManagerSettings, backend::DefaultBackend};
-use kira::sound::static_sound::{StaticSoundData, StaticSoundHandle};
 use kira::sound::PlaybackRate;
+use kira::sound::static_sound::{StaticSoundData, StaticSoundHandle};
 use kira::spatial::emitter::{EmitterHandle, EmitterSettings};
 use kira::spatial::listener::{ListenerHandle, ListenerSettings};
 use kira::spatial::scene::{SpatialSceneHandle, SpatialSceneSettings};
@@ -40,6 +40,7 @@ pub struct KiraAudioProxy {
     buffers: HashMap<u32, StaticSoundData>,
     sources: HashMap<u32, KiraSource>,
     pending: HashSet<u32>,
+    canceled: HashSet<u32>,
     sender: Sender<DecodeResult>,
     receiver: Receiver<DecodeResult>,
 }
@@ -54,6 +55,7 @@ impl Default for KiraAudioProxy {
             buffers: HashMap::new(),
             sources: HashMap::new(),
             pending: HashSet::new(),
+            canceled: HashSet::new(),
             sender,
             receiver,
         }
@@ -128,14 +130,8 @@ impl KiraAudioProxy {
             .map(|ms| StartTime::Delayed(std::time::Duration::from_millis(ms as u64)))
             .unwrap_or(StartTime::Immediate);
         let intensity = intensity.clamp(0.0, 1.0);
-        match mode {
-            AudioPlayMode::Loop | AudioPlayMode::LoopReverse | AudioPlayMode::PingPong => {
-                data = data.loop_region(..);
-            }
-            _ => {}
-        }
-        if matches!(mode, AudioPlayMode::Reverse | AudioPlayMode::LoopReverse) {
-            data = data.reverse(true);
+        if matches!(mode, AudioPlayMode::Loop) {
+            data = data.loop_region(..);
         }
         data.output_destination(emitter)
             .volume(Volume::Amplitude((params.gain * intensity) as f64))
@@ -168,20 +164,17 @@ impl AudioProxy for KiraAudioProxy {
         Ok(())
     }
 
-    fn buffer_create_from_bytes(
-        &mut self,
-        resource_id: u32,
-        bytes: Vec<u8>,
-    ) -> Result<(), String> {
+    fn buffer_create_from_bytes(&mut self, resource_id: u32, bytes: Vec<u8>) -> Result<(), String> {
         self.ensure_initialized()?;
         if self.pending.contains(&resource_id) {
             return Err(format!("Audio {resource_id} already pending"));
         }
+        self.canceled.remove(&resource_id);
         self.pending.insert(resource_id);
         let sender = self.sender.clone();
         std::thread::spawn(move || {
-            let result = StaticSoundData::from_cursor(Cursor::new(bytes))
-                .map_err(|err| err.to_string());
+            let result =
+                StaticSoundData::from_cursor(Cursor::new(bytes)).map_err(|err| err.to_string());
             let _ = sender.send(DecodeResult {
                 resource_id,
                 data: result,
@@ -196,10 +189,8 @@ impl AudioProxy for KiraAudioProxy {
             .scene
             .as_mut()
             .ok_or_else(|| "Audio scene not initialized".to_string())?;
-        let settings = EmitterSettings::new().distances((
-            params.spatial.min_distance,
-            params.spatial.max_distance,
-        ));
+        let settings = EmitterSettings::new()
+            .distances((params.spatial.min_distance, params.spatial.max_distance));
         let emitter = scene
             .add_emitter(Self::to_mint_vec3(params.position), settings)
             .map_err(|err| format!("Audio emitter error: {err}"))?;
@@ -310,6 +301,7 @@ impl AudioProxy for KiraAudioProxy {
     fn buffer_dispose(&mut self, resource_id: u32) -> Result<(), String> {
         self.buffers.remove(&resource_id);
         self.pending.remove(&resource_id);
+        self.canceled.insert(resource_id);
         for source in self.sources.values_mut() {
             let mut to_stop = Vec::new();
             for (timeline_id, layer) in source.handles.iter() {
@@ -339,6 +331,14 @@ impl AudioProxy for KiraAudioProxy {
         let mut events = Vec::new();
         while let Ok(result) = self.receiver.try_recv() {
             self.pending.remove(&result.resource_id);
+            if self.canceled.remove(&result.resource_id) {
+                events.push(AudioReadyEvent {
+                    resource_id: result.resource_id,
+                    success: false,
+                    message: "Audio decode canceled".into(),
+                });
+                continue;
+            }
             match result.data {
                 Ok(data) => {
                     self.buffers.insert(result.resource_id, data);

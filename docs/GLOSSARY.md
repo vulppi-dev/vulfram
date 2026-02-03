@@ -278,23 +278,18 @@ All public ABI functions are prefixed with `vulfram_`:
 ### Documentation Files
 
 - `vulfram_overview.md`
-
   - High-level summary and concepts.
 
 - `vulfram_abi_spec.md`
-
   - Functions, ABI details and usage contract.
 
 - `vulfram_architecture_lifecycle.md`
-
   - Architecture, lifecycle, and main loop contract.
 
 - `vulfram_internal_api.md`
-
   - Internal Rust API: crates, structs, internal flows.
 
 - `vulfram_glossary.md`
-
   - This document: terminology and naming patterns.
 
 ---
@@ -306,14 +301,12 @@ All public ABI functions are prefixed with `vulfram_`:
 Internal structure that collects:
 
 - Timing for core sections:
-
   - total tick
   - render passes
   - command processing
   - event collection
 
 - Counters:
-
   - number of draw calls
   - number of visible mesh instances
   - number of active resources

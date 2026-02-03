@@ -10,13 +10,13 @@ Texture references are **lazy**:
 
 ## Arguments
 
-| Field      | Type                    | Description                     |
-| ---------- | ----------------------- | ------------------------------- |
-| windowId   | u32                     | ID of the window                |
-| materialId | u32                     | ID of the material to update    |
-| label      | Option<String>          | (Optional) New semantic name    |
+| Field      | Type                    | Description                                      |
+| ---------- | ----------------------- | ------------------------------------------------ |
+| windowId   | u32                     | ID of the window                                 |
+| materialId | u32                     | ID of the material to update                     |
+| label      | Option<String>          | (Optional) New semantic name                     |
 | kind       | Option<MaterialKind>    | (Optional) New material type ("standard", "pbr") |
-| options    | Option<MaterialOptions> | (Optional) New material options |
+| options    | Option<MaterialOptions> | (Optional) New material options                  |
 
 Material option shapes (`StandardOptions`, `PbrOptions`, `SurfaceType`, `MaterialSampler`)
 match those defined in `CmdMaterialCreate`.

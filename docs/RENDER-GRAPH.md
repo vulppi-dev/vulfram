@@ -21,40 +21,40 @@ The core infers any missing resources from node inputs/outputs using default val
 
 ### Graph
 
-| Field       | Type        | Description |
-|------------|-------------|-------------|
-| graphId    | LogicalId    | Logical graph identifier (cache key) |
-| nodes      | Node[]       | Render nodes |
-| edges      | Edge[]       | Dependencies between nodes |
-| resources  | Resource[]   | Declared resources |
-| fallback   | bool         | If true, use fallback when invalid or missing |
+| Field     | Type       | Description                                   |
+| --------- | ---------- | --------------------------------------------- |
+| graphId   | LogicalId  | Logical graph identifier (cache key)          |
+| nodes     | Node[]     | Render nodes                                  |
+| edges     | Edge[]     | Dependencies between nodes                    |
+| resources | Resource[] | Declared resources                            |
+| fallback  | bool       | If true, use fallback when invalid or missing |
 
 ### Node
 
-| Field     | Type        | Description |
-|----------|-------------|-------------|
-| nodeId   | LogicalId    | Logical node identifier |
-| passId   | LogicalId    | Logical pass type (e.g., "forward") |
-| inputs   | LogicalId[]  | Resource IDs read by this node |
-| outputs  | LogicalId[]  | Resource IDs written by this node |
-| params   | Map          | Optional parameters (clear, flags, etc.) |
+| Field   | Type        | Description                              |
+| ------- | ----------- | ---------------------------------------- |
+| nodeId  | LogicalId   | Logical node identifier                  |
+| passId  | LogicalId   | Logical pass type (e.g., "forward")      |
+| inputs  | LogicalId[] | Resource IDs read by this node           |
+| outputs | LogicalId[] | Resource IDs written by this node        |
+| params  | Map         | Optional parameters (clear, flags, etc.) |
 
 ### Resource
 
-| Field       | Type      | Description |
-|------------|-----------|-------------|
-| resId      | LogicalId  | Logical resource identifier |
+| Field      | Type       | Description                                               |
+| ---------- | ---------- | --------------------------------------------------------- |
+| resId      | LogicalId  | Logical resource identifier                               |
 | kind       | string     | "texture", "buffer", "attachment" (defaults to "texture") |
-| lifetime   | string     | "frame" or "persistent" (defaults to "frame") |
-| aliasGroup | LogicalId? | Optional alias group for memory reuse |
+| lifetime   | string     | "frame" or "persistent" (defaults to "frame")             |
+| aliasGroup | LogicalId? | Optional alias group for memory reuse                     |
 
 ### Edge
 
-| Field        | Type     | Description |
-|-------------|----------|-------------|
-| fromNodeId | LogicalId| Dependency source |
-| toNodeId   | LogicalId| Dependency target |
-| reason      | string?  | Optional: "read_after_write", "write_after_read" |
+| Field      | Type      | Description                                      |
+| ---------- | --------- | ------------------------------------------------ |
+| fromNodeId | LogicalId | Dependency source                                |
+| toNodeId   | LogicalId | Dependency target                                |
+| reason     | string?   | Optional: "read_after_write", "write_after_read" |
 
 ### LogicalId
 
@@ -81,14 +81,54 @@ Bloom uses the emissive output from the forward pass when available and falls ba
 {
   "graphId": "main_render",
   "nodes": [
-    { "nodeId": "shadow_pass", "passId": "shadow", "inputs": [], "outputs": ["shadow_atlas"] },
-    { "nodeId": "forward_pass", "passId": "forward", "inputs": ["shadow_atlas"], "outputs": ["hdr_color", "depth"] },
-    { "nodeId": "outline_pass", "passId": "outline", "inputs": ["depth"], "outputs": ["outline_color"] },
-    { "nodeId": "ssao_pass", "passId": "ssao", "inputs": ["depth"], "outputs": ["ssao_raw"] },
-    { "nodeId": "ssao_blur_pass", "passId": "ssao-blur", "inputs": ["ssao_raw", "depth"], "outputs": ["ssao_blur"] },
-    { "nodeId": "bloom_pass", "passId": "bloom", "inputs": ["hdr_color"], "outputs": ["bloom_color"] },
-    { "nodeId": "post_pass", "passId": "post", "inputs": ["hdr_color", "outline_color", "ssao_blur", "bloom_color"], "outputs": ["post_color"] },
-    { "nodeId": "compose_pass", "passId": "compose", "inputs": ["post_color"], "outputs": ["swapchain"] }
+    {
+      "nodeId": "shadow_pass",
+      "passId": "shadow",
+      "inputs": [],
+      "outputs": ["shadow_atlas"]
+    },
+    {
+      "nodeId": "forward_pass",
+      "passId": "forward",
+      "inputs": ["shadow_atlas"],
+      "outputs": ["hdr_color", "depth"]
+    },
+    {
+      "nodeId": "outline_pass",
+      "passId": "outline",
+      "inputs": ["depth"],
+      "outputs": ["outline_color"]
+    },
+    {
+      "nodeId": "ssao_pass",
+      "passId": "ssao",
+      "inputs": ["depth"],
+      "outputs": ["ssao_raw"]
+    },
+    {
+      "nodeId": "ssao_blur_pass",
+      "passId": "ssao-blur",
+      "inputs": ["ssao_raw", "depth"],
+      "outputs": ["ssao_blur"]
+    },
+    {
+      "nodeId": "bloom_pass",
+      "passId": "bloom",
+      "inputs": ["hdr_color"],
+      "outputs": ["bloom_color"]
+    },
+    {
+      "nodeId": "post_pass",
+      "passId": "post",
+      "inputs": ["hdr_color", "outline_color", "ssao_blur", "bloom_color"],
+      "outputs": ["post_color"]
+    },
+    {
+      "nodeId": "compose_pass",
+      "passId": "compose",
+      "inputs": ["post_color"],
+      "outputs": ["swapchain"]
+    }
   ],
   "edges": [
     { "fromNodeId": "shadow_pass", "toNodeId": "forward_pass" },

@@ -1,6 +1,6 @@
+use half::f16;
 use image::imageops::FilterType;
 use image::{GenericImageView, ImageFormat};
-use half::f16;
 
 /// Decoded image buffer in RGBA format
 #[derive(Debug, Clone)]

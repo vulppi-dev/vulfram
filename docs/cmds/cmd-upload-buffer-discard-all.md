@@ -13,8 +13,8 @@ None.
 
 Returns `CmdResultUploadBufferDiscardAll`:
 
-| Field           | Type   | Description                          |
-| --------------- | ------ | ------------------------------------ |
-| success         | bool   | Whether the discard completed        |
-| discardedCount  | u32    | Number of uploads discarded          |
-| message         | String | Status or error message              |
+| Field          | Type   | Description                   |
+| -------------- | ------ | ----------------------------- |
+| success        | bool   | Whether the discard completed |
+| discardedCount | u32    | Number of uploads discarded   |
+| message        | String | Status or error message       |

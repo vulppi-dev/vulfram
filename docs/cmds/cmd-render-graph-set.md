@@ -4,17 +4,17 @@ Sets a host-defined render graph for a window. The core validates the graph and 
 
 ## Arguments
 
-| Field    | Type            | Description |
-| -------- | --------------- | ----------- |
-| windowId | u32             | ID of the window |
+| Field    | Type            | Description       |
+| -------- | --------------- | ----------------- |
+| windowId | u32             | ID of the window  |
 | graph    | RenderGraphDesc | Graph description |
 
 ## Response
 
 Returns `CmdResultRenderGraphSet`:
 
-| Field        | Type   | Description |
-| ------------ | ------ | ----------- |
-| success      | bool   | Whether the graph was accepted |
+| Field        | Type   | Description                            |
+| ------------ | ------ | -------------------------------------- |
+| success      | bool   | Whether the graph was accepted         |
 | fallbackUsed | bool   | Whether the fallback graph was applied |
-| message      | String | Status or error message |
+| message      | String | Status or error message                |

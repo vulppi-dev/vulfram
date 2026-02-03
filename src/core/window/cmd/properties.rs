@@ -194,15 +194,22 @@ pub fn engine_cmd_window_set_size(
 ) -> CmdResultWindowSetSize {
     match engine.window.states.get_mut(&args.window_id) {
         Some(window_state) => {
+            let device = match engine.device.as_ref() {
+                Some(device) => device,
+                None => {
+                    return CmdResultWindowSetSize {
+                        success: false,
+                        message: "Graphics device not initialized".into(),
+                    };
+                }
+            };
             let size = PhysicalSize::new(args.size[0], args.size[1]);
             let _ = window_state.window.request_inner_size(size);
 
             // Update surface configuration
             window_state.config.width = args.size[0];
             window_state.config.height = args.size[1];
-            window_state
-                .surface
-                .configure(engine.device.as_ref().unwrap(), &window_state.config);
+            window_state.surface.configure(device, &window_state.config);
 
             // Mark window as dirty to trigger redraw
             window_state.is_dirty = true;
@@ -592,7 +599,9 @@ pub fn engine_cmd_window_set_icon(
         None => {
             return CmdResultWindowSetIcon {
                 success: false,
-                message: "Failed to decode image. Supported formats: PNG, JPEG, WebP, AVIF, EXR, HDR".into(),
+                message:
+                    "Failed to decode image. Supported formats: PNG, JPEG, WebP, AVIF, EXR, HDR"
+                        .into(),
             };
         }
     };
@@ -608,22 +617,27 @@ pub fn engine_cmd_window_set_icon(
     };
 
     // Create winit icon (requires RGBA8 format)
-    let icon = match winit::window::Icon::from_rgba(
-        image_data,
-        image_buffer.width,
-        image_buffer.height,
-    ) {
-        Ok(icon) => icon,
-        Err(e) => {
+    let icon =
+        match winit::window::Icon::from_rgba(image_data, image_buffer.width, image_buffer.height) {
+            Ok(icon) => icon,
+            Err(e) => {
+                return CmdResultWindowSetIcon {
+                    success: false,
+                    message: format!("Failed to create icon: {:?}", e),
+                };
+            }
+        };
+
+    // Apply icon to window
+    let window_state = match engine.window.states.get(&args.window_id) {
+        Some(window_state) => window_state,
+        None => {
             return CmdResultWindowSetIcon {
                 success: false,
-                message: format!("Failed to create icon: {:?}", e),
+                message: format!("Window with id {} not found", args.window_id),
             };
         }
     };
-
-    // Apply icon to window
-    let window_state = engine.window.states.get(&args.window_id).unwrap();
     window_state.window.set_window_icon(Some(icon));
 
     CmdResultWindowSetIcon {

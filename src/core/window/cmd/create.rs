@@ -432,12 +432,28 @@ pub fn engine_cmd_window_create(
 
     // Get surface capabilities
     let caps = if is_new_device {
-        engine.caps.as_ref().unwrap()
+        match engine.caps.as_ref() {
+            Some(caps) => caps,
+            None => {
+                return CmdResultWindowCreate {
+                    success: false,
+                    message: "Surface capabilities not initialized".into(),
+                };
+            }
+        }
     } else {
         // For subsequent windows, get fresh capabilities and store them
         let new_caps = surface.get_capabilities(&adapter);
         engine.caps = Some(new_caps);
-        engine.caps.as_ref().unwrap()
+        match engine.caps.as_ref() {
+            Some(caps) => caps,
+            None => {
+                return CmdResultWindowCreate {
+                    success: false,
+                    message: "Surface capabilities not initialized".into(),
+                };
+            }
+        }
     };
 
     let format = caps
@@ -467,7 +483,16 @@ pub fn engine_cmd_window_create(
     };
 
     // Configure the surface with the device
-    surface.configure(engine.device.as_ref().unwrap(), &config);
+    let device = match engine.device.as_ref() {
+        Some(device) => device,
+        None => {
+            return CmdResultWindowCreate {
+                success: false,
+                message: "Graphics device not initialized".into(),
+            };
+        }
+    };
+    surface.configure(device, &config);
 
     // Get initial window positions and sizes
     let inner_position = window.inner_position().unwrap_or_default();

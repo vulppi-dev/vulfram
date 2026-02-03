@@ -12,7 +12,7 @@ Disposes an audio resource. Any playing layers using it are stopped.
 
 Returns `CmdResultAudioResourceDispose`:
 
-| Field   | Type   | Description              |
-| ------- | ------ | ------------------------ |
-| success | bool   | Whether dispose succeeded|
-| message | String | Status or error message  |
+| Field   | Type   | Description               |
+| ------- | ------ | ------------------------- |
+| success | bool   | Whether dispose succeeded |
+| message | String | Status or error message   |

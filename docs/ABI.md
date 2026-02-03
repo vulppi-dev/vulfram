@@ -68,12 +68,10 @@ u32 vulfram_xxx(uint8_t** out_ptr, size_t* out_length);
 Contract:
 
 - Vulfram allocates a contiguous byte buffer and sets:
-
   - `*out_ptr` to the buffer address
   - `*out_length` to the number of bytes
 
 - The **caller on the C side** (the binding) is responsible for:
-
   1. Copying the bytes into its own memory representation
      (JS Buffer, Python bytes, Lua string, etc.)
   2. Releasing the buffer using the deallocation mechanism defined in
@@ -96,12 +94,10 @@ u32 vulfram_dispose(void);
 ```
 
 - `vulfram_init()`
-
   - Initializes the core state, subsystems, and any global allocations.
   - Must be called **exactly once** before any other function.
 
 - `vulfram_dispose()`
-
   - Shuts down the core, frees resources, and tears down subsystems.
   - After calling this, no other `vulfram_*` functions may be used
     unless a fresh `vulfram_init()` is called (full restart).
@@ -141,11 +137,9 @@ u32 vulfram_receive_queue(uint8_t** out_ptr, size_t* out_length);
 ```
 
 - On success, returns a MessagePack buffer with a batch of **responses**:
-
   - Acknowledgments, detailed error info, internal notifications, etc.
 
 - The buffer may be empty:
-
   - `*out_length == 0` indicates “no responses available”.
 
 Binding responsibilities:
@@ -166,7 +160,6 @@ u32 vulfram_receive_events(uint8_t** out_ptr, size_t* out_length);
 ```
 
 - Returns a MessagePack buffer containing a batch of **events**:
-
   - Keyboard, pointer, touch, gamepad (Gilrs on native, Gamepad API on web)
   - Window system events (resize, close, focus, etc.) via the platform proxy
 
@@ -202,7 +195,6 @@ Parameters:
 
 - `type`
   Upload type (host-facing values are kebab-case strings):
-
   - `"raw"`
   - `"shader-source"` (reserved)
   - `"geometry-data"`
@@ -212,7 +204,6 @@ Parameters:
   - `"binary-asset"`
 
   For the C ABI, pass the numeric mapping:
-
   - `raw` (0)
   - `shader-source` (1)
   - `geometry-data` (2)
@@ -255,7 +246,6 @@ Core responsibilities in `tick`:
 - Collect input & window events from the active platform proxy.
 - Execute the render pipeline on the GPU using WGPU.
 - Populate internal queues for:
-
   - responses (`receive_queue`)
   - events (`receive_events`)
   - profiling data (`get_profiling`)
@@ -291,7 +281,6 @@ u32 vulfram_get_profiling(uint8_t** out_ptr, size_t* out_length);
 ```
 
 - Returns a MessagePack buffer containing **profiling information**:
-
   - Timings in microseconds:
     - `commandProcessingUs`, `gamepadProcessingUs`, `eventLoopPumpUs`
     - `requestRedrawUs`, `serializationUs`
@@ -312,7 +301,6 @@ Usage patterns:
 Contract:
 
 - Same as other `out_ptr` functions:
-
   - binding copies the data, frees the buffer, then decodes MessagePack.
 
 ---
@@ -323,48 +311,37 @@ While the core is host-agnostic, we recommend the following call order
 per frame on the main thread:
 
 1. **Prepare game logic** (host side)
-
    - Run ECS / game systems.
    - Decide which components/resources need to be created/updated.
    - Optionally prepare uploads (meshes, textures, etc.).
 
 2. **Uploads** (optional, zero or more calls)
-
    - For each heavy blob:
-
      - `vulfram_upload_buffer(buffer_id, type, ptr, length)`
 
 3. **Send commands**
-
    - Build a MessagePack batch of commands (create/update components & resources,
      maintenance commands).
    - `vulfram_send_queue(buffer, length)`
 
 4. **Advance the core**
-
    - `vulfram_tick(time, delta_time)`
 
 5. **Receive responses** (consumes response queue)
-
    - `vulfram_receive_queue(&ptr, &len)`
    - If `len > 0`:
-
      - copy & free buffer
      - decode MessagePack and process responses
 
 6. **Receive events**
-
    - `vulfram_receive_events(&ptr, &len)`
    - If `len > 0`:
-
      - copy & free buffer
      - decode MessagePack and feed the host’s input/window system
 
 7. **Profiling (optional)**
-
    - `vulfram_get_profiling(&ptr, &len)`
    - If `len > 0`:
-
      - copy & free buffer
      - decode and feed debug UI / logs
 
@@ -373,7 +350,6 @@ per frame on the main thread:
 ## 4. Error Handling Guidelines for Bindings
 
 - On **non-zero** return from any `vulfram_*` function:
-
   - The binding should surface an error in the host language.
 
 - For debuggability, the core may emit additional structured error

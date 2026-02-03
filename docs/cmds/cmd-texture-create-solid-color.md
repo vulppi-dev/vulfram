@@ -4,15 +4,15 @@ Creates a 1x1 texture with a solid color.
 
 ## Arguments
 
-| Field        | Type                        | Description                                         |
-| ------------ | --------------------------- | --------------------------------------------------- |
-| windowId     | u32                         | ID of the window                                    |
-| textureId    | u32                         | Unique ID for the texture                           |
-| label        | Option<String>              | (Optional) Semantic name                            |
-| color        | Vec4                        | Color in RGBA                                       |
-| srgb         | Option<bool>                | (Optional) Use sRGB (default: true)                 |
+| Field        | Type                        | Description                                                        |
+| ------------ | --------------------------- | ------------------------------------------------------------------ |
+| windowId     | u32                         | ID of the window                                                   |
+| textureId    | u32                         | Unique ID for the texture                                          |
+| label        | Option<String>              | (Optional) Semantic name                                           |
+| color        | Vec4                        | Color in RGBA                                                      |
+| srgb         | Option<bool>                | (Optional) Use sRGB (default: true)                                |
 | mode         | TextureCreateMode           | (Optional) "standalone" or "forward-atlas" (default: "standalone") |
-| atlasOptions | Option<ForwardAtlasOptions> | (Optional) Options for atlas allocation             |
+| atlasOptions | Option<ForwardAtlasOptions> | (Optional) Options for atlas allocation                            |
 
 ### ForwardAtlasOptions
 

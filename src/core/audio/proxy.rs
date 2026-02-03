@@ -61,9 +61,6 @@ impl Default for AudioSourceParams {
 pub enum AudioPlayMode {
     Once,
     Loop,
-    Reverse,
-    LoopReverse,
-    PingPong,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -83,17 +80,9 @@ pub trait AudioProxy: Send {
     fn init(&mut self) -> Result<(), String>;
     fn listener_update(&mut self, state: AudioListenerState) -> Result<(), String>;
 
-    fn buffer_create_from_bytes(
-        &mut self,
-        resource_id: u32,
-        bytes: Vec<u8>,
-    ) -> Result<(), String>;
+    fn buffer_create_from_bytes(&mut self, resource_id: u32, bytes: Vec<u8>) -> Result<(), String>;
 
-    fn source_create(
-        &mut self,
-        source_id: u32,
-        params: AudioSourceParams,
-    ) -> Result<(), String>;
+    fn source_create(&mut self, source_id: u32, params: AudioSourceParams) -> Result<(), String>;
 
     fn source_update(&mut self, source_id: u32, params: AudioSourceParams) -> Result<(), String>;
     fn source_play(

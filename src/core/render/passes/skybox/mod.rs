@@ -103,36 +103,38 @@ pub fn pass_skybox(
             blend: None,
         };
 
-        let pipeline = render_state.cache.get_or_create(pipeline_key, frame_index, || {
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Skybox Pipeline"),
-                layout: Some(&library.skybox_pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: &library.skybox_shader,
-                    entry_point: Some("vs_main"),
-                    buffers: &[],
-                    compilation_options: wgpu::PipelineCompilationOptions::default(),
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &library.skybox_shader,
-                    entry_point: Some("fs_main"),
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format: target_format,
-                        blend: None,
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
-                    compilation_options: wgpu::PipelineCompilationOptions::default(),
-                }),
-                primitive: wgpu::PrimitiveState::default(),
-                depth_stencil: None,
-                multisample: wgpu::MultisampleState {
-                    count: sample_count,
-                    ..Default::default()
-                },
-                multiview_mask: None,
-                cache: None,
-            })
-        });
+        let pipeline = render_state
+            .cache
+            .get_or_create(pipeline_key, frame_index, || {
+                device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: Some("Skybox Pipeline"),
+                    layout: Some(&library.skybox_pipeline_layout),
+                    vertex: wgpu::VertexState {
+                        module: &library.skybox_shader,
+                        entry_point: Some("vs_main"),
+                        buffers: &[],
+                        compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    },
+                    fragment: Some(wgpu::FragmentState {
+                        module: &library.skybox_shader,
+                        entry_point: Some("fs_main"),
+                        targets: &[Some(wgpu::ColorTargetState {
+                            format: target_format,
+                            blend: None,
+                            write_mask: wgpu::ColorWrites::ALL,
+                        })],
+                        compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    }),
+                    primitive: wgpu::PrimitiveState::default(),
+                    depth_stencil: None,
+                    multisample: wgpu::MultisampleState {
+                        count: sample_count,
+                        ..Default::default()
+                    },
+                    multiview_mask: None,
+                    cache: None,
+                })
+            });
 
         let inv_view_proj = camera_record.data.view_projection.inverse();
         let camera_pos = camera_record.data.position.truncate();

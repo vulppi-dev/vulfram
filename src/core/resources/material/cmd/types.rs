@@ -24,6 +24,8 @@ pub enum MaterialSampler {
 pub struct StandardOptions {
     pub base_color: Vec4,
     pub surface_type: SurfaceType,
+    #[serde(default)]
+    pub emissive_color: Vec4,
     pub spec_color: Option<Vec4>,
     pub spec_power: Option<f32>,
     pub base_tex_id: Option<u32>,
@@ -34,6 +36,8 @@ pub struct StandardOptions {
     pub normal_sampler: Option<MaterialSampler>,
     pub toon_ramp_tex_id: Option<u32>,
     pub toon_ramp_sampler: Option<MaterialSampler>,
+    pub emissive_tex_id: Option<u32>,
+    pub emissive_sampler: Option<MaterialSampler>,
     pub flags: u32,
     pub toon_params: Option<Vec4>,
 }
@@ -43,6 +47,7 @@ impl Default for StandardOptions {
         Self {
             base_color: Vec4::ONE,
             surface_type: SurfaceType::Opaque,
+            emissive_color: Vec4::ZERO,
             spec_color: None,
             spec_power: None,
             base_tex_id: None,
@@ -53,6 +58,8 @@ impl Default for StandardOptions {
             normal_sampler: None,
             toon_ramp_tex_id: None,
             toon_ramp_sampler: None,
+            emissive_tex_id: None,
+            emissive_sampler: None,
             flags: 0,
             toon_params: None,
         }

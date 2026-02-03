@@ -15,6 +15,7 @@ struct Model {
     rotation: vec4<f32>,
     scale: vec4<f32>,
     flags: vec4<u32>, // x: flags, y: bone_offset, z: bone_count
+    outline_color: vec4<f32>,
 }
 
 @group(0) @binding(1) var<uniform> camera: Camera;

@@ -118,6 +118,72 @@ The render state keeps a **scene** with camera/model records:
   - `label: Option<String>` (semantic name)
   - `data: ModelComponent` (transform + derived TRS)
   - `geometry_id` (required)
+  - `cast_outline` and `outline_color` (outline mask + color for post)
+
+---
+
+## 5. Environment & Post-Processing (Current)
+
+The environment config now includes a post-processing block used by the `post` pass.
+
+`EnvironmentConfig` (core/resources/environment/spec.rs):
+
+- `msaa`
+- `skybox`
+- `post`
+
+`SkyboxConfig` highlights:
+
+- `mode`: `none`, `procedural`, `cubemap`
+- `intensity`: overall multiplier
+- `rotation`: radians, applied around Y
+- `ground_color`: ground/low hemisphere color
+- `horizon_color`: horizon blend color
+- `sky_color`: upper sky color
+- `cubemap_texture_id`: 2D equirect sky texture ID (lat/long); sampled only when `mode = cubemap`
+
+Texture loading notes:
+- EXR/HDR inputs decode to `rgba16f` textures (not supported in forward atlas).
+
+Async texture decode:
+- `CmdTextureCreateFromBuffer` returns `{ pending: true }` when decode is queued.
+- The engine later emits `SystemEvent::TextureReady { windowId, textureId, success, message }`.
+
+`PostProcessConfig` highlights:
+
+- `filter_enabled`: master enable for filters
+- `filter_exposure`: HDR exposure multiplier
+- `filter_gamma`: gamma correction
+- `filter_saturation`: color saturation
+- `filter_contrast`: color contrast
+- `filter_vignette`: vignette strength
+- `filter_grain`: film grain
+- `filter_chromatic_aberration`: chromatic aberration strength
+- `filter_blur`: blur amount
+- `filter_sharpen`: sharpen amount
+- `filter_tonemap_mode`: 0 = none, 1 = Reinhard, 2 = ACES
+- `filter_posterize_steps`: number of posterize steps (0 disables)
+- `outline_enabled`: enables outline composition in post
+- `outline_strength`: mix amount for outline color
+- `outline_threshold`: edge threshold (clamped to `[0, 1)`)
+- `outline_width`: pixel width used by edge kernel
+- `outline_quality`: 0 = 3×3 kernel, 1 = 5×5 kernel
+- `ssao_enabled`: enable SSAO composition in post
+- `ssao_strength`: SSAO mix strength in post
+- `ssao_radius`: sampling radius for SSAO
+- `ssao_bias`: depth bias to reduce self-occlusion
+- `ssao_power`: contrast curve for SSAO output
+- `ssao_blur_radius`: bilateral blur radius (pixels)
+- `ssao_blur_depth_threshold`: depth threshold for blur weights
+- SSAO suporta depth MSAA (amostra média por pixel quando MSAA está ativo)
+- `bloom_enabled`: enable bloom/glow composition in post
+- `bloom_threshold`: threshold for bright pass
+- `bloom_knee`: soft knee for thresholding
+- `bloom_intensity`: bloom mix intensity in post
+- `bloom_scatter`: scatter factor during upsample
+
+The outline mask is rendered in a dedicated `outline` pass into `outline_color`
+(now `rgba8`), and sampled by the `post` pass for final composition.
   - `material_id` (optional)
   - `layer_mask`
 

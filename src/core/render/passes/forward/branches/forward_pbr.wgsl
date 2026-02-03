@@ -68,6 +68,7 @@ struct Model {
     rotation: vec4<f32>,
     scale: vec4<f32>,
     flags: vec4<u32>, // x: flags, y: bone_offset, z: bone_count
+    outline_color: vec4<f32>,
 }
 
 struct MaterialPbrParams {
@@ -622,8 +623,13 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_id: u32) -> Vertex
 // Fragment
 // -----------------------------------------------------------------------------
 
+struct FragmentOutput {
+    @location(0) color: vec4<f32>,
+    @location(1) emissive: vec4<f32>,
+}
+
 @fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fs_main(in: VertexOutput) -> FragmentOutput {
     let base_param = input_at(material.input_indices.x);
     let base_color = base_param.rgb;
     let base_alpha = base_param.a;
@@ -697,5 +703,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     if (material.surface_flags.x == SURFACE_MASKED && alpha < ALPHA_CUTOFF) {
         discard;
     }
-    return vec4<f32>(color, alpha);
+    return FragmentOutput(vec4<f32>(color, alpha), vec4<f32>(emissive, alpha));
 }

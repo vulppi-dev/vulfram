@@ -182,7 +182,11 @@ pub(crate) fn compute_tangents(
 
     let mut tangents = Vec::with_capacity(count);
     for i in 0..count {
-        let n = normals.get(i).copied().unwrap_or(Vec3::Y).normalize_or_zero();
+        let n = normals
+            .get(i)
+            .copied()
+            .unwrap_or(Vec3::Y)
+            .normalize_or_zero();
         let t = tan1[i];
         let t = if t.length_squared() < 1e-8 {
             if n.y.abs() < 0.999 {
@@ -193,7 +197,11 @@ pub(crate) fn compute_tangents(
         } else {
             (t - n * n.dot(t)).normalize_or_zero()
         };
-        let w = if n.cross(t).dot(tan2[i]) < 0.0 { -1.0 } else { 1.0 };
+        let w = if n.cross(t).dot(tan2[i]) < 0.0 {
+            -1.0
+        } else {
+            1.0
+        };
         tangents.push(Vec4::new(t.x, t.y, t.z, w));
     }
 

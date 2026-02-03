@@ -35,6 +35,7 @@ Texture references are **lazy**:
 
 - **baseColor**: Vec4
 - **surfaceType**: SurfaceType
+- **emissiveColor**: Vec4
 - **specColor**: Option<Vec4>
 - **specPower**: Option<f32>
 - **baseTexId**: Option<u32>
@@ -45,6 +46,8 @@ Texture references are **lazy**:
 - **normalSampler**: Option<MaterialSampler>
 - **toonRampTexId**: Option<u32>
 - **toonRampSampler**: Option<MaterialSampler>
+- **emissiveTexId**: Option<u32>
+- **emissiveSampler**: Option<MaterialSampler>
 - **flags**: u32
 - **toonParams**: Option<Vec4>
 

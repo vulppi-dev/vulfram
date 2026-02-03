@@ -36,6 +36,12 @@ pub struct RenderState {
     pub cache: RenderCache,
     pub forward_depth_target: Option<crate::core::resources::RenderTarget>,
     pub forward_msaa_target: Option<crate::core::resources::RenderTarget>,
+    pub forward_emissive_msaa_target: Option<crate::core::resources::RenderTarget>,
+    pub post_uniform_buffer: Option<wgpu::Buffer>,
+    pub ssao_uniform_buffer: Option<wgpu::Buffer>,
+    pub ssao_blur_uniform_buffer: Option<wgpu::Buffer>,
+    pub bloom_uniform_buffer: Option<wgpu::Buffer>,
+    pub skybox_uniform_buffer: Option<wgpu::Buffer>,
     pub environment: EnvironmentConfig,
     pub environment_is_configured: bool,
     pub skinning: SkinningSystem,
@@ -59,6 +65,7 @@ impl RenderState {
         // Depth target is now managed per-frame or lazily by passes
         self.forward_depth_target = None;
         self.forward_msaa_target = None;
+        self.forward_emissive_msaa_target = None;
 
         let mut any_camera_dirty = false;
         for record in self.scene.cameras.values_mut() {
@@ -68,26 +75,65 @@ impl RenderState {
                 .map(|vp| vp.resolve_size(width, height))
                 .unwrap_or((width, height));
 
-            let needs_target = match record.render_target.as_ref() {
-                Some(target) => {
-                    let size = target._texture.size();
-                    size.width != target_width || size.height != target_height
-                }
-                None => true,
-            };
-
-            if needs_target {
-                let size = wgpu::Extent3d {
-                    width: target_width,
-                    height: target_height,
-                    depth_or_array_layers: 1,
-                };
-                let target = crate::core::resources::RenderTarget::new(
+            crate::core::resources::ensure_render_target(
+                device,
+                &mut record.render_target,
+                target_width,
+                target_height,
+                wgpu::TextureFormat::Rgba16Float,
+            );
+            crate::core::resources::ensure_render_target(
+                device,
+                &mut record.emissive_target,
+                target_width,
+                target_height,
+                wgpu::TextureFormat::Rgba16Float,
+            );
+            crate::core::resources::ensure_render_target(
+                device,
+                &mut record.post_target,
+                target_width,
+                target_height,
+                wgpu::TextureFormat::Rgba16Float,
+            );
+            crate::core::resources::ensure_render_target(
+                device,
+                &mut record.outline_target,
+                target_width,
+                target_height,
+                wgpu::TextureFormat::Rgba8Unorm,
+            );
+            crate::core::resources::ensure_render_target(
+                device,
+                &mut record.ssao_target,
+                target_width,
+                target_height,
+                wgpu::TextureFormat::Rgba16Float,
+            );
+            crate::core::resources::ensure_render_target(
+                device,
+                &mut record.ssao_blur_target,
+                target_width,
+                target_height,
+                wgpu::TextureFormat::Rgba16Float,
+            );
+            crate::core::resources::ensure_render_target(
+                device,
+                &mut record.bloom_target,
+                target_width,
+                target_height,
+                wgpu::TextureFormat::Rgba16Float,
+            );
+            for (level, target) in record.bloom_chain.iter_mut().enumerate() {
+                let level_width = crate::core::render::bloom_chain_size(target_width, level);
+                let level_height = crate::core::render::bloom_chain_size(target_height, level);
+                crate::core::resources::ensure_render_target(
                     device,
-                    size,
+                    target,
+                    level_width,
+                    level_height,
                     wgpu::TextureFormat::Rgba16Float,
                 );
-                record.set_render_target(target);
             }
 
             record.data.update(

@@ -592,14 +592,24 @@ pub fn engine_cmd_window_set_icon(
         None => {
             return CmdResultWindowSetIcon {
                 success: false,
-                message: "Failed to decode image. Supported formats: PNG, JPEG, WebP, AVIF".into(),
+                message: "Failed to decode image. Supported formats: PNG, JPEG, WebP, AVIF, EXR, HDR".into(),
+            };
+        }
+    };
+
+    let image_data = match image_buffer.pixels {
+        crate::core::image::ImagePixels::Rgba8(data) => data,
+        crate::core::image::ImagePixels::Rgba16F(_) => {
+            return CmdResultWindowSetIcon {
+                success: false,
+                message: "Window icon requires RGBA8 image data".into(),
             };
         }
     };
 
     // Create winit icon (requires RGBA8 format)
     let icon = match winit::window::Icon::from_rgba(
-        image_buffer.data.clone(),
+        image_data,
         image_buffer.width,
         image_buffer.height,
     ) {

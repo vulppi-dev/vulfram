@@ -9,6 +9,10 @@ use crate::core::render::graph::RenderGraphPlan;
 use crate::core::state::EngineState;
 pub use state::RenderState;
 
+pub fn bloom_chain_size(base: u32, level: usize) -> u32 {
+    passes::bloom_chain_size(base, level)
+}
+
 #[cfg(feature = "wasm")]
 use js_sys::Date;
 
@@ -262,7 +266,7 @@ fn execute_window_graph(
                 continue;
             }
             "skybox" => {
-                passes::pass_skybox(render_state, device, encoder, frame_index);
+                passes::pass_skybox(render_state, device, queue, encoder, frame_index);
                 skybox_done = true;
             }
             "light-cull" => {
@@ -289,6 +293,21 @@ fn execute_window_graph(
                 if let Some(base) = gpu_base {
                     write_gpu_timestamp(encoder, gpu_profiler, base + 3, &mut gpu_written);
                 }
+            }
+            "outline" => {
+                passes::pass_outline(render_state, device, queue, encoder, frame_index);
+            }
+            "ssao" => {
+                passes::pass_ssao(render_state, device, queue, encoder, frame_index);
+            }
+            "ssao-blur" => {
+                passes::pass_ssao_blur(render_state, device, queue, encoder, frame_index);
+            }
+            "bloom" => {
+                passes::pass_bloom(render_state, device, queue, encoder, frame_index);
+            }
+            "post" => {
+                passes::pass_post(render_state, device, queue, encoder, frame_index);
             }
             "compose" => {
                 if let Some(base) = gpu_base {

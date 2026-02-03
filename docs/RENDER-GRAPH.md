@@ -2,6 +2,8 @@
 
 This document describes the host-facing render graph format. The host builds a graph using logical IDs; the core validates, maps, and executes it. If the graph is missing or invalid, the core executes a safe fallback graph.
 
+The core infers any missing resources from node inputs/outputs using default values (texture + frame lifetime).
+
 ## Goals
 
 - **Host control**: The host defines the render sequence and dependencies.
@@ -42,9 +44,8 @@ This document describes the host-facing render graph format. The host builds a g
 | Field       | Type      | Description |
 |------------|-----------|-------------|
 | resId      | LogicalId  | Logical resource identifier |
-| kind       | string     | "texture", "buffer", "attachment" |
-| desc       | Map        | Logical descriptor (format, size, usage) |
-| lifetime   | string     | "frame" or "persistent" |
+| kind       | string     | "texture", "buffer", "attachment" (defaults to "texture") |
+| lifetime   | string     | "frame" or "persistent" (defaults to "frame") |
 | aliasGroup | LogicalId? | Optional alias group for memory reuse |
 
 ### Edge
@@ -59,6 +60,21 @@ This document describes the host-facing render graph format. The host builds a g
 
 Logical IDs can be strings or numeric values. The core maps them to internal IDs once per `graphId` and caches the result to avoid per-frame cost.
 
+## Known Pass IDs
+
+- `shadow`
+- `light-cull`
+- `skybox`
+- `forward`
+- `outline`
+- `ssao`
+- `ssao-blur`
+- `bloom`
+- `post`
+- `compose`
+
+Bloom uses the emissive output from the forward pass when available and falls back to the HDR color buffer otherwise.
+
 ## Minimal Example
 
 ```json
@@ -67,17 +83,34 @@ Logical IDs can be strings or numeric values. The core maps them to internal IDs
   "nodes": [
     { "nodeId": "shadow_pass", "passId": "shadow", "inputs": [], "outputs": ["shadow_atlas"] },
     { "nodeId": "forward_pass", "passId": "forward", "inputs": ["shadow_atlas"], "outputs": ["hdr_color", "depth"] },
-    { "nodeId": "compose_pass", "passId": "compose", "inputs": ["hdr_color"], "outputs": ["swapchain"] }
+    { "nodeId": "outline_pass", "passId": "outline", "inputs": ["depth"], "outputs": ["outline_color"] },
+    { "nodeId": "ssao_pass", "passId": "ssao", "inputs": ["depth"], "outputs": ["ssao_raw"] },
+    { "nodeId": "ssao_blur_pass", "passId": "ssao-blur", "inputs": ["ssao_raw", "depth"], "outputs": ["ssao_blur"] },
+    { "nodeId": "bloom_pass", "passId": "bloom", "inputs": ["hdr_color"], "outputs": ["bloom_color"] },
+    { "nodeId": "post_pass", "passId": "post", "inputs": ["hdr_color", "outline_color", "ssao_blur", "bloom_color"], "outputs": ["post_color"] },
+    { "nodeId": "compose_pass", "passId": "compose", "inputs": ["post_color"], "outputs": ["swapchain"] }
   ],
   "edges": [
     { "fromNodeId": "shadow_pass", "toNodeId": "forward_pass" },
-    { "fromNodeId": "forward_pass", "toNodeId": "compose_pass" }
+    { "fromNodeId": "forward_pass", "toNodeId": "outline_pass" },
+    { "fromNodeId": "forward_pass", "toNodeId": "ssao_pass" },
+    { "fromNodeId": "ssao_pass", "toNodeId": "ssao_blur_pass" },
+    { "fromNodeId": "ssao_blur_pass", "toNodeId": "post_pass" },
+    { "fromNodeId": "forward_pass", "toNodeId": "bloom_pass" },
+    { "fromNodeId": "bloom_pass", "toNodeId": "post_pass" },
+    { "fromNodeId": "outline_pass", "toNodeId": "post_pass" },
+    { "fromNodeId": "post_pass", "toNodeId": "compose_pass" }
   ],
   "resources": [
-    { "resId": "shadow_atlas", "kind": "texture", "desc": { "format": "depth24", "size": "shadow_res" }, "lifetime": "frame" },
-    { "resId": "hdr_color", "kind": "texture", "desc": { "format": "rgba16f", "size": "screen" }, "lifetime": "frame" },
-    { "resId": "depth", "kind": "texture", "desc": { "format": "depth24", "size": "screen" }, "lifetime": "frame" },
-    { "resId": "swapchain", "kind": "attachment", "desc": { "format": "swapchain" }, "lifetime": "frame" }
+    { "resId": "shadow_atlas" },
+    { "resId": "hdr_color" },
+    { "resId": "depth" },
+    { "resId": "outline_color" },
+    { "resId": "ssao_raw" },
+    { "resId": "ssao_blur" },
+    { "resId": "bloom_color" },
+    { "resId": "post_color" },
+    { "resId": "swapchain", "kind": "attachment" }
   ],
   "fallback": true
 }
@@ -103,7 +136,7 @@ The fallback graph represents the default rendering pipeline that always works. 
 Example fallback:
 
 ```
-shadow -> forward -> compose
+shadow -> forward -> outline + ssao -> ssao-blur + bloom -> post -> compose
 ```
 
 ## Performance Notes

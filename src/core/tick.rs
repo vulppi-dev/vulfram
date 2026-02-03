@@ -55,6 +55,8 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
             }
         }
 
+        crate::core::resources::process_async_texture_results(&mut engine.state);
+
         let events_before = engine.state.event_queue.len();
 
         // MARK: Gamepad Processing

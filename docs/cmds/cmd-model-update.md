@@ -23,6 +23,8 @@ until those resources appear later with the same IDs.
 | layerMask     | Option<u32>    | (Optional) New visibility mask        |
 | castShadow    | Option<bool>   | (Optional) New shadow casting state   |
 | receiveShadow | Option<bool>   | (Optional) New shadow receiving state |
+| castOutline   | Option<bool>   | (Optional) New outline casting state  |
+| outlineColor  | Option<Vec4>   | (Optional) New outline color          |
 
 ## Response
 

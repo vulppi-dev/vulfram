@@ -83,6 +83,35 @@ pub fn pass_forward(
         render_state.forward_msaa_target = None;
         None
     };
+    let emissive_msaa_target = if sample_count > 1 {
+        if let Some((_, camera)) = scene.cameras.iter().next() {
+            if let Some(target) = &camera.render_target {
+                let size = target._texture.size();
+                let needs_msaa = match render_state.forward_emissive_msaa_target.as_ref() {
+                    Some(existing) => {
+                        let existing_size = existing._texture.size();
+                        existing_size.width != size.width
+                            || existing_size.height != size.height
+                            || existing.sample_count != sample_count
+                    }
+                    None => true,
+                };
+                if needs_msaa {
+                    render_state.forward_emissive_msaa_target =
+                        Some(crate::core::resources::RenderTarget::new_with_samples(
+                            device,
+                            size,
+                            wgpu::TextureFormat::Rgba16Float,
+                            sample_count,
+                        ));
+                }
+            }
+        }
+        render_state.forward_emissive_msaa_target.as_ref()
+    } else {
+        render_state.forward_emissive_msaa_target = None;
+        None
+    };
     gizmos.prepare(device, queue);
 
     // Pre-cache Gizmo Pipeline once per pass if needed
@@ -90,6 +119,7 @@ pub fn pass_forward(
         Some(PipelineKey {
             shader_id: ShaderId::Gizmo as u64,
             color_format: wgpu::TextureFormat::Rgba16Float,
+            color_target_count: 2,
             depth_format: depth_target.map(|t| t.format),
             sample_count,
             topology: wgpu::PrimitiveTopology::LineList,
@@ -115,10 +145,19 @@ pub fn pass_forward(
             Some(target) => &target.view,
             None => continue,
         };
+        let emissive_target = match &camera_record.emissive_target {
+            Some(target) => target,
+            None => continue,
+        };
         let (color_view, resolve_target) = if let Some(msaa) = msaa_target {
             (&msaa.view, Some(target_view))
         } else {
             (target_view, None)
+        };
+        let (emissive_view, emissive_resolve) = if let Some(msaa) = emissive_msaa_target {
+            (&msaa.view, Some(&emissive_target.view))
+        } else {
+            (&emissive_target.view, None)
         };
 
         // Reset collector for this camera
@@ -131,24 +170,35 @@ pub fn pass_forward(
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some(&format!("Forward Pass - Camera {}", camera_id)),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: color_view,
-                    resolve_target,
-                    ops: wgpu::Operations {
-                        load: if clear_color {
-                            wgpu::LoadOp::Clear(wgpu::Color {
-                                r: 0.0,
-                                g: 0.0,
-                                b: 0.0,
-                                a: 1.0,
-                            })
-                        } else {
-                            wgpu::LoadOp::Load
+                color_attachments: &[
+                    Some(wgpu::RenderPassColorAttachment {
+                        view: color_view,
+                        resolve_target,
+                        ops: wgpu::Operations {
+                            load: if clear_color {
+                                wgpu::LoadOp::Clear(wgpu::Color {
+                                    r: 0.0,
+                                    g: 0.0,
+                                    b: 0.0,
+                                    a: 1.0,
+                                })
+                            } else {
+                                wgpu::LoadOp::Load
+                            },
+                            store: wgpu::StoreOp::Store,
                         },
-                        store: wgpu::StoreOp::Store,
-                    },
-                    depth_slice: None,
-                })],
+                        depth_slice: None,
+                    }),
+                    Some(wgpu::RenderPassColorAttachment {
+                        view: emissive_view,
+                        resolve_target: emissive_resolve,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                            store: wgpu::StoreOp::Store,
+                        },
+                        depth_slice: None,
+                    }),
+                ],
 
                 depth_stencil_attachment: depth_target.map(|target| {
                     wgpu::RenderPassDepthStencilAttachment {
@@ -226,11 +276,18 @@ pub fn pass_forward(
                         fragment: Some(wgpu::FragmentState {
                             module: &library.gizmo_shader,
                             entry_point: Some("fs_main"),
-                            targets: &[Some(wgpu::ColorTargetState {
-                                format: wgpu::TextureFormat::Rgba16Float,
-                                blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                                write_mask: wgpu::ColorWrites::ALL,
-                            })],
+                            targets: &[
+                                Some(wgpu::ColorTargetState {
+                                    format: wgpu::TextureFormat::Rgba16Float,
+                                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                                    write_mask: wgpu::ColorWrites::ALL,
+                                }),
+                                Some(wgpu::ColorTargetState {
+                                    format: wgpu::TextureFormat::Rgba16Float,
+                                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                                    write_mask: wgpu::ColorWrites::ALL,
+                                }),
+                            ],
                             compilation_options: wgpu::PipelineCompilationOptions::default(),
                         }),
                         primitive: wgpu::PrimitiveState {

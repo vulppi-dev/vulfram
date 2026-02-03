@@ -68,6 +68,7 @@ struct Model {
     rotation: vec4<f32>,
     scale: vec4<f32>,
     flags: vec4<u32>, // x: flags, y: bone_offset, z: bone_count
+    outline_color: vec4<f32>,
 }
 
 struct MaterialStandardParams {
@@ -122,6 +123,7 @@ const TEX_BASE: u32 = 0u;
 const TEX_SPEC: u32 = 1u;
 const TEX_NORMAL: u32 = 2u;
 const TEX_TOON: u32 = 3u;
+const TEX_EMISSIVE: u32 = 4u;
 const STANDARD_FLAG_SPECULAR: u32 = 1u;
 const SAMPLER_POINT_CLAMP: u32 = 0u;
 const SAMPLER_LINEAR_CLAMP: u32 = 1u;
@@ -623,9 +625,15 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_id: u32) -> Vertex
 // Fragment
 // -----------------------------------------------------------------------------
 
+struct FragmentOutput {
+    @location(0) color: vec4<f32>,
+    @location(1) emissive: vec4<f32>,
+}
+
 @fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fs_main(in: VertexOutput) -> FragmentOutput {
     let base_color = input_at(material.input_indices.x);
+    let emissive_color = input_at(material.input_indices.w).rgb;
     let spec_enabled = (material.surface_flags.y & STANDARD_FLAG_SPECULAR) != 0u;
 
     let base_tex_slot = get_slot(material.texture_slots, TEX_BASE);
@@ -633,6 +641,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let base_tex = sample_material(base_tex_slot, base_sampler, in.uv0);
     let toon_slot = get_slot(material.texture_slots, TEX_TOON);
     let toon_sampler = get_slot(material.sampler_indices, TEX_TOON);
+    let emissive_slot = get_slot(material.texture_slots, TEX_EMISSIVE);
+    let emissive_sampler = get_slot(material.sampler_indices, TEX_EMISSIVE);
+    let emissive_tex = sample_material(emissive_slot, emissive_sampler, in.uv0);
+    let emissive = emissive_color * emissive_tex.rgb;
 
     var color = base_color.rgb * base_tex.rgb * in.color0.rgb;
     let alpha = base_color.a * base_tex.a;
@@ -726,9 +738,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     } else {
         color *= vec3<f32>(0.001);
     }
+    color += emissive;
 
     if (material.surface_flags.x == SURFACE_MASKED && alpha < ALPHA_CUTOFF) {
         discard;
     }
-    return vec4<f32>(color, alpha);
+    return FragmentOutput(vec4<f32>(color, alpha), vec4<f32>(emissive, alpha));
 }

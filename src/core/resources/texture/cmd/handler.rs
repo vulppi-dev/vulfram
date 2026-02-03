@@ -1,9 +1,12 @@
 use super::types::*;
 use super::utils::*;
 use crate::core::buffers::state::UploadType;
-use crate::core::image::ImageDecoder;
-use crate::core::resources::texture::{ForwardAtlasDesc, ForwardAtlasEntry, TextureRecord};
+use crate::core::image::{ImageBuffer, ImagePixels};
+use crate::core::resources::texture::{
+    ForwardAtlasDesc, ForwardAtlasEntry, TextureDecodeJob, TextureRecord,
+};
 use crate::core::state::EngineState;
+use crate::core::system::SystemEvent;
 use glam::{UVec2, Vec4};
 
 pub fn engine_cmd_texture_create_from_buffer(
@@ -16,6 +19,89 @@ pub fn engine_cmd_texture_create_from_buffer(
             return CmdResultTextureCreateFromBuffer {
                 success: false,
                 message: format!("Window {} not found", args.window_id),
+                pending: false,
+            };
+        }
+    };
+
+    if window_state
+        .render_state
+        .scene
+        .textures
+        .contains_key(&args.texture_id)
+        || window_state
+            .render_state
+            .scene
+            .forward_atlas_entries
+            .contains_key(&args.texture_id)
+        || engine.texture_async.is_pending(args.texture_id)
+    {
+        return CmdResultTextureCreateFromBuffer {
+            success: false,
+            message: format!("Texture with id {} already exists or pending", args.texture_id),
+            pending: false,
+        };
+    }
+
+    let buffer = match engine.buffers.remove_upload(args.buffer_id) {
+        Some(b) => b,
+        None => {
+            return CmdResultTextureCreateFromBuffer {
+                success: false,
+                message: format!("Buffer with id {} not found", args.buffer_id),
+                pending: false,
+            };
+        }
+    };
+
+    if buffer.upload_type != UploadType::ImageData {
+        return CmdResultTextureCreateFromBuffer {
+            success: false,
+            message: format!(
+                "Invalid buffer type. Expected ImageData, got {:?}",
+                buffer.upload_type
+            ),
+            pending: false,
+        };
+    }
+
+    let job = TextureDecodeJob {
+        window_id: args.window_id,
+        texture_id: args.texture_id,
+        label: args.label.clone(),
+        srgb: args.srgb,
+        mode: args.mode,
+        atlas_options: args.atlas_options.clone(),
+        bytes: buffer.data,
+    };
+
+    if let Err(message) = engine.texture_async.enqueue(job) {
+        return CmdResultTextureCreateFromBuffer {
+            success: false,
+            message,
+            pending: false,
+        };
+    }
+
+    CmdResultTextureCreateFromBuffer {
+        success: true,
+        message: "Texture decode queued".into(),
+        pending: true,
+    }
+}
+
+fn create_texture_from_image(
+    engine: &mut EngineState,
+    args: &CmdTextureCreateFromBufferArgs,
+    image: ImageBuffer,
+) -> CmdResultTextureCreateFromBuffer {
+    let window_state = match engine.window.states.get_mut(&args.window_id) {
+        Some(ws) => ws,
+        None => {
+            return CmdResultTextureCreateFromBuffer {
+                success: false,
+                message: format!("Window {} not found", args.window_id),
+                pending: false,
             };
         }
     };
@@ -34,6 +120,7 @@ pub fn engine_cmd_texture_create_from_buffer(
         return CmdResultTextureCreateFromBuffer {
             success: false,
             message: format!("Texture with id {} already exists", args.texture_id),
+            pending: false,
         };
     }
 
@@ -43,6 +130,7 @@ pub fn engine_cmd_texture_create_from_buffer(
             return CmdResultTextureCreateFromBuffer {
                 success: false,
                 message: "Device not initialized".into(),
+                pending: false,
             };
         }
     };
@@ -53,44 +141,45 @@ pub fn engine_cmd_texture_create_from_buffer(
             return CmdResultTextureCreateFromBuffer {
                 success: false,
                 message: "Queue not initialized".into(),
+                pending: false,
             };
         }
     };
 
-    let buffer = match engine.buffers.remove_upload(args.buffer_id) {
-        Some(b) => b,
-        None => {
-            return CmdResultTextureCreateFromBuffer {
-                success: false,
-                message: format!("Buffer with id {} not found", args.buffer_id),
-            };
-        }
-    };
-
-    if buffer.upload_type != UploadType::ImageData {
-        return CmdResultTextureCreateFromBuffer {
-            success: false,
-            message: format!(
-                "Invalid buffer type. Expected ImageData, got {:?}",
-                buffer.upload_type
-            ),
-        };
+    enum PixelUpload {
+        Rgba8(Vec<u8>),
+        Rgba16F(Vec<u16>),
     }
 
-    let image = match ImageDecoder::try_decode(&buffer.data) {
-        Some(img) => img,
-        None => {
-            return CmdResultTextureCreateFromBuffer {
-                success: false,
-                message: "Failed to decode image. Supported formats: PNG, JPEG, WebP, AVIF".into(),
+    let (format, bytes_per_row, rows_per_image, pixel_upload) = match image.pixels {
+        ImagePixels::Rgba8(data) => {
+            let format = if args.srgb.unwrap_or(true) {
+                wgpu::TextureFormat::Rgba8UnormSrgb
+            } else {
+                wgpu::TextureFormat::Rgba8Unorm
             };
+            (
+                format,
+                Some(4 * image.width),
+                Some(image.height),
+                PixelUpload::Rgba8(data),
+            )
         }
-    };
-
-    let format = if args.srgb.unwrap_or(true) {
-        wgpu::TextureFormat::Rgba8UnormSrgb
-    } else {
-        wgpu::TextureFormat::Rgba8Unorm
+        ImagePixels::Rgba16F(data) => {
+            if matches!(args.mode, TextureCreateMode::ForwardAtlas) {
+                return CmdResultTextureCreateFromBuffer {
+                    success: false,
+                    message: "Float textures are not supported in forward atlas".into(),
+                    pending: false,
+                };
+            }
+            (
+                wgpu::TextureFormat::Rgba16Float,
+                Some(8 * image.width),
+                Some(image.height),
+                PixelUpload::Rgba16F(data),
+            )
+        }
     };
 
     let size = wgpu::Extent3d {
@@ -112,13 +201,18 @@ pub fn engine_cmd_texture_create_from_buffer(
                 view_formats: &[],
             });
 
+            let pixel_data: &[u8] = match &pixel_upload {
+                PixelUpload::Rgba8(data) => data.as_slice(),
+                PixelUpload::Rgba16F(data) => bytemuck::cast_slice(data),
+            };
+
             queue.write_texture(
                 texture.as_image_copy(),
-                &image.data,
+                pixel_data,
                 wgpu::TexelCopyBufferLayout {
                     offset: 0,
-                    bytes_per_row: Some(4 * image.width),
-                    rows_per_image: Some(image.height),
+                    bytes_per_row,
+                    rows_per_image,
                 },
                 size,
             );
@@ -159,6 +253,7 @@ pub fn engine_cmd_texture_create_from_buffer(
                         return CmdResultTextureCreateFromBuffer {
                             success: false,
                             message,
+                            pending: false,
                         };
                     }
                 };
@@ -170,6 +265,7 @@ pub fn engine_cmd_texture_create_from_buffer(
                         return CmdResultTextureCreateFromBuffer {
                             success: false,
                             message: "Forward atlas allocation failed".into(),
+                            pending: false,
                         };
                     }
                 };
@@ -179,9 +275,15 @@ pub fn engine_cmd_texture_create_from_buffer(
                         return CmdResultTextureCreateFromBuffer {
                             success: false,
                             message: "Forward atlas allocation invalid".into(),
+                            pending: false,
                         };
                     }
                 };
+                let pixel_data: &[u8] = match &pixel_upload {
+                    PixelUpload::Rgba8(data) => data.as_slice(),
+                    PixelUpload::Rgba16F(data) => bytemuck::cast_slice(data),
+                };
+
                 queue.write_texture(
                     wgpu::TexelCopyTextureInfo {
                         texture: atlas.texture(),
@@ -189,11 +291,11 @@ pub fn engine_cmd_texture_create_from_buffer(
                         origin: wgpu::Origin3d { x, y, z: layer },
                         aspect: wgpu::TextureAspect::All,
                     },
-                    &image.data,
+                    pixel_data,
                     wgpu::TexelCopyBufferLayout {
                         offset: 0,
-                        bytes_per_row: Some(4 * image.width),
-                        rows_per_image: Some(image.height),
+                        bytes_per_row,
+                        rows_per_image,
                     },
                     wgpu::Extent3d {
                         width: image.width,
@@ -207,6 +309,7 @@ pub fn engine_cmd_texture_create_from_buffer(
                         return CmdResultTextureCreateFromBuffer {
                             success: false,
                             message: "Forward atlas transform missing".into(),
+                            pending: false,
                         };
                     }
                 };
@@ -268,6 +371,40 @@ pub fn engine_cmd_texture_create_from_buffer(
     CmdResultTextureCreateFromBuffer {
         success: true,
         message: "Texture created successfully".into(),
+        pending: false,
+    }
+}
+
+pub fn process_async_texture_results(engine: &mut EngineState) {
+    let results = engine.texture_async.drain_results();
+    for result in results {
+        let args = CmdTextureCreateFromBufferArgs {
+            window_id: result.window_id,
+            texture_id: result.texture_id,
+            label: result.label.clone(),
+            buffer_id: 0,
+            srgb: result.srgb,
+            mode: result.mode,
+            atlas_options: result.atlas_options.clone(),
+        };
+
+        let response = match result.image {
+            Some(image) => create_texture_from_image(engine, &args, image),
+            None => CmdResultTextureCreateFromBuffer {
+                success: false,
+                message: result.message.clone(),
+                pending: false,
+            },
+        };
+
+        engine.event_queue.push(crate::core::cmd::EngineEvent::System(
+            SystemEvent::TextureReady {
+                window_id: result.window_id,
+                texture_id: result.texture_id,
+                success: response.success,
+                message: response.message,
+            },
+        ));
     }
 }
 

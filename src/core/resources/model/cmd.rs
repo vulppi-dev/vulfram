@@ -24,6 +24,10 @@ pub struct CmdModelCreateArgs {
     pub cast_shadow: bool,
     #[serde(default = "crate::core::resources::common::default_true")]
     pub receive_shadow: bool,
+    #[serde(default)]
+    pub cast_outline: bool,
+    #[serde(default = "crate::core::resources::common::default_vec4_zero")]
+    pub outline_color: glam::Vec4,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -59,7 +63,7 @@ pub fn engine_cmd_model_create(
         };
     }
 
-    let component = ModelComponent::new(args.transform, args.receive_shadow);
+    let component = ModelComponent::new(args.transform, args.receive_shadow, args.outline_color);
     let record = ModelRecord::new(
         args.label.clone(),
         component,
@@ -68,6 +72,7 @@ pub fn engine_cmd_model_create(
         args.layer_mask,
         args.cast_shadow,
         args.receive_shadow,
+        args.cast_outline,
     );
     window_state
         .render_state
@@ -100,6 +105,8 @@ pub struct CmdModelUpdateArgs {
     pub layer_mask: Option<u32>,
     pub cast_shadow: Option<bool>,
     pub receive_shadow: Option<bool>,
+    pub cast_outline: Option<bool>,
+    pub outline_color: Option<glam::Vec4>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -158,7 +165,13 @@ pub fn engine_cmd_model_update(
         record.receive_shadow = receive_shadow;
     }
 
-    record.data.update(args.transform, args.receive_shadow);
+    if let Some(cast_outline) = args.cast_outline {
+        record.cast_outline = cast_outline;
+    }
+
+    record
+        .data
+        .update(args.transform, args.receive_shadow, args.outline_color);
 
     if let Some(layer_mask) = args.layer_mask {
         record.layer_mask = layer_mask;

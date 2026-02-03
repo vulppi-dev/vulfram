@@ -51,6 +51,12 @@ impl RenderState {
             cache: RenderCache::new(),
             forward_depth_target: None,
             forward_msaa_target: None,
+            forward_emissive_msaa_target: None,
+            post_uniform_buffer: None,
+            ssao_uniform_buffer: None,
+            ssao_blur_uniform_buffer: None,
+            bloom_uniform_buffer: None,
+            skybox_uniform_buffer: None,
             collector: DrawCollector::default(),
             skinning: crate::core::render::state::SkinningSystem::default(),
             render_graph: crate::core::render::graph::RenderGraphState::new(),
@@ -84,6 +90,12 @@ impl RenderState {
         self.cache.clear();
         self.forward_depth_target = None;
         self.forward_msaa_target = None;
+        self.forward_emissive_msaa_target = None;
+        self.post_uniform_buffer = None;
+        self.ssao_uniform_buffer = None;
+        self.ssao_blur_uniform_buffer = None;
+        self.bloom_uniform_buffer = None;
+        self.skybox_uniform_buffer = None;
         self.skinning.clear();
         self.render_graph.reset_to_fallback();
         self.environment = crate::core::resources::EnvironmentConfig::default();
@@ -107,6 +119,7 @@ impl RenderState {
             bindings.camera_pool.begin_frame(frame_index);
             bindings.model_pool.begin_frame(frame_index);
             bindings.instance_pool.begin_frame(frame_index);
+            bindings.outline_instance_pool.begin_frame(frame_index);
             bindings.shadow_instance_pool.begin_frame(frame_index);
             bindings.material_standard_pool.begin_frame(frame_index);
             bindings.material_standard_inputs.begin_frame(frame_index);

@@ -23,6 +23,8 @@ until those resources appear later with the same IDs.
 | layerMask     | u32            | (Optional) Visibility bitmask (default: 0xFFFFFFFF)            |
 | castShadow    | bool           | (Optional) Whether this model casts shadows (default: true)    |
 | receiveShadow | bool           | (Optional) Whether this model receives shadows (default: true) |
+| castOutline   | bool           | (Optional) Whether this model writes to the outline mask (default: false) |
+| outlineColor  | Vec4           | (Optional) Outline color written into the outline mask (default: 0,0,0,0) |
 
 ## Response
 

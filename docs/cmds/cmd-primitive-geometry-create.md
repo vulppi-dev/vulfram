@@ -4,13 +4,13 @@ Generates a standard primitive shape (Cube, Sphere, etc.) as a geometry resource
 
 ## Arguments
 
-| Field      | Type                     | Description                                              |
-| ---------- | ------------------------ | -------------------------------------------------------- |
-| windowId   | u32                      | ID of the window                                         |
-| geometryId | u32                      | ID for the generated geometry                            |
-| label      | Option<String>           | (Optional) Semantic name                                 |
+| Field      | Type                     | Description                                               |
+| ---------- | ------------------------ | --------------------------------------------------------- |
+| windowId   | u32                      | ID of the window                                          |
+| geometryId | u32                      | ID for the generated geometry                             |
+| label      | Option<String>           | (Optional) Semantic name                                  |
 | shape      | PrimitiveShape           | "cube", "plane", "sphere", "cylinder", "torus", "pyramid" |
-| options    | Option<PrimitiveOptions> | (Optional) Parameters (size, radius, subdivisions, etc.) |
+| options    | Option<PrimitiveOptions> | (Optional) Parameters (size, radius, subdivisions, etc.)  |
 
 ## Response
 

@@ -25,7 +25,6 @@ Welcome to the Vulfram documentation! This index will guide you to the right doc
 If you're building a language binding (Node.js, Lua, Python, etc.) or integrating Vulfram into your application:
 
 1. **[OVERVIEW.md](OVERVIEW.md)** - _Start here!_
-
    - Design goals and philosophy
    - High-level architecture
    - Components vs Resources
@@ -33,7 +32,6 @@ If you're building a language binding (Node.js, Lua, Python, etc.) or integratin
    - Layer masking system
 
 2. **[ABI.md](ABI.md)** - _Essential for bindings_
-
    - C-ABI function reference
    - Calling conventions
    - Error handling
@@ -41,7 +39,6 @@ If you're building a language binding (Node.js, Lua, Python, etc.) or integratin
    - Buffer management (upload)
 
 3. **[ARCH.md](ARCH.md)** - _Implementation patterns_
-
    - Lifecycle management
    - Main loop structure
    - Recommended frame flow
@@ -49,7 +46,6 @@ If you're building a language binding (Node.js, Lua, Python, etc.) or integratin
    - Upload system
 
 4. **[cmds/](cmds/)** - _Command Reference_
-
    - Detailed documentation for every engine command (Window, Camera, Model, Light, etc.)
 
 5. **[RENDER-GRAPH.md](RENDER-GRAPH.md)** - _Host-defined render graph_
@@ -67,19 +63,16 @@ If you're building a language binding (Node.js, Lua, Python, etc.) or integratin
 If you're working on the Rust core implementation:
 
 1. **[OVERVIEW.md](OVERVIEW.md)** - _Foundational concepts_
-
    - Design principles
    - Architecture overview
    - Component and resource model
 
 2. **[ARCH.md](ARCH.md)** - _System architecture_
-
    - Component lifecycle
    - Resource management
    - Visibility and layer masking
 
 3. **[API.md](API.md)** - _Internal implementation_
-
    - Crate dependencies
    - Engine state structure
    - Resource and component tables

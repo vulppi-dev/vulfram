@@ -4,9 +4,9 @@ Disposes the current listener binding for the given window.
 
 ## Arguments
 
-| Field    | Type | Description             |
-| -------- | ---- | ----------------------- |
-| windowId | u32  | Window owning listener  |
+| Field    | Type | Description            |
+| -------- | ---- | ---------------------- |
+| windowId | u32  | Window owning listener |
 
 ## Response
 

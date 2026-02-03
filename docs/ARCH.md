@@ -179,7 +179,6 @@ Draw calls are batched by runs of `(material_id, geometry_id)` after sorting.
    ```
 
 3. The core initializes:
-
    - Platform proxy (desktop or browser)
    - WGPU instance (device/queue created on first window)
    - Gilrs (native gamepad) and web gamepad polling (WASM)
@@ -192,7 +191,6 @@ In the loading phase, the host typically:
 
 - Uploads heavy data (meshes, textures) via `vulfram_upload_buffer`.
 - Sends one or more command batches via `vulfram_send_queue` to:
-
   - create resources (`CmdGeometryCreate`, `CmdTextureCreateFromBuffer`, `CmdMaterialCreate`, etc.)
   - create components (`CmdCameraCreate`, `CmdModelCreate`, `CmdLightCreate`, …)
 
@@ -218,7 +216,6 @@ When the application is closing:
    ```
 
 3. The core releases:
-
    - GPU resources
    - Window and OS handles
    - Internal allocations
@@ -247,7 +244,6 @@ In more detail:
 
 - Compute new game state (ECS systems, scripts, AI, etc.).
 - Decide which entities/components/resources need:
-
   - to be created
   - to be updated
   - to be destroyed (future).
@@ -263,7 +259,6 @@ For any new or replaced heavy asset:
   ```
 
 - Typical uploaded data:
-
   - Vertex/index buffers
   - Texture images
 
@@ -272,7 +267,6 @@ These uploads will later be consumed by `Create*` commands referenced by `buffer
 ### 6.3 Send Command Batch
 
 - Build a batch of commands describing what changed this frame:
-
   - Component create/update
   - Resource create/update
   - Maintenance (e.g. `CmdUploadBufferDiscardAll`)
@@ -313,7 +307,6 @@ The core will:
   ```
 
 - If `len > 0`:
-
   - Copy the bytes to host memory (JS Buffer / Python bytes / Lua string, etc.).
   - Free the core buffer via the mechanism defined in the binding.
   - Deserialize MessagePack and process the responses.
@@ -331,7 +324,6 @@ The core will:
   ```
 
 - If `len > 0`:
-
   - Copy the bytes.
   - Free the core buffer.
   - Deserialize MessagePack into an event list.
@@ -350,7 +342,6 @@ For debug or tooling:
   ```
 
 - If `len > 0`:
-
   - Copy the bytes.
   - Free the core buffer.
   - Deserialize MessagePack into profiling data.

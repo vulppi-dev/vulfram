@@ -38,7 +38,10 @@ pub fn engine_cmd_texture_create_from_buffer(
     {
         return CmdResultTextureCreateFromBuffer {
             success: false,
-            message: format!("Texture with id {} already exists or pending", args.texture_id),
+            message: format!(
+                "Texture with id {} already exists or pending",
+                args.texture_id
+            ),
             pending: false,
         };
     }
@@ -378,6 +381,19 @@ fn create_texture_from_image(
 pub fn process_async_texture_results(engine: &mut EngineState) {
     let results = engine.texture_async.drain_results();
     for result in results {
+        if engine.texture_async.was_canceled(result.texture_id) {
+            engine
+                .event_queue
+                .push(crate::core::cmd::EngineEvent::System(
+                    SystemEvent::TextureReady {
+                        window_id: result.window_id,
+                        texture_id: result.texture_id,
+                        success: false,
+                        message: "Texture decode canceled".into(),
+                    },
+                ));
+            continue;
+        }
         let args = CmdTextureCreateFromBufferArgs {
             window_id: result.window_id,
             texture_id: result.texture_id,
@@ -397,14 +413,16 @@ pub fn process_async_texture_results(engine: &mut EngineState) {
             },
         };
 
-        engine.event_queue.push(crate::core::cmd::EngineEvent::System(
-            SystemEvent::TextureReady {
-                window_id: result.window_id,
-                texture_id: result.texture_id,
-                success: response.success,
-                message: response.message,
-            },
-        ));
+        engine
+            .event_queue
+            .push(crate::core::cmd::EngineEvent::System(
+                SystemEvent::TextureReady {
+                    window_id: result.window_id,
+                    texture_id: result.texture_id,
+                    success: response.success,
+                    message: response.message,
+                },
+            ));
     }
 }
 
@@ -653,6 +671,7 @@ pub fn engine_cmd_texture_dispose(
     engine: &mut EngineState,
     args: &CmdTextureDisposeArgs,
 ) -> CmdResultTextureDispose {
+    engine.texture_async.cancel(args.texture_id);
     let window_state = match engine.window.states.get_mut(&args.window_id) {
         Some(ws) => ws,
         None => {

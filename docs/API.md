@@ -11,7 +11,6 @@
 The Vulfram core is built as a Rust library with the following key crates:
 
 - **Platform proxies**
-
   - `winit` (desktop)
     - Window creation
     - Event loop integration
@@ -20,25 +19,21 @@ The Vulfram core is built as a Rust library with the following key crates:
     - DOM canvas, input events, gamepad polling
 
 - **Rendering**
-
   - `wgpu`
     - Cross-platform GPU abstraction
     - Device and queue management
     - Render pipelines, buffers, textures
 
 - **Gamepad input**
-
   - `gilrs` (desktop)
   - Web Gamepad API (browser/WASM)
 
 - **Images**
-
   - `image`
     - Texture file decoding (PNG, JPEG, etc.)
     - Conversion to raw pixel data for WGPU
 
 - **Math / binary packing**
-
   - `glam`
     - Vector, matrix, quaternion types (`Vec2`, `Vec3`, `Mat4`, etc.)
   - `bytemuck`
@@ -107,7 +102,6 @@ The core manages several first-class resources:
 The render state keeps a **scene** with camera/model records:
 
 - `CameraRecord`
-
   - `label: Option<String>` (semantic name)
   - `data: CameraComponent` (projection/view matrices)
   - `layer_mask`, `order`
@@ -143,9 +137,11 @@ The environment config now includes a post-processing block used by the `post` p
 - `cubemap_texture_id`: 2D equirect sky texture ID (lat/long); sampled only when `mode = cubemap`
 
 Texture loading notes:
+
 - EXR/HDR inputs decode to `rgba16f` textures (not supported in forward atlas).
 
 Async texture decode:
+
 - `CmdTextureCreateFromBuffer` returns `{ pending: true }` when decode is queued.
 - The engine later emits `SystemEvent::TextureReady { windowId, textureId, success, message }`.
 
@@ -194,12 +190,14 @@ The audio system is proxy-based (desktop = Kira, browser = WebAudio). The API is
 Command definitions live in `docs/cmds`.
 
 Notes:
+
 - `intensity` is a 0..1 scalar applied on top of `gain` when playing.
-- `mode` supports `once`, `loop`, `reverse`, `loop-reverse`, `ping-pong`.
+- `mode` supports `once`, `loop`.
 - When a source is bound to a model, the core updates its position every tick.
 - If the bound source model is the same as the bound listener model, spatialization is bypassed.
 
 Events:
+
 - `SystemEvent::AudioReady { resourceId, success, message }` (async decode)
   - Emitted when the audio buffer finishes decoding (desktop and web).
   - Use this to decide when `CmdAudioSourcePlay` is safe to call.
@@ -220,7 +218,6 @@ then decoded into internal Rust enums.
 ### 5.1 ABI Layer (C → Rust)
 
 - `vulfram_send_queue(buffer, length)`
-
   1. Copies the buffer into a `Vec<u8>`.
   2. Deserializes with `rmp-serde` into `EngineBatchCmds` (`Vec<EngineCmdEnvelope>`).
   3. Pushes the commands into `EngineState::cmd_queue`.
@@ -235,7 +232,6 @@ During `vulfram_tick`:
 
 1. Drain `cmd_queue`.
 2. For each `EngineCommand`, call into appropriate systems:
-
    - Resource creation/update
    - Component creation/update
    - Maintenance (e.g. cleaning uploads)
@@ -272,18 +268,15 @@ buffers: HashMap<u64, UploadBuffer>  // BufferId -> UploadBuffer
 ```
 
 - `vulfram_upload_buffer`:
-
   - Inserts an `UploadBuffer` for a given `BufferId` (u64).
   - Returns error if buffer ID already exists (one-shot semantics).
 
 - `Create*` commands:
-
   - Look up the `UploadBuffer` by `BufferId`.
   - Use/consume its data to create WGPU resources.
   - Remove entry after consumption.
 
 - `CmdUploadBufferDiscardAll` command:
-
   - Iterates and removes any unconsumed upload buffers.
 
 ---
@@ -298,15 +291,12 @@ the draw passes.
 Current GPU buffers:
 
 - `FrameUniformBuffer`
-
   - Time, delta time, frame index.
 
 - `CameraUniformBuffer`
-
   - Camera matrices and parameters.
 
 - `ModelUniformBuffer`
-
   - Model transforms and derived TRS.
 
 - Vertex / index buffers for geometries (managed by `VertexAllocatorSystem`).
@@ -316,16 +306,13 @@ Current GPU buffers:
 Conceptual flow:
 
 1. Update uniform buffers (if dirty):
-
    - Write updated frame/camera/model data into pools.
 
 2. For each camera:
-
    - Set its render target (texture view) as the color attachment.
    - Configure viewport and scissor according to `CameraInstance`.
    - Clear or load the attachment as needed.
    - Iterate over `MeshInstance`s:
-
      - Filter by `layerMask`:
 
      ```rust

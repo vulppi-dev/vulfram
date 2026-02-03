@@ -1,3 +1,8 @@
+#[cfg(not(feature = "wasm"))]
+use crate::core::audio::KiraAudioProxy;
+#[cfg(feature = "wasm")]
+use crate::core::audio::WebAudioProxy;
+use crate::core::audio::{AudioListenerBinding, AudioSourceParams};
 use crate::core::buffers::state::BufferStorage;
 use crate::core::cmd::{EngineBatchCmds, EngineBatchEvents, EngineBatchResponses};
 use crate::core::gamepad::state::GamepadState;
@@ -6,11 +11,6 @@ use crate::core::input::InputState;
 use crate::core::profiling::TickProfiling;
 use crate::core::profiling::gpu::GpuProfiler;
 use crate::core::resources::TextureAsyncManager;
-#[cfg(not(feature = "wasm"))]
-use crate::core::audio::KiraAudioProxy;
-#[cfg(feature = "wasm")]
-use crate::core::audio::WebAudioProxy;
-use crate::core::audio::{AudioListenerBinding, AudioSourceParams};
 use crate::core::window::WindowManager;
 use std::collections::HashMap;
 

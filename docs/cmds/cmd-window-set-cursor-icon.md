@@ -8,10 +8,10 @@ Sets the system cursor icon for a window.
 
 ## Arguments
 
-| Field    | Type       | Description                                                 |
-| -------- | ---------- | ----------------------------------------------------------- |
-| windowId | u32        | ID of the window                                            |
-| icon     | CursorIcon | Cursor icon enum value                                      |
+| Field    | Type       | Description            |
+| -------- | ---------- | ---------------------- |
+| windowId | u32        | ID of the window       |
+| icon     | CursorIcon | Cursor icon enum value |
 
 ### CursorIcon (Enum)
 

@@ -1,9 +1,9 @@
 use glam::{Quat, Vec3};
 use serde::{Deserialize, Serialize};
 
+use crate::core::audio::{AudioListenerState, AudioSourceParams};
 use crate::core::buffers::state::UploadType;
 use crate::core::state::EngineState;
-use crate::core::audio::{AudioListenerState, AudioSourceParams};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -203,9 +203,6 @@ pub struct CmdResultAudioSourceDispose {
 pub enum AudioPlayModeDto {
     Once,
     Loop,
-    Reverse,
-    LoopReverse,
-    PingPong,
 }
 
 impl From<AudioPlayModeDto> for crate::core::audio::AudioPlayMode {
@@ -213,9 +210,6 @@ impl From<AudioPlayModeDto> for crate::core::audio::AudioPlayMode {
         match value {
             AudioPlayModeDto::Once => Self::Once,
             AudioPlayModeDto::Loop => Self::Loop,
-            AudioPlayModeDto::Reverse => Self::Reverse,
-            AudioPlayModeDto::LoopReverse => Self::LoopReverse,
-            AudioPlayModeDto::PingPong => Self::PingPong,
         }
     }
 }
@@ -306,7 +300,12 @@ pub fn process_audio_listener_binding(engine: &mut EngineState) {
         Some(state) => state,
         None => return,
     };
-    let record = match window_state.render_state.scene.models.get(&binding.model_id) {
+    let record = match window_state
+        .render_state
+        .scene
+        .models
+        .get(&binding.model_id)
+    {
         Some(record) => record,
         None => return,
     };
@@ -348,7 +347,10 @@ pub fn engine_cmd_audio_buffer_create_from_buffer(
         };
     }
 
-    match engine.audio.buffer_create_from_bytes(args.resource_id, buffer.data) {
+    match engine
+        .audio
+        .buffer_create_from_bytes(args.resource_id, buffer.data)
+    {
         Ok(()) => CmdResultAudioResourceCreate {
             success: true,
             message: "Audio buffer queued".into(),
@@ -389,10 +391,7 @@ pub fn engine_cmd_audio_source_create(
             model_id: args.model_id,
         },
     );
-    match engine
-        .audio
-        .source_create(args.source_id, params)
-    {
+    match engine.audio.source_create(args.source_id, params) {
         Ok(()) => CmdResultAudioSourceCreate {
             success: true,
             message: "Source created".into(),
@@ -435,17 +434,14 @@ pub fn engine_cmd_audio_source_play(
 ) -> CmdResultAudioSourcePlay {
     let intensity = args.intensity.clamp(0.0, 1.0);
     let timeline_id = args.timeline_id.unwrap_or(0);
-    match engine
-        .audio
-        .source_play(
-            args.source_id,
-            args.resource_id,
-            timeline_id,
-            args.mode.clone().into(),
-            args.delay_ms,
-            intensity,
-        )
-    {
+    match engine.audio.source_play(
+        args.source_id,
+        args.resource_id,
+        timeline_id,
+        args.mode.clone().into(),
+        args.delay_ms,
+        intensity,
+    ) {
         Ok(()) => CmdResultAudioSourcePlay {
             success: true,
             message: "Source playing".into(),
@@ -532,17 +528,29 @@ pub fn process_audio_source_bindings(engine: &mut EngineState) {
         Some(state) => state,
         None => return,
     };
-    let listener_record = match window_state.render_state.scene.models.get(&listener_binding.model_id) {
+    let listener_record = match window_state
+        .render_state
+        .scene
+        .models
+        .get(&listener_binding.model_id)
+    {
         Some(record) => record,
         None => return,
     };
-    let (_, listener_rotation, listener_translation) =
-        listener_record.data.transform.to_scale_rotation_translation();
+    let (_, listener_rotation, listener_translation) = listener_record
+        .data
+        .transform
+        .to_scale_rotation_translation();
     for (source_id, binding) in engine.audio_source_bindings.iter() {
         if binding.window_id != listener_binding.window_id {
             continue;
         }
-        let record = match window_state.render_state.scene.models.get(&binding.model_id) {
+        let record = match window_state
+            .render_state
+            .scene
+            .models
+            .get(&binding.model_id)
+        {
             Some(record) => record,
             None => continue,
         };

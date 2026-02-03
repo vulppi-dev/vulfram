@@ -7,8 +7,8 @@ pub mod kira;
 pub mod webaudio;
 
 pub use cmd::*;
-pub use proxy::*;
 #[cfg(not(feature = "wasm"))]
 pub use kira::KiraAudioProxy;
+pub use proxy::*;
 #[cfg(feature = "wasm")]
 pub use webaudio::WebAudioProxy;

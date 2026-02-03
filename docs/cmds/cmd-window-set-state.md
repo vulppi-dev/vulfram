@@ -8,9 +8,9 @@ Sets the state of a window ("minimized", "maximized", "fullscreen", etc.).
 
 ## Arguments
 
-| Field    | Type              | Description                                                                             |
-| -------- | ----------------- | --------------------------------------------------------------------------------------- |
-| windowId | u32               | ID of the window                                                                        |
+| Field    | Type              | Description                                                                              |
+| -------- | ----------------- | ---------------------------------------------------------------------------------------- |
+| windowId | u32               | ID of the window                                                                         |
 | state    | EngineWindowState | Target state ("minimized", "maximized", "windowed", "fullscreen", "windowed-fullscreen") |
 
 ## Response

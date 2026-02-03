@@ -8,8 +8,8 @@ use crate::core::state::EngineState;
 use crate::core::system::SystemEvent;
 use crate::core::window::WindowEvent;
 
+pub use crate::core::audio;
 pub use crate::core::buffers as buf;
-pub use crate::core::audio as audio;
 pub use crate::core::render::cmd as render;
 pub use crate::core::render::gizmos as gizmo;
 pub use crate::core::resources as res;

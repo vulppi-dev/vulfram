@@ -8,9 +8,9 @@ Requests user attention for a window (e.g., flashing the taskbar icon).
 
 ## Arguments
 
-| Field         | Type              | Description                                     |
-| ------------- | ----------------- | ----------------------------------------------- |
-| windowId      | u32               | ID of the window                                |
+| Field         | Type                      | Description                                                |
+| ------------- | ------------------------- | ---------------------------------------------------------- |
+| windowId      | u32                       | ID of the window                                           |
 | attentionType | Option<UserAttentionType> | (Optional) Type of attention ("critical", "informational") |
 
 ## Response

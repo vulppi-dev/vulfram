@@ -11,15 +11,15 @@ Notes:
 
 ## Arguments
 
-| Field        | Type                        | Description                                         |
-| ------------ | --------------------------- | --------------------------------------------------- |
-| windowId     | u32                         | ID of the window                                    |
-| textureId    | u32                         | Unique ID for the texture                           |
-| label        | Option<String>              | (Optional) Semantic name                            |
-| bufferId     | u64                         | ID of the uploaded buffer containing image data     |
-| srgb         | Option<bool>                | (Optional) Use sRGB (default: true)                 |
+| Field        | Type                        | Description                                                        |
+| ------------ | --------------------------- | ------------------------------------------------------------------ |
+| windowId     | u32                         | ID of the window                                                   |
+| textureId    | u32                         | Unique ID for the texture                                          |
+| label        | Option<String>              | (Optional) Semantic name                                           |
+| bufferId     | u64                         | ID of the uploaded buffer containing image data                    |
+| srgb         | Option<bool>                | (Optional) Use sRGB (default: true)                                |
 | mode         | TextureCreateMode           | (Optional) "standalone" or "forward-atlas" (default: "standalone") |
-| atlasOptions | Option<ForwardAtlasOptions> | (Optional) Options for atlas allocation             |
+| atlasOptions | Option<ForwardAtlasOptions> | (Optional) Options for atlas allocation                            |
 
 ### ForwardAtlasOptions
 

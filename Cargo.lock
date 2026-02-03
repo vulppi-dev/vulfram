@@ -1336,9 +1336,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "899def5c37c4fd7b2664648c28120ecec138e4d395b459e5ca34f9cce2dd77fd"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "r-efi",
  "wasip2",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -3779,12 +3781,13 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "vulfram-core"
-version = "0.14.7-alpha"
+version = "0.14.8-alpha"
 dependencies = [
  "bytemuck",
  "ctrlc",
  "encase",
  "env_logger",
+ "getrandom",
  "gilrs",
  "glam 0.30.10",
  "half",

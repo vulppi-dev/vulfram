@@ -28,11 +28,25 @@ pub struct UiContextRecord {
     pub debug_draw_logged: bool,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct UiState {
     pub themes: HashMap<LogicalId, UiThemeRecord>,
     pub contexts: HashMap<LogicalId, UiContextRecord>,
     pub focus_by_window: HashMap<u32, LogicalId>,
     pub capture_by_window: HashMap<u32, LogicalId>,
     pub pending_events: HashMap<LogicalId, Vec<egui::Event>>,
+    pub output_format: wgpu::TextureFormat,
+}
+
+impl Default for UiState {
+    fn default() -> Self {
+        Self {
+            themes: HashMap::new(),
+            contexts: HashMap::new(),
+            focus_by_window: HashMap::new(),
+            capture_by_window: HashMap::new(),
+            pending_events: HashMap::new(),
+            output_format: wgpu::TextureFormat::Rgba16Float,
+        }
+    }
 }

@@ -170,6 +170,19 @@ pub fn engine_cmd_window_create_async(
             }
         };
 
+        let ui_output_format = if adapter
+            .get_texture_format_features(wgpu::TextureFormat::Rgba16Float)
+            .flags
+            .contains(wgpu::TextureFormatFeatureFlags::FILTERABLE)
+        {
+            wgpu::TextureFormat::Rgba16Float
+        } else {
+            wgpu::TextureFormat::Rgba8UnormSrgb
+        };
+        let _ = with_engine_singleton(|engine| {
+            engine.state.ui.output_format = ui_output_format;
+        });
+
         let adapter_features = adapter.features();
         let mut required_features = wgpu::Features::empty();
         let gpu_profiling_supported = adapter_features.contains(
@@ -376,6 +389,16 @@ pub fn engine_cmd_window_create(
                     };
                 }
             };
+
+        engine.ui.output_format = if adapter
+            .get_texture_format_features(wgpu::TextureFormat::Rgba16Float)
+            .flags
+            .contains(wgpu::TextureFormatFeatureFlags::FILTERABLE)
+        {
+            wgpu::TextureFormat::Rgba16Float
+        } else {
+            wgpu::TextureFormat::Rgba8UnormSrgb
+        };
 
         let adapter_features = adapter.features();
         let mut required_features = wgpu::Features::empty();

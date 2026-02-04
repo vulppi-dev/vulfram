@@ -34,6 +34,8 @@ pub(crate) fn push_face_grid(
 
     for y in 0..=n {
         let v = y as f32 / subdivisions as f32;
+        // Inverte V para compatibilidade com texturas renderizadas (UI, render targets)
+        let v_inverted = 1.0 - v;
         for x in 0..=n {
             let u = x as f32 / subdivisions as f32;
             let pos =
@@ -41,7 +43,7 @@ pub(crate) fn push_face_grid(
 
             positions.push(pos);
             normals.push(normal);
-            uvs.push(Vec2::new(u, v));
+            uvs.push(Vec2::new(u, v_inverted));
         }
     }
 

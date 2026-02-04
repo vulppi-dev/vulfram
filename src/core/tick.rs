@@ -88,7 +88,9 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
         engine.state.profiling.total_events_dispatched = events_after - events_before;
 
         process_ui_input_routing(&mut engine.state);
-        ensure_ui_render_targets(&mut engine.state);
+        if let Some(device) = engine.state.device.as_ref() {
+            ensure_ui_render_targets(device, &mut engine.state.ui);
+        }
 
         // MARK: Render Frame Lifecycle
         engine.state.frame_index = engine.state.frame_index.wrapping_add(1);

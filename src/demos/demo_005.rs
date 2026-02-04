@@ -2,8 +2,9 @@ use crate::core::VulframResult;
 use crate::core::cmd::{EngineCmd, EngineEvent};
 use crate::core::render::graph::LogicalId;
 use crate::core::resources::{
-    CmdMaterialCreateArgs, CmdModelCreateArgs, CmdPrimitiveGeometryCreateArgs, MaterialKind,
-    MaterialOptions, MaterialSampler, PrimitiveShape, StandardOptions,
+    CmdMaterialCreateArgs, CmdModelCreateArgs, CmdPrimitiveGeometryCreateArgs,
+    CmdTextureCreateSolidColorArgs, MaterialKind, MaterialOptions, MaterialSampler, PrimitiveShape,
+    StandardOptions,
 };
 use crate::core::ui::cmd::{CmdUiApplyOpsArgs, CmdUiContextCreateArgs, CmdUiThemeDefineArgs};
 use crate::core::ui::tree::{
@@ -23,6 +24,7 @@ pub fn run(window_id: u32) -> bool {
     let plane_model_id: u32 = 701;
     let plane_material_id: u32 = 702;
     let ui_texture_id: u32 = 750;
+    let debug_texture_id: u32 = 751;
 
     let context_id = LogicalId::Str("ui_demo".into());
     let theme_id = LogicalId::Str("ui_theme".into());
@@ -34,15 +36,25 @@ pub fn run(window_id: u32) -> bool {
             Mat4::look_at_rh(Vec3::new(0.0, 4.5, 10.0), Vec3::ZERO, Vec3::Y).inverse(),
         ),
         create_point_light_cmd(window_id, 2, Vec4::new(0.0, 3.0, 4.0, 1.0)),
+        EngineCmd::CmdTextureCreateSolidColor(CmdTextureCreateSolidColorArgs {
+            window_id,
+            texture_id: debug_texture_id,
+            label: Some("UI Debug Solid".into()),
+            color: Vec4::new(0.1, 0.8, 0.2, 1.0),
+            srgb: Some(true),
+            mode: Default::default(),
+            atlas_options: None,
+        }),
         EngineCmd::CmdMaterialCreate(CmdMaterialCreateArgs {
             window_id,
             material_id: plane_material_id,
             label: Some("UI Material".into()),
             kind: MaterialKind::Standard,
             options: Some(MaterialOptions::Standard(StandardOptions {
-                base_color: Vec4::splat(0.1),
-                base_tex_id: None,
-                emissive_color: Vec4::splat(1.0),
+                base_color: Vec4::ZERO,
+                base_tex_id: Some(debug_texture_id),
+                base_sampler: Some(MaterialSampler::LinearClamp),
+                emissive_color: Vec4::ONE,
                 emissive_tex_id: Some(ui_texture_id),
                 emissive_sampler: Some(MaterialSampler::LinearClamp),
                 ..Default::default()

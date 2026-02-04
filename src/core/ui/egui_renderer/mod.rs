@@ -38,6 +38,7 @@ pub struct UiEguiRenderer {
     index_buffer: SlicedBuffer,
     previous_uniforms: UniformBuffer,
     textures: TextureManager,
+    output_format: wgpu::TextureFormat,
 }
 
 impl UiEguiRenderer {
@@ -190,7 +191,12 @@ impl UiEguiRenderer {
             index_buffer,
             previous_uniforms: UniformBuffer::zeroed(),
             textures: TextureManager::new(),
+            output_format,
         }
+    }
+
+    pub fn output_format(&self) -> wgpu::TextureFormat {
+        self.output_format
     }
 
     pub fn update_textures(
@@ -260,6 +266,7 @@ impl UiEguiRenderer {
         target_view: &wgpu::TextureView,
         draw_calls: &[DrawCall],
         screen_descriptor: &ScreenDescriptor,
+        clear_color: wgpu::Color,
     ) {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("egui_render_pass"),
@@ -268,7 +275,7 @@ impl UiEguiRenderer {
                 depth_slice: None,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                    load: wgpu::LoadOp::Clear(clear_color),
                     store: wgpu::StoreOp::Store,
                 },
             })],

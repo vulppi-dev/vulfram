@@ -118,6 +118,9 @@ pub fn render_frames(engine_state: &mut EngineState) {
         }
     }
 
+    // Garantir que os render targets da UI existam antes de renderizar
+    crate::core::ui::render::ensure_ui_render_targets(device, &mut engine_state.ui);
+
     // 2. Render all windows
     let mut windows_ns: u64 = 0;
     for (window_index, (window_id, window_state)) in
@@ -136,6 +139,7 @@ pub fn render_frames(engine_state: &mut EngineState) {
         };
 
         let render_state = &mut window_state.render_state;
+
         crate::core::ui::render::map_ui_targets_for_window(
             &mut engine_state.ui,
             &mut render_state.scene,
@@ -155,6 +159,16 @@ pub fn render_frames(engine_state: &mut EngineState) {
             }
         });
 
+        crate::core::ui::render::render_ui_for_window(
+            &mut engine_state.ui,
+            &mut engine_state.ui_renderer,
+            &mut engine_state.event_queue,
+            *window_id,
+            device,
+            queue,
+            &mut encoder,
+        );
+
         let plan = render_state.render_graph.plan().clone();
         gpu_written |= execute_window_graph(
             &plan,
@@ -167,16 +181,6 @@ pub fn render_frames(engine_state: &mut EngineState) {
             engine_state.frame_index,
             engine_state.gpu_profiler.as_ref(),
             gpu_base,
-        );
-
-        crate::core::ui::render::render_ui_for_window(
-            &mut engine_state.ui,
-            &mut engine_state.ui_renderer,
-            &mut engine_state.event_queue,
-            *window_id,
-            device,
-            queue,
-            &mut encoder,
         );
 
         queue.submit(Some(encoder.finish()));

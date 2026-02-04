@@ -1,28 +1,33 @@
 use crate::core::cmd::EngineEvent;
 use crate::core::render::state::RenderScene;
-use crate::core::resources::{ensure_render_target, TextureRecord};
-use crate::core::state::EngineState;
+use crate::core::resources::{TextureRecord, ensure_render_target};
 
 use super::build::build_ui_from_tree;
 use super::egui_renderer::{ScreenDescriptor, UiEguiRenderer};
 use super::state::UiState;
 
-pub fn ensure_ui_render_targets(engine: &mut EngineState) {
-    let device = match engine.device.as_ref() {
-        Some(d) => d,
-        None => return,
-    };
-
-    for context in engine.ui.contexts.values_mut() {
+pub fn ensure_ui_render_targets(device: &wgpu::Device, ui_state: &mut UiState) {
+    let target_format = ui_state.output_format;
+    for (ctx_id, context) in ui_state.contexts.iter_mut() {
         let width = context.screen_rect.w.max(1.0).round() as u32;
         let height = context.screen_rect.h.max(1.0).round() as u32;
+        let had_target = context.render_target.is_some();
         ensure_render_target(
             device,
             &mut context.render_target,
             width,
             height,
-            wgpu::TextureFormat::Rgba16Float,
+            target_format,
         );
+        if !had_target && context.render_target.is_some() {
+            log::info!(
+                "Ui context {:?} render target created: {}x{}, format {:?}",
+                ctx_id,
+                width,
+                height,
+                target_format
+            );
+        }
     }
 }
 
@@ -39,8 +44,13 @@ pub fn render_ui_for_window(
         return;
     }
 
-    let renderer = ui_renderer
-        .get_or_insert_with(|| UiEguiRenderer::new(device, wgpu::TextureFormat::Rgba16Float));
+    let target_format = ui_state.output_format;
+    if let Some(existing) = ui_renderer.as_ref() {
+        if existing.output_format() != target_format {
+            *ui_renderer = None;
+        }
+    }
+    let renderer = ui_renderer.get_or_insert_with(|| UiEguiRenderer::new(device, target_format));
 
     for (context_id, context) in ui_state.contexts.iter_mut() {
         if context.window_id != window_id {
@@ -50,15 +60,20 @@ pub fn render_ui_for_window(
             Some(target) => target,
             None => continue,
         };
-
         let width = context.screen_rect.w.max(1.0).round() as u32;
         let height = context.screen_rect.h.max(1.0).round() as u32;
+        let target_view = &target.view;
+        let clear_color = wgpu::Color::TRANSPARENT;
+
         let screen_descriptor = ScreenDescriptor {
             size_in_pixels: [width, height],
             pixels_per_point: 1.0,
         };
 
-        let events = ui_state.pending_events.remove(context_id).unwrap_or_default();
+        let events = ui_state
+            .pending_events
+            .remove(context_id)
+            .unwrap_or_default();
 
         let raw_input = egui::RawInput {
             screen_rect: Some(egui::Rect::from_min_size(
@@ -69,7 +84,9 @@ pub fn render_ui_for_window(
             ..Default::default()
         };
 
-        context.egui_ctx.set_pixels_per_point(screen_descriptor.pixels_per_point);
+        context
+            .egui_ctx
+            .set_pixels_per_point(screen_descriptor.pixels_per_point);
         let output = context.egui_ctx.run(raw_input, |ctx| {
             build_ui_from_tree(ctx, event_queue, context_id, window_id, &mut context.tree);
         });
@@ -81,7 +98,13 @@ pub fn render_ui_for_window(
         renderer.update_textures(device, queue, &output.textures_delta);
         let draw_calls =
             renderer.update_buffers(device, queue, &clipped_primitives, &screen_descriptor);
-        renderer.render(encoder, &target.view, &draw_calls, &screen_descriptor);
+        renderer.render(
+            encoder,
+            target_view,
+            &draw_calls,
+            &screen_descriptor,
+            clear_color,
+        );
 
         if !context.debug_draw_logged {
             log::info!(
@@ -120,32 +143,28 @@ fn map_ui_target_to_texture(
     let texture_id = match target_id {
         crate::core::render::graph::LogicalId::Int(value) => {
             if *value < 0 || *value > u32::MAX as i64 {
+                if !context.debug_map_logged {
+                    log::warn!("Ui target {:?} out of u32 range", target_id);
+                    context.debug_map_logged = true;
+                }
+                return;
+            }
+            *value as u32
+        }
+        crate::core::render::graph::LogicalId::Str(_) => {
             if !context.debug_map_logged {
-                log::warn!("Ui target {:?} out of u32 range", target_id);
+                log::warn!(
+                    "Ui target {:?} must be an int to map to texture id",
+                    target_id
+                );
                 context.debug_map_logged = true;
             }
             return;
         }
-        *value as u32
-    }
-    crate::core::render::graph::LogicalId::Str(_) => {
-        if !context.debug_map_logged {
-            log::warn!("Ui target {:?} must be an int to map to texture id", target_id);
-            context.debug_map_logged = true;
-        }
-        return;
-    }
-};
+    };
 
     let Some(target) = context.render_target.as_ref() else {
-        if !context.debug_map_logged {
-            log::warn!(
-                "Ui context {:?} has no render target yet (window {})",
-                context_id,
-                context.window_id
-            );
-            context.debug_map_logged = true;
-        }
+        // Não emitir warning, pois o target pode não ter sido criado ainda no primeiro frame
         return;
     };
 

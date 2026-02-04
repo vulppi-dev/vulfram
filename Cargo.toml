@@ -24,6 +24,7 @@ glam = { version = "0.30", features = ["serde", "bytemuck", "encase"] }
 # Graphics & windowing
 wgpu = "28.0"
 winit = { version = "0.30", optional = true }
+egui = "0.29"
 
 # Input & signals
 ctrlc = { version = "3.5", optional = true }

@@ -15,6 +15,7 @@ mod singleton;
 mod state;
 pub mod system;
 mod tick;
+pub mod ui;
 pub mod window;
 
 // Re-exports for public API

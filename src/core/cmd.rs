@@ -6,6 +6,7 @@ use crate::core::gamepad::events::GamepadEvent;
 use crate::core::input::events::{KeyboardEvent, PointerEvent};
 use crate::core::state::EngineState;
 use crate::core::system::SystemEvent;
+use crate::core::ui::events::UiEvent;
 use crate::core::window::WindowEvent;
 
 pub use crate::core::audio;
@@ -14,6 +15,7 @@ pub use crate::core::render::cmd as render;
 pub use crate::core::render::gizmos as gizmo;
 pub use crate::core::resources as res;
 pub use crate::core::system as sys;
+pub use crate::core::ui;
 pub use crate::core::window as win;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -79,6 +81,13 @@ pub enum EngineCmd {
     CmdEnvironmentDispose(res::CmdEnvironmentDisposeArgs),
     CmdShadowConfigure(res::shadow::CmdShadowConfigureArgs),
     CmdRenderGraphSet(render::CmdRenderGraphSetArgs),
+    CmdUiThemeDefine(ui::cmd::CmdUiThemeDefineArgs),
+    CmdUiContextCreate(ui::cmd::CmdUiContextCreateArgs),
+    CmdUiContextSetTheme(ui::cmd::CmdUiContextSetThemeArgs),
+    CmdUiContextSetRect(ui::cmd::CmdUiContextSetRectArgs),
+    CmdUiContextSetTarget(ui::cmd::CmdUiContextSetTargetArgs),
+    CmdUiContextDispose(ui::cmd::CmdUiContextDisposeArgs),
+    CmdUiApplyOps(ui::cmd::CmdUiApplyOpsArgs),
     CmdModelList(res::CmdModelListArgs),
     CmdMaterialList(res::CmdMaterialListArgs),
     CmdTextureList(res::CmdTextureListArgs),
@@ -98,6 +107,7 @@ pub enum EngineEvent {
     Keyboard(KeyboardEvent),
     Gamepad(GamepadEvent),
     System(SystemEvent),
+    Ui(UiEvent),
 }
 
 /// Command responses (answers to commands sent by user)
@@ -164,6 +174,13 @@ pub enum CommandResponse {
     EnvironmentDispose(res::CmdResultEnvironment),
     ShadowConfigure(res::shadow::CmdResultShadowConfigure),
     RenderGraphSet(render::CmdResultRenderGraphSet),
+    UiThemeDefine(ui::cmd::CmdResultUiThemeDefine),
+    UiContextCreate(ui::cmd::CmdResultUiContextCreate),
+    UiContextSetTheme(ui::cmd::CmdResultUiContextUpdate),
+    UiContextSetRect(ui::cmd::CmdResultUiContextUpdate),
+    UiContextSetTarget(ui::cmd::CmdResultUiContextUpdate),
+    UiContextDispose(ui::cmd::CmdResultUiContextDispose),
+    UiApplyOps(ui::cmd::CmdResultUiApplyOps),
     ModelList(res::CmdResultModelList),
     MaterialList(res::CmdResultMaterialList),
     TextureList(res::CmdResultTextureList),
@@ -626,6 +643,55 @@ pub fn engine_process_batch(
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::RenderGraphSet(result),
+                });
+            }
+            EngineCmd::CmdUiThemeDefine(args) => {
+                let result = ui::cmd::engine_cmd_ui_theme_define(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::UiThemeDefine(result),
+                });
+            }
+            EngineCmd::CmdUiContextCreate(args) => {
+                let result = ui::cmd::engine_cmd_ui_context_create(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::UiContextCreate(result),
+                });
+            }
+            EngineCmd::CmdUiContextSetTheme(args) => {
+                let result = ui::cmd::engine_cmd_ui_context_set_theme(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::UiContextSetTheme(result),
+                });
+            }
+            EngineCmd::CmdUiContextSetRect(args) => {
+                let result = ui::cmd::engine_cmd_ui_context_set_rect(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::UiContextSetRect(result),
+                });
+            }
+            EngineCmd::CmdUiContextSetTarget(args) => {
+                let result = ui::cmd::engine_cmd_ui_context_set_target(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::UiContextSetTarget(result),
+                });
+            }
+            EngineCmd::CmdUiContextDispose(args) => {
+                let result = ui::cmd::engine_cmd_ui_context_dispose(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::UiContextDispose(result),
+                });
+            }
+            EngineCmd::CmdUiApplyOps(args) => {
+                let result = ui::cmd::engine_cmd_ui_apply_ops(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::UiApplyOps(result),
                 });
             }
             EngineCmd::CmdModelList(args) => {

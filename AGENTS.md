@@ -1,6 +1,6 @@
 # AGENTS.md — Vulfram instructions
 
-- Sempre que o usuário comentar sobre um padrão ou regra de desenvolvimento, adicionar ao `AGENTS.md`.
+- Sempre que o usuário comentar sobre um pattern de desenvolvimento, adicionar ao `AGENTS.md`.
 - Variaveis que seguram ownership e não são mais usadas depois ganham sempre o prefixo `_`.
 - Se variaveis não forem usadas, devem ser removidas.
 - Funções não usadas também são removidas.
@@ -28,3 +28,7 @@
 - Sem listener não há evento retornado ao host.
 - Animações declarativas são ops (`animate`) para ordem determinística.
 - Layout é web-like (`row/col/grid` + `wrap`, `align`, `justify`, gaps).
+- Ao final da implementação da Fase 4, criar o demo 5 para UI e ajustar demos existentes para continuar funcionando.
+- Dividir os demos de `src/main.rs` em subarquivos para melhorar a organização quando o arquivo ficar grande.
+- Marcar as tasks concluídas no `TODO.md` conforme avançamos.
+- O modelo `Panel` recebe eventos via retrace no mundo 3D; outras geometrias com textura de UI são apenas dinâmicas e não interativas.

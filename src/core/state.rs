@@ -11,6 +11,8 @@ use crate::core::input::InputState;
 use crate::core::profiling::TickProfiling;
 use crate::core::profiling::gpu::GpuProfiler;
 use crate::core::resources::TextureAsyncManager;
+use crate::core::ui::egui_renderer::UiEguiRenderer;
+use crate::core::ui::state::UiState;
 use crate::core::window::WindowManager;
 use std::collections::HashMap;
 
@@ -36,6 +38,9 @@ pub struct EngineState {
     pub cmd_queue: EngineBatchCmds,
     pub event_queue: EngineBatchEvents,
     pub response_queue: EngineBatchResponses,
+
+    pub ui: UiState,
+    pub ui_renderer: Option<UiEguiRenderer>,
 
     pub(crate) time: u64,
     pub(crate) delta_time: u32,
@@ -93,6 +98,8 @@ impl EngineState {
             cmd_queue: Vec::new(),
             event_queue: Vec::new(),
             response_queue: Vec::new(),
+            ui: UiState::default(),
+            ui_renderer: None,
             time: 0,
             delta_time: 0,
             frame_index: 0,

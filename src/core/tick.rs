@@ -1,6 +1,8 @@
 use crate::core::audio::{process_audio_listener_binding, process_audio_source_bindings};
 use crate::core::cmd::engine_process_batch;
 use crate::core::platforms::PlatformProxy;
+use crate::core::ui::input::process_ui_input_routing;
+use crate::core::ui::render::ensure_ui_render_targets;
 
 #[cfg(feature = "wasm")]
 use js_sys::Date;
@@ -84,6 +86,9 @@ pub fn vulfram_tick(time: u64, delta_time: u32) -> VulframResult {
 
         let events_after = engine.state.event_queue.len();
         engine.state.profiling.total_events_dispatched = events_after - events_before;
+
+        process_ui_input_routing(&mut engine.state);
+        ensure_ui_render_targets(&mut engine.state);
 
         // MARK: Render Frame Lifecycle
         engine.state.frame_index = engine.state.frame_index.wrapping_add(1);

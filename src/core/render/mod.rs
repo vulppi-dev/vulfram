@@ -120,7 +120,7 @@ pub fn render_frames(engine_state: &mut EngineState) {
 
     // 2. Render all windows
     let mut windows_ns: u64 = 0;
-    for (window_index, (_window_id, window_state)) in
+    for (window_index, (window_id, window_state)) in
         engine_state.window.states.iter_mut().enumerate()
     {
         #[cfg(not(feature = "wasm"))]
@@ -136,6 +136,11 @@ pub fn render_frames(engine_state: &mut EngineState) {
         };
 
         let render_state = &mut window_state.render_state;
+        crate::core::ui::render::map_ui_targets_for_window(
+            &mut engine_state.ui,
+            &mut render_state.scene,
+            *window_id,
+        );
         render_state.prepare_render(device, frame_spec, true);
 
         let mut encoder =
@@ -162,6 +167,16 @@ pub fn render_frames(engine_state: &mut EngineState) {
             engine_state.frame_index,
             engine_state.gpu_profiler.as_ref(),
             gpu_base,
+        );
+
+        crate::core::ui::render::render_ui_for_window(
+            &mut engine_state.ui,
+            &mut engine_state.ui_renderer,
+            &mut engine_state.event_queue,
+            *window_id,
+            device,
+            queue,
+            &mut encoder,
         );
 
         queue.submit(Some(encoder.finish()));

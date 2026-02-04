@@ -44,15 +44,15 @@ _Features que dependem de acesso a buffers e transformações espaciais._
 
 _Sistema de UI renderizado no core, definido pelo Host via ops._
 
-- [ ] **Fundação**: adicionar dependências e scaffolding do subsistema de UI (egui + wgpu), sem render ainda.
-- [ ] **ThemeResource**: `CmdUiThemeDefine` (cache + versionamento) e resposta `UiThemeDefined`.
-- [ ] **UiContext (lifecycle)**: `CmdUiContextCreate/Dispose/SetRect/SetTheme/SetTarget` com `screenRect` e `zIndex`.
-- [ ] **Ops & Árvore**: `CmdUiApplyOps` com versionamento e ops `add/remove/clear/set/move` + validação de IDs.
+- [x] **Fundação**: adicionar dependências e scaffolding do subsistema de UI (egui + wgpu), sem render ainda.
+- [x] **ThemeResource**: `CmdUiThemeDefine` (cache + versionamento) e resposta `UiThemeDefined`.
+- [x] **UiContext (lifecycle)**: `CmdUiContextCreate/Dispose/SetRect/SetTheme/SetTarget` com `screenRect` e `zIndex`.
+- [x] **Ops & Árvore**: `CmdUiApplyOps` com versionamento e ops `add/remove/clear/set/move` + validação de IDs.
 - [ ] **Widgets MVP**: `container`, `text`, `button`, `input`, `image`, `separator`, `spacer`.
 - [ ] **Layout MVP**: `row/col/grid`, `gaps`, `padding`, `size` (`auto/fill/px`) e `align/justify` básicos.
 - [ ] **Listeners MVP**: `onClick` e `onChangeCommit`, emitindo `UiEvent` com label + nodeId.
-- [ ] **Render Target**: cada `UiContext` renderiza na `targetTexture` indicada.
-- [ ] **Input Routing**: roteamento por `screenRect` + `zIndex` e foco por último input.
+- [x] **Render Target**: cada `UiContext` renderiza na `targetTexture` indicada.
+- [x] **Input Routing**: roteamento por `screenRect` + `zIndex` e foco por último input.
 - [ ] **Docs & Exemplo**: documentação de comandos e exemplo completo de ops no host.
 - [ ] **Composição UI/3D**: definir camadas e regras de target lógico para câmera/UI.
 - [ ] **Camadas (prioridade)**: composição por layers com ordem explícita (ex.: `layer: 0` 3D base, `layer: 10` UI, `layer: 20` debug).
@@ -75,6 +75,9 @@ _Sistema de UI renderizado no core, definido pelo Host via ops._
 - [ ] **Hot-Reload Theme**: atualização de theme sem recriar context.
 - [ ] **Debug UI**: overlay de bounds/ids e profiling básico.
 - [ ] **Performance**: cache de layout e invalidation por dirty flags.
+- [x] **Demo 5 (UI)**: criar um demo para testar e demonstrar o sistema de UI.
+- [x] **Ajuste de Demos**: atualizar demos existentes para continuarem funcionando após a integração da UI.
+- [x] **Refactor Demos**: dividir os demos de `main.rs` em subarquivos para reduzir o tamanho e melhorar organização.
 
 ## 🔴 Opcionais, futuras melhorias
 

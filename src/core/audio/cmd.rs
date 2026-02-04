@@ -458,17 +458,22 @@ pub fn engine_cmd_audio_buffer_create_from_buffer(
             };
         }
         let complete = stream.complete();
-        engine.event_queue.push(crate::core::cmd::EngineEvent::System(
-            crate::core::system::events::SystemEvent::AudioStreamProgress {
-                resource_id: args.resource_id,
-                received_bytes: stream.received_bytes,
-                total_bytes: stream.total_bytes,
-                complete,
-            },
-        ));
+        engine
+            .event_queue
+            .push(crate::core::cmd::EngineEvent::System(
+                crate::core::system::events::SystemEvent::AudioStreamProgress {
+                    resource_id: args.resource_id,
+                    received_bytes: stream.received_bytes,
+                    total_bytes: stream.total_bytes,
+                    complete,
+                },
+            ));
         if complete {
             let stream = engine.audio_streams.remove(&args.resource_id).unwrap();
-            match engine.audio.buffer_create_from_bytes(args.resource_id, stream.data) {
+            match engine
+                .audio
+                .buffer_create_from_bytes(args.resource_id, stream.data)
+            {
                 Ok(()) => CmdResultAudioResourceCreate {
                     success: true,
                     message: "Audio stream queued".into(),
@@ -558,17 +563,22 @@ pub fn engine_cmd_audio_resource_push(
         }
         (stream.received_bytes, stream.total_bytes, stream.complete())
     };
-    engine.event_queue.push(crate::core::cmd::EngineEvent::System(
-        crate::core::system::events::SystemEvent::AudioStreamProgress {
-            resource_id: args.resource_id,
-            received_bytes,
-            total_bytes,
-            complete,
-        },
-    ));
+    engine
+        .event_queue
+        .push(crate::core::cmd::EngineEvent::System(
+            crate::core::system::events::SystemEvent::AudioStreamProgress {
+                resource_id: args.resource_id,
+                received_bytes,
+                total_bytes,
+                complete,
+            },
+        ));
     if complete {
         let stream = engine.audio_streams.remove(&args.resource_id).unwrap();
-        if let Err(message) = engine.audio.buffer_create_from_bytes(args.resource_id, stream.data) {
+        if let Err(message) = engine
+            .audio
+            .buffer_create_from_bytes(args.resource_id, stream.data)
+        {
             return CmdResultAudioResourcePush {
                 success: false,
                 message,

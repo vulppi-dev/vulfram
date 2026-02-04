@@ -24,21 +24,57 @@ _Refatoração para suportar efeitos avançados._
 
 _Features que dependem de acesso a buffers e transformações espaciais._
 
-- [x] **Post-Processing (Fase 3.1)**: Pass de pós-processamento + targets por câmera + demo inicial.
-- [x] **Post-Processing (Fase 3.2)**: SSAO com blur bilateral e integração na composição.
-- [x] **Post-Processing (Fase 3.3)**: Bloom + Glow (downsample/blur/upsample) e controle de intensidade.
+- [x] **Post-Processing**: Pass de pós-processamento + targets por câmera + demo inicial.
+- [x] **Post-Processing**: SSAO com blur bilateral e integração na composição.
+- [x] **Post-Processing**: Bloom + Glow (downsample/blur/upsample) e controle de intensidade.
 - [x] **Glow baseado em emissive**: Saída emissive no forward + bloom usa emissive quando disponível.
-- [x] **Post-Processing (Fase 3.4)**: HDR pipeline avançado (exposure, tone mapping configurável).
-- [x] **Post-Processing (Fase 3.5)**: Outline com máscara e cor por modelo (pass outline + pós).
-- [x] **Post-Processing (Fase 3.7)**: Efeitos extras (vignette, grain, chromatic aberration, sharpen, posterize).
+- [x] **Post-Processing**: HDR pipeline avançado (exposure, tone mapping configurável).
+- [x] **Post-Processing**: Outline com máscara e cor por modelo (pass outline + pós).
+- [x] **Post-Processing**: Efeitos extras (vignette, grain, chromatic aberration, sharpen, posterize).
 - [x] **Cell Shading**: Posterize + bandas de luz no pós-processamento inicial.
 - [x] **Bloom & HDR**: Pipeline de alta dinâmica com tonemapping.
 - [x] **SSAO**: Oclusão de ambiente em screen-space.
-- [ ] **Áudio 3D (Core System)**: Integração com a crate `kira`. Suporte a emissores amarrados a `Models` e cálculo de atenuação/doppler sincronizado com as transformações do Core.
+- [x] **Áudio 3D (Core System)**: Integração com a crate `kira`. Suporte a emissores amarrados a `Models` e cálculo de atenuação/doppler sincronizado com as transformações do Core.
   - [x] API base + proxy (desktop/web) e comandos de áudio no Core.
   - [x] Backend desktop (Kira) + backend web (WebAudio).
   - [x] Decodificação async + eventos de ready/erro.
-  - [ ] Streaming de áudio (cursor/chunks) para músicas longas.
+  - [x] Streaming de áudio (cursor/chunks) para músicas longas.
+
+## 🟣 Fase 4: UI Host-Driven (egui)
+
+_Sistema de UI renderizado no core, definido pelo Host via ops._
+
+- [ ] **Fundação**: adicionar dependências e scaffolding do subsistema de UI (egui + wgpu), sem render ainda.
+- [ ] **ThemeResource**: `CmdUiThemeDefine` (cache + versionamento) e resposta `UiThemeDefined`.
+- [ ] **UiContext (lifecycle)**: `CmdUiContextCreate/Dispose/SetRect/SetTheme/SetTarget` com `screenRect` e `zIndex`.
+- [ ] **Ops & Árvore**: `CmdUiApplyOps` com versionamento e ops `add/remove/clear/set/move` + validação de IDs.
+- [ ] **Widgets MVP**: `container`, `text`, `button`, `input`, `image`, `separator`, `spacer`.
+- [ ] **Layout MVP**: `row/col/grid`, `gaps`, `padding`, `size` (`auto/fill/px`) e `align/justify` básicos.
+- [ ] **Listeners MVP**: `onClick` e `onChangeCommit`, emitindo `UiEvent` com label + nodeId.
+- [ ] **Render Target**: cada `UiContext` renderiza na `targetTexture` indicada.
+- [ ] **Input Routing**: roteamento por `screenRect` + `zIndex` e foco por último input.
+- [ ] **Docs & Exemplo**: documentação de comandos e exemplo completo de ops no host.
+- [ ] **Composição UI/3D**: definir camadas e regras de target lógico para câmera/UI.
+- [ ] **Camadas (prioridade)**: composição por layers com ordem explícita (ex.: `layer: 0` 3D base, `layer: 10` UI, `layer: 20` debug).
+- [ ] **Target lógico (câmera)**: se a câmera renderiza para texture target (LogicalId), essa textura pode ser aplicada em qualquer superfície; se não, vai para o layer da câmera.
+- [ ] **Target lógico (UI)**: se o UiContext renderiza para texture target (LogicalId), essa textura pode ser aplicada em qualquer superfície; se não, vai para o layer de UI.
+- [ ] **UI em superfície 3D (prioridade)**: garantir que UI pode sempre renderizar para textura e ser aplicada em um plane no 3D.
+- [ ] **Viewport POC**: render de câmera para textura sRGB e exibição no egui como imagem.
+- [ ] **Viewport Resize**: adaptar target ao tamanho do widget + resolver MSAA quando aplicável.
+- [ ] **Viewport Input**: mapear input do retângulo do widget para a câmera correspondente.
+- [ ] **Multi-Viewports**: suportar 2+ viewports simultâneos com IDs e targets independentes.
+- [ ] **Wrap**: `wrap` para `row/reverse-row` e `col/reverse-col` com height limitada.
+- [ ] **Animate**: `animate` para `opacity` e `translateY` com easing e `animComplete`.
+- [ ] **Editor Docking**: layout de painéis e docking para o editor host-driven.
+- [ ] **Clipping/Scissor**: clipping consistente para scrolls, listas e painéis.
+- [ ] **Scroll Real**: containers scrolláveis com offsets e barras.
+- [ ] **Text/Fonts**: fallback de fontes, tamanho por estilo e atlas de glyphs.
+- [ ] **Hit-Testing**: regras de input respeitando `display/visible/opacity`.
+- [ ] **Z-Order Interno**: overlays/menu/contexto dentro do mesmo `UiContext`.
+- [ ] **Focus & Keyboard**: tab/focus, navegação básica por teclado em inputs.
+- [ ] **Hot-Reload Theme**: atualização de theme sem recriar context.
+- [ ] **Debug UI**: overlay de bounds/ids e profiling básico.
+- [ ] **Performance**: cache de layout e invalidation por dirty flags.
 
 ## 🔴 Opcionais, futuras melhorias
 

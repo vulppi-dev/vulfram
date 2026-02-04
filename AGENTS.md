@@ -20,3 +20,11 @@
 - Propriedades internas em Rust usam `snake_case`; o serde converte para `camelCase` no host.
 - Recursos de áudio devem seguir o mesmo padrão de recursos de textura: IDs lógicos, bind a modelo para emissor/receptor, play com delay opcional e modo (once/loop/reverse/loop-reverse/ping-pong), e bypass de spatialização quando emissor e receptor forem o mesmo modelo.
 - O sistema de áudio deve separar resource de source: source e listener são vinculados a modelos; play recebe resourceId e timelineId (default 0), reinicia se timeline já estiver ativo; stop pode receber timelineId.
+- UI deve ser renderizada via egui (wgpu), compatível com native e browser (WebGPU-only).
+- UI é host-driven: host define estrutura/props/listeners; core renderiza e retorna eventos.
+- UI suporta múltiplos `UiContext` isolados (árvore/estado próprios, tema próprio, render target próprio, input roteado por `screenRect` e `zIndex`).
+- IDs de UI são sempre `LogicalId`.
+- Atualizações estruturais da UI são por lista ordenada de ops; `root` existe em todo context.
+- Sem listener não há evento retornado ao host.
+- Animações declarativas são ops (`animate`) para ordem determinística.
+- Layout é web-like (`row/col/grid` + `wrap`, `align`, `justify`, gaps).

@@ -4,6 +4,7 @@ pub mod gizmos;
 pub mod graph;
 mod passes;
 pub mod state;
+pub mod targets;
 
 use crate::core::render::graph::RenderGraphPlan;
 use crate::core::state::EngineState;
@@ -145,6 +146,7 @@ pub fn render_frames(engine_state: &mut EngineState) {
             &mut render_state.scene,
             *window_id,
         );
+        crate::core::render::targets::map_camera_targets(&mut render_state.scene);
         render_state.prepare_render(device, frame_spec, true);
 
         let mut encoder =
@@ -165,6 +167,7 @@ pub fn render_frames(engine_state: &mut EngineState) {
             &mut engine_state.event_queue,
             *window_id,
             &render_state.scene,
+            window_state.scale_factor.max(0.1),
             device,
             queue,
             &mut encoder,
@@ -174,6 +177,8 @@ pub fn render_frames(engine_state: &mut EngineState) {
         gpu_written |= execute_window_graph(
             &plan,
             render_state,
+            &engine_state.ui,
+            *window_id,
             device,
             queue,
             &mut encoder,
@@ -263,9 +268,12 @@ pub fn render_frames(engine_state: &mut EngineState) {
     }
 }
 
+
 fn execute_window_graph(
     plan: &RenderGraphPlan,
     render_state: &mut RenderState,
+    ui_state: &crate::core::ui::state::UiState,
+    window_id: u32,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     encoder: &mut wgpu::CommandEncoder,
@@ -335,6 +343,8 @@ fn execute_window_graph(
                 }
                 passes::pass_compose(
                     render_state,
+                    ui_state,
+                    window_id,
                     device,
                     queue,
                     encoder,

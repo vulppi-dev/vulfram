@@ -25,6 +25,7 @@ pub struct WindowState {
     pub surface: wgpu::Surface<'static>,
     pub config: wgpu::SurfaceConfiguration,
     pub render_state: RenderState,
+    pub scale_factor: f32,
     #[cfg(not(feature = "wasm"))]
     pub inner_position: IVec2,
     #[cfg(not(feature = "wasm"))]

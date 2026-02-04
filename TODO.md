@@ -54,11 +54,11 @@ _Sistema de UI renderizado no core, definido pelo Host via ops._
 - [x] **Render Target**: cada `UiContext` renderiza na `targetTexture` indicada.
 - [x] **Input Routing**: roteamento por `screenRect` + `zIndex` e foco por último input.
 - [ ] **Docs & Exemplo**: documentação de comandos e exemplo completo de ops no host.
-- [ ] **Composição UI/3D**: definir camadas e regras de target lógico para câmera/UI.
-- [ ] **Camadas (prioridade)**: composição por layers com ordem explícita (ex.: `layer: 0` 3D base, `layer: 10` UI, `layer: 20` debug).
-- [ ] **Target lógico (câmera)**: se a câmera renderiza para texture target (LogicalId), essa textura pode ser aplicada em qualquer superfície; se não, vai para o layer da câmera.
-- [ ] **Target lógico (UI)**: se o UiContext renderiza para texture target (LogicalId), essa textura pode ser aplicada em qualquer superfície; se não, vai para o layer de UI.
-- [ ] **UI em superfície 3D (prioridade)**: garantir que UI pode sempre renderizar para textura e ser aplicada em um plane no 3D.
+- [x] **Composição UI/3D**: definir camadas e regras de target lógico para câmera/UI.
+- [x] **Camadas (prioridade)**: composição por layers com ordem explícita (ex.: `layer: 0` 3D base, `layer: 10` UI, `layer: 20` debug).
+- [x] **Target lógico (câmera)**: se a câmera renderiza para texture target (LogicalId), essa textura pode ser aplicada em qualquer superfície; se não, vai para o layer da câmera.
+- [x] **Target lógico (UI)**: se o UiContext renderiza para texture target (LogicalId), essa textura pode ser aplicada em qualquer superfície; se não, vai para o layer de UI.
+- [x] **UI em superfície 3D (prioridade)**: garantir que UI pode sempre renderizar para textura e ser aplicada em um plane no 3D.
 - [ ] **Viewport POC**: render de câmera para textura sRGB e exibição no egui como imagem.
 - [ ] **Viewport Resize**: adaptar target ao tamanho do widget + resolver MSAA quando aplicável.
 - [ ] **Viewport Input**: mapear input do retângulo do widget para a câmera correspondente.

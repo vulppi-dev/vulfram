@@ -32,3 +32,5 @@
 - Dividir os demos de `src/main.rs` em subarquivos para melhorar a organização quando o arquivo ficar grande.
 - Marcar as tasks concluídas no `TODO.md` conforme avançamos.
 - O modelo `Panel` recebe eventos via retrace no mundo 3D; outras geometrias com textura de UI são apenas dinâmicas e não interativas.
+- Deixar a documentação por último; focar implementação antes de docs.
+- Iteração de eventos do proxy para a UI deve estar completa antes de considerar interação no 3D.

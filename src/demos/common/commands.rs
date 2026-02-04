@@ -34,6 +34,8 @@ pub fn create_camera_cmd(camera_id: u32, label: &str, transform: Mat4) -> Engine
         near_far: Vec2::new(0.1, 100.0),
         layer_mask: 0xFFFFFFFF,
         order: 0,
+        layer: 0,
+        target_texture_id: None,
         view_position: None,
         ortho_scale: 10.0,
     })

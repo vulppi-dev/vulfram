@@ -260,6 +260,7 @@ pub fn engine_cmd_window_create_async(
                     window: window_handle,
                     surface,
                     config: config.clone(),
+                    scale_factor: 1.0,
                     #[cfg(not(feature = "wasm"))]
                     inner_position: IVec2::ZERO,
                     #[cfg(not(feature = "wasm"))]
@@ -540,6 +541,7 @@ pub fn engine_cmd_window_create(
             window,
             surface,
             config: config.clone(),
+            scale_factor: 1.0,
             inner_position: IVec2::new(inner_position.x, inner_position.y),
             outer_position: IVec2::new(outer_position.x, outer_position.y),
             inner_size: UVec2::new(inner_size.width, inner_size.height),

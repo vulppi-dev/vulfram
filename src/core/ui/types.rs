@@ -20,10 +20,11 @@ pub struct UiRectPx {
     pub h: f32,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum UiRenderTarget {
     TextureId(LogicalId),
+    Screen,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

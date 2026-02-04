@@ -38,6 +38,7 @@ pub fn render_ui_for_window(
     event_queue: &mut Vec<EngineEvent>,
     window_id: u32,
     render_scene: &RenderScene,
+    pixels_per_point: f32,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     encoder: &mut wgpu::CommandEncoder,
@@ -69,7 +70,7 @@ pub fn render_ui_for_window(
 
         let screen_descriptor = ScreenDescriptor {
             size_in_pixels: [width, height],
-            pixels_per_point: 1.0,
+            pixels_per_point,
         };
 
         let events = ui_state
@@ -77,10 +78,12 @@ pub fn render_ui_for_window(
             .remove(context_id)
             .unwrap_or_default();
 
+        let screen_w = width as f32 / pixels_per_point;
+        let screen_h = height as f32 / pixels_per_point;
         let raw_input = egui::RawInput {
             screen_rect: Some(egui::Rect::from_min_size(
                 egui::Pos2::ZERO,
-                egui::vec2(width as f32, height as f32),
+                egui::vec2(screen_w, screen_h),
             )),
             events,
             ..Default::default()
@@ -199,6 +202,7 @@ fn map_ui_target_to_texture(
 ) {
     let target_id = match &context.target {
         super::types::UiRenderTarget::TextureId(id) => id,
+        super::types::UiRenderTarget::Screen => return,
     };
 
     let texture_id = match target_id {

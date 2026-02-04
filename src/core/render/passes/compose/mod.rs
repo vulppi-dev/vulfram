@@ -2,6 +2,8 @@ use crate::core::render::RenderState;
 use crate::core::render::cache::{PipelineKey, ShaderId};
 use crate::core::render::passes::update_post_uniform_buffer;
 use crate::core::render::state::ResourceLibrary;
+use crate::core::ui::state::UiState;
+use crate::core::ui::types::UiRenderTarget;
 
 fn build_compose_bind_group(
     device: &wgpu::Device,
@@ -46,6 +48,8 @@ fn build_compose_bind_group(
 
 pub fn pass_compose(
     render_state: &mut RenderState,
+    ui_state: &UiState,
+    window_id: u32,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     encoder: &mut wgpu::CommandEncoder,
@@ -70,11 +74,6 @@ pub fn pass_compose(
     };
     update_post_uniform_buffer(&post_config, uniform_buffer, queue, frame_index);
 
-    // 1. Sort cameras by order
-    let mut sorted_cameras: Vec<_> = render_state.scene.cameras.iter().collect();
-    sorted_cameras.sort_by_key(|(_, record)| record.order);
-
-    let cache = &mut render_state.cache;
     let key = PipelineKey {
         shader_id: ShaderId::Compose as u64,
         color_format: config.format,
@@ -89,39 +88,44 @@ pub fn pass_compose(
         blend: None,
     };
 
-    let pipeline = cache.get_or_create(key, frame_index, || {
-        let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Compose Pipeline Layout"),
-            bind_group_layouts: &[&library.layout_target],
-            ..Default::default()
-        });
+    let mut items = build_compose_items(render_state, ui_state, window_id, config);
 
-        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Compose Pipeline"),
-            layout: Some(&layout),
-            vertex: wgpu::VertexState {
-                module: &library.compose_shader,
-                entry_point: Some("vs_main"),
-                buffers: &[],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &library.compose_shader,
-                entry_point: Some("fs_main"),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
-                    blend: key.blend,
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            }),
-            primitive: wgpu::PrimitiveState::default(),
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(),
-            multiview_mask: None,
-            cache: None,
+    let pipeline = {
+        let cache = &mut render_state.cache;
+        cache.get_or_create(key, frame_index, || {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Compose Pipeline Layout"),
+                bind_group_layouts: &[&library.layout_target],
+                ..Default::default()
+            });
+
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("Compose Pipeline"),
+                layout: Some(&layout),
+                vertex: wgpu::VertexState {
+                    module: &library.compose_shader,
+                    entry_point: Some("vs_main"),
+                    buffers: &[],
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &library.compose_shader,
+                    entry_point: Some("fs_main"),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: config.format,
+                        blend: key.blend,
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                }),
+                primitive: wgpu::PrimitiveState::default(),
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState::default(),
+                multiview_mask: None,
+                cache: None,
+            })
         })
-    });
+    };
 
     // 3. Begin compose pass
     let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -143,7 +147,67 @@ pub fn pass_compose(
 
     render_pass.set_pipeline(pipeline);
 
-    for (_id, record) in sorted_cameras {
+    for item in items.drain(..) {
+        render_pass.set_viewport(
+            item.viewport.x,
+            item.viewport.y,
+            item.viewport.w,
+            item.viewport.h,
+            0.0,
+            1.0,
+        );
+
+        // 5. Create Bind Group for this camera's target
+        let bind_group = build_compose_bind_group(
+            device,
+            library,
+            &item.target_view,
+            &item.outline_view,
+            &item.ssao_view,
+            &item.bloom_view,
+            uniform_buffer,
+        );
+
+        render_pass.set_bind_group(0, &bind_group, &[]);
+        render_pass.draw(0..3, 0..1);
+    }
+}
+
+struct ComposeViewport {
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+}
+
+struct ComposeItem {
+    layer: i32,
+    order: i32,
+    stable: usize,
+    target_view: wgpu::TextureView,
+    outline_view: wgpu::TextureView,
+    ssao_view: wgpu::TextureView,
+    bloom_view: wgpu::TextureView,
+    viewport: ComposeViewport,
+}
+
+fn build_compose_items(
+    render_state: &RenderState,
+    ui_state: &UiState,
+    window_id: u32,
+    config: &wgpu::SurfaceConfiguration,
+) -> Vec<ComposeItem> {
+    let library = match render_state.library.as_ref() {
+        Some(library) => library,
+        None => return Vec::new(),
+    };
+    let mut items = Vec::new();
+    let mut stable = 0usize;
+
+    for (_id, record) in &render_state.scene.cameras {
+        if record.target_texture_id.is_some() {
+            continue;
+        }
         let target = match record
             .post_target
             .as_ref()
@@ -155,46 +219,82 @@ pub fn pass_compose(
         let outline_view = record
             .outline_target
             .as_ref()
-            .map(|target| &target.view)
-            .unwrap_or(&library.fallback_view);
+            .map(|target| target.view.clone())
+            .unwrap_or_else(|| library.fallback_view.clone());
         let ssao_view = record
             .ssao_blur_target
             .as_ref()
-            .map(|target| &target.view)
-            .unwrap_or(&library.fallback_view);
+            .map(|target| target.view.clone())
+            .unwrap_or_else(|| library.fallback_view.clone());
         let bloom_view = record
             .bloom_target
             .as_ref()
-            .map(|target| &target.view)
-            .unwrap_or(&library.fallback_view);
+            .map(|target| target.view.clone())
+            .unwrap_or_else(|| library.fallback_view.clone());
 
-        // 4. Resolve viewport
         let (x, y) = record
             .view_position
             .as_ref()
             .map(|vp| vp.resolve_position(config.width, config.height))
             .unwrap_or((0, 0));
-
         let (width, height) = record
             .view_position
             .as_ref()
             .map(|vp| vp.resolve_size(config.width, config.height))
             .unwrap_or((config.width, config.height));
 
-        render_pass.set_viewport(x as f32, y as f32, width as f32, height as f32, 0.0, 1.0);
-
-        // 5. Create Bind Group for this camera's target
-        let bind_group = build_compose_bind_group(
-            device,
-            library,
-            &target.view,
+        items.push(ComposeItem {
+            layer: record.layer,
+            order: record.order,
+            stable,
+            target_view: target.view.clone(),
             outline_view,
             ssao_view,
             bloom_view,
-            uniform_buffer,
-        );
-
-        render_pass.set_bind_group(0, &bind_group, &[]);
-        render_pass.draw(0..3, 0..1);
+            viewport: ComposeViewport {
+                x: x as f32,
+                y: y as f32,
+                w: width as f32,
+                h: height as f32,
+            },
+        });
+        stable += 1;
     }
+
+    for (context_id, context) in &ui_state.contexts {
+        if context.window_id != window_id {
+            continue;
+        }
+        if context.target != UiRenderTarget::Screen {
+            continue;
+        }
+        let Some(target) = context.render_target.as_ref() else {
+            log::warn!("Ui context {:?} missing render target", context_id);
+            continue;
+        };
+        items.push(ComposeItem {
+            layer: context.z_index,
+            order: 0,
+            stable,
+            target_view: target.view.clone(),
+            outline_view: library.fallback_view.clone(),
+            ssao_view: library.fallback_view.clone(),
+            bloom_view: library.fallback_view.clone(),
+            viewport: ComposeViewport {
+                x: context.screen_rect.x,
+                y: context.screen_rect.y,
+                w: context.screen_rect.w,
+                h: context.screen_rect.h,
+            },
+        });
+        stable += 1;
+    }
+
+    items.sort_by(|a, b| {
+        a.layer
+            .cmp(&b.layer)
+            .then(a.order.cmp(&b.order))
+            .then(a.stable.cmp(&b.stable))
+    });
+    items
 }

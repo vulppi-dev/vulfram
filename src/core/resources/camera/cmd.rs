@@ -1,6 +1,7 @@
 use glam::{Mat4, Vec2};
 use serde::{Deserialize, Serialize};
 
+use crate::core::render::graph::LogicalId;
 use crate::core::resources::common::default_layer_mask;
 use crate::core::resources::{
     CameraComponent, CameraKind, CameraRecord, ViewPosition, ensure_render_target,
@@ -23,6 +24,9 @@ pub struct CmdCameraCreateArgs {
     pub layer_mask: u32,
     #[serde(default)]
     pub order: i32,
+    #[serde(default)]
+    pub layer: i32,
+    pub target_texture_id: Option<LogicalId>,
     pub view_position: Option<ViewPosition>,
     #[serde(default = "default_ortho_scale")]
     pub ortho_scale: f32,
@@ -79,6 +83,8 @@ pub fn engine_cmd_camera_create(
             component,
             args.layer_mask,
             args.order,
+            args.layer,
+            args.target_texture_id.clone(),
             args.view_position.clone(),
             args.ortho_scale,
         );
@@ -174,6 +180,8 @@ pub struct CmdCameraUpdateArgs {
     pub near_far: Option<Vec2>,
     pub layer_mask: Option<u32>,
     pub order: Option<i32>,
+    pub layer: Option<i32>,
+    pub target_texture_id: Option<Option<LogicalId>>,
     pub view_position: Option<ViewPosition>,
     pub ortho_scale: Option<f32>,
 }
@@ -301,6 +309,12 @@ pub fn engine_cmd_camera_update(
 
             if let Some(order) = args.order {
                 record.order = order;
+            }
+            if let Some(layer) = args.layer {
+                record.layer = layer;
+            }
+            if let Some(target_texture_id) = args.target_texture_id.clone() {
+                record.target_texture_id = target_texture_id;
             }
 
             record.mark_dirty();

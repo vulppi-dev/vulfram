@@ -3,6 +3,7 @@ use glam::{Mat4, Quat, UVec2, Vec2, Vec3, Vec4};
 use serde::{Deserialize, Serialize};
 use wgpu::Extent3d;
 
+use crate::core::render::graph::LogicalId;
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CameraKind {
@@ -261,6 +262,8 @@ pub struct CameraRecord {
     pub data: CameraComponent,
     pub layer_mask: u32,
     pub order: i32,
+    pub layer: i32,
+    pub target_texture_id: Option<LogicalId>,
     pub is_dirty: bool,
     pub ortho_scale: f32,
     pub render_target: Option<RenderTarget>,
@@ -280,6 +283,8 @@ impl CameraRecord {
         data: CameraComponent,
         layer_mask: u32,
         order: i32,
+        layer: i32,
+        target_texture_id: Option<LogicalId>,
         view_position: Option<ViewPosition>,
         ortho_scale: f32,
     ) -> Self {
@@ -288,6 +293,8 @@ impl CameraRecord {
             data,
             layer_mask,
             order,
+            layer,
+            target_texture_id,
             is_dirty: true,
             ortho_scale,
             render_target: None,

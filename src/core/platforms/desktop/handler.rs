@@ -416,6 +416,9 @@ impl ApplicationHandler<EngineCustomEvents> for EngineState {
 
                 // Update cache
                 cache.scale_factor = scale_factor;
+                if let Some(state) = self.window.states.get_mut(&window_id) {
+                    state.scale_factor = scale_factor as f32;
+                }
 
                 // Get the current window inner size for the event
                 let (new_width, new_height) = self

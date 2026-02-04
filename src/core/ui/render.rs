@@ -5,6 +5,7 @@ use crate::core::resources::{TextureRecord, ensure_render_target};
 use super::build::build_ui_from_tree;
 use super::egui_renderer::{ScreenDescriptor, UiEguiRenderer};
 use super::state::UiState;
+use super::tree::UiTreeState;
 
 pub fn ensure_ui_render_targets(device: &wgpu::Device, ui_state: &mut UiState) {
     let target_format = ui_state.output_format;
@@ -36,6 +37,7 @@ pub fn render_ui_for_window(
     ui_renderer: &mut Option<UiEguiRenderer>,
     event_queue: &mut Vec<EngineEvent>,
     window_id: u32,
+    render_scene: &RenderScene,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     encoder: &mut wgpu::CommandEncoder,
@@ -96,6 +98,8 @@ pub fn render_ui_for_window(
             .tessellate(output.shapes, output.pixels_per_point);
 
         renderer.update_textures(device, queue, &output.textures_delta);
+
+        let used_images = register_image_textures(renderer, device, render_scene, &context.tree);
         let draw_calls =
             renderer.update_buffers(device, queue, &clipped_primitives, &screen_descriptor);
         renderer.render(
@@ -105,6 +109,7 @@ pub fn render_ui_for_window(
             &screen_descriptor,
             clear_color,
         );
+        renderer.prune_external_textures(&used_images);
 
         if !context.debug_draw_logged {
             log::info!(
@@ -115,6 +120,62 @@ pub fn render_ui_for_window(
             );
             context.debug_draw_logged = true;
         }
+    }
+}
+
+fn register_image_textures(
+    renderer: &mut UiEguiRenderer,
+    device: &wgpu::Device,
+    render_scene: &RenderScene,
+    tree: &UiTreeState,
+) -> std::collections::HashSet<egui::TextureId> {
+    let mut used = std::collections::HashSet::new();
+    for texture_id in collect_image_texture_ids(tree) {
+        let Some(texture) = render_scene.textures.get(&texture_id) else {
+            continue;
+        };
+        let egui_id = egui::TextureId::User(texture_id as u64);
+        used.insert(egui_id);
+        renderer.register_external_texture(
+            device,
+            egui_id,
+            &texture.view,
+            egui::epaint::textures::TextureOptions::LINEAR,
+        );
+    }
+    used
+}
+
+fn collect_image_texture_ids(tree: &UiTreeState) -> Vec<u32> {
+    let mut ids = Vec::new();
+    for node in tree.nodes.values() {
+        if node.node_type != crate::core::ui::tree::UiNodeType::Image {
+            continue;
+        }
+        let Some(props) = node.props.as_ref() else {
+            continue;
+        };
+        let Some(value) = props.get("textureId") else {
+            continue;
+        };
+        if let Some(id) = ui_value_u32(value) {
+            ids.push(id);
+        }
+    }
+    ids
+}
+
+fn ui_value_u32(value: &crate::core::ui::types::UiValue) -> Option<u32> {
+    match value {
+        crate::core::ui::types::UiValue::Int(value) => u32::try_from(*value).ok(),
+        crate::core::ui::types::UiValue::Float(value) => {
+            if *value >= 0.0 && *value <= u32::MAX as f64 {
+                Some(*value as u32)
+            } else {
+                None
+            }
+        }
+        _ => None,
     }
 }
 

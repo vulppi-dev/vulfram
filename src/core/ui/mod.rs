@@ -1,5 +1,6 @@
 pub mod cmd;
 pub mod build;
+pub mod layout;
 pub mod egui_renderer;
 pub mod events;
 pub mod input;

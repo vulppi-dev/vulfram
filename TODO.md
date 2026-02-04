@@ -48,9 +48,9 @@ _Sistema de UI renderizado no core, definido pelo Host via ops._
 - [x] **ThemeResource**: `CmdUiThemeDefine` (cache + versionamento) e resposta `UiThemeDefined`.
 - [x] **UiContext (lifecycle)**: `CmdUiContextCreate/Dispose/SetRect/SetTheme/SetTarget` com `screenRect` e `zIndex`.
 - [x] **Ops & Árvore**: `CmdUiApplyOps` com versionamento e ops `add/remove/clear/set/move` + validação de IDs.
-- [ ] **Widgets MVP**: `container`, `text`, `button`, `input`, `image`, `separator`, `spacer`.
-- [ ] **Layout MVP**: `row/col/grid`, `gaps`, `padding`, `size` (`auto/fill/px`) e `align/justify` básicos.
-- [ ] **Listeners MVP**: `onClick` e `onChangeCommit`, emitindo `UiEvent` com label + nodeId.
+- [x] **Widgets MVP**: `container`, `text`, `button`, `input`, `image`, `separator`, `spacer`.
+- [x] **Layout MVP**: `row/col/grid`, `gaps`, `padding`, `size` (`auto/fill/px`) e `align/justify` básicos.
+- [x] **Listeners MVP**: `onClick` e `onChangeCommit`, emitindo `UiEvent` com label + nodeId.
 - [x] **Render Target**: cada `UiContext` renderiza na `targetTexture` indicada.
 - [x] **Input Routing**: roteamento por `screenRect` + `zIndex` e foco por último input.
 - [ ] **Docs & Exemplo**: documentação de comandos e exemplo completo de ops no host.

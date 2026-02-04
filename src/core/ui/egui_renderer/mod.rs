@@ -214,6 +214,26 @@ impl UiEguiRenderer {
         }
     }
 
+    pub fn register_external_texture(
+        &mut self,
+        device: &wgpu::Device,
+        id: TextureId,
+        view: &wgpu::TextureView,
+        options: egui::epaint::textures::TextureOptions,
+    ) {
+        self.textures.register_external_texture(
+            device,
+            &self.texture_bind_group_layout,
+            id,
+            view,
+            options,
+        );
+    }
+
+    pub fn prune_external_textures(&mut self, used: &std::collections::HashSet<TextureId>) {
+        self.textures.prune_external_textures(used);
+    }
+
     pub fn update_buffers(
         &mut self,
         device: &wgpu::Device,

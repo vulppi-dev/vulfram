@@ -299,6 +299,30 @@ Draw calls are batched by runs of `(material_id, geometry_id)` after sorting.
   - events
   - profiling
 
+---
+
+## 8. UI Host-Driven (MVP)
+
+O Core renderiza a UI via egui, enquanto o Host define estrutura/estilos via ops.
+
+Widgets MVP disponíveis:
+
+- `container`, `text`, `button`, `input`, `image`, `separator`, `spacer`
+
+Layout MVP (styles):
+
+- `layout`: `row` | `reverse-row` | `col` | `reverse-col` | `grid`
+- `wrap`: `true/false`
+- `gap`, `gapX`, `gapY` (px)
+- `padding`, `paddingX`, `paddingY` (px)
+- `width`, `height`: `auto` | `fill` | `<px>`
+- `align`: `start` | `center` | `end` | `stretch`
+- `justify`: `start` | `center` | `end` | `stretch`
+
+Imagens:
+
+- `image` espera `props.textureId` (u32), apontando para uma textura registrada no Core.
+
 - Logical IDs and their own structures en/decoded on the host side.
 
 ### 7.2 Host does **not** see

@@ -164,6 +164,7 @@ pub fn render_frames(engine_state: &mut EngineState) {
             &mut engine_state.ui_renderer,
             &mut engine_state.event_queue,
             *window_id,
+            &render_state.scene,
             device,
             queue,
             &mut encoder,

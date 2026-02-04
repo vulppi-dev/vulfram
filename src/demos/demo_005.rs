@@ -102,7 +102,7 @@ pub fn run(window_id: u32) -> bool {
         EngineCmd::CmdUiApplyOps(CmdUiApplyOpsArgs {
             context_id: context_id.clone(),
             base_version: 0,
-            ops: build_ui_ops(),
+            ops: build_ui_ops(debug_texture_id),
         }),
     ];
 
@@ -123,7 +123,7 @@ pub fn run(window_id: u32) -> bool {
     )
 }
 
-fn build_ui_ops() -> Vec<UiOp> {
+fn build_ui_ops(debug_texture_id: u32) -> Vec<UiOp> {
     let mut ops = Vec::new();
 
     ops.push(UiOp::Add(UiOpAdd {
@@ -139,12 +139,38 @@ fn build_ui_ops() -> Vec<UiOp> {
 
     let mut style = std::collections::HashMap::new();
     style.insert("layout".to_string(), UiValue::String("col".into()));
+    style.insert("gap".to_string(), UiValue::Float(8.0));
+    style.insert("padding".to_string(), UiValue::Float(12.0));
+    style.insert("width".to_string(), UiValue::String("fill".into()));
+    style.insert("height".to_string(), UiValue::String("fill".into()));
     ops.push(UiOp::Set(UiOpSet {
         id: LogicalId::Str("main".into()),
         mode: UiSetMode::Merge,
         variant: None,
         style: Some(Some(style)),
         props: None,
+        listeners: None,
+    }));
+
+    ops.push(UiOp::Add(UiOpAdd {
+        parent: Some(LogicalId::Str("main".into())),
+        id: LogicalId::Str("preview".into()),
+        node_type: crate::core::ui::tree::UiNodeType::Image,
+        index: None,
+        variant: None,
+        style: Some(
+            [
+                ("width".to_string(), UiValue::Float(96.0)),
+                ("height".to_string(), UiValue::Float(96.0)),
+            ]
+            .into_iter()
+            .collect(),
+        ),
+        props: Some(
+            [("textureId".to_string(), UiValue::Int(debug_texture_id as i64))]
+                .into_iter()
+                .collect(),
+        ),
         listeners: None,
     }));
 

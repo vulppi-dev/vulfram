@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use egui::epaint::{ImageData, TextureId, textures::TextureOptions};
+use std::collections::HashSet;
 
 pub struct ManagedTexture {
     pub texture: wgpu::Texture,
@@ -9,8 +10,15 @@ pub struct ManagedTexture {
     pub options: TextureOptions,
 }
 
+pub struct ExternalTexture {
+    pub _view: wgpu::TextureView,
+    pub bind_group: wgpu::BindGroup,
+    pub options: TextureOptions,
+}
+
 pub struct TextureManager {
     pub textures: HashMap<TextureId, ManagedTexture>,
+    pub external_textures: HashMap<TextureId, ExternalTexture>,
     pub samplers: HashMap<TextureOptions, wgpu::Sampler>,
 }
 
@@ -18,6 +26,7 @@ impl TextureManager {
     pub fn new() -> Self {
         Self {
             textures: HashMap::new(),
+            external_textures: HashMap::new(),
             samplers: HashMap::new(),
         }
     }
@@ -135,8 +144,59 @@ impl TextureManager {
         self.textures.remove(id);
     }
 
+    pub fn register_external_texture(
+        &mut self,
+        device: &wgpu::Device,
+        layout: &wgpu::BindGroupLayout,
+        id: TextureId,
+        view: &wgpu::TextureView,
+        options: TextureOptions,
+    ) {
+        let needs_bind_group = match self.external_textures.get(&id) {
+            Some(existing) => existing.options != options,
+            None => true,
+        };
+        if !needs_bind_group {
+            return;
+        }
+        let sampler = self
+            .samplers
+            .entry(options)
+            .or_insert_with(|| create_sampler(device, options));
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("egui_external_texture_bind_group"),
+            layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(sampler),
+                },
+            ],
+        });
+        self.external_textures.insert(
+            id,
+            ExternalTexture {
+                _view: view.clone(),
+                bind_group,
+                options,
+            },
+        );
+    }
+
+    pub fn prune_external_textures(&mut self, used: &HashSet<TextureId>) {
+        self.external_textures
+            .retain(|id, _| used.contains(id));
+    }
+
     pub fn texture_bind_group(&self, id: &TextureId) -> Option<&wgpu::BindGroup> {
-        self.textures.get(id).map(|tex| &tex.bind_group)
+        self.textures
+            .get(id)
+            .map(|tex| &tex.bind_group)
+            .or_else(|| self.external_textures.get(id).map(|tex| &tex.bind_group))
     }
 }
 

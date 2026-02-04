@@ -6,7 +6,7 @@ use crate::core::render::graph::LogicalId;
 
 use super::types::UiValue;
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum UiNodeType {
     Container,

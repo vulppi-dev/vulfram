@@ -2,7 +2,8 @@ use crate::core::render::graph::LogicalId;
 use crate::core::cmd::EngineEvent;
 
 use super::events::UiEvent;
-use super::tree::{UiEventKind, UiNodeType, UiTreeState};
+use super::layout::{resolve_gap, resolve_layout, resolve_padding, resolve_size};
+use super::tree::{UiEventKind, UiNodeType, UiStyle, UiTreeState};
 use super::types::UiValue;
 
 pub fn build_ui_from_tree(
@@ -49,23 +50,15 @@ fn render_node(
 
     match node.node_type {
         UiNodeType::Container => {
-            let layout = node
-                .style
-                .as_ref()
-                .and_then(|style| style.get("layout"))
-                .and_then(ui_value_string);
-            match layout.as_deref() {
-                Some("row") | Some("reverse-row") => {
-                    ui.horizontal(|ui| {
-                        render_children(ui, event_queue, context_id, window_id, tree, node_id);
-                    });
-                }
-                _ => {
-                    ui.vertical(|ui| {
-                        render_children(ui, event_queue, context_id, window_id, tree, node_id);
-                    });
-                }
-            }
+            render_container(
+                ui,
+                event_queue,
+                context_id,
+                window_id,
+                tree,
+                node_id,
+                node.style.as_ref(),
+            );
         }
         UiNodeType::Text => {
             let value = node
@@ -224,12 +217,131 @@ fn render_node(
             ui.separator();
         }
         UiNodeType::Spacer => {
-            ui.add_space(4.0);
+            let (width, height, has_size) = resolve_size(ui, node.style.as_ref());
+            if has_size {
+                ui.allocate_space(egui::vec2(width, height));
+            } else {
+                ui.add_space(4.0);
+            }
         }
-        UiNodeType::Image | UiNodeType::Select => {
+        UiNodeType::Image => {
+            let texture_id = node
+                .props
+                .as_ref()
+                .and_then(|props| props.get("textureId"))
+                .and_then(ui_value_u32);
+            let (width, height, has_size) = resolve_size(ui, node.style.as_ref());
+            let size = if has_size {
+                egui::vec2(width, height)
+            } else {
+                egui::vec2(64.0, 64.0)
+            };
+            if let Some(texture_id) = texture_id {
+                let tex = egui::load::SizedTexture::new(
+                    egui::TextureId::User(texture_id as u64),
+                    size,
+                );
+                ui.add(egui::Image::new(tex));
+            } else {
+                ui.label("Image: missing textureId");
+            }
+        }
+        UiNodeType::Select => {
             ui.label("Unsupported widget");
         }
     }
+}
+
+fn render_container(
+    ui: &mut egui::Ui,
+    event_queue: &mut Vec<EngineEvent>,
+    context_id: &LogicalId,
+    window_id: u32,
+    tree: &mut UiTreeState,
+    node_id: &LogicalId,
+    style: Option<&UiStyle>,
+) {
+    let layout_value = style
+        .and_then(|style| style.get("layout"))
+        .and_then(ui_value_string)
+        .unwrap_or_else(|| "col".into());
+    let gap = resolve_gap(style);
+    let padding = resolve_padding(style);
+    let (width, height, has_size) = resolve_size(ui, style);
+    let wrap = style
+        .and_then(|style| style.get("wrap"))
+        .and_then(ui_value_bool)
+        .unwrap_or(false);
+
+    let (layout, is_grid) = resolve_layout(&layout_value, style, wrap);
+
+    let mut render_children_fn = |ui: &mut egui::Ui| {
+        let previous_spacing = ui.spacing().clone();
+        ui.spacing_mut().item_spacing = gap;
+
+        if is_grid {
+            render_grid(ui, event_queue, context_id, window_id, tree, node_id, style);
+        } else {
+            ui.with_layout(layout, |ui| {
+                render_children(ui, event_queue, context_id, window_id, tree, node_id);
+            });
+        }
+
+        *ui.spacing_mut() = previous_spacing;
+    };
+
+    if padding != egui::Margin::ZERO {
+        let frame = egui::Frame::none().inner_margin(padding);
+        if has_size {
+            frame.show(ui, |ui| {
+                ui.allocate_ui_with_layout(egui::vec2(width, height), layout, render_children_fn);
+            });
+        } else {
+            frame.show(ui, render_children_fn);
+        }
+        return;
+    }
+
+    if has_size {
+        ui.allocate_ui_with_layout(egui::vec2(width, height), layout, render_children_fn);
+    } else {
+        render_children_fn(ui);
+    }
+}
+
+fn render_grid(
+    ui: &mut egui::Ui,
+    event_queue: &mut Vec<EngineEvent>,
+    context_id: &LogicalId,
+    window_id: u32,
+    tree: &mut UiTreeState,
+    node_id: &LogicalId,
+    style: Option<&UiStyle>,
+) {
+    let columns = style
+        .and_then(|style| style.get("columns"))
+        .and_then(ui_value_u32)
+        .unwrap_or(2)
+        .max(1) as usize;
+    let gap = resolve_gap(style);
+    let mut index = 0usize;
+    egui::Grid::new(node_id.to_string())
+        .num_columns(columns)
+        .spacing(gap)
+        .show(ui, |ui| {
+            let children = tree
+                .nodes
+                .get(node_id)
+                .map(|node| node.children.clone())
+                .unwrap_or_default();
+            for child_id in children {
+                render_node(ui, event_queue, context_id, window_id, tree, &child_id);
+                index += 1;
+                if index % columns == 0 {
+                    ui.end_row();
+                }
+            }
+        });
 }
 
 fn emit_ui_event(
@@ -269,6 +381,20 @@ fn ui_value_float(value: &UiValue) -> Option<f32> {
     match value {
         UiValue::Float(value) => Some(*value as f32),
         UiValue::Int(value) => Some(*value as f32),
+        _ => None,
+    }
+}
+
+fn ui_value_u32(value: &UiValue) -> Option<u32> {
+    match value {
+        UiValue::Int(value) => u32::try_from(*value).ok(),
+        UiValue::Float(value) => {
+            if *value >= 0.0 && *value <= u32::MAX as f64 {
+                Some(*value as u32)
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }

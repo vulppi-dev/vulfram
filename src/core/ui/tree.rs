@@ -10,6 +10,7 @@ use super::types::UiValue;
 #[serde(rename_all = "kebab-case")]
 pub enum UiNodeType {
     Container,
+    Dock,
     Text,
     Button,
     Input,

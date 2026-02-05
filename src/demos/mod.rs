@@ -7,6 +7,7 @@ mod demo_004_graph;
 pub mod demo_005;
 pub mod demo_006;
 pub mod demo_007;
+mod demo_007_ui;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DemoKind {

@@ -8,3 +8,4 @@ pub mod render;
 pub mod state;
 pub mod tree;
 pub mod types;
+pub mod widgets;

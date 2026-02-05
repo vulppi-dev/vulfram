@@ -288,12 +288,23 @@ fn render_node(
             if let Some(texture_id) = texture_id {
                 let tex =
                     egui::load::SizedTexture::new(egui::TextureId::User(texture_id as u64), size);
-                let response = ui.add(egui::Image::new(tex));
+                let response = ui.add(egui::Image::new(tex).sense(egui::Sense::click_and_drag()));
                 if let Some(camera_id) = camera_id {
                     viewport_requests.push(crate::core::ui::state::ViewportRequest {
                         camera_id,
                         size_points: response.rect.size(),
                     });
+
+                    // Captura eventos de viewport
+                    handle_viewport_events(
+                        event_queue,
+                        window_id,
+                        context_id,
+                        &response,
+                        camera_id,
+                        &node,
+                        node_id,
+                    );
                 }
             } else {
                 ui.label("Image: missing textureId");
@@ -544,4 +555,183 @@ fn handle_focus_events(
             }
         }
     }
+}
+
+/// Captura eventos de mouse em widgets de viewport e emite eventos de viewport
+fn handle_viewport_events(
+    event_queue: &mut Vec<EngineEvent>,
+    window_id: u32,
+    context_id: &LogicalId,
+    response: &egui::Response,
+    camera_id: u32,
+    node: &crate::core::ui::tree::UiNode,
+    node_id: &LogicalId,
+) {
+    let listeners = match node.listeners.as_ref() {
+        Some(l) => l,
+        None => return,
+    };
+
+    // Calcula posição normalizada dentro do widget
+    let hover_pos = match response.hover_pos() {
+        Some(pos) => pos,
+        None => return,
+    };
+
+    let rect = response.rect;
+    let normalized_x = ((hover_pos.x - rect.min.x) / rect.width()).clamp(0.0, 1.0);
+    let normalized_y = ((hover_pos.y - rect.min.y) / rect.height()).clamp(0.0, 1.0);
+
+    // Hover
+    if response.hovered() {
+        if let Some(label) = listeners.on_viewport_hover.clone() {
+            emit_viewport_event(
+                event_queue,
+                window_id,
+                context_id,
+                label,
+                UiEventKind::ViewportHover,
+                Some(node_id.clone()),
+                camera_id,
+                normalized_x,
+                normalized_y,
+                None,
+                None,
+                response
+                    .ctx
+                    .input(|i| i.pointer.button_down(egui::PointerButton::Primary)),
+                response
+                    .ctx
+                    .input(|i| i.pointer.button_down(egui::PointerButton::Secondary)),
+                response
+                    .ctx
+                    .input(|i| i.pointer.button_down(egui::PointerButton::Middle)),
+            );
+        }
+    }
+
+    // Click
+    if response.clicked() {
+        if let Some(label) = listeners.on_viewport_click.clone() {
+            emit_viewport_event(
+                event_queue,
+                window_id,
+                context_id,
+                label,
+                UiEventKind::ViewportClick,
+                Some(node_id.clone()),
+                camera_id,
+                normalized_x,
+                normalized_y,
+                None,
+                None,
+                response
+                    .ctx
+                    .input(|i| i.pointer.button_down(egui::PointerButton::Primary)),
+                response
+                    .ctx
+                    .input(|i| i.pointer.button_down(egui::PointerButton::Secondary)),
+                response
+                    .ctx
+                    .input(|i| i.pointer.button_down(egui::PointerButton::Middle)),
+            );
+        }
+    }
+
+    // Drag
+    if response.dragged() {
+        if let Some(label) = listeners.on_viewport_drag.clone() {
+            let delta = response.drag_delta();
+            let delta_x = delta.x / rect.width();
+            let delta_y = delta.y / rect.height();
+            emit_viewport_event(
+                event_queue,
+                window_id,
+                context_id,
+                label,
+                UiEventKind::ViewportDrag,
+                Some(node_id.clone()),
+                camera_id,
+                normalized_x,
+                normalized_y,
+                Some(delta_x),
+                Some(delta_y),
+                response
+                    .ctx
+                    .input(|i| i.pointer.button_down(egui::PointerButton::Primary)),
+                response
+                    .ctx
+                    .input(|i| i.pointer.button_down(egui::PointerButton::Secondary)),
+                response
+                    .ctx
+                    .input(|i| i.pointer.button_down(egui::PointerButton::Middle)),
+            );
+        }
+    }
+
+    // Drag end
+    if response.drag_stopped() {
+        if let Some(label) = listeners.on_viewport_drag_end.clone() {
+            emit_viewport_event(
+                event_queue,
+                window_id,
+                context_id,
+                label,
+                UiEventKind::ViewportDragEnd,
+                Some(node_id.clone()),
+                camera_id,
+                normalized_x,
+                normalized_y,
+                None,
+                None,
+                false,
+                false,
+                false,
+            );
+        }
+    }
+}
+
+fn emit_viewport_event(
+    event_queue: &mut Vec<EngineEvent>,
+    window_id: u32,
+    context_id: &LogicalId,
+    label: String,
+    kind: UiEventKind,
+    node_id: Option<LogicalId>,
+    camera_id: u32,
+    normalized_x: f32,
+    normalized_y: f32,
+    delta_x: Option<f32>,
+    delta_y: Option<f32>,
+    primary: bool,
+    secondary: bool,
+    middle: bool,
+) {
+    // Serializa dados do viewport como string formatada
+    let viewport_data = format!(
+        "{{\"cameraId\":{},\"x\":{:.4},\"y\":{:.4},\"dx\":{},\"dy\":{},\"primary\":{},\"secondary\":{},\"middle\":{}}}",
+        camera_id,
+        normalized_x,
+        normalized_y,
+        delta_x
+            .map(|v| format!("{:.4}", v))
+            .unwrap_or("null".into()),
+        delta_y
+            .map(|v| format!("{:.4}", v))
+            .unwrap_or("null".into()),
+        primary,
+        secondary,
+        middle
+    );
+
+    emit_ui_event(
+        event_queue,
+        window_id,
+        context_id,
+        label,
+        kind,
+        node_id,
+        Some(UiValue::String(viewport_data)),
+    );
 }

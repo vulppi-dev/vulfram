@@ -291,7 +291,13 @@ fn build_ui_ops(camera_target_id: u32, camera_id: u32) -> Vec<UiOp> {
             .into_iter()
             .collect(),
         ),
-        listeners: None,
+        listeners: Some(crate::core::ui::tree::UiListeners {
+            on_viewport_hover: Some("viewport_hover".into()),
+            on_viewport_click: Some("viewport_click".into()),
+            on_viewport_drag: Some("viewport_drag".into()),
+            on_viewport_drag_end: Some("viewport_drag_end".into()),
+            ..Default::default()
+        }),
     }));
 
     // Painel lateral com viewport pequeno e controles

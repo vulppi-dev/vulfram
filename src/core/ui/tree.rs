@@ -51,7 +51,7 @@ impl UiNode {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct UiListeners {
     pub on_click: Option<String>,
     pub on_change: Option<String>,
@@ -59,6 +59,31 @@ pub struct UiListeners {
     pub on_submit: Option<String>,
     pub on_focus: Option<String>,
     pub on_blur: Option<String>,
+    #[serde(default)]
+    pub on_viewport_hover: Option<String>,
+    #[serde(default)]
+    pub on_viewport_click: Option<String>,
+    #[serde(default)]
+    pub on_viewport_drag: Option<String>,
+    #[serde(default)]
+    pub on_viewport_drag_end: Option<String>,
+}
+
+impl Default for UiListeners {
+    fn default() -> Self {
+        Self {
+            on_click: None,
+            on_change: None,
+            on_change_commit: None,
+            on_submit: None,
+            on_focus: None,
+            on_blur: None,
+            on_viewport_hover: None,
+            on_viewport_click: None,
+            on_viewport_drag: None,
+            on_viewport_drag_end: None,
+        }
+    }
 }
 
 pub type UiStyle = HashMap<String, UiValue>;
@@ -86,6 +111,10 @@ pub enum UiEventKind {
     Focus,
     Blur,
     AnimComplete,
+    ViewportHover,
+    ViewportClick,
+    ViewportDrag,
+    ViewportDragEnd,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

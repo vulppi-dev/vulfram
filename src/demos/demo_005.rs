@@ -203,12 +203,9 @@ fn build_ui_ops(debug_texture_id: u32) -> Vec<UiOp> {
                 .collect(),
         ),
         listeners: Some(UiListeners {
-            on_click: None,
-            on_change: None,
             on_change_commit: Some("NameChanged".into()),
             on_submit: Some("NameSubmit".into()),
-            on_focus: None,
-            on_blur: None,
+            ..Default::default()
         }),
     }));
 
@@ -229,12 +226,8 @@ fn build_ui_ops(debug_texture_id: u32) -> Vec<UiOp> {
             .collect(),
         ),
         listeners: Some(UiListeners {
-            on_click: None,
             on_change: Some("SliderChanged".into()),
-            on_change_commit: None,
-            on_submit: None,
-            on_focus: None,
-            on_blur: None,
+            ..Default::default()
         }),
     }));
 
@@ -251,12 +244,8 @@ fn build_ui_ops(debug_texture_id: u32) -> Vec<UiOp> {
                 .collect(),
         ),
         listeners: Some(UiListeners {
-            on_click: None,
             on_change: Some("FlagChanged".into()),
-            on_change_commit: None,
-            on_submit: None,
-            on_focus: None,
-            on_blur: None,
+            ..Default::default()
         }),
     }));
 
@@ -274,11 +263,7 @@ fn build_ui_ops(debug_texture_id: u32) -> Vec<UiOp> {
         ),
         listeners: Some(UiListeners {
             on_click: Some("Submit".into()),
-            on_change: None,
-            on_change_commit: None,
-            on_submit: None,
-            on_focus: None,
-            on_blur: None,
+            ..Default::default()
         }),
     }));
 

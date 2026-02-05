@@ -7,6 +7,8 @@ use super::egui_renderer::{ScreenDescriptor, UiEguiRenderer};
 use super::state::UiState;
 use super::tree::UiTreeState;
 
+/// Garante que os render targets da UI estão criados e com o tamanho correto.
+/// Chamado durante a fase de preparação da renderização.
 pub fn ensure_ui_render_targets(device: &wgpu::Device, ui_state: &mut UiState) {
     let target_format = ui_state.output_format;
     for (ctx_id, context) in ui_state.contexts.iter_mut() {
@@ -32,54 +34,18 @@ pub fn ensure_ui_render_targets(device: &wgpu::Device, ui_state: &mut UiState) {
     }
 }
 
-pub fn prepare_viewports_for_window(
-    ui_state: &mut UiState,
-    render_scene: &mut RenderScene,
-    window_id: u32,
-    pixels_per_point: f32,
-    device: &wgpu::Device,
-) {
-    for context in ui_state.contexts.values_mut() {
-        if context.window_id != window_id {
-            continue;
-        }
-        context.viewport_requests.clear();
-
-        let screen_w = context.screen_rect.w / pixels_per_point;
-        let screen_h = context.screen_rect.h / pixels_per_point;
-        let raw_input = egui::RawInput {
-            screen_rect: Some(egui::Rect::from_min_size(
-                egui::Pos2::ZERO,
-                egui::vec2(screen_w, screen_h),
-            )),
-            ..Default::default()
-        };
-
-        context.egui_ctx.set_pixels_per_point(pixels_per_point);
-        let mut tree_clone = context.tree.clone();
-        let mut focused_clone = context.focused_node.clone();
-        let context_id = context._context_id.clone();
-        let _ = context.egui_ctx.run(raw_input, |ctx| {
-            build_ui_from_tree(
-                ctx,
-                &mut Vec::new(),
-                &context_id,
-                window_id,
-                &mut tree_clone,
-                &mut focused_clone,
-                &mut context.viewport_requests,
-            );
-        });
-
-        apply_viewport_requests(
-            render_scene,
-            device,
-            pixels_per_point,
-            &context.viewport_requests,
-        );
-    }
-}
-
+/// Renderiza a UI para uma janela específica.
+///
+/// Este é o ponto principal de renderização da UI. Executa o loop do egui,
+/// processa eventos, aplica viewport requests (que redimensionam câmeras),
+/// e renderiza os widgets para o render target da UI.
+///
+/// Fluxo:
+/// 1. Executa egui_ctx.run() com eventos de input
+/// 2. Gera viewport requests (para widgets Image com cameraId)
+/// 3. Aplica viewport requests imediatamente (redimensiona render targets das câmeras)
+/// 4. Registra texturas externas (camera targets) no egui
+/// 5. Renderiza a UI para o target
 pub fn render_ui_for_window(
     ui_state: &mut UiState,
     ui_renderer: &mut Option<UiEguiRenderer>,
@@ -91,9 +57,7 @@ pub fn render_ui_for_window(
     queue: &wgpu::Queue,
     encoder: &mut wgpu::CommandEncoder,
 ) {
-    log::info!("render_ui_for_window called for window {}", window_id);
     if ui_state.contexts.is_empty() {
-        log::info!("No UI contexts to render");
         return;
     }
 
@@ -155,6 +119,14 @@ pub fn render_ui_for_window(
             );
         });
 
+        // Aplica viewport requests imediatamente para que o próximo frame use os tamanhos corretos
+        apply_viewport_requests(
+            render_scene,
+            device,
+            pixels_per_point,
+            &context.viewport_requests,
+        );
+
         let clipped_primitives = context
             .egui_ctx
             .tessellate(output.shapes, output.pixels_per_point);
@@ -191,13 +163,11 @@ fn apply_viewport_requests(
     pixels_per_point: f32,
     requests: &[crate::core::ui::state::ViewportRequest],
 ) {
-    log::info!("apply_viewport_requests: {} requests", requests.len());
+    if requests.is_empty() {
+        return;
+    }
+
     for request in requests {
-        log::info!(
-            "Viewport request for camera {}: size {:?}",
-            request.camera_id,
-            request.size_points
-        );
         let Some(camera) = render_scene.cameras.get_mut(&request.camera_id) else {
             log::warn!(
                 "Camera {} not found for viewport request",
@@ -207,30 +177,20 @@ fn apply_viewport_requests(
         };
         let width = (request.size_points.x * pixels_per_point).round().max(1.0) as u32;
         let height = (request.size_points.y * pixels_per_point).round().max(1.0) as u32;
-        let size = camera
-            .render_target
-            .as_ref()
-            .map(|target| target._texture.size());
-        let needs_resize = match size {
-            Some(size) => size.width != width || size.height != height,
+
+        // Early exit se o tamanho já está correto
+        let needs_resize = match camera.render_target.as_ref() {
+            Some(target) => {
+                let size = target._texture.size();
+                size.width != width || size.height != height
+            }
             None => true,
         };
         if !needs_resize {
-            log::info!(
-                "Camera {} target already at {}x{}",
-                request.camera_id,
-                width,
-                height
-            );
             continue;
         }
 
-        log::info!(
-            "Resizing camera {} target to {}x{}",
-            request.camera_id,
-            width,
-            height
-        );
+        // Atualiza todos os render targets com o novo tamanho
         crate::core::resources::ensure_render_target(
             device,
             &mut camera.render_target,
@@ -306,10 +266,6 @@ fn register_image_textures(
 ) -> std::collections::HashSet<egui::TextureId> {
     let mut used = std::collections::HashSet::new();
     let texture_ids = collect_image_texture_ids(tree);
-    log::info!(
-        "register_image_textures: {} unique texture IDs",
-        texture_ids.len()
-    );
     for texture_id in texture_ids {
         let Some(texture) = render_scene.textures.get(&texture_id) else {
             log::warn!("UI image texture {} not found in render scene", texture_id);
@@ -317,7 +273,6 @@ fn register_image_textures(
         };
         let egui_id = egui::TextureId::User(texture_id as u64);
         used.insert(egui_id);
-        log::info!("Registering texture {} with egui", texture_id);
         renderer.register_external_texture(
             device,
             egui_id,

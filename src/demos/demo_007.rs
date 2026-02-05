@@ -104,7 +104,33 @@ pub fn run(window_id: u32) -> bool {
     run_loop_with_events(
         window_id,
         None,
-        |_total_ms, _delta_ms| vec![],
+        |total_ms, _delta_ms| {
+            let rotation_angle = total_ms as f32 * 0.001;
+            let cmds = vec![EngineCmd::CmdModelUpdate(
+                crate::core::resources::CmdModelUpdateArgs {
+                    window_id,
+                    model_id: cube_model_id,
+                    label: None,
+                    geometry_id: None,
+                    material_id: None,
+                    transform: Some(
+                        Mat4::from_translation(Vec3::new(0.0, 0.5, 0.0))
+                            * Mat4::from_rotation_y(rotation_angle)
+                            * Mat4::from_rotation_x(rotation_angle * 0.7)
+                            * Mat4::from_scale(Vec3::splat(1.5)),
+                    ),
+                    layer_mask: None,
+                    cast_shadow: None,
+                    receive_shadow: None,
+                    cast_outline: None,
+                    outline_color: None,
+                },
+            )];
+            if total_ms < 100 {
+                println!("Sending update command with angle: {}", rotation_angle);
+            }
+            cmds
+        },
         |event| match event {
             EngineEvent::Ui(ui) => {
                 println!("UiEvent: {:?}", ui);
@@ -131,8 +157,8 @@ fn build_ui_ops(camera_target_id: u32, camera_id: u32) -> Vec<UiOp> {
 
     let mut style = std::collections::HashMap::new();
     style.insert("layout".to_string(), UiValue::String("col".into()));
-    style.insert("gap".to_string(), UiValue::Float(12.0));
-    style.insert("padding".to_string(), UiValue::Float(16.0));
+    style.insert("gap".to_string(), UiValue::Float(20.0));
+    style.insert("padding".to_string(), UiValue::Float(24.0));
     style.insert("width".to_string(), UiValue::String("fill".into()));
     style.insert("height".to_string(), UiValue::String("fill".into()));
     ops.push(UiOp::Set(UiOpSet {
@@ -144,6 +170,7 @@ fn build_ui_ops(camera_target_id: u32, camera_id: u32) -> Vec<UiOp> {
         listeners: None,
     }));
 
+    // Título principal
     ops.push(UiOp::Add(UiOpAdd {
         parent: Some(LogicalId::Str("main".into())),
         id: LogicalId::Str("title".into()),
@@ -152,15 +179,95 @@ fn build_ui_ops(camera_target_id: u32, camera_id: u32) -> Vec<UiOp> {
         variant: None,
         style: None,
         props: Some(
-            [("value".to_string(), UiValue::String("Viewport POC".into()))]
-                .into_iter()
-                .collect(),
+            [(
+                "value".to_string(),
+                UiValue::String("🎥 Virtual Viewports Demo".into()),
+            )]
+            .into_iter()
+            .collect(),
+        ),
+        listeners: None,
+    }));
+
+    // Descrição
+    ops.push(UiOp::Add(UiOpAdd {
+        parent: Some(LogicalId::Str("main".into())),
+        id: LogicalId::Str("desc".into()),
+        node_type: crate::core::ui::tree::UiNodeType::Text,
+        index: None,
+        variant: None,
+        style: None,
+        props: Some(
+            [(
+                "value".to_string(),
+                UiValue::String(
+                    "Câmeras renderizando para texturas e exibidas em widgets Image".into(),
+                ),
+            )]
+            .into_iter()
+            .collect(),
+        ),
+        listeners: None,
+    }));
+
+    // Container horizontal para viewports
+    ops.push(UiOp::Add(UiOpAdd {
+        parent: Some(LogicalId::Str("main".into())),
+        id: LogicalId::Str("viewports_row".into()),
+        node_type: crate::core::ui::tree::UiNodeType::Container,
+        index: None,
+        variant: None,
+        style: Some(
+            [
+                ("layout".to_string(), UiValue::String("row".into())),
+                ("gap".to_string(), UiValue::Float(16.0)),
+            ]
+            .into_iter()
+            .collect(),
+        ),
+        props: None,
+        listeners: None,
+    }));
+
+    // Container do viewport grande
+    ops.push(UiOp::Add(UiOpAdd {
+        parent: Some(LogicalId::Str("viewports_row".into())),
+        id: LogicalId::Str("large_viewport_container".into()),
+        node_type: crate::core::ui::tree::UiNodeType::Container,
+        index: None,
+        variant: None,
+        style: Some(
+            [
+                ("layout".to_string(), UiValue::String("col".into())),
+                ("gap".to_string(), UiValue::Float(8.0)),
+            ]
+            .into_iter()
+            .collect(),
+        ),
+        props: None,
+        listeners: None,
+    }));
+
+    ops.push(UiOp::Add(UiOpAdd {
+        parent: Some(LogicalId::Str("large_viewport_container".into())),
+        id: LogicalId::Str("large_label".into()),
+        node_type: crate::core::ui::tree::UiNodeType::Text,
+        index: None,
+        variant: None,
+        style: None,
+        props: Some(
+            [(
+                "value".to_string(),
+                UiValue::String("📺 Viewport Principal (512x512)".into()),
+            )]
+            .into_iter()
+            .collect(),
         ),
         listeners: None,
     }));
 
     ops.push(UiOp::Add(UiOpAdd {
-        parent: Some(LogicalId::Str("main".into())),
+        parent: Some(LogicalId::Str("large_viewport_container".into())),
         id: LogicalId::Str("viewport".into()),
         node_type: crate::core::ui::tree::UiNodeType::Image,
         index: None,
@@ -187,8 +294,45 @@ fn build_ui_ops(camera_target_id: u32, camera_id: u32) -> Vec<UiOp> {
         listeners: None,
     }));
 
+    // Painel lateral com viewport pequeno e controles
     ops.push(UiOp::Add(UiOpAdd {
-        parent: Some(LogicalId::Str("main".into())),
+        parent: Some(LogicalId::Str("viewports_row".into())),
+        id: LogicalId::Str("sidebar".into()),
+        node_type: crate::core::ui::tree::UiNodeType::Container,
+        index: None,
+        variant: None,
+        style: Some(
+            [
+                ("layout".to_string(), UiValue::String("col".into())),
+                ("gap".to_string(), UiValue::Float(12.0)),
+            ]
+            .into_iter()
+            .collect(),
+        ),
+        props: None,
+        listeners: None,
+    }));
+
+    ops.push(UiOp::Add(UiOpAdd {
+        parent: Some(LogicalId::Str("sidebar".into())),
+        id: LogicalId::Str("small_label".into()),
+        node_type: crate::core::ui::tree::UiNodeType::Text,
+        index: None,
+        variant: None,
+        style: None,
+        props: Some(
+            [(
+                "value".to_string(),
+                UiValue::String("🔍 Mini Viewport (256x256)".into()),
+            )]
+            .into_iter()
+            .collect(),
+        ),
+        listeners: None,
+    }));
+
+    ops.push(UiOp::Add(UiOpAdd {
+        parent: Some(LogicalId::Str("sidebar".into())),
         id: LogicalId::Str("viewport2".into()),
         node_type: crate::core::ui::tree::UiNodeType::Image,
         index: None,
@@ -209,6 +353,122 @@ fn build_ui_ops(camera_target_id: u32, camera_id: u32) -> Vec<UiOp> {
                 ),
                 ("cameraId".to_string(), UiValue::Int(camera_id as i64)),
             ]
+            .into_iter()
+            .collect(),
+        ),
+        listeners: None,
+    }));
+
+    // Separador
+    ops.push(UiOp::Add(UiOpAdd {
+        parent: Some(LogicalId::Str("sidebar".into())),
+        id: LogicalId::Str("sep1".into()),
+        node_type: crate::core::ui::tree::UiNodeType::Separator,
+        index: None,
+        variant: None,
+        style: None,
+        props: None,
+        listeners: None,
+    }));
+
+    // Info sobre a câmera
+    ops.push(UiOp::Add(UiOpAdd {
+        parent: Some(LogicalId::Str("sidebar".into())),
+        id: LogicalId::Str("info_title".into()),
+        node_type: crate::core::ui::tree::UiNodeType::Text,
+        index: None,
+        variant: None,
+        style: None,
+        props: Some(
+            [(
+                "value".to_string(),
+                UiValue::String("ℹ️ Info da Câmera".into()),
+            )]
+            .into_iter()
+            .collect(),
+        ),
+        listeners: None,
+    }));
+
+    ops.push(UiOp::Add(UiOpAdd {
+        parent: Some(LogicalId::Str("sidebar".into())),
+        id: LogicalId::Str("camera_info".into()),
+        node_type: crate::core::ui::tree::UiNodeType::Text,
+        index: None,
+        variant: None,
+        style: None,
+        props: Some(
+            [(
+                "value".to_string(),
+                UiValue::String(format!(
+                    "ID: {}\nTarget: {}\nTipo: Perspective",
+                    camera_id, camera_target_id
+                )),
+            )]
+            .into_iter()
+            .collect(),
+        ),
+        listeners: None,
+    }));
+
+    // Separador
+    ops.push(UiOp::Add(UiOpAdd {
+        parent: Some(LogicalId::Str("sidebar".into())),
+        id: LogicalId::Str("sep2".into()),
+        node_type: crate::core::ui::tree::UiNodeType::Separator,
+        index: None,
+        variant: None,
+        style: None,
+        props: None,
+        listeners: None,
+    }));
+
+    // Botões de exemplo
+    ops.push(UiOp::Add(UiOpAdd {
+        parent: Some(LogicalId::Str("sidebar".into())),
+        id: LogicalId::Str("btn_label".into()),
+        node_type: crate::core::ui::tree::UiNodeType::Text,
+        index: None,
+        variant: None,
+        style: None,
+        props: Some(
+            [("value".to_string(), UiValue::String("🎮 Controles".into()))]
+                .into_iter()
+                .collect(),
+        ),
+        listeners: None,
+    }));
+
+    ops.push(UiOp::Add(UiOpAdd {
+        parent: Some(LogicalId::Str("sidebar".into())),
+        id: LogicalId::Str("btn1".into()),
+        node_type: crate::core::ui::tree::UiNodeType::Button,
+        index: None,
+        variant: None,
+        style: None,
+        props: Some(
+            [(
+                "label".to_string(),
+                UiValue::String("Botão Exemplo 1".into()),
+            )]
+            .into_iter()
+            .collect(),
+        ),
+        listeners: None,
+    }));
+
+    ops.push(UiOp::Add(UiOpAdd {
+        parent: Some(LogicalId::Str("sidebar".into())),
+        id: LogicalId::Str("btn2".into()),
+        node_type: crate::core::ui::tree::UiNodeType::Button,
+        index: None,
+        variant: None,
+        style: None,
+        props: Some(
+            [(
+                "label".to_string(),
+                UiValue::String("Botão Exemplo 2".into()),
+            )]
             .into_iter()
             .collect(),
         ),

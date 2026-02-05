@@ -13,7 +13,6 @@ pub struct ManagedTexture {
 pub struct ExternalTexture {
     pub _view: wgpu::TextureView,
     pub bind_group: wgpu::BindGroup,
-    pub options: TextureOptions,
 }
 
 pub struct TextureManager {
@@ -153,13 +152,8 @@ impl TextureManager {
         view: &wgpu::TextureView,
         options: TextureOptions,
     ) {
-        let needs_bind_group = match self.external_textures.get(&id) {
-            Some(existing) => existing.options != options,
-            None => true,
-        };
-        if !needs_bind_group {
-            return;
-        }
+        // Sempre atualiza o bind group para garantir que o TextureView mais recente seja usado
+        // (importante para viewport cameras que podem ter seus render targets redimensionados)
         let sampler = self
             .samplers
             .entry(options)
@@ -183,7 +177,6 @@ impl TextureManager {
             ExternalTexture {
                 _view: view.clone(),
                 bind_group,
-                options,
             },
         );
     }

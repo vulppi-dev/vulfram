@@ -147,14 +147,6 @@ pub fn render_frames(engine_state: &mut EngineState) {
             *window_id,
         );
 
-        crate::core::ui::render::prepare_viewports_for_window(
-            &mut engine_state.ui,
-            &mut render_state.scene,
-            *window_id,
-            window_state.scale_factor.max(0.1),
-            device,
-        );
-
         crate::core::render::targets::map_camera_targets(&mut render_state.scene);
         render_state.prepare_render(device, frame_spec, true);
 

@@ -3,13 +3,11 @@ use crate::core::render::state::RenderScene;
 use crate::core::resources::TextureRecord;
 
 pub fn map_camera_targets(render_scene: &mut RenderScene) {
-    let mut mappings = Vec::new();
-    log::info!("map_camera_targets: {} cameras", render_scene.cameras.len());
+    let mut mappings = Vec::with_capacity(render_scene.cameras.len());
     for (camera_id, record) in render_scene.cameras.iter() {
         let Some(target_id) = record.target_texture_id.as_ref() else {
             continue;
         };
-        log::info!("Camera {} has target_texture_id {:?}", camera_id, target_id);
         let texture_id = match target_id {
             LogicalId::Int(value) => {
                 if *value < 0 || *value > u32::MAX as i64 {
@@ -38,8 +36,6 @@ pub fn map_camera_targets(render_scene: &mut RenderScene) {
                 continue;
             }
         };
-
-        log::info!("Camera {} mapping to texture {}", camera_id, texture_id);
 
         if let Some(existing) = render_scene.textures.get(&texture_id) {
             if existing.label.as_deref() != Some("camera_target") {

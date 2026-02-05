@@ -256,6 +256,40 @@ pub fn ensure_render_target(
     }
 }
 
+pub fn ensure_render_target_with_samples(
+    device: &wgpu::Device,
+    target: &mut Option<RenderTarget>,
+    width: u32,
+    height: u32,
+    format: wgpu::TextureFormat,
+    sample_count: u32,
+) {
+    let needs_target = match target.as_ref() {
+        Some(existing) => {
+            let size = existing._texture.size();
+            size.width != width
+                || size.height != height
+                || existing.format != format
+                || existing.sample_count != sample_count
+        }
+        None => true,
+    };
+
+    if needs_target {
+        let size = wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        };
+        *target = Some(RenderTarget::new_with_samples(
+            device,
+            size,
+            format,
+            sample_count.max(1),
+        ));
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CameraRecord {
     pub label: Option<String>,
@@ -274,6 +308,9 @@ pub struct CameraRecord {
     pub ssao_blur_target: Option<RenderTarget>,
     pub bloom_target: Option<RenderTarget>,
     pub bloom_chain: [Option<RenderTarget>; 4],
+    pub depth_target: Option<RenderTarget>,
+    pub msaa_target: Option<RenderTarget>,
+    pub emissive_msaa_target: Option<RenderTarget>,
     pub view_position: Option<ViewPosition>,
 }
 
@@ -305,6 +342,9 @@ impl CameraRecord {
             ssao_blur_target: None,
             bloom_target: None,
             bloom_chain: [None, None, None, None],
+            depth_target: None,
+            msaa_target: None,
+            emissive_msaa_target: None,
             view_position,
         }
     }

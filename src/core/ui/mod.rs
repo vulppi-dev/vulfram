@@ -1,11 +1,13 @@
 pub mod build;
 pub mod cmd;
 pub mod egui_renderer;
+pub mod animation;
 pub mod events;
 pub mod input;
 pub mod layout;
 pub mod render;
 pub mod state;
+pub mod theme;
 pub mod tree;
 pub mod types;
 pub mod widgets;

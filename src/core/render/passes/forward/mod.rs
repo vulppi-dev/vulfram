@@ -13,105 +13,25 @@ pub fn pass_forward(
     frame_index: u64,
     clear_color: bool,
 ) {
-    let scene = &render_state.scene;
-
     let sample_count = render_state.msaa_sample_count();
 
     // Split borrows
-    let (vertex_sys, bindings, library, light_system, collector, cache, gizmos) = (
-        render_state.vertex.as_mut().unwrap(),
-        render_state.bindings.as_mut().unwrap(),
-        render_state.library.as_ref().unwrap(),
-        render_state.light_system.as_mut().unwrap(),
-        &mut render_state.collector,
-        &mut render_state.cache,
-        &mut render_state.gizmos,
-    );
+    let RenderState {
+        scene,
+        vertex,
+        bindings,
+        library,
+        light_system,
+        collector,
+        cache,
+        gizmos,
+        ..
+    } = render_state;
+    let vertex_sys = vertex.as_mut().unwrap();
+    let bindings = bindings.as_mut().unwrap();
+    let library = library.as_ref().unwrap();
+    let light_system = light_system.as_mut().unwrap();
 
-    // 0. Ensure Depth Target exists and matches size (Lazy)
-    if let Some((_, camera)) = scene.cameras.iter().next() {
-        if let Some(target) = &camera.render_target {
-            let size = target._texture.size();
-            let needs_depth = match render_state.forward_depth_target.as_ref() {
-                Some(existing) => {
-                    let existing_size = existing._texture.size();
-                    existing_size.width != size.width
-                        || existing_size.height != size.height
-                        || existing.sample_count != sample_count
-                }
-                None => true,
-            };
-            if needs_depth {
-                render_state.forward_depth_target =
-                    Some(crate::core::resources::RenderTarget::new_with_samples(
-                        device,
-                        size,
-                        wgpu::TextureFormat::Depth32Float,
-                        sample_count,
-                    ));
-            }
-        }
-    }
-
-    let depth_target = render_state.forward_depth_target.as_ref();
-    let msaa_target = if sample_count > 1 {
-        if let Some((_, camera)) = scene.cameras.iter().next() {
-            if let Some(target) = &camera.render_target {
-                let size = target._texture.size();
-                let needs_msaa = match render_state.forward_msaa_target.as_ref() {
-                    Some(existing) => {
-                        let existing_size = existing._texture.size();
-                        existing_size.width != size.width
-                            || existing_size.height != size.height
-                            || existing.sample_count != sample_count
-                    }
-                    None => true,
-                };
-                if needs_msaa {
-                    render_state.forward_msaa_target =
-                        Some(crate::core::resources::RenderTarget::new_with_samples(
-                            device,
-                            size,
-                            wgpu::TextureFormat::Rgba16Float,
-                            sample_count,
-                        ));
-                }
-            }
-        }
-        render_state.forward_msaa_target.as_ref()
-    } else {
-        render_state.forward_msaa_target = None;
-        None
-    };
-    let emissive_msaa_target = if sample_count > 1 {
-        if let Some((_, camera)) = scene.cameras.iter().next() {
-            if let Some(target) = &camera.render_target {
-                let size = target._texture.size();
-                let needs_msaa = match render_state.forward_emissive_msaa_target.as_ref() {
-                    Some(existing) => {
-                        let existing_size = existing._texture.size();
-                        existing_size.width != size.width
-                            || existing_size.height != size.height
-                            || existing.sample_count != sample_count
-                    }
-                    None => true,
-                };
-                if needs_msaa {
-                    render_state.forward_emissive_msaa_target =
-                        Some(crate::core::resources::RenderTarget::new_with_samples(
-                            device,
-                            size,
-                            wgpu::TextureFormat::Rgba16Float,
-                            sample_count,
-                        ));
-                }
-            }
-        }
-        render_state.forward_emissive_msaa_target.as_ref()
-    } else {
-        render_state.forward_emissive_msaa_target = None;
-        None
-    };
     gizmos.prepare(device, queue);
 
     // Pre-cache Gizmo Pipeline once per pass if needed
@@ -120,7 +40,7 @@ pub fn pass_forward(
             shader_id: ShaderId::Gizmo as u64,
             color_format: wgpu::TextureFormat::Rgba16Float,
             color_target_count: 2,
-            depth_format: depth_target.map(|t| t.format),
+            depth_format: Some(wgpu::TextureFormat::Depth32Float),
             sample_count,
             topology: wgpu::PrimitiveTopology::LineList,
             cull_mode: None,
@@ -134,13 +54,60 @@ pub fn pass_forward(
     };
 
     // 1. Sort cameras by order
-    let mut sorted_cameras: Vec<_> = scene.cameras.iter().collect();
-    sorted_cameras.sort_by_key(|(_, record)| record.order);
+    let mut sorted_cameras: Vec<(u32, i32)> = scene
+        .cameras
+        .iter()
+        .map(|(id, record)| (*id, record.order))
+        .collect();
+    sorted_cameras.sort_by_key(|(_, order)| *order);
 
-    for (camera_index, (camera_id, camera_record)) in sorted_cameras.into_iter().enumerate() {
+    for (camera_index, (camera_id, _order)) in sorted_cameras.into_iter().enumerate() {
         light_system.write_draw_params(camera_index as u32, light_system.max_lights_per_camera);
 
+        {
+            let Some(record) = scene.cameras.get_mut(&camera_id) else {
+                continue;
+            };
+            let Some(target) = record.render_target.as_ref() else {
+                continue;
+            };
+            let size = target._texture.size();
+            crate::core::resources::ensure_render_target_with_samples(
+                device,
+                &mut record.depth_target,
+                size.width,
+                size.height,
+                wgpu::TextureFormat::Depth32Float,
+                sample_count,
+            );
+            if sample_count > 1 {
+                crate::core::resources::ensure_render_target_with_samples(
+                    device,
+                    &mut record.msaa_target,
+                    size.width,
+                    size.height,
+                    wgpu::TextureFormat::Rgba16Float,
+                    sample_count,
+                );
+                crate::core::resources::ensure_render_target_with_samples(
+                    device,
+                    &mut record.emissive_msaa_target,
+                    size.width,
+                    size.height,
+                    wgpu::TextureFormat::Rgba16Float,
+                    sample_count,
+                );
+            } else {
+                record.msaa_target = None;
+                record.emissive_msaa_target = None;
+            }
+        }
+
         // 2. Get render target view
+        let camera_record = match scene.cameras.get(&camera_id) {
+            Some(record) => record,
+            None => continue,
+        };
         let target_view = match &camera_record.render_target {
             Some(target) => &target.view,
             None => continue,
@@ -149,12 +116,15 @@ pub fn pass_forward(
             Some(target) => target,
             None => continue,
         };
-        let (color_view, resolve_target) = if let Some(msaa) = msaa_target {
+        let depth_target = camera_record.depth_target.as_ref();
+        let (color_view, resolve_target) = if let Some(msaa) = camera_record.msaa_target.as_ref() {
             (&msaa.view, Some(target_view))
         } else {
             (target_view, None)
         };
-        let (emissive_view, emissive_resolve) = if let Some(msaa) = emissive_msaa_target {
+        let (emissive_view, emissive_resolve) = if let Some(msaa) =
+            camera_record.emissive_msaa_target.as_ref()
+        {
             (&msaa.view, Some(&emissive_target.view))
         } else {
             (&emissive_target.view, None)
@@ -218,7 +188,7 @@ pub fn pass_forward(
 
             // 5. Bind Shared (Group 0: Frame + Camera + ModelPool)
             if let Some(shared_group) = bindings.shared_group.as_ref() {
-                let camera_offset = bindings.camera_pool.get_offset(*camera_id) as u32;
+                let camera_offset = bindings.camera_pool.get_offset(camera_id) as u32;
                 let light_offset = light_system.draw_params_offset(camera_index as u32) as u32;
                 render_pass.set_bind_group(0, shared_group, &[camera_offset, light_offset]);
             }

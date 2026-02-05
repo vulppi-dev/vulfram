@@ -1,11 +1,13 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 use crate::core::render::graph::LogicalId;
 use crate::core::state::EngineState;
 
+use super::animation::{parse_animation_easing, parse_animation_property, UiAnimation};
 use super::state::{UiContextRecord, UiThemeRecord};
 use super::tree::{UiOp, UiTreeState, apply_ops};
-use super::types::{UiRectPx, UiRenderTarget, UiThemeSource};
+use super::types::{UiRectPx, UiRenderTarget, UiThemeConfig};
 
 // MARK: - Theme Define
 
@@ -13,7 +15,7 @@ use super::types::{UiRectPx, UiRenderTarget, UiThemeSource};
 #[serde(rename_all = "camelCase")]
 pub struct CmdUiThemeDefineArgs {
     pub theme_id: LogicalId,
-    pub source: UiThemeSource,
+    pub theme: UiThemeConfig,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -36,11 +38,11 @@ pub fn engine_cmd_ui_theme_define(
         .or_insert_with(|| UiThemeRecord {
             theme_id: args.theme_id.clone(),
             version: 0,
-            source: args.source.clone(),
+            theme: args.theme.clone(),
         });
 
     record.version = record.version.saturating_add(1);
-    record.source = args.source.clone();
+    record.theme = args.theme.clone();
 
     CmdResultUiThemeDefine {
         success: true,
@@ -57,7 +59,7 @@ pub fn engine_cmd_ui_theme_define(
 pub struct CmdUiContextCreateArgs {
     pub window_id: u32,
     pub context_id: LogicalId,
-    pub theme_id: LogicalId,
+    pub theme_id: Option<LogicalId>,
     pub target: UiRenderTarget,
     pub screen_rect: UiRectPx,
     pub z_index: Option<i32>,
@@ -83,12 +85,14 @@ pub fn engine_cmd_ui_context_create(
         };
     }
 
-    if !engine.ui.themes.contains_key(&args.theme_id) {
-        return CmdResultUiContextCreate {
-            success: false,
-            message: format!("Theme {} not found", args.theme_id),
-            context_id: Some(args.context_id.clone()),
-        };
+    if let Some(theme_id) = args.theme_id.as_ref() {
+        if !engine.ui.themes.contains_key(theme_id) {
+            return CmdResultUiContextCreate {
+                success: false,
+                message: format!("Theme {} not found", theme_id),
+                context_id: Some(args.context_id.clone()),
+            };
+        }
     }
 
     if !engine.window.states.contains_key(&args.window_id) {
@@ -111,6 +115,15 @@ pub fn engine_cmd_ui_context_create(
         egui_ctx: egui::Context::default(),
         focused_node: None,
         viewport_requests: Vec::new(),
+        style_cache: HashMap::new(),
+        ordered_children_cache: HashMap::new(),
+        animations: Vec::new(),
+        animated_overrides: HashMap::new(),
+        node_rects: HashMap::new(),
+        debug_enabled: false,
+        applied_theme_version: 0,
+        applied_theme_id: None,
+        applied_theme_fallback: false,
         debug_map_logged: false,
         debug_draw_logged: false,
     };
@@ -130,7 +143,7 @@ pub fn engine_cmd_ui_context_create(
 #[serde(rename_all = "camelCase")]
 pub struct CmdUiContextSetThemeArgs {
     pub context_id: LogicalId,
-    pub theme_id: LogicalId,
+    pub theme_id: Option<LogicalId>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -168,14 +181,19 @@ pub fn engine_cmd_ui_context_set_theme(
         }
     };
 
-    if !engine.ui.themes.contains_key(&args.theme_id) {
-        return CmdResultUiContextUpdate {
-            success: false,
-            message: format!("Theme {} not found", args.theme_id),
-        };
+    if let Some(theme_id) = args.theme_id.as_ref() {
+        if !engine.ui.themes.contains_key(theme_id) {
+            return CmdResultUiContextUpdate {
+                success: false,
+                message: format!("Theme {} not found", theme_id),
+            };
+        }
     }
 
     context.theme_id = args.theme_id.clone();
+    context.applied_theme_id = None;
+    context.applied_theme_version = 0;
+    context.applied_theme_fallback = false;
 
     CmdResultUiContextUpdate {
         success: true,
@@ -307,18 +325,65 @@ pub fn engine_cmd_ui_apply_ops(
         };
     }
 
+    let removed_ids = collect_removed_ids(&context.tree, &args.ops);
     let mut staged = context.tree.clone();
-    if let Err(message) = apply_ops(&mut staged, &args.ops) {
-        return CmdResultUiApplyOps {
-            success: false,
-            message,
-            context_id: Some(args.context_id.clone()),
-            ..CmdResultUiApplyOps::default()
-        };
+    let mut animations_to_add = Vec::new();
+    for op in &args.ops {
+        match op {
+            UiOp::Animate(payload) => animations_to_add.push(payload.clone()),
+            _ => {
+                if let Err(message) = apply_ops(&mut staged, std::slice::from_ref(op)) {
+                    return CmdResultUiApplyOps {
+                        success: false,
+                        message,
+                        context_id: Some(args.context_id.clone()),
+                        ..CmdResultUiApplyOps::default()
+                    };
+                }
+            }
+        }
     }
 
     staged.version = staged.version.saturating_add(1);
     context.tree = staged;
+    if !removed_ids.is_empty() {
+        for id in &removed_ids {
+            context.style_cache.remove(id);
+            context.ordered_children_cache.remove(id);
+            context.animated_overrides.remove(id);
+            context.node_rects.remove(id);
+        }
+        context.animations.retain(|anim| !removed_ids.contains(&anim.node_id));
+        context
+            .tree
+            .dirty_structure
+            .retain(|id| !removed_ids.contains(id));
+    }
+    for anim in animations_to_add {
+        let Some(property) = parse_animation_property(&anim.property) else {
+            return CmdResultUiApplyOps {
+                success: false,
+                message: format!("Unsupported animation property {}", anim.property),
+                context_id: Some(args.context_id.clone()),
+                ..CmdResultUiApplyOps::default()
+            };
+        };
+        let from = anim
+            .from
+            .unwrap_or_else(|| resolve_animation_from(&context.tree, &anim.id, &property));
+        let easing = parse_animation_easing(anim.easing.as_deref());
+        context.animations.push(UiAnimation {
+            node_id: anim.id.clone(),
+            property,
+            from,
+            to: anim.to,
+            duration_ms: anim.duration_ms.max(1),
+            delay_ms: anim.delay_ms.unwrap_or(0),
+            easing,
+            start_time: None,
+            completed: false,
+        });
+    }
 
     CmdResultUiApplyOps {
         success: true,
@@ -326,5 +391,77 @@ pub fn engine_cmd_ui_apply_ops(
         context_id: Some(args.context_id.clone()),
         new_version: Some(context.tree.version),
         ..CmdResultUiApplyOps::default()
+    }
+}
+
+fn resolve_animation_from(
+    tree: &UiTreeState,
+    node_id: &LogicalId,
+    property: &super::animation::UiAnimationProperty,
+) -> f32 {
+    let Some(node) = tree.nodes.get(node_id) else {
+        return match property {
+            super::animation::UiAnimationProperty::Opacity => 1.0,
+            super::animation::UiAnimationProperty::TranslateY => 0.0,
+        };
+    };
+    let Some(style) = node.style.as_ref() else {
+        return match property {
+            super::animation::UiAnimationProperty::Opacity => 1.0,
+            super::animation::UiAnimationProperty::TranslateY => 0.0,
+        };
+    };
+    match property {
+        super::animation::UiAnimationProperty::Opacity => style
+            .get("opacity")
+            .and_then(|value| match value {
+                super::types::UiValue::Float(value) => Some(*value as f32),
+                super::types::UiValue::Int(value) => Some(*value as f32),
+                _ => None,
+            })
+            .unwrap_or(1.0),
+        super::animation::UiAnimationProperty::TranslateY => style
+            .get("translateY")
+            .and_then(|value| match value {
+                super::types::UiValue::Float(value) => Some(*value as f32),
+                super::types::UiValue::Int(value) => Some(*value as f32),
+                _ => None,
+            })
+            .unwrap_or(0.0),
+    }
+}
+
+fn collect_removed_ids(tree: &UiTreeState, ops: &[UiOp]) -> std::collections::HashSet<LogicalId> {
+    let mut removed = std::collections::HashSet::new();
+    for op in ops {
+        match op {
+            UiOp::Remove(payload) => {
+                collect_subtree(tree, &payload.id, &mut removed);
+            }
+            UiOp::Clear(payload) => {
+                if let Some(node) = tree.nodes.get(&payload.id) {
+                    for child in &node.children {
+                        collect_subtree(tree, child, &mut removed);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    removed
+}
+
+fn collect_subtree(
+    tree: &UiTreeState,
+    node_id: &LogicalId,
+    removed: &mut std::collections::HashSet<LogicalId>,
+) {
+    if !removed.insert(node_id.clone()) {
+        return;
+    }
+    if let Some(node) = tree.nodes.get(node_id) {
+        for child in &node.children {
+            collect_subtree(tree, child, removed);
+        }
     }
 }

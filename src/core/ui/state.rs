@@ -3,21 +3,22 @@ use std::collections::HashMap;
 use crate::core::render::graph::LogicalId;
 
 use super::tree::UiTreeState;
-use super::types::{UiRectPx, UiRenderTarget, UiThemeSource};
+use super::types::{UiRectPx, UiRenderTarget, UiThemeConfig};
 use crate::core::resources::RenderTarget;
+use crate::core::ui::layout::UiStyleCacheEntry;
 
 #[derive(Debug, Clone)]
 pub struct UiThemeRecord {
     pub theme_id: LogicalId,
     pub version: u32,
-    pub source: UiThemeSource,
+    pub theme: UiThemeConfig,
 }
 
 #[derive(Debug, Clone)]
 pub struct UiContextRecord {
     pub window_id: u32,
     pub _context_id: LogicalId,
-    pub theme_id: LogicalId,
+    pub theme_id: Option<LogicalId>,
     pub target: UiRenderTarget,
     pub screen_rect: UiRectPx,
     pub z_index: i32,
@@ -26,6 +27,15 @@ pub struct UiContextRecord {
     pub egui_ctx: egui::Context,
     pub focused_node: Option<LogicalId>,
     pub viewport_requests: Vec<ViewportRequest>,
+    pub style_cache: HashMap<LogicalId, UiStyleCacheEntry>,
+    pub ordered_children_cache: HashMap<LogicalId, Vec<LogicalId>>,
+    pub animations: Vec<crate::core::ui::animation::UiAnimation>,
+    pub animated_overrides: HashMap<LogicalId, crate::core::ui::tree::UiStyle>,
+    pub node_rects: HashMap<LogicalId, egui::Rect>,
+    pub debug_enabled: bool,
+    pub applied_theme_version: u32,
+    pub applied_theme_id: Option<LogicalId>,
+    pub applied_theme_fallback: bool,
     pub debug_map_logged: bool,
     pub debug_draw_logged: bool,
 }
@@ -44,6 +54,7 @@ pub struct UiState {
     pub capture_by_window: HashMap<u32, LogicalId>,
     pub pending_events: HashMap<LogicalId, Vec<egui::Event>>,
     pub output_format: wgpu::TextureFormat,
+    pub fallback_theme: UiThemeConfig,
 }
 
 impl Default for UiState {
@@ -55,6 +66,7 @@ impl Default for UiState {
             capture_by_window: HashMap::new(),
             pending_events: HashMap::new(),
             output_format: wgpu::TextureFormat::Rgba16Float,
+            fallback_theme: UiThemeConfig::default(),
         }
     }
 }

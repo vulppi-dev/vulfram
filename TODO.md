@@ -53,7 +53,7 @@ _Sistema de UI renderizado no core, definido pelo Host via ops._
 - [x] **Listeners MVP**: `onClick` e `onChangeCommit`, emitindo `UiEvent` com label + nodeId.
 - [x] **Render Target**: cada `UiContext` renderiza na `targetTexture` indicada.
 - [x] **Input Routing**: roteamento por `screenRect` + `zIndex` e foco por último input.
-- [ ] **Docs & Exemplo**: documentação de comandos e exemplo completo de ops no host.
+- [x] **Docs & Exemplo**: documentação de comandos e exemplo completo de ops no host.
 - [x] **Composição UI/3D**: definir camadas e regras de target lógico para câmera/UI.
 - [x] **Camadas (prioridade)**: composição por layers com ordem explícita (ex.: `layer: 0` 3D base, `layer: 10` UI, `layer: 20` debug).
 - [x] **Target lógico (câmera)**: se a câmera renderiza para texture target (LogicalId), essa textura pode ser aplicada em qualquer superfície; se não, vai para o layer da câmera.
@@ -64,17 +64,17 @@ _Sistema de UI renderizado no core, definido pelo Host via ops._
 - [x] **Viewport Input**: mapear input do retângulo do widget para a câmera correspondente.
 - [x] **Multi-Viewports**: suportar 2+ viewports simultâneos com IDs e targets independentes.
 - [x] **Wrap**: `wrap` para `row/reverse-row` e `col/reverse-col` com height limitada.
-- [ ] **Animate**: `animate` para `opacity` e `translateY` com easing e `animComplete`.
+- [x] **Animate**: `animate` para `opacity` e `translateY` com easing e `animComplete`.
 - [x] **Editor Docking**: layout de painéis e docking para o editor host-driven.
 - [x] **Clipping/Scissor**: clipping consistente para scrolls, listas e painéis.
-- [ ] **Scroll Real**: containers scrolláveis com offsets e barras.
-- [ ] **Text/Fonts**: fallback de fontes, tamanho por estilo e atlas de glyphs.
-- [ ] **Hit-Testing**: regras de input respeitando `display/visible/opacity`.
-- [ ] **Z-Order Interno**: overlays/menu/contexto dentro do mesmo `UiContext`.
+- [x] **Scroll Real**: containers scrolláveis com offsets e barras.
+- [x] **Text/Fonts**: fallback de fontes, tamanho por estilo e atlas de glyphs.
+- [x] **Hit-Testing**: regras de input respeitando `display/visible/opacity`.
+- [x] **Z-Order Interno**: overlays/menu/contexto dentro do mesmo `UiContext`.
 - [x] **Focus & Keyboard**: tab/focus, navegação básica por teclado em inputs.
-- [ ] **Hot-Reload Theme**: atualização de theme sem recriar context.
-- [ ] **Debug UI**: overlay de bounds/ids e profiling básico.
-- [ ] **Performance**: cache de layout e invalidation por dirty flags.
+- [x] **Hot-Reload Theme**: atualização de theme sem recriar context.
+- [x] **Debug UI**: overlay de bounds/ids e profiling básico.
+- [x] **Performance**: cache de layout e invalidation por dirty flags.
 - [x] **Demo 5 (UI)**: criar um demo para testar e demonstrar o sistema de UI.
 - [x] **Ajuste de Demos**: atualizar demos existentes para continuarem funcionando após a integração da UI.
 - [x] **Refactor Demos**: dividir os demos de `main.rs` em subarquivos para reduzir o tamanho e melhorar organização.

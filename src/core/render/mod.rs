@@ -190,6 +190,7 @@ pub fn render_frames(engine_state: &mut EngineState) {
             device,
             queue,
             &mut encoder,
+            engine_state.time as f64 / 1000.0,
         );
 
         queue.submit(Some(encoder.finish()));

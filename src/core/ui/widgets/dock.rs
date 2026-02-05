@@ -20,10 +20,22 @@ pub(super) fn render_dock(
         &mut UiTreeState,
         &mut Option<LogicalId>,
         &mut Vec<crate::core::ui::state::ViewportRequest>,
+        &mut std::collections::HashMap<LogicalId, crate::core::ui::layout::UiStyleCacheEntry>,
+        &mut std::collections::HashMap<LogicalId, Vec<LogicalId>>,
+        &std::collections::HashMap<LogicalId, crate::core::ui::tree::UiStyle>,
+        &mut std::collections::HashMap<LogicalId, egui::Rect>,
+        bool,
+        bool,
         &LogicalId,
     ),
     focused_node: &mut Option<LogicalId>,
     viewport_requests: &mut Vec<crate::core::ui::state::ViewportRequest>,
+    style_cache: &mut std::collections::HashMap<LogicalId, crate::core::ui::layout::UiStyleCacheEntry>,
+    ordered_children_cache: &mut std::collections::HashMap<LogicalId, Vec<LogicalId>>,
+    animated_overrides: &std::collections::HashMap<LogicalId, crate::core::ui::tree::UiStyle>,
+    node_rects: &mut std::collections::HashMap<LogicalId, egui::Rect>,
+    debug_enabled: bool,
+    sizing_pass: bool,
     node_id: &LogicalId,
     props: Option<&UiProps>,
     listeners: Option<&UiListeners>,
@@ -61,7 +73,7 @@ pub(super) fn render_dock(
                     .unwrap_or_else(|| child_id.to_string());
 
                 let response = ui.selectable_label(index == active_index, label);
-                if response.clicked() && index != active_index {
+                if !sizing_pass && response.clicked() && index != active_index {
                     update_node_prop(
                         tree,
                         node_id,
@@ -97,6 +109,12 @@ pub(super) fn render_dock(
                 tree,
                 focused_node,
                 viewport_requests,
+                style_cache,
+                ordered_children_cache,
+                animated_overrides,
+                node_rects,
+                debug_enabled,
+                sizing_pass,
                 active_id,
             );
         }

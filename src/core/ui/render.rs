@@ -6,6 +6,8 @@ use super::build::build_ui_from_tree;
 use super::egui_renderer::{ScreenDescriptor, UiEguiRenderer};
 use super::state::UiState;
 use super::tree::UiTreeState;
+use crate::core::ui::animation::update_animations;
+use crate::core::ui::theme::apply_theme;
 
 /// Garante que os render targets da UI estão criados e com o tamanho correto.
 /// Chamado durante a fase de preparação da renderização.
@@ -56,6 +58,7 @@ pub fn render_ui_for_window(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     encoder: &mut wgpu::CommandEncoder,
+    time_seconds: f64,
 ) {
     if ui_state.contexts.is_empty() {
         return;
@@ -72,6 +75,29 @@ pub fn render_ui_for_window(
     for (context_id, context) in ui_state.contexts.iter_mut() {
         if context.window_id != window_id {
             continue;
+        }
+        if let Some(theme_id) = context.theme_id.as_ref() {
+            if let Some(theme) = ui_state.themes.get(theme_id) {
+                if context.applied_theme_id.as_ref() != Some(theme_id)
+                    || theme.version != context.applied_theme_version
+                {
+                    apply_theme(&context.egui_ctx, &theme.theme);
+                    if let Some(debug) = theme.theme.debug {
+                        context.debug_enabled = debug;
+                    }
+                    context.applied_theme_version = theme.version;
+                    context.applied_theme_id = Some(theme_id.clone());
+                    context.applied_theme_fallback = false;
+                }
+            }
+        } else if !context.applied_theme_fallback {
+            apply_theme(&context.egui_ctx, &ui_state.fallback_theme);
+            if let Some(debug) = ui_state.fallback_theme.debug {
+                context.debug_enabled = debug;
+            }
+            context.applied_theme_version = 0;
+            context.applied_theme_id = None;
+            context.applied_theme_fallback = true;
         }
         let target = match context.render_target.as_ref() {
             Some(target) => target,
@@ -100,13 +126,24 @@ pub fn render_ui_for_window(
                 egui::vec2(screen_w, screen_h),
             )),
             events,
+            time: Some(time_seconds),
             ..Default::default()
         };
 
         context
             .egui_ctx
             .set_pixels_per_point(screen_descriptor.pixels_per_point);
+        update_animations(
+            &mut context.animations,
+            &mut context.animated_overrides,
+            &context.tree,
+            event_queue,
+            context_id,
+            window_id,
+            time_seconds,
+        );
         context.viewport_requests.clear();
+        context.node_rects.clear();
         let output = context.egui_ctx.run(raw_input, |ctx| {
             build_ui_from_tree(
                 ctx,
@@ -116,6 +153,11 @@ pub fn render_ui_for_window(
                 &mut context.tree,
                 &mut context.focused_node,
                 &mut context.viewport_requests,
+                &mut context.style_cache,
+                &mut context.ordered_children_cache,
+                &context.animated_overrides,
+                &mut context.node_rects,
+                context.debug_enabled,
             );
         });
 

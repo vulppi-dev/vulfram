@@ -404,6 +404,7 @@ Comprehensive documentation is available in the `docs/` folder.
 
 - **[MASCOT-DEFINITION.md](docs/MASCOT-DEFINITION.md)** - Brand mascot guidelines
 - **[UI.md](docs/UI.md)** - User interface design guidelines
+- **[UI-CMDS.md](docs/UI-CMDS.md)** - UI host-driven commands and ops
 - **[PLATFORM-PROXIES.md](docs/PLATFORM-PROXIES.md)** - Platform proxy architecture
 - **[Copilot Instructions](.github/copilot-instructions.md)** - Development patterns and memory
 

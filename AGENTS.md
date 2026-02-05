@@ -34,3 +34,8 @@
 - O modelo `Panel` recebe eventos via retrace no mundo 3D; outras geometrias com textura de UI são apenas dinâmicas e não interativas.
 - Deixar a documentação por último; focar implementação antes de docs.
 - Iteração de eventos do proxy para a UI deve estar completa antes de considerar interação no 3D.
+- Sempre rodar o check ao final de cada implementação para garantir que não houve problemas estruturais no código.
+- Toda a estrutura de mensagens é via MessagePack; evitar misturar JSON na entrada de comandos.
+- Desserialização MessagePack deve ocorrer apenas na entrada de comandos; estruturas internas já chegam tipadas, sem camadas extras.
+- Atualizar documentação somente por último; priorizar implementação.
+- Panel é um plane especializado que recebe eventos de teclado e ponteiro via retrace a partir do view da câmera (viewport da UI e layer de câmera).

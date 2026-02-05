@@ -8,7 +8,7 @@ use crate::core::resources::{
 };
 use crate::core::ui::cmd::{CmdUiApplyOpsArgs, CmdUiContextCreateArgs, CmdUiThemeDefineArgs};
 use crate::core::ui::tree::{UiListeners, UiOp, UiOpAdd, UiOpSet, UiSetMode};
-use crate::core::ui::types::{UiRectPx, UiRenderTarget, UiThemeSource, UiValue};
+use crate::core::ui::types::{UiRectPx, UiRenderTarget, UiThemeConfig, UiValue};
 use glam::{Mat4, Vec3, Vec4};
 
 use crate::demos::common::{
@@ -26,6 +26,7 @@ pub fn run(window_id: u32) -> bool {
 
     let context_id = LogicalId::Str("ui_demo".into());
     let theme_id = LogicalId::Str("ui_theme".into());
+    let theme = build_theme();
 
     let setup_cmds = vec![
         create_camera_cmd(
@@ -82,12 +83,12 @@ pub fn run(window_id: u32) -> bool {
         }),
         EngineCmd::CmdUiThemeDefine(CmdUiThemeDefineArgs {
             theme_id: theme_id.clone(),
-            source: UiThemeSource::InlineJson("{}".into()),
+            theme: theme.clone(),
         }),
         EngineCmd::CmdUiContextCreate(CmdUiContextCreateArgs {
             window_id,
             context_id: context_id.clone(),
-            theme_id: theme_id.clone(),
+            theme_id: Some(theme_id.clone()),
             target: UiRenderTarget::TextureId(LogicalId::Int(ui_texture_id as i64)),
             screen_rect: UiRectPx {
                 x: 32.0,
@@ -119,6 +120,15 @@ pub fn run(window_id: u32) -> bool {
             _ => false,
         },
     )
+}
+
+fn build_theme() -> UiThemeConfig {
+    UiThemeConfig {
+        fonts: Vec::new(),
+        font_families: std::collections::HashMap::new(),
+        text_styles: std::collections::HashMap::new(),
+        debug: None,
+    }
 }
 
 fn build_ui_ops(debug_texture_id: u32) -> Vec<UiOp> {

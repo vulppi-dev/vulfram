@@ -307,7 +307,7 @@ O Core renderiza a UI via egui, enquanto o Host define estrutura/estilos via ops
 
 Widgets MVP disponíveis:
 
-- `container`, `text`, `button`, `input`, `image`, `separator`, `spacer`
+- `container`, `dock`, `text`, `button`, `input`, `slider`, `checkbox`, `image`, `scroll`, `separator`, `spacer`
 
 Layout MVP (styles):
 
@@ -318,10 +318,22 @@ Layout MVP (styles):
 - `width`, `height`: `auto` | `fill` | `<px>`
 - `align`: `start` | `center` | `end` | `stretch`
 - `justify`: `start` | `center` | `end` | `stretch`
+- `display`: `none`
+- `visible`: `true/false`
+- `opacity`: `0..1`
+- `translateY`: `px`
+- `zIndex`: `int`
+- `scrollX`, `scrollY`, `scrollbar` (`hidden`, `auto`, `visible`)
+- `fontSize`, `textStyle`
 
 Imagens:
 
 - `image` espera `props.textureId` (u32), apontando para uma textura registrada no Core.
+- Themes são tipados e chegam pela entrada de comandos via MessagePack.
+
+Animações declarativas:
+
+- `animate` em `opacity` e `translateY`, com easing e `animComplete`.
 
 - Logical IDs and their own structures en/decoded on the host side.
 

@@ -230,6 +230,7 @@ GLOSSARY.md (for terminology)
 - **[README.md](../README.md)** - Project overview and quick start
 - **[MASCOT-DEFINITION.md](MASCOT-DEFINITION.md)** - Brand guidelines
 - **[UI.md](UI.md)** - User interface guidelines
+- **[UI-CMDS.md](UI-CMDS.md)** - UI host-driven commands and ops
 - **[PLATFORM-PROXIES.md](PLATFORM-PROXIES.md)** - Platform proxy architecture
 - **[Copilot Instructions](../.github/copilot-instructions.md)** - Development patterns
 

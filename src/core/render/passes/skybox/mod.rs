@@ -22,60 +22,69 @@ pub fn pass_skybox(
     encoder: &mut wgpu::CommandEncoder,
     frame_index: u64,
 ) {
-    let library = match render_state.library.as_ref() {
-        Some(l) => l,
-        None => return,
-    };
-
-    let skybox = &render_state.environment.skybox;
+    let skybox = render_state.environment.skybox.clone();
     if matches!(skybox.mode, SkyboxMode::None) {
         return;
     }
 
     let sample_count = render_state.msaa_sample_count();
-
-    if let Some((_, camera)) = render_state.scene.cameras.iter().next() {
-        if let Some(target) = &camera.render_target {
-            let size = target._texture.size();
-            let needs_msaa = sample_count > 1
-                && match render_state.forward_msaa_target.as_ref() {
-                    Some(existing) => {
-                        let existing_size = existing._texture.size();
-                        existing_size.width != size.width
-                            || existing_size.height != size.height
-                            || existing.sample_count != sample_count
-                    }
-                    None => true,
-                };
-
-            if needs_msaa {
-                render_state.forward_msaa_target =
-                    Some(crate::core::resources::RenderTarget::new_with_samples(
-                        device,
-                        size,
-                        wgpu::TextureFormat::Rgba16Float,
-                        sample_count,
-                    ));
-            }
-        }
-    }
-
-    let uniform_buffer = match render_state.skybox_uniform_buffer.as_ref() {
+    let RenderState {
+        scene,
+        library,
+        cache,
+        skybox_uniform_buffer,
+        ..
+    } = render_state;
+    let library = match library.as_ref() {
+        Some(l) => l,
+        None => return,
+    };
+    let uniform_buffer = match skybox_uniform_buffer.as_ref() {
         Some(buffer) => buffer,
         None => return,
     };
 
-    let mut sorted_cameras: Vec<_> = render_state.scene.cameras.iter().collect();
-    sorted_cameras.sort_by_key(|(_, record)| record.order);
+    let mut sorted_cameras: Vec<(u32, i32)> = scene
+        .cameras
+        .iter()
+        .map(|(id, record)| (*id, record.order))
+        .collect();
+    sorted_cameras.sort_by_key(|(_, order)| *order);
 
-    for (_camera_id, camera_record) in sorted_cameras {
+    for (_camera_index, (camera_id, _order)) in sorted_cameras.into_iter().enumerate() {
+        {
+            let Some(record) = scene.cameras.get_mut(&camera_id) else {
+                continue;
+            };
+            let Some(target) = record.render_target.as_ref() else {
+                continue;
+            };
+            let size = target._texture.size();
+            if sample_count > 1 {
+                crate::core::resources::ensure_render_target_with_samples(
+                    device,
+                    &mut record.msaa_target,
+                    size.width,
+                    size.height,
+                    wgpu::TextureFormat::Rgba16Float,
+                    sample_count,
+                );
+            } else {
+                record.msaa_target = None;
+            }
+        }
+
+        let camera_record = match scene.cameras.get(&camera_id) {
+            Some(record) => record,
+            None => continue,
+        };
         let target_view = match &camera_record.render_target {
             Some(target) => &target.view,
             None => continue,
         };
 
         let (color_view, resolve_target) = if sample_count > 1 {
-            match render_state.forward_msaa_target.as_ref() {
+            match camera_record.msaa_target.as_ref() {
                 Some(msaa) => (&msaa.view, Some(target_view)),
                 None => (target_view, None),
             }
@@ -103,9 +112,7 @@ pub fn pass_skybox(
             blend: None,
         };
 
-        let pipeline = render_state
-            .cache
-            .get_or_create(pipeline_key, frame_index, || {
+        let pipeline = cache.get_or_create(pipeline_key, frame_index, || {
                 device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                     label: Some("Skybox Pipeline"),
                     layout: Some(&library.skybox_pipeline_layout),
@@ -171,8 +178,7 @@ pub fn pass_skybox(
         queue.write_buffer(uniform_buffer, 0, bytemuck::bytes_of(&uniform));
 
         let skybox_view = match (skybox.mode, skybox.cubemap_texture_id) {
-            (SkyboxMode::Cubemap, Some(id)) => render_state
-                .scene
+            (SkyboxMode::Cubemap, Some(id)) => scene
                 .textures
                 .get(&id)
                 .map(|record| &record.view)

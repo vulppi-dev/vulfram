@@ -49,9 +49,6 @@ impl RenderState {
             shadow: None,
             forward_atlas: None,
             cache: RenderCache::new(),
-            forward_depth_target: None,
-            forward_msaa_target: None,
-            forward_emissive_msaa_target: None,
             post_uniform_buffer: None,
             ssao_uniform_buffer: None,
             ssao_blur_uniform_buffer: None,
@@ -88,9 +85,6 @@ impl RenderState {
         self.shadow = None;
         self.forward_atlas = None;
         self.cache.clear();
-        self.forward_depth_target = None;
-        self.forward_msaa_target = None;
-        self.forward_emissive_msaa_target = None;
         self.post_uniform_buffer = None;
         self.ssao_uniform_buffer = None;
         self.ssao_blur_uniform_buffer = None;

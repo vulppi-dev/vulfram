@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -61,6 +61,8 @@ pub struct UiListeners {
     pub on_focus: Option<String>,
     pub on_blur: Option<String>,
     #[serde(default)]
+    pub on_anim_complete: Option<String>,
+    #[serde(default)]
     pub on_viewport_hover: Option<String>,
     #[serde(default)]
     pub on_viewport_click: Option<String>,
@@ -79,6 +81,7 @@ impl Default for UiListeners {
             on_submit: None,
             on_focus: None,
             on_blur: None,
+            on_anim_complete: None,
             on_viewport_hover: None,
             on_viewport_click: None,
             on_viewport_drag: None,
@@ -126,6 +129,7 @@ pub enum UiOp {
     Clear(UiOpClear),
     Move(UiOpMove),
     Set(UiOpSet),
+    Animate(UiOpAnimate),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -174,17 +178,40 @@ pub struct UiOpSet {
     pub listeners: Option<Option<UiListeners>>,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UiOpAnimate {
+    pub id: LogicalId,
+    pub property: String,
+    pub from: Option<f32>,
+    pub to: f32,
+    pub duration_ms: u32,
+    pub delay_ms: Option<u32>,
+    pub easing: Option<String>,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct UiTreeState {
     pub nodes: HashMap<LogicalId, UiNode>,
     pub version: u32,
+    pub dirty_nodes: HashSet<LogicalId>,
+    pub dirty_structure: HashSet<LogicalId>,
 }
 
 impl UiTreeState {
     pub fn with_root() -> Self {
         let mut nodes = HashMap::new();
         nodes.insert(LogicalId::Str("root".into()), UiNode::new_root());
-        UiTreeState { nodes, version: 0 }
+        let mut dirty_nodes = HashSet::new();
+        dirty_nodes.insert(LogicalId::Str("root".into()));
+        let mut dirty_structure = HashSet::new();
+        dirty_structure.insert(LogicalId::Str("root".into()));
+        UiTreeState {
+            nodes,
+            version: 0,
+            dirty_nodes,
+            dirty_structure,
+        }
     }
 }
 
@@ -196,6 +223,7 @@ pub fn apply_ops(tree: &mut UiTreeState, ops: &[UiOp]) -> Result<(), String> {
             UiOp::Clear(payload) => apply_clear(tree, payload)?,
             UiOp::Move(payload) => apply_move(tree, payload)?,
             UiOp::Set(payload) => apply_set(tree, payload)?,
+            UiOp::Animate(_) => {}
         }
     }
     Ok(())
@@ -230,6 +258,9 @@ fn apply_add(tree: &mut UiTreeState, op: &UiOpAdd) -> Result<(), String> {
 
     insert_child(parent, op.id.clone(), op.index);
     tree.nodes.insert(op.id.clone(), node);
+    mark_dirty(tree, &parent_id);
+    mark_dirty(tree, &op.id);
+    mark_structure_dirty(tree, &parent_id);
     Ok(())
 }
 
@@ -252,6 +283,8 @@ fn apply_clear(tree: &mut UiTreeState, op: &UiOpClear) -> Result<(), String> {
     for child in children {
         remove_subtree(tree, &child)?;
     }
+    mark_dirty(tree, &op.id);
+    mark_structure_dirty(tree, &op.id);
     Ok(())
 }
 
@@ -279,20 +312,29 @@ fn apply_move(tree: &mut UiTreeState, op: &UiOpMove) -> Result<(), String> {
         detach_child(tree, &node_parent_id, &op.id)?;
         attach_child(tree, &target_parent_id, &op.id, op.index)?;
         if let Some(node) = tree.nodes.get_mut(&op.id) {
-            node.parent = Some(target_parent_id);
+            node.parent = Some(target_parent_id.clone());
         }
+        mark_dirty(tree, &node_parent_id);
+        mark_dirty(tree, &op.id);
+        mark_structure_dirty(tree, &node_parent_id);
+        mark_structure_dirty(tree, &target_parent_id);
         return Ok(());
     }
 
     reorder_child(tree, &node_parent_id, &op.id, op.index, op.step)?;
+    mark_dirty(tree, &node_parent_id);
+    mark_dirty(tree, &op.id);
+    mark_structure_dirty(tree, &node_parent_id);
     Ok(())
 }
 
 fn apply_set(tree: &mut UiTreeState, op: &UiOpSet) -> Result<(), String> {
+    let mark_style_dirty = op.style.is_some();
     let node = match tree.nodes.get_mut(&op.id) {
         Some(n) => n,
         None => return Err(format!("Node {} not found", op.id)),
     };
+    let parent_id = node.parent.clone();
 
     if let Some(variant) = &op.variant {
         node.variant = variant.clone();
@@ -328,6 +370,12 @@ fn apply_set(tree: &mut UiTreeState, op: &UiOpSet) -> Result<(), String> {
         }
     }
 
+    if mark_style_dirty {
+        mark_dirty(tree, &op.id);
+        if let Some(parent_id) = parent_id {
+            mark_structure_dirty(tree, &parent_id);
+        }
+    }
     Ok(())
 }
 
@@ -371,6 +419,21 @@ fn merge_listeners(current: &mut Option<UiListeners>, update: Option<UiListeners
             }
             if listeners.on_blur.is_some() {
                 existing.on_blur = listeners.on_blur;
+            }
+            if listeners.on_anim_complete.is_some() {
+                existing.on_anim_complete = listeners.on_anim_complete;
+            }
+            if listeners.on_viewport_hover.is_some() {
+                existing.on_viewport_hover = listeners.on_viewport_hover;
+            }
+            if listeners.on_viewport_click.is_some() {
+                existing.on_viewport_click = listeners.on_viewport_click;
+            }
+            if listeners.on_viewport_drag.is_some() {
+                existing.on_viewport_drag = listeners.on_viewport_drag;
+            }
+            if listeners.on_viewport_drag_end.is_some() {
+                existing.on_viewport_drag_end = listeners.on_viewport_drag_end;
             }
         }
         (_, None) => {}
@@ -479,6 +542,8 @@ fn remove_subtree(tree: &mut UiTreeState, node_id: &LogicalId) -> Result<(), Str
     };
     detach_child(tree, &parent_id, node_id)?;
     tree.nodes.remove(node_id);
+    mark_dirty(tree, &parent_id);
+    mark_structure_dirty(tree, &parent_id);
     Ok(())
 }
 
@@ -495,4 +560,12 @@ fn is_descendant(tree: &UiTreeState, node_id: &LogicalId, candidate_parent: &Log
         }
     }
     false
+}
+
+fn mark_dirty(tree: &mut UiTreeState, node_id: &LogicalId) {
+    tree.dirty_nodes.insert(node_id.clone());
+}
+
+fn mark_structure_dirty(tree: &mut UiTreeState, node_id: &LogicalId) {
+    tree.dirty_structure.insert(node_id.clone());
 }

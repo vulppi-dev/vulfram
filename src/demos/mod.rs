@@ -7,6 +7,7 @@ mod demo_004_graph;
 pub mod demo_005;
 pub mod demo_006;
 pub mod demo_007;
+pub mod demo_008;
 mod demo_007_ui;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,6 +19,7 @@ pub enum DemoKind {
     Demo005,
     Demo006,
     Demo007,
+    Demo008,
 }
 
 impl DemoKind {
@@ -30,6 +32,7 @@ impl DemoKind {
             "demo_005" | "demo005" | "5" => Some(Self::Demo005),
             "demo_006" | "demo006" | "6" => Some(Self::Demo006),
             "demo_007" | "demo007" | "7" => Some(Self::Demo007),
+            "demo_008" | "demo008" | "8" => Some(Self::Demo008),
             _ => None,
         }
     }
@@ -43,6 +46,7 @@ impl DemoKind {
             Self::Demo005 => "Vulfram Demo 005 (UI)",
             Self::Demo006 => "Vulfram Demo 006 (UI Screen)",
             Self::Demo007 => "Vulfram Demo 007 (Viewport)",
+            Self::Demo008 => "Vulfram Demo 008 (UI + Render Integration)",
         }
     }
 }
@@ -74,5 +78,6 @@ pub fn run_demo(demo: DemoKind, window_id: u32) -> bool {
         DemoKind::Demo005 => demo_005::run(window_id),
         DemoKind::Demo006 => demo_006::run(window_id),
         DemoKind::Demo007 => demo_007::run(window_id),
+        DemoKind::Demo008 => demo_008::run(window_id),
     }
 }

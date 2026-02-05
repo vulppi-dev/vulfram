@@ -7,7 +7,7 @@ use crate::core::resources::{
     StandardOptions,
 };
 use crate::core::ui::cmd::{CmdUiApplyOpsArgs, CmdUiContextCreateArgs, CmdUiThemeDefineArgs};
-use crate::core::ui::types::{UiRectPx, UiRenderTarget, UiThemeSource};
+use crate::core::ui::types::{UiRectPx, UiRenderTarget, UiThemeConfig};
 use glam::{Mat4, Vec2, Vec3, Vec4};
 
 use crate::demos::common::{
@@ -24,6 +24,7 @@ pub fn run(window_id: u32) -> bool {
 
     let context_id = LogicalId::Str("viewport_demo".into());
     let theme_id = LogicalId::Str("ui_theme_viewport".into());
+    let theme = build_theme();
 
     let setup_cmds = vec![
         EngineCmd::CmdCameraCreate(CmdCameraCreateArgs {
@@ -76,12 +77,12 @@ pub fn run(window_id: u32) -> bool {
         }),
         EngineCmd::CmdUiThemeDefine(CmdUiThemeDefineArgs {
             theme_id: theme_id.clone(),
-            source: UiThemeSource::InlineJson("{}".into()),
+            theme: theme.clone(),
         }),
         EngineCmd::CmdUiContextCreate(CmdUiContextCreateArgs {
             window_id,
             context_id: context_id.clone(),
-            theme_id: theme_id.clone(),
+            theme_id: Some(theme_id.clone()),
             target: UiRenderTarget::Screen,
             screen_rect: UiRectPx {
                 x: 0.0,
@@ -139,4 +140,13 @@ pub fn run(window_id: u32) -> bool {
             _ => false,
         },
     )
+}
+
+fn build_theme() -> UiThemeConfig {
+    UiThemeConfig {
+        fonts: Vec::new(),
+        font_families: std::collections::HashMap::new(),
+        text_styles: std::collections::HashMap::new(),
+        debug: None,
+    }
 }

@@ -7,9 +7,9 @@ use crate::core::resources::{
 use glam::{Mat4, Vec3, Vec4};
 
 use crate::demos::common::{
-    build_skinned_plane, create_ambient_light_cmd, create_camera_cmd,
-    create_point_light_cmd, create_shadow_config_cmd, create_standard_material_cmd,
-    receive_responses, run_loop, send_commands, upload_buffer,
+    build_skinned_plane, create_ambient_light_cmd, create_camera_cmd, create_point_light_cmd,
+    create_shadow_config_cmd, create_standard_material_cmd, receive_responses, run_loop,
+    send_commands, upload_buffer,
 };
 
 pub fn run(window_id: u32) -> bool {

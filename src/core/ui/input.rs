@@ -1,6 +1,6 @@
 use crate::core::cmd::EngineEvent;
-use crate::core::input::events::{KeyboardEvent, PointerEvent, ScrollDelta};
 use crate::core::input::events::ElementState;
+use crate::core::input::events::{KeyboardEvent, PointerEvent, ScrollDelta};
 use crate::core::render::graph::LogicalId;
 use crate::core::state::EngineState;
 
@@ -113,9 +113,7 @@ fn route_pointer_event(engine: &mut EngineState, event: &PointerEvent) {
             }
         }
         PointerEvent::OnScroll {
-            window_id,
-            delta,
-            ..
+            window_id, delta, ..
         } => {
             if let Some(context_id) = engine.ui.capture_by_window.get(window_id).cloned() {
                 let pixels_per_point = ui_pixels_per_point(engine, *window_id);
@@ -148,7 +146,14 @@ fn route_keyboard_event(engine: &mut EngineState, event: &KeyboardEvent) {
             };
             let mods = to_egui_modifiers(*modifiers);
             if let Some(key) = map_egui_key(*key_code) {
-                push_key_event(engine, &context_id, key, *state == ElementState::Pressed, *repeat, mods);
+                push_key_event(
+                    engine,
+                    &context_id,
+                    key,
+                    *state == ElementState::Pressed,
+                    *repeat,
+                    mods,
+                );
             }
             if *state == ElementState::Pressed {
                 if let Some(text) = text.clone() {
@@ -158,7 +163,10 @@ fn route_keyboard_event(engine: &mut EngineState, event: &KeyboardEvent) {
                 }
             }
         }
-        KeyboardEvent::OnModifiersChange { window_id, modifiers } => {
+        KeyboardEvent::OnModifiersChange {
+            window_id,
+            modifiers,
+        } => {
             let _ = (window_id, modifiers);
         }
         KeyboardEvent::OnImeEnable { window_id } => {
@@ -166,7 +174,9 @@ fn route_keyboard_event(engine: &mut EngineState, event: &KeyboardEvent) {
                 push_ime_event(engine, &context_id, egui::ImeEvent::Enabled);
             }
         }
-        KeyboardEvent::OnImePreedit { window_id, text, .. } => {
+        KeyboardEvent::OnImePreedit {
+            window_id, text, ..
+        } => {
             if let Some(context_id) = engine.ui.focus_by_window.get(window_id).cloned() {
                 push_ime_event(engine, &context_id, egui::ImeEvent::Preedit(text.clone()));
             }
@@ -184,12 +194,7 @@ fn route_keyboard_event(engine: &mut EngineState, event: &KeyboardEvent) {
     }
 }
 
-fn pick_context(
-    engine: &EngineState,
-    window_id: u32,
-    x: f32,
-    y: f32,
-) -> Option<LogicalId> {
+fn pick_context(engine: &EngineState, window_id: u32, x: f32, y: f32) -> Option<LogicalId> {
     let mut picked: Option<(&UiContextRecord, LogicalId)> = None;
     for (context_id, context) in &engine.ui.contexts {
         if context.window_id != window_id {
@@ -232,7 +237,11 @@ fn push_pointer_event(
         (position.x - context.screen_rect.x) / pixels_per_point,
         (position.y - context.screen_rect.y) / pixels_per_point,
     );
-    let events = engine.ui.pending_events.entry(context_id.clone()).or_default();
+    let events = engine
+        .ui
+        .pending_events
+        .entry(context_id.clone())
+        .or_default();
 
     if let Some(button_state) = state {
         let pressed = button_state == ElementState::Pressed;
@@ -256,7 +265,11 @@ fn push_pointer_event(
 }
 
 fn push_pointer_gone(engine: &mut EngineState, context_id: &LogicalId) {
-    let events = engine.ui.pending_events.entry(context_id.clone()).or_default();
+    let events = engine
+        .ui
+        .pending_events
+        .entry(context_id.clone())
+        .or_default();
     events.push(egui::Event::PointerGone);
 }
 
@@ -266,7 +279,11 @@ fn push_scroll_event(
     delta: ScrollDelta,
     pixels_per_point: f32,
 ) {
-    let events = engine.ui.pending_events.entry(context_id.clone()).or_default();
+    let events = engine
+        .ui
+        .pending_events
+        .entry(context_id.clone())
+        .or_default();
     let (unit, delta) = match delta {
         ScrollDelta::Line(value) => (egui::MouseWheelUnit::Line, egui::vec2(value.x, value.y)),
         ScrollDelta::Pixel(value) => (
@@ -289,7 +306,11 @@ fn push_key_event(
     repeat: bool,
     modifiers: egui::Modifiers,
 ) {
-    let events = engine.ui.pending_events.entry(context_id.clone()).or_default();
+    let events = engine
+        .ui
+        .pending_events
+        .entry(context_id.clone())
+        .or_default();
     events.push(egui::Event::Key {
         key,
         physical_key: None,
@@ -300,12 +321,20 @@ fn push_key_event(
 }
 
 fn push_text_event(engine: &mut EngineState, context_id: &LogicalId, text: String) {
-    let events = engine.ui.pending_events.entry(context_id.clone()).or_default();
+    let events = engine
+        .ui
+        .pending_events
+        .entry(context_id.clone())
+        .or_default();
     events.push(egui::Event::Text(text));
 }
 
 fn push_ime_event(engine: &mut EngineState, context_id: &LogicalId, event: egui::ImeEvent) {
-    let events = engine.ui.pending_events.entry(context_id.clone()).or_default();
+    let events = engine
+        .ui
+        .pending_events
+        .entry(context_id.clone())
+        .or_default();
     events.push(egui::Event::Ime(event));
 }
 

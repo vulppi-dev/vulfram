@@ -108,9 +108,12 @@ fn build_ui_ops() -> Vec<UiOp> {
         variant: None,
         style: None,
         props: Some(
-            [("value".to_string(), UiValue::String("Demo 6: UI Screen".into()))]
-                .into_iter()
-                .collect(),
+            [(
+                "value".to_string(),
+                UiValue::String("Demo 6: UI Screen".into()),
+            )]
+            .into_iter()
+            .collect(),
         ),
         listeners: None,
     }));
@@ -122,7 +125,11 @@ fn build_ui_ops() -> Vec<UiOp> {
         index: None,
         variant: None,
         style: None,
-        props: Some([("value".to_string(), UiValue::String("".into()))].into_iter().collect()),
+        props: Some(
+            [("value".to_string(), UiValue::String("".into()))]
+                .into_iter()
+                .collect(),
+        ),
         listeners: Some(UiListeners {
             on_click: None,
             on_change: None,
@@ -166,7 +173,11 @@ fn build_ui_ops() -> Vec<UiOp> {
         index: None,
         variant: None,
         style: None,
-        props: Some([("value".to_string(), UiValue::Bool(false))].into_iter().collect()),
+        props: Some(
+            [("value".to_string(), UiValue::Bool(false))]
+                .into_iter()
+                .collect(),
+        ),
         listeners: Some(UiListeners {
             on_click: None,
             on_change: Some("FlagChanged".into()),
@@ -184,7 +195,11 @@ fn build_ui_ops() -> Vec<UiOp> {
         index: None,
         variant: None,
         style: None,
-        props: Some([("label".to_string(), UiValue::String("Submit".into()))].into_iter().collect()),
+        props: Some(
+            [("label".to_string(), UiValue::String("Submit".into()))]
+                .into_iter()
+                .collect(),
+        ),
         listeners: Some(UiListeners {
             on_click: Some("Submit".into()),
             on_change: None,

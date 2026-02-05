@@ -146,6 +146,15 @@ pub fn render_frames(engine_state: &mut EngineState) {
             &mut render_state.scene,
             *window_id,
         );
+
+        crate::core::ui::render::prepare_viewports_for_window(
+            &mut engine_state.ui,
+            &mut render_state.scene,
+            *window_id,
+            window_state.scale_factor.max(0.1),
+            device,
+        );
+
         crate::core::render::targets::map_camera_targets(&mut render_state.scene);
         render_state.prepare_render(device, frame_spec, true);
 
@@ -161,18 +170,6 @@ pub fn render_frames(engine_state: &mut EngineState) {
             }
         });
 
-        crate::core::ui::render::render_ui_for_window(
-            &mut engine_state.ui,
-            &mut engine_state.ui_renderer,
-            &mut engine_state.event_queue,
-            *window_id,
-            &render_state.scene,
-            window_state.scale_factor.max(0.1),
-            device,
-            queue,
-            &mut encoder,
-        );
-
         let plan = render_state.render_graph.plan().clone();
         gpu_written |= execute_window_graph(
             &plan,
@@ -187,6 +184,20 @@ pub fn render_frames(engine_state: &mut EngineState) {
             engine_state.frame_index,
             engine_state.gpu_profiler.as_ref(),
             gpu_base,
+        );
+
+        crate::core::render::targets::map_camera_targets(&mut render_state.scene);
+
+        crate::core::ui::render::render_ui_for_window(
+            &mut engine_state.ui,
+            &mut engine_state.ui_renderer,
+            &mut engine_state.event_queue,
+            *window_id,
+            &mut render_state.scene,
+            window_state.scale_factor.max(0.1),
+            device,
+            queue,
+            &mut encoder,
         );
 
         queue.submit(Some(encoder.finish()));
@@ -267,7 +278,6 @@ pub fn render_frames(engine_state: &mut EngineState) {
         engine_state.profiling.render_total_ns = now_ns().saturating_sub(total_start);
     }
 }
-
 
 fn execute_window_graph(
     plan: &RenderGraphPlan,

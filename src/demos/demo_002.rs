@@ -1,15 +1,14 @@
 use crate::core::VulframResult;
 use crate::core::cmd::EngineCmd;
 use crate::core::resources::{
-    CmdEnvironmentUpdateArgs, CmdModelCreateArgs, CmdPrimitiveGeometryCreateArgs, EnvironmentConfig,
-    MsaaConfig, PostProcessConfig, PrimitiveShape, SkyboxConfig, SkyboxMode,
+    CmdEnvironmentUpdateArgs, CmdModelCreateArgs, CmdPrimitiveGeometryCreateArgs,
+    EnvironmentConfig, MsaaConfig, PostProcessConfig, PrimitiveShape, SkyboxConfig, SkyboxMode,
 };
 use glam::{Mat4, Vec3, Vec4};
 
 use crate::demos::common::{
-    create_ambient_light_cmd, create_camera_cmd, create_point_light_cmd,
-    create_shadow_config_cmd, create_standard_material_cmd, draw_axes_gizmos,
-    receive_responses, run_loop, send_commands,
+    create_ambient_light_cmd, create_camera_cmd, create_point_light_cmd, create_shadow_config_cmd,
+    create_standard_material_cmd, draw_axes_gizmos, receive_responses, run_loop, send_commands,
 };
 
 pub fn run(window_id: u32) -> bool {
@@ -156,23 +155,25 @@ pub fn run(window_id: u32) -> bool {
 
         for (index, (model_id, position)) in primitive_models.iter().enumerate() {
             let rotation = time_f * 0.6 + index as f32 * 0.3;
-            frame_cmds.push(EngineCmd::CmdModelUpdate(crate::core::resources::CmdModelUpdateArgs {
-                window_id,
-                model_id: *model_id,
-                label: None,
-                geometry_id: None,
-                material_id: None,
-                transform: Some(
-                    Mat4::from_translation(*position)
-                        * Mat4::from_euler(glam::EulerRot::XYZ, rotation * 0.4, rotation, 0.0)
-                        * Mat4::from_scale(Vec3::splat(1.2)),
-                ),
-                layer_mask: None,
-                cast_shadow: None,
-                receive_shadow: None,
-                cast_outline: None,
-                outline_color: None,
-            }));
+            frame_cmds.push(EngineCmd::CmdModelUpdate(
+                crate::core::resources::CmdModelUpdateArgs {
+                    window_id,
+                    model_id: *model_id,
+                    label: None,
+                    geometry_id: None,
+                    material_id: None,
+                    transform: Some(
+                        Mat4::from_translation(*position)
+                            * Mat4::from_euler(glam::EulerRot::XYZ, rotation * 0.4, rotation, 0.0)
+                            * Mat4::from_scale(Vec3::splat(1.2)),
+                    ),
+                    layer_mask: None,
+                    cast_shadow: None,
+                    receive_shadow: None,
+                    cast_outline: None,
+                    outline_color: None,
+                },
+            ));
         }
 
         frame_cmds

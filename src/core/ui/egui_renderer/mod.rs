@@ -206,8 +206,13 @@ impl UiEguiRenderer {
         textures_delta: &egui::TexturesDelta,
     ) {
         for (id, image_delta) in &textures_delta.set {
-            self.textures
-                .update_texture(device, queue, &self.texture_bind_group_layout, *id, image_delta);
+            self.textures.update_texture(
+                device,
+                queue,
+                &self.texture_bind_group_layout,
+                *id,
+                image_delta,
+            );
         }
         for id in &textures_delta.free {
             self.textures.free_texture(id);
@@ -256,7 +261,11 @@ impl UiEguiRenderer {
         let mut indices: Vec<u32> = Vec::new();
         let mut draw_calls: Vec<DrawCall> = Vec::new();
 
-        for ClippedPrimitive { clip_rect, primitive } in paint_jobs {
+        for ClippedPrimitive {
+            clip_rect,
+            primitive,
+        } in paint_jobs
+        {
             let Primitive::Mesh(mesh) = primitive else {
                 continue;
             };
@@ -308,7 +317,10 @@ impl UiEguiRenderer {
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, &self.uniform_bind_group, &[]);
         pass.set_vertex_buffer(0, self.vertex_buffer.buffer.slice(..));
-        pass.set_index_buffer(self.index_buffer.buffer.slice(..), wgpu::IndexFormat::Uint32);
+        pass.set_index_buffer(
+            self.index_buffer.buffer.slice(..),
+            wgpu::IndexFormat::Uint32,
+        );
 
         let target_size = screen_descriptor.size_in_pixels;
         for call in draw_calls {
@@ -348,12 +360,7 @@ impl UiEguiRenderer {
         queue.write_buffer(&self.vertex_buffer.buffer, 0, cast_slice(vertices));
     }
 
-    fn write_index_buffer(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        indices: &[u32],
-    ) {
+    fn write_index_buffer(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, indices: &[u32]) {
         let size = (std::mem::size_of::<u32>() * indices.len()) as u64;
         if size == 0 {
             return;

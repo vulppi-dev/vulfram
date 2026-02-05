@@ -24,8 +24,16 @@ pub struct UiContextRecord {
     pub tree: UiTreeState,
     pub render_target: Option<RenderTarget>,
     pub egui_ctx: egui::Context,
+    pub focused_node: Option<LogicalId>,
+    pub viewport_requests: Vec<ViewportRequest>,
     pub debug_map_logged: bool,
     pub debug_draw_logged: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct ViewportRequest {
+    pub camera_id: u32,
+    pub size_points: egui::Vec2,
 }
 
 #[derive(Debug)]

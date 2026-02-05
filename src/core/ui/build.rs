@@ -1,5 +1,5 @@
-use crate::core::render::graph::LogicalId;
 use crate::core::cmd::EngineEvent;
+use crate::core::render::graph::LogicalId;
 
 use super::events::UiEvent;
 use super::layout::{resolve_gap, resolve_layout, resolve_padding, resolve_size};
@@ -12,9 +12,20 @@ pub fn build_ui_from_tree(
     context_id: &LogicalId,
     window_id: u32,
     tree: &mut UiTreeState,
+    focused_node: &mut Option<LogicalId>,
+    viewport_requests: &mut Vec<crate::core::ui::state::ViewportRequest>,
 ) {
     egui::CentralPanel::default().show(ctx, |ui| {
-        render_children(ui, event_queue, context_id, window_id, tree, &LogicalId::Str("root".into()));
+        render_children(
+            ui,
+            event_queue,
+            context_id,
+            window_id,
+            tree,
+            focused_node,
+            viewport_requests,
+            &LogicalId::Str("root".into()),
+        );
     });
 }
 
@@ -24,6 +35,8 @@ fn render_children(
     context_id: &LogicalId,
     window_id: u32,
     tree: &mut UiTreeState,
+    focused_node: &mut Option<LogicalId>,
+    viewport_requests: &mut Vec<crate::core::ui::state::ViewportRequest>,
     node_id: &LogicalId,
 ) {
     let children = tree
@@ -32,7 +45,16 @@ fn render_children(
         .map(|node| node.children.clone())
         .unwrap_or_default();
     for child_id in children {
-        render_node(ui, event_queue, context_id, window_id, tree, &child_id);
+        render_node(
+            ui,
+            event_queue,
+            context_id,
+            window_id,
+            tree,
+            focused_node,
+            viewport_requests,
+            &child_id,
+        );
     }
 }
 
@@ -42,6 +64,8 @@ fn render_node(
     context_id: &LogicalId,
     window_id: u32,
     tree: &mut UiTreeState,
+    focused_node: &mut Option<LogicalId>,
+    viewport_requests: &mut Vec<crate::core::ui::state::ViewportRequest>,
     node_id: &LogicalId,
 ) {
     let Some(node) = tree.nodes.get(node_id).cloned() else {
@@ -56,6 +80,8 @@ fn render_node(
                 context_id,
                 window_id,
                 tree,
+                focused_node,
+                viewport_requests,
                 node_id,
                 node.style.as_ref(),
             );
@@ -101,6 +127,15 @@ fn render_node(
                 .and_then(ui_value_string)
                 .unwrap_or_default();
             let response = ui.text_edit_singleline(&mut value);
+            handle_focus_events(
+                event_queue,
+                context_id,
+                window_id,
+                node_id,
+                &node.listeners,
+                focused_node,
+                response.has_focus(),
+            );
             if response.changed() {
                 update_node_prop(tree, node_id, "value", UiValue::String(value.clone()));
                 if let Some(listeners) = node.listeners.as_ref() {
@@ -210,7 +245,16 @@ fn render_node(
         }
         UiNodeType::Scroll => {
             egui::ScrollArea::vertical().show(ui, |ui| {
-                render_children(ui, event_queue, context_id, window_id, tree, node_id);
+                render_children(
+                    ui,
+                    event_queue,
+                    context_id,
+                    window_id,
+                    tree,
+                    focused_node,
+                    viewport_requests,
+                    node_id,
+                );
             });
         }
         UiNodeType::Separator => {
@@ -230,6 +274,11 @@ fn render_node(
                 .as_ref()
                 .and_then(|props| props.get("textureId"))
                 .and_then(ui_value_u32);
+            let camera_id = node
+                .props
+                .as_ref()
+                .and_then(|props| props.get("cameraId"))
+                .and_then(ui_value_u32);
             let (width, height, has_size) = resolve_size(ui, node.style.as_ref());
             let size = if has_size {
                 egui::vec2(width, height)
@@ -237,11 +286,15 @@ fn render_node(
                 egui::vec2(64.0, 64.0)
             };
             if let Some(texture_id) = texture_id {
-                let tex = egui::load::SizedTexture::new(
-                    egui::TextureId::User(texture_id as u64),
-                    size,
-                );
-                ui.add(egui::Image::new(tex));
+                let tex =
+                    egui::load::SizedTexture::new(egui::TextureId::User(texture_id as u64), size);
+                let response = ui.add(egui::Image::new(tex));
+                if let Some(camera_id) = camera_id {
+                    viewport_requests.push(crate::core::ui::state::ViewportRequest {
+                        camera_id,
+                        size_points: response.rect.size(),
+                    });
+                }
             } else {
                 ui.label("Image: missing textureId");
             }
@@ -258,6 +311,8 @@ fn render_container(
     context_id: &LogicalId,
     window_id: u32,
     tree: &mut UiTreeState,
+    focused_node: &mut Option<LogicalId>,
+    viewport_requests: &mut Vec<crate::core::ui::state::ViewportRequest>,
     node_id: &LogicalId,
     style: Option<&UiStyle>,
 ) {
@@ -280,10 +335,29 @@ fn render_container(
         ui.spacing_mut().item_spacing = gap;
 
         if is_grid {
-            render_grid(ui, event_queue, context_id, window_id, tree, node_id, style);
+            render_grid(
+                ui,
+                event_queue,
+                context_id,
+                window_id,
+                tree,
+                focused_node,
+                viewport_requests,
+                node_id,
+                style,
+            );
         } else {
             ui.with_layout(layout, |ui| {
-                render_children(ui, event_queue, context_id, window_id, tree, node_id);
+                render_children(
+                    ui,
+                    event_queue,
+                    context_id,
+                    window_id,
+                    tree,
+                    focused_node,
+                    viewport_requests,
+                    node_id,
+                );
             });
         }
 
@@ -315,6 +389,8 @@ fn render_grid(
     context_id: &LogicalId,
     window_id: u32,
     tree: &mut UiTreeState,
+    focused_node: &mut Option<LogicalId>,
+    viewport_requests: &mut Vec<crate::core::ui::state::ViewportRequest>,
     node_id: &LogicalId,
     style: Option<&UiStyle>,
 ) {
@@ -335,7 +411,16 @@ fn render_grid(
                 .map(|node| node.children.clone())
                 .unwrap_or_default();
             for child_id in children {
-                render_node(ui, event_queue, context_id, window_id, tree, &child_id);
+                render_node(
+                    ui,
+                    event_queue,
+                    context_id,
+                    window_id,
+                    tree,
+                    focused_node,
+                    viewport_requests,
+                    &child_id,
+                );
                 index += 1;
                 if index % columns == 0 {
                     ui.end_row();
@@ -409,6 +494,53 @@ fn update_node_prop(tree: &mut UiTreeState, node_id: &LogicalId, key: &str, valu
                 let mut props = std::collections::HashMap::new();
                 props.insert(key.to_string(), value);
                 node.props = Some(props);
+            }
+        }
+    }
+}
+
+fn handle_focus_events(
+    event_queue: &mut Vec<EngineEvent>,
+    context_id: &LogicalId,
+    window_id: u32,
+    node_id: &LogicalId,
+    listeners: &Option<crate::core::ui::tree::UiListeners>,
+    focused_node: &mut Option<LogicalId>,
+    has_focus: bool,
+) {
+    if has_focus {
+        if focused_node.as_ref() != Some(node_id) {
+            *focused_node = Some(node_id.clone());
+            if let Some(listeners) = listeners.as_ref() {
+                if let Some(label) = listeners.on_focus.clone() {
+                    emit_ui_event(
+                        event_queue,
+                        window_id,
+                        context_id,
+                        label,
+                        UiEventKind::Focus,
+                        Some(node_id.clone()),
+                        None,
+                    );
+                }
+            }
+        }
+        return;
+    }
+
+    if focused_node.as_ref() == Some(node_id) {
+        *focused_node = None;
+        if let Some(listeners) = listeners.as_ref() {
+            if let Some(label) = listeners.on_blur.clone() {
+                emit_ui_event(
+                    event_queue,
+                    window_id,
+                    context_id,
+                    label,
+                    UiEventKind::Blur,
+                    Some(node_id.clone()),
+                    None,
+                );
             }
         }
     }

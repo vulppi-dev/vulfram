@@ -4,10 +4,12 @@ use crate::core::resources::TextureRecord;
 
 pub fn map_camera_targets(render_scene: &mut RenderScene) {
     let mut mappings = Vec::new();
+    log::info!("map_camera_targets: {} cameras", render_scene.cameras.len());
     for (camera_id, record) in render_scene.cameras.iter() {
         let Some(target_id) = record.target_texture_id.as_ref() else {
             continue;
         };
+        log::info!("Camera {} has target_texture_id {:?}", camera_id, target_id);
         let texture_id = match target_id {
             LogicalId::Int(value) => {
                 if *value < 0 || *value > u32::MAX as i64 {
@@ -17,18 +19,27 @@ pub fn map_camera_targets(render_scene: &mut RenderScene) {
                 *value as u32
             }
             LogicalId::Str(_) => {
-                log::warn!("Camera target {:?} must be an int to map to texture id", target_id);
+                log::warn!(
+                    "Camera target {:?} must be an int to map to texture id",
+                    target_id
+                );
                 continue;
             }
         };
 
-        let target = match record.post_target.as_ref().or(record.render_target.as_ref()) {
+        let target = match record
+            .post_target
+            .as_ref()
+            .or(record.render_target.as_ref())
+        {
             Some(target) => target,
             None => {
                 log::warn!("Camera {} has no render target yet", camera_id);
                 continue;
             }
         };
+
+        log::info!("Camera {} mapping to texture {}", camera_id, texture_id);
 
         if let Some(existing) = render_scene.textures.get(&texture_id) {
             if existing.label.as_deref() != Some("camera_target") {

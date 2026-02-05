@@ -7,9 +7,7 @@ use crate::core::resources::{
     StandardOptions,
 };
 use crate::core::ui::cmd::{CmdUiApplyOpsArgs, CmdUiContextCreateArgs, CmdUiThemeDefineArgs};
-use crate::core::ui::tree::{
-    UiListeners, UiOp, UiOpAdd, UiOpSet, UiSetMode,
-};
+use crate::core::ui::tree::{UiListeners, UiOp, UiOpAdd, UiOpSet, UiSetMode};
 use crate::core::ui::types::{UiRectPx, UiRenderTarget, UiThemeSource, UiValue};
 use glam::{Mat4, Vec3, Vec4};
 
@@ -167,9 +165,12 @@ fn build_ui_ops(debug_texture_id: u32) -> Vec<UiOp> {
             .collect(),
         ),
         props: Some(
-            [("textureId".to_string(), UiValue::Int(debug_texture_id as i64))]
-                .into_iter()
-                .collect(),
+            [(
+                "textureId".to_string(),
+                UiValue::Int(debug_texture_id as i64),
+            )]
+            .into_iter()
+            .collect(),
         ),
         listeners: None,
     }));
@@ -181,11 +182,11 @@ fn build_ui_ops(debug_texture_id: u32) -> Vec<UiOp> {
         index: None,
         variant: None,
         style: None,
-        props: Some([
-            ("value".to_string(), UiValue::String("Demo UI".into())),
-        ]
-        .into_iter()
-        .collect()),
+        props: Some(
+            [("value".to_string(), UiValue::String("Demo UI".into()))]
+                .into_iter()
+                .collect(),
+        ),
         listeners: None,
     }));
 
@@ -196,11 +197,11 @@ fn build_ui_ops(debug_texture_id: u32) -> Vec<UiOp> {
         index: None,
         variant: None,
         style: None,
-        props: Some([
-            ("value".to_string(), UiValue::String("".into())),
-        ]
-        .into_iter()
-        .collect()),
+        props: Some(
+            [("value".to_string(), UiValue::String("".into()))]
+                .into_iter()
+                .collect(),
+        ),
         listeners: Some(UiListeners {
             on_click: None,
             on_change: None,
@@ -218,13 +219,15 @@ fn build_ui_ops(debug_texture_id: u32) -> Vec<UiOp> {
         index: None,
         variant: None,
         style: None,
-        props: Some([
-            ("value".to_string(), UiValue::Float(0.5)),
-            ("min".to_string(), UiValue::Float(0.0)),
-            ("max".to_string(), UiValue::Float(1.0)),
-        ]
-        .into_iter()
-        .collect()),
+        props: Some(
+            [
+                ("value".to_string(), UiValue::Float(0.5)),
+                ("min".to_string(), UiValue::Float(0.0)),
+                ("max".to_string(), UiValue::Float(1.0)),
+            ]
+            .into_iter()
+            .collect(),
+        ),
         listeners: Some(UiListeners {
             on_click: None,
             on_change: Some("SliderChanged".into()),
@@ -242,11 +245,11 @@ fn build_ui_ops(debug_texture_id: u32) -> Vec<UiOp> {
         index: None,
         variant: None,
         style: None,
-        props: Some([
-            ("value".to_string(), UiValue::Bool(false)),
-        ]
-        .into_iter()
-        .collect()),
+        props: Some(
+            [("value".to_string(), UiValue::Bool(false))]
+                .into_iter()
+                .collect(),
+        ),
         listeners: Some(UiListeners {
             on_click: None,
             on_change: Some("FlagChanged".into()),
@@ -264,11 +267,11 @@ fn build_ui_ops(debug_texture_id: u32) -> Vec<UiOp> {
         index: None,
         variant: None,
         style: None,
-        props: Some([
-            ("label".to_string(), UiValue::String("Submit".into())),
-        ]
-        .into_iter()
-        .collect()),
+        props: Some(
+            [("label".to_string(), UiValue::String("Submit".into()))]
+                .into_iter()
+                .collect(),
+        ),
         listeners: Some(UiListeners {
             on_click: Some("Submit".into()),
             on_change: None,

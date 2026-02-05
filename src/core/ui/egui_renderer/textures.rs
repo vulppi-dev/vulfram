@@ -58,37 +58,38 @@ impl TextureManager {
         }
         let data_bytes: &[u8] = data.as_slice();
 
-        let (texture, view, mut bind_group, needs_bind_group, origin) = if let Some(pos) = image_delta.pos {
-            let existing = self
-                .textures
-                .remove(&id)
-                .expect("Tried to update a texture that has not been allocated yet.");
-            let origin = wgpu::Origin3d {
-                x: pos[0] as u32,
-                y: pos[1] as u32,
-                z: 0,
+        let (texture, view, mut bind_group, needs_bind_group, origin) =
+            if let Some(pos) = image_delta.pos {
+                let existing = self
+                    .textures
+                    .remove(&id)
+                    .expect("Tried to update a texture that has not been allocated yet.");
+                let origin = wgpu::Origin3d {
+                    x: pos[0] as u32,
+                    y: pos[1] as u32,
+                    z: 0,
+                };
+                (
+                    existing.texture,
+                    existing.view,
+                    Some(existing.bind_group),
+                    existing.options != image_delta.options,
+                    origin,
+                )
+            } else {
+                let texture = device.create_texture(&wgpu::TextureDescriptor {
+                    label: Some("egui_texture"),
+                    size,
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                    view_formats: &[wgpu::TextureFormat::Rgba8Unorm],
+                });
+                let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+                (texture, view, None, true, wgpu::Origin3d::ZERO)
             };
-            (
-                existing.texture,
-                existing.view,
-                Some(existing.bind_group),
-                existing.options != image_delta.options,
-                origin,
-            )
-        } else {
-            let texture = device.create_texture(&wgpu::TextureDescriptor {
-                label: Some("egui_texture"),
-                size,
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8Unorm,
-                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-                view_formats: &[wgpu::TextureFormat::Rgba8Unorm],
-            });
-            let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-            (texture, view, None, true, wgpu::Origin3d::ZERO)
-        };
 
         queue.write_texture(
             wgpu::TexelCopyTextureInfo {
@@ -188,8 +189,7 @@ impl TextureManager {
     }
 
     pub fn prune_external_textures(&mut self, used: &HashSet<TextureId>) {
-        self.external_textures
-            .retain(|id, _| used.contains(id));
+        self.external_textures.retain(|id, _| used.contains(id));
     }
 
     pub fn texture_bind_group(&self, id: &TextureId) -> Option<&wgpu::BindGroup> {
@@ -202,8 +202,12 @@ impl TextureManager {
 
 fn create_sampler(device: &wgpu::Device, options: TextureOptions) -> wgpu::Sampler {
     let (min_filter, mag_filter) = match options.magnification {
-        egui::epaint::textures::TextureFilter::Nearest => (wgpu::FilterMode::Nearest, wgpu::FilterMode::Nearest),
-        egui::epaint::textures::TextureFilter::Linear => (wgpu::FilterMode::Linear, wgpu::FilterMode::Linear),
+        egui::epaint::textures::TextureFilter::Nearest => {
+            (wgpu::FilterMode::Nearest, wgpu::FilterMode::Nearest)
+        }
+        egui::epaint::textures::TextureFilter::Linear => {
+            (wgpu::FilterMode::Linear, wgpu::FilterMode::Linear)
+        }
     };
     let address_mode = match options.wrap_mode {
         egui::epaint::textures::TextureWrapMode::ClampToEdge => wgpu::AddressMode::ClampToEdge,

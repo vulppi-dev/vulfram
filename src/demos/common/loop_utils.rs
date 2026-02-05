@@ -1,6 +1,8 @@
 use crate::core;
 use crate::core::VulframResult;
-use crate::core::cmd::{CommandResponse, CommandResponseEnvelope, EngineCmd, EngineCmdEnvelope, EngineEvent};
+use crate::core::cmd::{
+    CommandResponse, CommandResponseEnvelope, EngineCmd, EngineCmdEnvelope, EngineEvent,
+};
 use crate::core::input::events::{ElementState, KeyboardEvent};
 use crate::core::window::{CmdWindowCloseArgs, WindowEvent};
 use rmp_serde::{from_slice, to_vec_named};
@@ -149,7 +151,10 @@ pub fn send_commands(cmds: Vec<EngineCmd>) -> VulframResult {
     let envelopes: Vec<EngineCmdEnvelope> = cmds
         .into_iter()
         .enumerate()
-        .map(|(idx, cmd)| EngineCmdEnvelope { id: idx as u64, cmd })
+        .map(|(idx, cmd)| EngineCmdEnvelope {
+            id: idx as u64,
+            cmd,
+        })
         .collect();
     let data = to_vec_named(&envelopes).expect("failed to serialize commands");
     core::vulfram_send_queue(data.as_ptr(), data.len())

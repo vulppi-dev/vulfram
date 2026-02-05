@@ -32,18 +32,68 @@ pub fn ensure_ui_render_targets(device: &wgpu::Device, ui_state: &mut UiState) {
     }
 }
 
+pub fn prepare_viewports_for_window(
+    ui_state: &mut UiState,
+    render_scene: &mut RenderScene,
+    window_id: u32,
+    pixels_per_point: f32,
+    device: &wgpu::Device,
+) {
+    for context in ui_state.contexts.values_mut() {
+        if context.window_id != window_id {
+            continue;
+        }
+        context.viewport_requests.clear();
+
+        let screen_w = context.screen_rect.w / pixels_per_point;
+        let screen_h = context.screen_rect.h / pixels_per_point;
+        let raw_input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::vec2(screen_w, screen_h),
+            )),
+            ..Default::default()
+        };
+
+        context.egui_ctx.set_pixels_per_point(pixels_per_point);
+        let mut tree_clone = context.tree.clone();
+        let mut focused_clone = context.focused_node.clone();
+        let context_id = context._context_id.clone();
+        let _ = context.egui_ctx.run(raw_input, |ctx| {
+            build_ui_from_tree(
+                ctx,
+                &mut Vec::new(),
+                &context_id,
+                window_id,
+                &mut tree_clone,
+                &mut focused_clone,
+                &mut context.viewport_requests,
+            );
+        });
+
+        apply_viewport_requests(
+            render_scene,
+            device,
+            pixels_per_point,
+            &context.viewport_requests,
+        );
+    }
+}
+
 pub fn render_ui_for_window(
     ui_state: &mut UiState,
     ui_renderer: &mut Option<UiEguiRenderer>,
     event_queue: &mut Vec<EngineEvent>,
     window_id: u32,
-    render_scene: &RenderScene,
+    render_scene: &mut RenderScene,
     pixels_per_point: f32,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     encoder: &mut wgpu::CommandEncoder,
 ) {
+    log::info!("render_ui_for_window called for window {}", window_id);
     if ui_state.contexts.is_empty() {
+        log::info!("No UI contexts to render");
         return;
     }
 
@@ -92,8 +142,17 @@ pub fn render_ui_for_window(
         context
             .egui_ctx
             .set_pixels_per_point(screen_descriptor.pixels_per_point);
+        context.viewport_requests.clear();
         let output = context.egui_ctx.run(raw_input, |ctx| {
-            build_ui_from_tree(ctx, event_queue, context_id, window_id, &mut context.tree);
+            build_ui_from_tree(
+                ctx,
+                event_queue,
+                context_id,
+                window_id,
+                &mut context.tree,
+                &mut context.focused_node,
+                &mut context.viewport_requests,
+            );
         });
 
         let clipped_primitives = context
@@ -126,6 +185,119 @@ pub fn render_ui_for_window(
     }
 }
 
+fn apply_viewport_requests(
+    render_scene: &mut RenderScene,
+    device: &wgpu::Device,
+    pixels_per_point: f32,
+    requests: &[crate::core::ui::state::ViewportRequest],
+) {
+    log::info!("apply_viewport_requests: {} requests", requests.len());
+    for request in requests {
+        log::info!(
+            "Viewport request for camera {}: size {:?}",
+            request.camera_id,
+            request.size_points
+        );
+        let Some(camera) = render_scene.cameras.get_mut(&request.camera_id) else {
+            log::warn!(
+                "Camera {} not found for viewport request",
+                request.camera_id
+            );
+            continue;
+        };
+        let width = (request.size_points.x * pixels_per_point).round().max(1.0) as u32;
+        let height = (request.size_points.y * pixels_per_point).round().max(1.0) as u32;
+        let size = camera
+            .render_target
+            .as_ref()
+            .map(|target| target._texture.size());
+        let needs_resize = match size {
+            Some(size) => size.width != width || size.height != height,
+            None => true,
+        };
+        if !needs_resize {
+            log::info!(
+                "Camera {} target already at {}x{}",
+                request.camera_id,
+                width,
+                height
+            );
+            continue;
+        }
+
+        log::info!(
+            "Resizing camera {} target to {}x{}",
+            request.camera_id,
+            width,
+            height
+        );
+        crate::core::resources::ensure_render_target(
+            device,
+            &mut camera.render_target,
+            width,
+            height,
+            wgpu::TextureFormat::Rgba16Float,
+        );
+        crate::core::resources::ensure_render_target(
+            device,
+            &mut camera.emissive_target,
+            width,
+            height,
+            wgpu::TextureFormat::Rgba16Float,
+        );
+        crate::core::resources::ensure_render_target(
+            device,
+            &mut camera.post_target,
+            width,
+            height,
+            wgpu::TextureFormat::Rgba16Float,
+        );
+        crate::core::resources::ensure_render_target(
+            device,
+            &mut camera.outline_target,
+            width,
+            height,
+            wgpu::TextureFormat::Rgba8Unorm,
+        );
+        crate::core::resources::ensure_render_target(
+            device,
+            &mut camera.ssao_target,
+            width,
+            height,
+            wgpu::TextureFormat::Rgba16Float,
+        );
+        crate::core::resources::ensure_render_target(
+            device,
+            &mut camera.ssao_blur_target,
+            width,
+            height,
+            wgpu::TextureFormat::Rgba16Float,
+        );
+        crate::core::resources::ensure_render_target(
+            device,
+            &mut camera.bloom_target,
+            width,
+            height,
+            wgpu::TextureFormat::Rgba16Float,
+        );
+        for (level, target) in camera.bloom_chain.iter_mut().enumerate() {
+            let level_width = crate::core::render::bloom_chain_size(width, level);
+            let level_height = crate::core::render::bloom_chain_size(height, level);
+            crate::core::resources::ensure_render_target(
+                device,
+                target,
+                level_width,
+                level_height,
+                wgpu::TextureFormat::Rgba16Float,
+            );
+        }
+        camera
+            .data
+            .update(None, None, None, None, (width, height), camera.ortho_scale);
+        camera.mark_dirty();
+    }
+}
+
 fn register_image_textures(
     renderer: &mut UiEguiRenderer,
     device: &wgpu::Device,
@@ -133,12 +305,19 @@ fn register_image_textures(
     tree: &UiTreeState,
 ) -> std::collections::HashSet<egui::TextureId> {
     let mut used = std::collections::HashSet::new();
-    for texture_id in collect_image_texture_ids(tree) {
+    let texture_ids = collect_image_texture_ids(tree);
+    log::info!(
+        "register_image_textures: {} unique texture IDs",
+        texture_ids.len()
+    );
+    for texture_id in texture_ids {
         let Some(texture) = render_scene.textures.get(&texture_id) else {
+            log::warn!("UI image texture {} not found in render scene", texture_id);
             continue;
         };
         let egui_id = egui::TextureId::User(texture_id as u64);
         used.insert(egui_id);
+        log::info!("Registering texture {} with egui", texture_id);
         renderer.register_external_texture(
             device,
             egui_id,

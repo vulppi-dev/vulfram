@@ -21,7 +21,10 @@ pub fn build_demo_graph() -> RenderGraphDesc {
                 node_id: LogicalId::Str("forward".into()),
                 pass_id: "forward".to_string(),
                 inputs: vec![LogicalId::Str("shadow_atlas".into())],
-                outputs: vec![LogicalId::Str("hdr_color".into()), LogicalId::Str("depth".into())],
+                outputs: vec![
+                    LogicalId::Str("hdr_color".into()),
+                    LogicalId::Str("depth".into()),
+                ],
                 params: HashMap::new(),
             },
             RenderGraphNode {
@@ -41,7 +44,10 @@ pub fn build_demo_graph() -> RenderGraphDesc {
             RenderGraphNode {
                 node_id: LogicalId::Str("ssao_blur".into()),
                 pass_id: "ssao-blur".to_string(),
-                inputs: vec![LogicalId::Str("ssao_raw".into()), LogicalId::Str("depth".into())],
+                inputs: vec![
+                    LogicalId::Str("ssao_raw".into()),
+                    LogicalId::Str("depth".into()),
+                ],
                 outputs: vec![LogicalId::Str("ssao_blur".into())],
                 params: HashMap::new(),
             },

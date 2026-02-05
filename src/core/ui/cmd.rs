@@ -109,6 +109,8 @@ pub fn engine_cmd_ui_context_create(
         tree: UiTreeState::with_root(),
         render_target: None,
         egui_ctx: egui::Context::default(),
+        focused_node: None,
+        viewport_requests: Vec::new(),
         debug_map_logged: false,
         debug_draw_logged: false,
     };

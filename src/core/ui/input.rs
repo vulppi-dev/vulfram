@@ -2,6 +2,7 @@ use crate::core::cmd::EngineEvent;
 use crate::core::input::events::ElementState;
 use crate::core::input::events::{KeyboardEvent, PointerEvent, ScrollDelta};
 use crate::core::render::graph::LogicalId;
+use crate::core::render::virtual_swapchain::RenderLevelId;
 use crate::core::state::EngineState;
 
 use super::state::{UiCaptureTarget, UiContextRecord};
@@ -56,8 +57,13 @@ fn route_pointer_event(engine: &mut EngineState, event: &PointerEvent) {
                             UiCaptureTarget {
                                 context_id: pick.context_id.clone(),
                                 panel_id: pick.panel_id.clone(),
+                                level_id: pick.level_id,
                             },
                         );
+                    engine
+                        .ui
+                        .focus_level_by_window
+                        .insert(*window_id, pick.level_id);
                     push_pointer_event_local(
                         engine,
                         &pick.context_id,
@@ -115,6 +121,7 @@ fn route_pointer_event(engine: &mut EngineState, event: &PointerEvent) {
         }
         PointerEvent::OnLeave { window_id, .. } => {
             engine.ui.capture_by_window.remove(window_id);
+            engine.ui.focus_level_by_window.remove(window_id);
             if let Some(context_id) = engine.ui.focus_by_window.get(window_id).cloned() {
                 push_pointer_gone(engine, &context_id);
             }
@@ -205,6 +212,7 @@ struct UiPickResult {
     context_id: LogicalId,
     panel_id: Option<LogicalId>,
     local_pos_points: egui::Pos2,
+    level_id: RenderLevelId,
 }
 
 fn pick_context(engine: &EngineState, window_id: u32, x: f32, y: f32) -> Option<UiPickResult> {
@@ -249,6 +257,7 @@ fn pick_screen_context(
             context_id: id,
             panel_id: None,
             local_pos_points: local_pos,
+            level_id: RenderLevelId::ROOT,
         })
     })
 }
@@ -485,6 +494,7 @@ fn pick_panel_context(
                 context_id,
                 panel_id: Some(panel_id),
                 local_pos_points: local_pos,
+                level_id: RenderLevelId::ROOT,
             });
         }
     }
@@ -499,6 +509,7 @@ fn resolve_capture_position(
     pixels_per_point: f32,
     capture: &UiCaptureTarget,
 ) -> Option<egui::Pos2> {
+    let _level_id = capture.level_id;
     if let Some(panel_id) = capture.panel_id.as_ref() {
         resolve_panel_position(engine, window_id, position, pixels_per_point, panel_id)
     } else {

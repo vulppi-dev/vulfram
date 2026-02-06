@@ -45,20 +45,21 @@ pub fn run(window_id: u32) -> bool {
     let ui_texture_id: u32 = 960;
     let ui_debug_texture_id: u32 = 961;
 
-    let ui_plane_b_geometry_id: u32 = 955;
-    let ui_plane_b_material_id: u32 = 956;
-    let ui_plane_b_model_id: u32 = 957;
-    let ui_texture_b_id: u32 = 965;
-    let ui_debug_texture_b_id: u32 = 966;
-
     let context_screen_id = LogicalId::Str("ui_demo_screen_8".into());
     let context_panel_id = LogicalId::Str("ui_demo_panel_8".into());
-    let context_panel_b_id = LogicalId::Str("ui_demo_panel_b_8".into());
     let panel_id = LogicalId::Str("ui_panel_8".into());
-    let panel_b_id = LogicalId::Str("ui_panel_b_8".into());
     let theme_id = LogicalId::Str("ui_theme_demo_8".into());
 
     let theme = UiThemeConfig::default();
+
+    let _ = (
+        &context_screen_id,
+        &context_panel_id,
+        &panel_id,
+        camera_viewport_id,
+        camera_target_id,
+        ui_texture_id,
+    );
 
     let setup_cmds = vec![
         EngineCmd::CmdCameraCreate(CmdCameraCreateArgs {
@@ -110,15 +111,6 @@ pub fn run(window_id: u32) -> bool {
             texture_id: ui_debug_texture_id,
             label: Some("Demo8 UI Debug".into()),
             color: Vec4::new(0.1, 0.5, 0.9, 1.0),
-            srgb: Some(true),
-            mode: Default::default(),
-            atlas_options: None,
-        }),
-        EngineCmd::CmdTextureCreateSolidColor(CmdTextureCreateSolidColorArgs {
-            window_id,
-            texture_id: ui_debug_texture_b_id,
-            label: Some("Demo8 UI Debug B".into()),
-            color: Vec4::new(0.9, 0.3, 0.1, 1.0),
             srgb: Some(true),
             mode: Default::default(),
             atlas_options: None,
@@ -186,21 +178,6 @@ pub fn run(window_id: u32) -> bool {
                 ..Default::default()
             })),
         }),
-        EngineCmd::CmdMaterialCreate(CmdMaterialCreateArgs {
-            window_id,
-            material_id: ui_plane_b_material_id,
-            label: Some("Demo8 UI Plane B".into()),
-            kind: MaterialKind::Standard,
-            options: Some(MaterialOptions::Standard(StandardOptions {
-                base_color: Vec4::ZERO,
-                base_tex_id: Some(ui_debug_texture_b_id),
-                base_sampler: Some(MaterialSampler::LinearClamp),
-                emissive_color: Vec4::ONE,
-                emissive_tex_id: Some(ui_texture_b_id),
-                emissive_sampler: Some(MaterialSampler::LinearClamp),
-                ..Default::default()
-            })),
-        }),
         EngineCmd::CmdPrimitiveGeometryCreate(CmdPrimitiveGeometryCreateArgs {
             window_id,
             geometry_id: cube_geometry_id,
@@ -233,13 +210,6 @@ pub fn run(window_id: u32) -> bool {
             window_id,
             geometry_id: ui_plane_geometry_id,
             label: Some("Demo8 UI Plane A".into()),
-            shape: PrimitiveShape::Plane,
-            options: None,
-        }),
-        EngineCmd::CmdPrimitiveGeometryCreate(CmdPrimitiveGeometryCreateArgs {
-            window_id,
-            geometry_id: ui_plane_b_geometry_id,
-            label: Some("Demo8 UI Plane B".into()),
             shape: PrimitiveShape::Plane,
             options: None,
         }),
@@ -314,21 +284,6 @@ pub fn run(window_id: u32) -> bool {
             cast_outline: false,
             outline_color: Vec4::ZERO,
         }),
-        EngineCmd::CmdModelCreate(CmdModelCreateArgs {
-            window_id,
-            model_id: ui_plane_b_model_id,
-            label: Some("Demo8 UI Plane B".into()),
-            geometry_id: ui_plane_b_geometry_id,
-            material_id: Some(ui_plane_b_material_id),
-            transform: Mat4::from_translation(Vec3::new(0.0, 0.5, 0.0))
-                * Mat4::from_rotation_x(-0.5)
-                * Mat4::from_scale(Vec3::splat(2.2)),
-            layer_mask: 0xFFFFFFFF,
-            cast_shadow: false,
-            receive_shadow: false,
-            cast_outline: false,
-            outline_color: Vec4::ZERO,
-        }),
         EngineCmd::CmdUiThemeDefine(CmdUiThemeDefineArgs {
             theme_id: theme_id.clone(),
             theme: theme.clone(),
@@ -341,7 +296,7 @@ pub fn run(window_id: u32) -> bool {
             screen_rect: UiRectPx {
                 x: 0.0,
                 y: 0.0,
-                w: 640.0,
+                w: 1280.0,
                 h: 720.0,
             },
             z_index: Some(10),
@@ -359,30 +314,11 @@ pub fn run(window_id: u32) -> bool {
             },
             z_index: Some(0),
         }),
-        EngineCmd::CmdUiContextCreate(CmdUiContextCreateArgs {
-            window_id,
-            context_id: context_panel_b_id.clone(),
-            theme_id: Some(theme_id.clone()),
-            target: UiRenderTarget::TextureId(LogicalId::Int(ui_texture_b_id as i64)),
-            screen_rect: UiRectPx {
-                x: 0.0,
-                y: 0.0,
-                w: 512.0,
-                h: 512.0,
-            },
-            z_index: Some(0),
-        }),
         EngineCmd::CmdUiPanelCreate(CmdUiPanelCreateArgs {
             panel_id: panel_id.clone(),
             context_id: context_panel_id.clone(),
             model_id: ui_plane_model_id,
             camera_id: camera_world_id,
-        }),
-        EngineCmd::CmdUiPanelCreate(CmdUiPanelCreateArgs {
-            panel_id: panel_b_id.clone(),
-            context_id: context_panel_b_id.clone(),
-            model_id: ui_plane_b_model_id,
-            camera_id: camera_viewport_id,
         }),
         EngineCmd::CmdUiApplyOps(CmdUiApplyOpsArgs {
             context_id: context_screen_id.clone(),
@@ -394,11 +330,6 @@ pub fn run(window_id: u32) -> bool {
             base_version: 0,
             ops: build_ui_ops_panel(),
         }),
-        EngineCmd::CmdUiApplyOps(CmdUiApplyOpsArgs {
-            context_id: context_panel_b_id.clone(),
-            base_version: 0,
-            ops: build_ui_ops_panel_b(),
-        }),
     ];
 
     assert_eq!(send_commands(setup_cmds), VulframResult::Success);
@@ -406,7 +337,6 @@ pub fn run(window_id: u32) -> bool {
 
     let mut ui_screen_version: u32 = 1;
     let mut ui_panel_version: u32 = 1;
-    let mut ui_panel_b_version: u32 = 1;
     let mut last_ui_tick: u64 = 0;
     let mut last_anim_tick: u64 = 0;
 
@@ -531,23 +461,7 @@ pub fn run(window_id: u32) -> bool {
                 }));
                 ui_panel_version = ui_panel_version.saturating_add(1);
 
-                cmds.push(EngineCmd::CmdUiApplyOps(CmdUiApplyOpsArgs {
-                    context_id: context_panel_b_id.clone(),
-                    base_version: ui_panel_b_version,
-                    ops: vec![UiOp::Set(UiOpSet {
-                        id: LogicalId::Str("panel_b_frame".into()),
-                        mode: UiSetMode::Merge,
-                        variant: None,
-                        style: None,
-                        props: Some(Some(
-                            [("value".to_string(), UiValue::String(frame_text))]
-                                .into_iter()
-                                .collect(),
-                        )),
-                        listeners: None,
-                    })],
-                }));
-                ui_panel_b_version = ui_panel_b_version.saturating_add(1);
+                let _ = frame_text;
             }
 
             if total_ms.saturating_sub(last_anim_tick) > 2400 {
@@ -582,20 +496,6 @@ pub fn run(window_id: u32) -> bool {
                 }));
                 ui_panel_version = ui_panel_version.saturating_add(1);
 
-                cmds.push(EngineCmd::CmdUiApplyOps(CmdUiApplyOpsArgs {
-                    context_id: context_panel_b_id.clone(),
-                    base_version: ui_panel_b_version,
-                    ops: vec![UiOp::Animate(UiOpAnimate {
-                        id: LogicalId::Str("panel_b_title".into()),
-                        property: "opacity".into(),
-                        from: Some(0.2),
-                        to: 1.0,
-                        duration_ms: 400,
-                        delay_ms: Some(0),
-                        easing: Some("ease-in-out".into()),
-                    })],
-                }));
-                ui_panel_b_version = ui_panel_b_version.saturating_add(1);
             }
 
             cmds
@@ -683,8 +583,8 @@ fn build_ui_ops_screen(camera_target_id: u32, camera_id: u32) -> Vec<UiOp> {
         variant: None,
         style: Some(
             [
-                ("width".to_string(), UiValue::Float(420.0)),
-                ("height".to_string(), UiValue::Float(480.0)),
+                ("width".to_string(), UiValue::Float(640.0)),
+                ("height".to_string(), UiValue::Float(420.0)),
             ]
             .into_iter()
             .collect(),
@@ -720,7 +620,7 @@ fn build_ui_ops_screen(camera_target_id: u32, camera_id: u32) -> Vec<UiOp> {
                 ("layout".to_string(), UiValue::String("col".into())),
                 ("gap".to_string(), UiValue::Float(8.0)),
                 ("padding".to_string(), UiValue::Float(8.0)),
-                ("width".to_string(), UiValue::String("fill".into())),
+                ("width".to_string(), UiValue::Float(300.0)),
             ]
             .into_iter()
             .collect(),
@@ -783,6 +683,7 @@ fn build_ui_ops_screen(camera_target_id: u32, camera_id: u32) -> Vec<UiOp> {
         ),
         listeners: None,
     }));
+
 
     ops.push(UiOp::Animate(UiOpAnimate {
         id: LogicalId::Str("ui_badge".into()),
@@ -903,121 +804,6 @@ fn build_ui_ops_panel() -> Vec<UiOp> {
         duration_ms: 350,
         delay_ms: Some(0),
         easing: Some("ease-out".into()),
-    }));
-
-    ops
-}
-
-fn build_ui_ops_panel_b() -> Vec<UiOp> {
-    let mut ops = Vec::new();
-
-    ops.push(UiOp::Add(UiOpAdd {
-        parent: None,
-        id: LogicalId::Str("panel_b_root".into()),
-        node_type: crate::core::ui::tree::UiNodeType::Container,
-        index: None,
-        variant: None,
-        style: None,
-        props: None,
-        listeners: None,
-    }));
-
-    let mut root_style = std::collections::HashMap::new();
-    root_style.insert("layout".to_string(), UiValue::String("col".into()));
-    root_style.insert("gap".to_string(), UiValue::Float(8.0));
-    root_style.insert("padding".to_string(), UiValue::Float(12.0));
-    root_style.insert("width".to_string(), UiValue::String("fill".into()));
-    root_style.insert("height".to_string(), UiValue::String("fill".into()));
-    ops.push(UiOp::Set(UiOpSet {
-        id: LogicalId::Str("panel_b_root".into()),
-        mode: UiSetMode::Merge,
-        variant: None,
-        style: Some(Some(root_style)),
-        props: None,
-        listeners: None,
-    }));
-
-    ops.push(UiOp::Add(UiOpAdd {
-        parent: Some(LogicalId::Str("panel_b_root".into())),
-        id: LogicalId::Str("panel_b_title".into()),
-        node_type: crate::core::ui::tree::UiNodeType::Text,
-        index: None,
-        variant: None,
-        style: Some(
-            [("opacity".to_string(), UiValue::Float(0.2))]
-                .into_iter()
-                .collect(),
-        ),
-        props: Some(
-            [(
-                "value".to_string(),
-                UiValue::String("Panel in Viewport".into()),
-            )]
-            .into_iter()
-            .collect(),
-        ),
-        listeners: None,
-    }));
-
-    ops.push(UiOp::Add(UiOpAdd {
-        parent: Some(LogicalId::Str("panel_b_root".into())),
-        id: LogicalId::Str("panel_b_frame".into()),
-        node_type: crate::core::ui::tree::UiNodeType::Text,
-        index: None,
-        variant: None,
-        style: None,
-        props: Some(
-            [("value".to_string(), UiValue::String("Frame: 0".into()))]
-                .into_iter()
-                .collect(),
-        ),
-        listeners: None,
-    }));
-
-    ops.push(UiOp::Add(UiOpAdd {
-        parent: Some(LogicalId::Str("panel_b_root".into())),
-        id: LogicalId::Str("panel_b_button".into()),
-        node_type: crate::core::ui::tree::UiNodeType::Button,
-        index: None,
-        variant: None,
-        style: None,
-        props: Some(
-            [("label".to_string(), UiValue::String("Click Me".into()))]
-                .into_iter()
-                .collect(),
-        ),
-        listeners: Some(UiListeners {
-            on_click: Some("panel_b_click".into()),
-            ..Default::default()
-        }),
-    }));
-
-    ops.push(UiOp::Add(UiOpAdd {
-        parent: Some(LogicalId::Str("panel_b_root".into())),
-        id: LogicalId::Str("panel_b_input".into()),
-        node_type: crate::core::ui::tree::UiNodeType::Input,
-        index: None,
-        variant: None,
-        style: None,
-        props: Some(
-            [("value".to_string(), UiValue::String("Type here".into()))]
-                .into_iter()
-                .collect(),
-        ),
-        listeners: Some(UiListeners {
-            on_change_commit: Some("panel_b_input_change".into()),
-            ..Default::default()
-        }),
-    }));
-
-    ops.push(UiOp::Animate(UiOpAnimate {
-        id: LogicalId::Str("panel_b_title".into()),
-        property: "opacity".into(),
-        from: Some(0.2),
-        to: 1.0,
-        duration_ms: 400,
-        delay_ms: Some(0),
-        easing: Some("ease-in-out".into()),
     }));
 
     ops

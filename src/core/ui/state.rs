@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::core::render::graph::LogicalId;
+use crate::core::render::virtual_swapchain::RenderLevelId;
 
 use super::tree::UiTreeState;
 use super::types::{UiRectPx, UiRenderTarget, UiThemeConfig};
@@ -53,6 +54,7 @@ pub struct UiPanelRecord {
 pub struct UiCaptureTarget {
     pub context_id: LogicalId,
     pub panel_id: Option<LogicalId>,
+    pub level_id: RenderLevelId,
 }
 
 #[derive(Debug, Clone)]
@@ -67,6 +69,7 @@ pub struct UiState {
     pub contexts: HashMap<LogicalId, UiContextRecord>,
     pub panels: HashMap<LogicalId, UiPanelRecord>,
     pub focus_by_window: HashMap<u32, LogicalId>,
+    pub focus_level_by_window: HashMap<u32, RenderLevelId>,
     pub capture_by_window: HashMap<u32, UiCaptureTarget>,
     pub pending_events: HashMap<LogicalId, Vec<egui::Event>>,
     pub output_format: wgpu::TextureFormat,
@@ -80,6 +83,7 @@ impl Default for UiState {
             contexts: HashMap::new(),
             panels: HashMap::new(),
             focus_by_window: HashMap::new(),
+            focus_level_by_window: HashMap::new(),
             capture_by_window: HashMap::new(),
             pending_events: HashMap::new(),
             output_format: wgpu::TextureFormat::Rgba16Float,

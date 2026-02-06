@@ -1,6 +1,7 @@
 use crate::core::cmd::EngineEvent;
 use crate::core::render::state::RenderScene;
 use crate::core::resources::{TextureRecord, ensure_render_target};
+use crate::core::render::virtual_swapchain::RenderLevelId;
 
 use super::build::build_ui_from_tree;
 use super::egui_renderer::{ScreenDescriptor, UiEguiRenderer};
@@ -37,19 +38,7 @@ pub fn ensure_ui_render_targets(device: &wgpu::Device, ui_state: &mut UiState) {
     }
 }
 
-/// Renderiza a UI para uma janela específica.
-///
-/// Este é o ponto principal de renderização da UI. Executa o loop do egui,
-/// processa eventos, aplica viewport requests (que redimensionam câmeras),
-/// e renderiza os widgets para o render target da UI.
-///
-/// Fluxo:
-/// 1. Executa egui_ctx.run() com eventos de input
-/// 2. Gera viewport requests (para widgets Image com cameraId)
-/// 3. Aplica viewport requests imediatamente (redimensiona render targets das câmeras)
-/// 4. Registra texturas externas (camera targets) no egui
-/// 5. Renderiza a UI para o target
-pub fn render_ui_for_window(
+pub fn render_ui_for_window_with_contexts(
     ui_state: &mut UiState,
     ui_renderer: &mut Option<UiEguiRenderer>,
     event_queue: &mut Vec<EngineEvent>,
@@ -60,6 +49,7 @@ pub fn render_ui_for_window(
     queue: &wgpu::Queue,
     encoder: &mut wgpu::CommandEncoder,
     time_seconds: f64,
+    ordered_contexts: Option<&[crate::core::render::graph::LogicalId]>,
 ) {
     if ui_state.contexts.is_empty() {
         return;
@@ -73,160 +63,259 @@ pub fn render_ui_for_window(
     }
     let renderer = ui_renderer.get_or_insert_with(|| UiEguiRenderer::new(device, target_format));
 
-    // Sort contexts: TextureId first (panels), then Screen (main UI)
-    // This ensures Panel textures are rendered before they're used by viewport cameras or UI
-    let mut sorted_contexts: Vec<_> = ui_state
-        .contexts
-        .iter_mut()
-        .filter(|(_, ctx)| ctx.window_id == window_id)
-        .collect();
-    sorted_contexts.sort_by_key(|(_, ctx)| {
-        match ctx.target {
-            UiRenderTarget::TextureId(_) => 0, // Render TextureId contexts first
-            UiRenderTarget::Screen => 1,       // Render Screen contexts last
+    if let Some(context_ids) = ordered_contexts {
+        for context_id in context_ids {
+            let events = ui_state
+                .pending_events
+                .remove(context_id)
+                .unwrap_or_default();
+            let Some(context) = ui_state.contexts.get_mut(context_id) else {
+                continue;
+            };
+            if context.window_id != window_id {
+                continue;
+            }
+            let themes = &ui_state.themes;
+            let fallback_theme = &ui_state.fallback_theme;
+            render_ui_context(
+                themes,
+                fallback_theme,
+                events,
+                renderer,
+                event_queue,
+                render_scene,
+                pixels_per_point,
+                device,
+                queue,
+                encoder,
+                time_seconds,
+                window_id,
+                context_id,
+                context,
+            );
         }
-    });
+    } else {
+        // Sort contexts: TextureId first (panels), then Screen (main UI)
+        // This ensures Panel textures are rendered before they're used by viewport cameras or UI
+        let mut sorted_ids: Vec<(i32, crate::core::render::graph::LogicalId)> = ui_state
+            .contexts
+            .iter()
+            .filter(|(_, ctx)| ctx.window_id == window_id)
+            .map(|(id, ctx)| {
+                let key = match ctx.target {
+                    UiRenderTarget::TextureId(_) => 0,
+                    UiRenderTarget::Screen => 1,
+                };
+                (key, id.clone())
+            })
+            .collect();
+        sorted_ids.sort_by_key(|(key, _)| *key);
 
-    for (context_id, context) in sorted_contexts {
-        if let Some(theme_id) = context.theme_id.as_ref() {
-            if let Some(theme) = ui_state.themes.get(theme_id) {
+        for (_, context_id) in sorted_ids {
+            let events = ui_state
+                .pending_events
+                .remove(&context_id)
+                .unwrap_or_default();
+            let Some(context) = ui_state.contexts.get_mut(&context_id) else {
+                continue;
+            };
+            let themes = &ui_state.themes;
+            let fallback_theme = &ui_state.fallback_theme;
+            render_ui_context(
+                themes,
+                fallback_theme,
+                events,
+                renderer,
+                event_queue,
+                render_scene,
+                pixels_per_point,
+                device,
+                queue,
+                encoder,
+                time_seconds,
+                window_id,
+                &context_id,
+                context,
+            );
+        }
+    }
+}
+
+fn render_ui_context(
+    themes: &std::collections::HashMap<
+        crate::core::render::graph::LogicalId,
+        super::state::UiThemeRecord,
+    >,
+    fallback_theme: &super::types::UiThemeConfig,
+    events: Vec<egui::Event>,
+    renderer: &mut UiEguiRenderer,
+    event_queue: &mut Vec<EngineEvent>,
+    render_scene: &mut RenderScene,
+    pixels_per_point: f32,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    encoder: &mut wgpu::CommandEncoder,
+    time_seconds: f64,
+    window_id: u32,
+    context_id: &crate::core::render::graph::LogicalId,
+    context: &mut super::state::UiContextRecord,
+) {
+    if let Some(theme_id) = context.theme_id.as_ref() {
+        if let Some(theme) = themes.get(theme_id) {
                 if context.applied_theme_id.as_ref() != Some(theme_id)
                     || theme.version != context.applied_theme_version
                 {
                     apply_theme(&context.egui_ctx, &theme.theme);
-                    if let Some(debug) = theme.theme.debug {
-                        context.debug_enabled = debug;
-                    }
+                    context.debug_enabled = theme.theme.debug.unwrap_or(false);
                     context.applied_theme_version = theme.version;
                     context.applied_theme_id = Some(theme_id.clone());
                     context.applied_theme_fallback = false;
                 }
             }
         } else if !context.applied_theme_fallback {
-            apply_theme(&context.egui_ctx, &ui_state.fallback_theme);
-            if let Some(debug) = ui_state.fallback_theme.debug {
-                context.debug_enabled = debug;
-            }
+            apply_theme(&context.egui_ctx, fallback_theme);
+            context.debug_enabled = fallback_theme.debug.unwrap_or(false);
             context.applied_theme_version = 0;
             context.applied_theme_id = None;
             context.applied_theme_fallback = true;
         }
-        let target = match context.render_target.as_ref() {
-            Some(target) => target,
-            None => continue,
-        };
-        let width = context.screen_rect.w.max(1.0).round() as u32;
-        let height = context.screen_rect.h.max(1.0).round() as u32;
-        let target_view = &target.view;
+    let target = match context.render_target.as_ref() {
+        Some(target) => target,
+        None => return,
+    };
+    let width = context.screen_rect.w.max(1.0).round() as u32;
+    let height = context.screen_rect.h.max(1.0).round() as u32;
+    let target_view = target.view.clone();
 
-        // Para contextos TextureId (panels):
-        // - Primeiro render: Clear para inicializar a textura
-        // - Renders subsequentes: Load para preservar conteúdo e permitir animações/atualizações parciais
-        // Para contextos Screen: sempre Clear
-        let clear_color = match context.target {
-            UiRenderTarget::TextureId(_) => {
-                if context.first_render {
-                    Some(wgpu::Color::TRANSPARENT)
-                } else {
-                    None
-                }
-            }
-            UiRenderTarget::Screen => Some(wgpu::Color::TRANSPARENT),
-        };
+    // Clear sempre: evita acumular conteúdo antigo em render targets de UI.
+    let clear_color = Some(wgpu::Color::TRANSPARENT);
 
-        let screen_descriptor = ScreenDescriptor {
-            size_in_pixels: [width, height],
-            pixels_per_point,
-        };
+    let screen_descriptor = ScreenDescriptor {
+        size_in_pixels: [width, height],
+        pixels_per_point,
+    };
 
-        let events = ui_state
-            .pending_events
-            .remove(context_id)
-            .unwrap_or_default();
+    let screen_w = width as f32 / pixels_per_point;
+    let screen_h = height as f32 / pixels_per_point;
+    let raw_input = egui::RawInput {
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            egui::vec2(screen_w, screen_h),
+        )),
+        events,
+        time: Some(time_seconds),
+        ..Default::default()
+    };
 
-        let screen_w = width as f32 / pixels_per_point;
-        let screen_h = height as f32 / pixels_per_point;
-        let raw_input = egui::RawInput {
-            screen_rect: Some(egui::Rect::from_min_size(
-                egui::Pos2::ZERO,
-                egui::vec2(screen_w, screen_h),
-            )),
-            events,
-            time: Some(time_seconds),
-            ..Default::default()
-        };
+    context
+        .egui_ctx
+        .set_pixels_per_point(screen_descriptor.pixels_per_point);
+    update_animations(
+        &mut context.animations,
+        &mut context.animated_overrides,
+        &context.tree,
+        event_queue,
+        context_id,
+        window_id,
+        time_seconds,
+    );
+    context.viewport_requests.clear();
+    context.node_rects.clear();
+    let overlay = if context.debug_enabled {
+        Some((
+            format!("{context_id:?}"),
+            RenderLevelId::ROOT.0,
+            match &context.target {
+                UiRenderTarget::Screen => "screen".to_string(),
+                UiRenderTarget::TextureId(id) => format!("texture {}", id),
+            },
+            context.z_index,
+        ))
+    } else {
+        None
+    };
 
-        context
-            .egui_ctx
-            .set_pixels_per_point(screen_descriptor.pixels_per_point);
-        update_animations(
-            &mut context.animations,
-            &mut context.animated_overrides,
-            &context.tree,
+    let output = context.egui_ctx.run(raw_input, |ctx| {
+        build_ui_from_tree(
+            ctx,
             event_queue,
             context_id,
             window_id,
-            time_seconds,
+            &mut context.tree,
+            &mut context.focused_node,
+            &mut context.viewport_requests,
+            &mut context.style_cache,
+            &mut context.ordered_children_cache,
+            &context.animated_overrides,
+            &mut context.node_rects,
+            context.debug_enabled,
         );
-        context.viewport_requests.clear();
-        context.node_rects.clear();
-        let output = context.egui_ctx.run(raw_input, |ctx| {
-            build_ui_from_tree(
-                ctx,
-                event_queue,
-                context_id,
-                window_id,
-                &mut context.tree,
-                &mut context.focused_node,
-                &mut context.viewport_requests,
-                &mut context.style_cache,
-                &mut context.ordered_children_cache,
-                &context.animated_overrides,
-                &mut context.node_rects,
-                context.debug_enabled,
-            );
-        });
-
-        // Aplica viewport requests imediatamente para que o próximo frame use os tamanhos corretos
-        apply_viewport_requests(
-            render_scene,
-            device,
-            pixels_per_point,
-            &context.viewport_requests,
-        );
-
-        let clipped_primitives = context
-            .egui_ctx
-            .tessellate(output.shapes, output.pixels_per_point);
-
-        renderer.update_textures(device, queue, &output.textures_delta);
-
-        let used_images = register_image_textures(renderer, device, render_scene, &context.tree);
-        let draw_calls =
-            renderer.update_buffers(device, queue, &clipped_primitives, &screen_descriptor);
-        renderer.render(
-            encoder,
-            target_view,
-            &draw_calls,
-            &screen_descriptor,
-            clear_color,
-        );
-        renderer.prune_external_textures(&used_images);
-
-        if context.first_render {
-            context.first_render = false;
+        if let Some((id_label, level_id, target_label, layer)) = overlay.as_ref() {
+            render_virtual_swapchain_overlay(ctx, id_label, *level_id, target_label, *layer);
         }
+    });
 
-        if !context.debug_draw_logged {
-            log::info!(
-                "Ui context {:?} draw calls: {} (nodes: {})",
-                context_id,
-                draw_calls.len(),
-                context.tree.nodes.len()
-            );
-            context.debug_draw_logged = true;
-        }
+    // Aplica viewport requests imediatamente para que o próximo frame use os tamanhos corretos
+    apply_viewport_requests(
+        render_scene,
+        device,
+        pixels_per_point,
+        &context.viewport_requests,
+    );
+
+    crate::core::render::targets::map_camera_targets(render_scene);
+
+    let clipped_primitives = context
+        .egui_ctx
+        .tessellate(output.shapes, output.pixels_per_point);
+
+    renderer.update_textures(device, queue, &output.textures_delta);
+
+    let used_images = register_image_textures(renderer, device, render_scene, &context.tree);
+    let draw_calls =
+        renderer.update_buffers(device, queue, &clipped_primitives, &screen_descriptor);
+    renderer.render(
+        encoder,
+        &target_view,
+        &draw_calls,
+        &screen_descriptor,
+        clear_color,
+    );
+    renderer.prune_external_textures(&used_images);
+
+    if context.first_render {
+        context.first_render = false;
     }
+
+    if !context.debug_draw_logged {
+        log::info!(
+            "Ui context {:?} draw calls: {} (nodes: {})",
+            context_id,
+            draw_calls.len(),
+            context.tree.nodes.len()
+        );
+        context.debug_draw_logged = true;
+    }
+}
+
+fn render_virtual_swapchain_overlay(
+    ctx: &egui::Context,
+    context_id: &str,
+    level_id: u32,
+    target_label: &str,
+    layer: i32,
+) {
+    let label = format!(
+        "ui {}\nlevel {}\ntarget {}\nlayer {}",
+        context_id, level_id, target_label, layer
+    );
+
+    egui::Area::new(format!("swapchain_debug_{context_id}").into())
+        .anchor(egui::Align2::LEFT_TOP, egui::vec2(8.0, 8.0))
+        .show(ctx, |ui| {
+            ui.visuals_mut().widgets.noninteractive.fg_stroke.width = 0.0;
+            ui.label(egui::RichText::new(label).monospace());
+        });
 }
 
 fn apply_viewport_requests(

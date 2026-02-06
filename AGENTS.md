@@ -39,3 +39,5 @@
 - Desserialização MessagePack deve ocorrer apenas na entrada de comandos; estruturas internas já chegam tipadas, sem camadas extras.
 - Atualizar documentação somente por último; priorizar implementação.
 - Panel é um plane especializado que recebe eventos de teclado e ponteiro via retrace a partir do view da câmera (viewport da UI e layer de câmera).
+- UI e Render 3D devem ser intercambiáveis em ciclo lógico infinito via swapchain virtual/viewport em camadas (UI -> viewport -> Render 3D -> Panel -> UI), suportando múltiplos níveis e profundidades.
+- Tudo que não for setado explicitamente deve ter fallback; ao setar, a troca deve atualizar automaticamente dependentes e dependências em todo o projeto.

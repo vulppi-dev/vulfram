@@ -10,6 +10,7 @@ use crate::core::gamepad::state::GamepadState;
 use crate::core::input::InputState;
 use crate::core::profiling::TickProfiling;
 use crate::core::profiling::gpu::GpuProfiler;
+use crate::core::render::virtual_swapchain::SwapchainVirtualGraph;
 use crate::core::resources::TextureAsyncManager;
 use crate::core::ui::egui_renderer::UiEguiRenderer;
 use crate::core::ui::state::UiState;
@@ -41,6 +42,7 @@ pub struct EngineState {
 
     pub ui: UiState,
     pub ui_renderer: Option<UiEguiRenderer>,
+    pub swapchain_graphs: HashMap<u32, SwapchainVirtualGraph>,
 
     pub(crate) time: u64,
     pub(crate) delta_time: u32,
@@ -100,6 +102,7 @@ impl EngineState {
             response_queue: Vec::new(),
             ui: UiState::default(),
             ui_renderer: None,
+            swapchain_graphs: HashMap::new(),
             time: 0,
             delta_time: 0,
             frame_index: 0,

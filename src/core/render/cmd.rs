@@ -55,3 +55,5 @@ pub fn engine_cmd_render_graph_set(
         },
     }
 }
+
+// Swapchain graph is auto-generated; no manual command.

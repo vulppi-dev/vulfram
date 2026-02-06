@@ -79,6 +79,31 @@ _Sistema de UI renderizado no core, definido pelo Host via ops._
 - [x] **Ajuste de Demos**: atualizar demos existentes para continuarem funcionando após a integração da UI.
 - [x] **Refactor Demos**: dividir os demos de `main.rs` em subarquivos para reduzir o tamanho e melhorar organização.
 
+## 🔵 Fase 5: Grafo Recursivo UI ↔ Render 3D (Swapchain Virtual)
+
+_Grafo ordenado e recursivo para múltiplos níveis de composição UI/3D._
+
+- [x] **Modelo Conceitual**: definir “Swapchain Virtual” por janela como nó raiz.
+- [x] **Níveis**: definir identidade única por nível (UI → 3D → UI), com `level_id`.
+- [x] **Nós de Grafo**: mapear `UiContext`, `CameraViewport`, `PanelPlane`, `ComposeTarget` como nós explícitos.
+- [x] **Ordenação Determinística**: regras para `layer`, `z_index`, `depth_level`, `order`.
+- [x] **Texturas por Nível**: política de IDs únicos e resolução de conflitos.
+- [x] **Dependências Topológicas**: execução baseada em dependências de textura.
+- [x] **Recursão N-vezes**: permitir encadeamento `UI → 3D → UI → 3D` no mesmo frame.
+- [x] **Quebra de Ciclos**: detectar ciclo real e resolver com `frame-lag` controlado.
+- [x] **UI como Fonte**: `UiContext` renderizando para target do nível.
+- [x] **UI como Destino**: UI consumindo `camera_target` do nível anterior.
+- [x] **3D como Fonte**: câmeras com targets por nível.
+- [x] **3D como Destino**: `PanelPlane` exibindo UI do nível anterior.
+- [x] **Depth/Layer/Viewport**: normalizar regras de profundidade e visibilidade entre níveis.
+- [x] **Roteamento de Input por Nível**: input da janela deve atingir nível top.
+- [x] **Picking de Panel**: resolução correta de `UiContext`/nível via retrace.
+- [x] **Captura de Input**: preservar contexto e nível até release.
+- [x] **Limites de Profundidade**: `max_depth` configurável e reutilização de targets.
+- [x] **Dirty Flags por Nível**: evitar recomputação sem mudanças.
+- [x] **Debug Overlay**: `level_id`, `target_id`, `layer` visíveis em runtime.
+- [x] **Assert de Consistência**: validação de targets e dependências.
+
 ## 🔴 Opcionais, futuras melhorias
 
 - [ ] **Custom Materials via Graph Nodes**: Sistema no Core que recebe estruturas de "nós" e gera shaders dinâmicos.

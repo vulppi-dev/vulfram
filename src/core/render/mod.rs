@@ -5,6 +5,7 @@ pub mod graph;
 mod passes;
 pub mod state;
 pub mod targets;
+pub mod virtual_swapchain;
 
 use crate::core::render::graph::RenderGraphPlan;
 use crate::core::state::EngineState;
@@ -141,68 +142,113 @@ pub fn render_frames(engine_state: &mut EngineState) {
 
         let render_state = &mut window_state.render_state;
 
-        crate::core::ui::render::map_ui_targets_for_window(
-            &mut engine_state.ui,
-            &mut render_state.scene,
-            *window_id,
-        );
-
-        crate::core::render::targets::map_camera_targets(&mut render_state.scene);
-
         let mut encoder =
             device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("main_render_encoder") });
-
-        // Render UI contexts (ordered: TextureId first, then Screen)
-        crate::core::ui::render::render_ui_for_window(
-            &mut engine_state.ui,
-            &mut engine_state.ui_renderer,
-            &mut engine_state.event_queue,
-            *window_id,
-            &mut render_state.scene,
-            window_state.scale_factor.max(0.1),
-            device,
-            queue,
-            &mut encoder,
-            engine_state.time as f64 / 1000.0,
-        );
-
-        // Map UI targets again after rendering
-        crate::core::ui::render::map_ui_targets_for_window(
-            &mut engine_state.ui,
-            &mut render_state.scene,
-            *window_id,
-        );
-
-        // Prepare render AFTER UI is rendered so materials can bind to rendered UI textures
-        render_state.prepare_render(device, frame_spec, true);
-
-        let gpu_base = engine_state.gpu_profiler.as_ref().and_then(|gpu_profiler| {
-            let base = 2 + (window_index as u32) * 6;
-            if gpu_profiler.query_count() >= base + 6 {
-                Some(base)
-            } else {
-                None
+        let graph = {
+            let needs_auto = match engine_state.swapchain_graphs.get(window_id) {
+                Some(existing) => existing.auto_generated,
+                None => true,
+            };
+            if needs_auto {
+                let auto_graph = build_default_swapchain_graph(
+                    &engine_state.ui,
+                    &render_state.scene,
+                    *window_id,
+                );
+                engine_state
+                    .swapchain_graphs
+                    .insert(*window_id, auto_graph);
             }
-        });
+            match engine_state.swapchain_graphs.get(window_id) {
+                Some(graph) => graph,
+                None => {
+                    log::error!("Swapchain graph missing for window {}", window_id);
+                    continue;
+                }
+            }
+        };
 
-        let plan = render_state.render_graph.plan().clone();
-        gpu_written |= execute_window_graph(
-            &plan,
-            render_state,
-            &engine_state.ui,
-            *window_id,
-            device,
-            queue,
-            &mut encoder,
-            &surface_texture,
-            &window_state.config,
-            engine_state.frame_index,
-            engine_state.gpu_profiler.as_ref(),
-            gpu_base,
-        );
+        let execution_plan = match graph.build_execution_plan() {
+            Ok(plan) => plan,
+            Err(err) => {
+                log::warn!("Swapchain graph plan error: {}", err);
+                continue;
+            }
+        };
 
-        // Map camera targets after 3D rendering
-        crate::core::render::targets::map_camera_targets(&mut render_state.scene);
+        for level_plan in execution_plan.level_plans {
+            if let Some(max_depth) = graph.max_depth {
+                if level_plan.level_id.0 > max_depth {
+                    continue;
+                }
+            }
+
+            crate::core::ui::render::map_ui_targets_for_window(
+                &mut engine_state.ui,
+                &mut render_state.scene,
+                *window_id,
+            );
+            crate::core::render::targets::map_camera_targets(&mut render_state.scene);
+
+            let mut ordered_contexts = Vec::new();
+            for &node_idx in &level_plan.order {
+                let node = &level_plan.nodes[node_idx];
+                if let crate::core::render::virtual_swapchain::SwapchainVirtualNodeKind::UiContext { context_id } =
+                    &node.kind
+                {
+                    ordered_contexts.push(context_id.clone());
+                }
+            }
+
+            crate::core::ui::render::render_ui_for_window_with_contexts(
+                &mut engine_state.ui,
+                &mut engine_state.ui_renderer,
+                &mut engine_state.event_queue,
+                *window_id,
+                &mut render_state.scene,
+                window_state.scale_factor.max(0.1),
+                device,
+                queue,
+                &mut encoder,
+                engine_state.time as f64 / 1000.0,
+                Some(&ordered_contexts),
+            );
+
+            crate::core::ui::render::map_ui_targets_for_window(
+                &mut engine_state.ui,
+                &mut render_state.scene,
+                *window_id,
+            );
+
+            render_state.prepare_render(device, frame_spec, true);
+
+            let gpu_base = engine_state.gpu_profiler.as_ref().and_then(|gpu_profiler| {
+                let base = 2 + (window_index as u32) * 6;
+                if gpu_profiler.query_count() >= base + 6 {
+                    Some(base)
+                } else {
+                    None
+                }
+            });
+
+            let plan = render_state.render_graph.plan().clone();
+            gpu_written |= execute_window_graph(
+                &plan,
+                render_state,
+                &engine_state.ui,
+                *window_id,
+                device,
+                queue,
+                &mut encoder,
+                &surface_texture,
+                &window_state.config,
+                engine_state.frame_index,
+                engine_state.gpu_profiler.as_ref(),
+                gpu_base,
+            );
+
+            crate::core::render::targets::map_camera_targets(&mut render_state.scene);
+        }
 
         queue.submit(Some(encoder.finish()));
         surface_texture.present();
@@ -281,6 +327,162 @@ pub fn render_frames(engine_state: &mut EngineState) {
     {
         engine_state.profiling.render_total_ns = now_ns().saturating_sub(total_start);
     }
+}
+
+fn build_default_swapchain_graph(
+    ui_state: &crate::core::ui::state::UiState,
+    render_scene: &crate::core::render::state::RenderScene,
+    window_id: u32,
+) -> crate::core::render::virtual_swapchain::SwapchainVirtualGraph {
+    use crate::core::render::graph::LogicalId;
+    use crate::core::render::virtual_swapchain::{
+        RenderLevelId, SwapchainCyclePolicy, SwapchainOrderKey, SwapchainVirtualEdge,
+        SwapchainVirtualGraph, SwapchainVirtualLevel, SwapchainVirtualNode, SwapchainVirtualRoot,
+        SwapchainVirtualTextureUsage,
+    };
+
+    let root = SwapchainVirtualRoot {
+        root_id: LogicalId::Str("auto_swapchain_root".into()),
+        window_id,
+    };
+
+    let mut level = SwapchainVirtualLevel {
+        level_id: RenderLevelId::ROOT,
+        nodes: Vec::new(),
+        edges: Vec::new(),
+        dirty: true,
+    };
+
+    let mut ordered_contexts: Vec<(i32, LogicalId)> = ui_state
+        .contexts
+        .iter()
+        .filter(|(_, ctx)| ctx.window_id == window_id)
+        .map(|(id, ctx)| {
+            let key = match ctx.target {
+                crate::core::ui::types::UiRenderTarget::TextureId(_) => 0,
+                crate::core::ui::types::UiRenderTarget::Screen => 1,
+            };
+            (key, id.clone())
+        })
+        .collect();
+    ordered_contexts.sort_by_key(|(key, _)| *key);
+
+    let mut node_counter: usize = 0;
+    let compose_node_id = LogicalId::Str("auto_compose".into());
+
+    for (idx, (_, context_id)) in ordered_contexts.iter().enumerate() {
+        let order = SwapchainOrderKey::default()
+            .with_layer(10)
+            .with_z_index(10)
+            .with_depth(0)
+            .with_order(idx as i32);
+        let node_id = LogicalId::Str(format!("auto_ui_{}", idx));
+        level.nodes.push(SwapchainVirtualNode {
+            order,
+            ..SwapchainVirtualNode::ui_context(node_id.clone(), context_id.clone())
+        });
+        level.edges.push(SwapchainVirtualEdge {
+            from_node_id: node_id,
+            to_node_id: compose_node_id.clone(),
+        });
+        node_counter = node_counter.saturating_add(1);
+    }
+
+    for (panel_id, panel) in ui_state.panels.iter() {
+        if panel.window_id != window_id {
+            continue;
+        }
+        let order = SwapchainOrderKey::default()
+            .with_layer(0)
+            .with_z_index(0)
+            .with_depth(1)
+            .with_order(node_counter as i32);
+        let ui_node_id = LogicalId::Str(format!("auto_panel_ui_{}", node_counter));
+        node_counter = node_counter.saturating_add(1);
+        let panel_node_id = LogicalId::Str(format!("auto_panel_plane_{}", node_counter));
+        node_counter = node_counter.saturating_add(1);
+
+        level.nodes.push(SwapchainVirtualNode {
+            order,
+            ..SwapchainVirtualNode::ui_context(ui_node_id.clone(), panel.context_id.clone())
+        });
+        level.nodes.push(SwapchainVirtualNode {
+            order,
+            ..SwapchainVirtualNode::panel_plane(panel_node_id.clone(), panel_id.clone())
+        });
+        level.edges.push(SwapchainVirtualEdge {
+            from_node_id: ui_node_id,
+            to_node_id: panel_node_id,
+        });
+    }
+
+    let mut camera_targets: Vec<LogicalId> = Vec::new();
+    for (camera_id, camera) in render_scene.cameras.iter() {
+        let order = SwapchainOrderKey::default()
+            .with_layer(camera.layer)
+            .with_z_index(camera.order)
+            .with_depth(0)
+            .with_order(node_counter as i32);
+        let node_id = LogicalId::Str(format!("auto_camera_{}", node_counter));
+        node_counter = node_counter.saturating_add(1);
+        level.nodes.push(SwapchainVirtualNode {
+            order,
+            ..SwapchainVirtualNode::camera_viewport(node_id.clone(), *camera_id)
+        });
+        level.edges.push(SwapchainVirtualEdge {
+            from_node_id: node_id,
+            to_node_id: compose_node_id.clone(),
+        });
+        if let Some(target_id) = camera.target_texture_id.as_ref() {
+            camera_targets.push(target_id.clone());
+        }
+    }
+
+    level.nodes.push(SwapchainVirtualNode {
+        order: SwapchainOrderKey::default()
+            .with_layer(20)
+            .with_z_index(20)
+            .with_depth(0)
+            .with_order(1000),
+        ..SwapchainVirtualNode::compose_target(
+            compose_node_id.clone(),
+            LogicalId::Str("swapchain".into()),
+        )
+    });
+
+    let mut graph = SwapchainVirtualGraph {
+        root,
+        levels: vec![level],
+        texture_registry: Default::default(),
+        cycle_policy: SwapchainCyclePolicy::FrameLag,
+        max_depth: None,
+        auto_generated: true,
+    };
+
+    for (_, context) in ui_state.contexts.iter() {
+        if context.window_id != window_id {
+            continue;
+        }
+        if let crate::core::ui::types::UiRenderTarget::TextureId(id) = &context.target {
+            graph
+                .texture_registry
+                .upsert(RenderLevelId::ROOT, id.clone(), SwapchainVirtualTextureUsage::UiTarget);
+        }
+    }
+    for target_id in camera_targets {
+        graph
+            .texture_registry
+            .upsert(RenderLevelId::ROOT, target_id, SwapchainVirtualTextureUsage::CameraTarget);
+    }
+    graph
+        .texture_registry
+        .upsert(
+            RenderLevelId::ROOT,
+            LogicalId::Str("swapchain".into()),
+            SwapchainVirtualTextureUsage::ComposeTarget,
+        );
+
+    graph
 }
 
 fn execute_window_graph(

@@ -88,6 +88,9 @@ pub enum EngineCmd {
     CmdUiContextSetTarget(ui::cmd::CmdUiContextSetTargetArgs),
     CmdUiContextDispose(ui::cmd::CmdUiContextDisposeArgs),
     CmdUiApplyOps(ui::cmd::CmdUiApplyOpsArgs),
+    CmdUiPanelCreate(ui::cmd::CmdUiPanelCreateArgs),
+    CmdUiPanelUpdate(ui::cmd::CmdUiPanelUpdateArgs),
+    CmdUiPanelDispose(ui::cmd::CmdUiPanelDisposeArgs),
     CmdModelList(res::CmdModelListArgs),
     CmdMaterialList(res::CmdMaterialListArgs),
     CmdTextureList(res::CmdTextureListArgs),
@@ -181,6 +184,9 @@ pub enum CommandResponse {
     UiContextSetTarget(ui::cmd::CmdResultUiContextUpdate),
     UiContextDispose(ui::cmd::CmdResultUiContextDispose),
     UiApplyOps(ui::cmd::CmdResultUiApplyOps),
+    UiPanelCreate(ui::cmd::CmdResultUiPanelCreate),
+    UiPanelUpdate(ui::cmd::CmdResultUiPanelUpdate),
+    UiPanelDispose(ui::cmd::CmdResultUiPanelDispose),
     ModelList(res::CmdResultModelList),
     MaterialList(res::CmdResultMaterialList),
     TextureList(res::CmdResultTextureList),
@@ -692,6 +698,27 @@ pub fn engine_process_batch(
                 engine.response_queue.push(CommandResponseEnvelope {
                     id: pack.id,
                     response: CommandResponse::UiApplyOps(result),
+                });
+            }
+            EngineCmd::CmdUiPanelCreate(args) => {
+                let result = ui::cmd::engine_cmd_ui_panel_create(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::UiPanelCreate(result),
+                });
+            }
+            EngineCmd::CmdUiPanelUpdate(args) => {
+                let result = ui::cmd::engine_cmd_ui_panel_update(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::UiPanelUpdate(result),
+                });
+            }
+            EngineCmd::CmdUiPanelDispose(args) => {
+                let result = ui::cmd::engine_cmd_ui_panel_dispose(engine, &args);
+                engine.response_queue.push(CommandResponseEnvelope {
+                    id: pack.id,
+                    response: CommandResponse::UiPanelDispose(result),
                 });
             }
             EngineCmd::CmdModelList(args) => {

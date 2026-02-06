@@ -4,7 +4,7 @@ use crate::core::input::events::{KeyboardEvent, PointerEvent, ScrollDelta};
 use crate::core::render::graph::LogicalId;
 use crate::core::state::EngineState;
 
-use super::state::UiContextRecord;
+use super::state::{UiCaptureTarget, UiContextRecord};
 
 pub fn process_ui_input_routing(engine: &mut EngineState) {
     let pointer_events: Vec<PointerEvent> = engine
@@ -43,36 +43,45 @@ fn route_pointer_event(engine: &mut EngineState, event: &PointerEvent) {
             ..
         } => {
             if *state == ElementState::Pressed {
-                if let Some(context_id) = pick_context(engine, *window_id, position.x, position.y) {
-                    let pixels_per_point = ui_pixels_per_point(engine, *window_id);
+                if let Some(pick) = pick_context(engine, *window_id, position.x, position.y) {
                     engine
                         .ui
                         .focus_by_window
-                        .insert(*window_id, context_id.clone());
+                        .insert(*window_id, pick.context_id.clone());
                     engine
                         .ui
                         .capture_by_window
-                        .insert(*window_id, context_id.clone());
-                    push_pointer_event(
+                        .insert(
+                            *window_id,
+                            UiCaptureTarget {
+                                context_id: pick.context_id.clone(),
+                                panel_id: pick.panel_id.clone(),
+                            },
+                        );
+                    push_pointer_event_local(
                         engine,
-                        &context_id,
-                        *position,
-                        pixels_per_point,
+                        &pick.context_id,
+                        pick.local_pos_points,
                         Some(*state),
-                        Some(*window_id),
                     );
                 }
             } else {
-                if let Some(context_id) = engine.ui.capture_by_window.get(window_id).cloned() {
+                if let Some(capture) = engine.ui.capture_by_window.get(window_id).cloned() {
                     let pixels_per_point = ui_pixels_per_point(engine, *window_id);
-                    push_pointer_event(
+                    if let Some(local_pos_points) = resolve_capture_position(
                         engine,
-                        &context_id,
+                        *window_id,
                         *position,
                         pixels_per_point,
-                        Some(*state),
-                        Some(*window_id),
-                    );
+                        &capture,
+                    ) {
+                        push_pointer_event_local(
+                            engine,
+                            &capture.context_id,
+                            local_pos_points,
+                            Some(*state),
+                        );
+                    }
                 }
                 engine.ui.capture_by_window.remove(window_id);
             }
@@ -82,28 +91,26 @@ fn route_pointer_event(engine: &mut EngineState, event: &PointerEvent) {
             position,
             ..
         } => {
-            if let Some(context_id) = engine.ui.capture_by_window.get(window_id).cloned() {
+            if let Some(capture) = engine.ui.capture_by_window.get(window_id).cloned() {
                 let pixels_per_point = ui_pixels_per_point(engine, *window_id);
-                push_pointer_event(
+                if let Some(local_pos_points) = resolve_capture_position(
                     engine,
-                    &context_id,
+                    *window_id,
                     *position,
                     pixels_per_point,
-                    None,
-                    Some(*window_id),
-                );
+                    &capture,
+                ) {
+                    push_pointer_event_local(
+                        engine,
+                        &capture.context_id,
+                        local_pos_points,
+                        None,
+                    );
+                }
                 return;
             }
-            if let Some(context_id) = pick_context(engine, *window_id, position.x, position.y) {
-                let pixels_per_point = ui_pixels_per_point(engine, *window_id);
-                push_pointer_event(
-                    engine,
-                    &context_id,
-                    *position,
-                    pixels_per_point,
-                    None,
-                    Some(*window_id),
-                );
+            if let Some(pick) = pick_context(engine, *window_id, position.x, position.y) {
+                push_pointer_event_local(engine, &pick.context_id, pick.local_pos_points, None);
             }
         }
         PointerEvent::OnLeave { window_id, .. } => {
@@ -115,9 +122,9 @@ fn route_pointer_event(engine: &mut EngineState, event: &PointerEvent) {
         PointerEvent::OnScroll {
             window_id, delta, ..
         } => {
-            if let Some(context_id) = engine.ui.capture_by_window.get(window_id).cloned() {
+            if let Some(capture) = engine.ui.capture_by_window.get(window_id).cloned() {
                 let pixels_per_point = ui_pixels_per_point(engine, *window_id);
-                push_scroll_event(engine, &context_id, *delta, pixels_per_point);
+                push_scroll_event(engine, &capture.context_id, *delta, pixels_per_point);
                 return;
             }
             if let Some(context_id) = engine.ui.focus_by_window.get(window_id).cloned() {
@@ -194,7 +201,25 @@ fn route_keyboard_event(engine: &mut EngineState, event: &KeyboardEvent) {
     }
 }
 
-fn pick_context(engine: &EngineState, window_id: u32, x: f32, y: f32) -> Option<LogicalId> {
+struct UiPickResult {
+    context_id: LogicalId,
+    panel_id: Option<LogicalId>,
+    local_pos_points: egui::Pos2,
+}
+
+fn pick_context(engine: &EngineState, window_id: u32, x: f32, y: f32) -> Option<UiPickResult> {
+    if let Some(pick) = pick_screen_context(engine, window_id, x, y) {
+        return Some(pick);
+    }
+    pick_panel_context(engine, window_id, x, y)
+}
+
+fn pick_screen_context(
+    engine: &EngineState,
+    window_id: u32,
+    x: f32,
+    y: f32,
+) -> Option<UiPickResult> {
     let mut picked: Option<(&UiContextRecord, LogicalId)> = None;
     for (context_id, context) in &engine.ui.contexts {
         if context.window_id != window_id {
@@ -214,29 +239,30 @@ fn pick_context(engine: &EngineState, window_id: u32, x: f32, y: f32) -> Option<
             }
         }
     }
-    picked.map(|(_, id)| id)
+    picked.and_then(|(context, id)| {
+        let pixels_per_point = ui_pixels_per_point(engine, window_id);
+        let local_pos = egui::pos2(
+            (x - context.screen_rect.x) / pixels_per_point,
+            (y - context.screen_rect.y) / pixels_per_point,
+        );
+        Some(UiPickResult {
+            context_id: id,
+            panel_id: None,
+            local_pos_points: local_pos,
+        })
+    })
 }
 
 fn contains_point(rect: &super::types::UiRectPx, x: f32, y: f32) -> bool {
     x >= rect.x && y >= rect.y && x <= rect.x + rect.w && y <= rect.y + rect.h
 }
 
-fn push_pointer_event(
+fn push_pointer_event_local(
     engine: &mut EngineState,
     context_id: &LogicalId,
-    position: glam::Vec2,
-    pixels_per_point: f32,
+    local_pos: egui::Pos2,
     state: Option<ElementState>,
-    window_id: Option<u32>,
 ) {
-    let context = match engine.ui.contexts.get(context_id) {
-        Some(ctx) => ctx,
-        None => return,
-    };
-    let local_pos = egui::pos2(
-        (position.x - context.screen_rect.x) / pixels_per_point,
-        (position.y - context.screen_rect.y) / pixels_per_point,
-    );
     let events = engine
         .ui
         .pending_events
@@ -253,14 +279,6 @@ fn push_pointer_event(
         });
     } else {
         events.push(egui::Event::PointerMoved(local_pos));
-    }
-
-    if let Some(window_id) = window_id {
-        engine
-            .ui
-            .focus_by_window
-            .entry(window_id)
-            .or_insert_with(|| context_id.clone());
     }
 }
 
@@ -336,6 +354,258 @@ fn push_ime_event(engine: &mut EngineState, context_id: &LogicalId, event: egui:
         .entry(context_id.clone())
         .or_default();
     events.push(egui::Event::Ime(event));
+}
+
+fn pick_panel_context(
+    engine: &EngineState,
+    window_id: u32,
+    x: f32,
+    y: f32,
+) -> Option<UiPickResult> {
+    let window_state = engine.window.states.get(&window_id)?;
+    let render_state = &window_state.render_state;
+    let vertex_sys = render_state.vertex.as_ref()?;
+
+    if engine.ui.panels.is_empty() {
+        return None;
+    }
+
+    let window_width = window_state.config.width.max(1) as f32;
+    let window_height = window_state.config.height.max(1) as f32;
+
+    let mut cameras: Vec<(u32, i32, i32)> = render_state
+        .scene
+        .cameras
+        .iter()
+        .map(|(id, record)| (*id, record.layer, record.order))
+        .collect();
+    cameras.sort_by(|a, b| b.1.cmp(&a.1).then(b.2.cmp(&a.2)));
+
+    for (camera_id, _layer, _order) in cameras {
+        let camera = match render_state.scene.cameras.get(&camera_id) {
+            Some(camera) => camera,
+            None => continue,
+        };
+        let (viewport_x, viewport_y, viewport_w, viewport_h) = camera
+            .view_position
+            .as_ref()
+            .map(|vp| {
+                let (x_pos, y_pos) = vp.resolve_position(window_width as u32, window_height as u32);
+                let (w, h) = vp.resolve_size(window_width as u32, window_height as u32);
+                (x_pos as f32, y_pos as f32, w as f32, h as f32)
+            })
+            .unwrap_or((0.0, 0.0, window_width, window_height));
+
+        if x < viewport_x
+            || y < viewport_y
+            || x > viewport_x + viewport_w
+            || y > viewport_y + viewport_h
+        {
+            continue;
+        }
+
+        let ray = screen_ray_from_camera(
+            camera,
+            x - viewport_x,
+            y - viewport_y,
+            viewport_w.max(1.0),
+            viewport_h.max(1.0),
+        );
+        let Some((ray_origin, ray_dir)) = ray else {
+            continue;
+        };
+
+        let mut best_hit: Option<(f32, LogicalId, egui::Pos2, LogicalId)> = None;
+
+        for (panel_id, panel) in &engine.ui.panels {
+            if panel.window_id != window_id || panel.camera_id != camera_id {
+                continue;
+            }
+            let Some(context) = engine.ui.contexts.get(&panel.context_id) else {
+                continue;
+            };
+            let Some(model) = render_state.scene.models.get(&panel.model_id) else {
+                continue;
+            };
+            if (camera.layer_mask & model.layer_mask) == 0 {
+                continue;
+            }
+            let Some(aabb) = vertex_sys.aabb(model.geometry_id) else {
+                continue;
+            };
+
+            let transform = model.data.transform;
+            let inv_transform = match transform.inverse() {
+                value => value,
+            };
+            let plane_point = transform.transform_point3(glam::Vec3::ZERO);
+            let plane_normal = transform.transform_vector3(glam::Vec3::Z).normalize_or_zero();
+            if plane_normal.length_squared() <= 0.0 {
+                continue;
+            }
+
+            let denom = plane_normal.dot(ray_dir);
+            if denom.abs() <= 1e-5 {
+                continue;
+            }
+            let t = (plane_point - ray_origin).dot(plane_normal) / denom;
+            if t < 0.0 {
+                continue;
+            }
+            let hit_world = ray_origin + ray_dir * t;
+            let hit_local = inv_transform.transform_point3(hit_world);
+            let size_x = (aabb.max.x - aabb.min.x).abs();
+            let size_y = (aabb.max.y - aabb.min.y).abs();
+            if size_x <= f32::EPSILON || size_y <= f32::EPSILON {
+                continue;
+            }
+            let u = (hit_local.x - aabb.min.x) / size_x;
+            let mut v = (hit_local.y - aabb.min.y) / size_y;
+            if u < 0.0 || u > 1.0 || v < 0.0 || v > 1.0 {
+                continue;
+            }
+            v = 1.0 - v;
+
+            let pixels_per_point = ui_pixels_per_point(engine, window_id);
+            let width_points = context.screen_rect.w.max(1.0) / pixels_per_point;
+            let height_points = context.screen_rect.h.max(1.0) / pixels_per_point;
+            let local_pos = egui::pos2(u * width_points, v * height_points);
+
+            let should_replace = match best_hit.as_ref() {
+                Some((best_t, _, _, _)) => t < *best_t,
+                None => true,
+            };
+            if should_replace {
+                best_hit = Some((t, panel.context_id.clone(), local_pos, panel_id.clone()));
+            }
+        }
+
+        if let Some((_t, context_id, local_pos, panel_id)) = best_hit {
+            return Some(UiPickResult {
+                context_id,
+                panel_id: Some(panel_id),
+                local_pos_points: local_pos,
+            });
+        }
+    }
+
+    None
+}
+
+fn resolve_capture_position(
+    engine: &EngineState,
+    window_id: u32,
+    position: glam::Vec2,
+    pixels_per_point: f32,
+    capture: &UiCaptureTarget,
+) -> Option<egui::Pos2> {
+    if let Some(panel_id) = capture.panel_id.as_ref() {
+        resolve_panel_position(engine, window_id, position, pixels_per_point, panel_id)
+    } else {
+        let context = engine.ui.contexts.get(&capture.context_id)?;
+        let local_pos = egui::pos2(
+            (position.x - context.screen_rect.x) / pixels_per_point,
+            (position.y - context.screen_rect.y) / pixels_per_point,
+        );
+        Some(local_pos)
+    }
+}
+
+fn resolve_panel_position(
+    engine: &EngineState,
+    window_id: u32,
+    position: glam::Vec2,
+    pixels_per_point: f32,
+    panel_id: &LogicalId,
+) -> Option<egui::Pos2> {
+    let panel = engine.ui.panels.get(panel_id)?;
+    let context = engine.ui.contexts.get(&panel.context_id)?;
+    let window_state = engine.window.states.get(&window_id)?;
+    let render_state = &window_state.render_state;
+    let vertex_sys = render_state.vertex.as_ref()?;
+    let camera = render_state.scene.cameras.get(&panel.camera_id)?;
+    let model = render_state.scene.models.get(&panel.model_id)?;
+    if (camera.layer_mask & model.layer_mask) == 0 {
+        return None;
+    }
+    let aabb = vertex_sys.aabb(model.geometry_id)?;
+
+    let window_width = window_state.config.width.max(1) as f32;
+    let window_height = window_state.config.height.max(1) as f32;
+    let (viewport_x, viewport_y, viewport_w, viewport_h) = camera
+        .view_position
+        .as_ref()
+        .map(|vp| {
+            let (x_pos, y_pos) = vp.resolve_position(window_width as u32, window_height as u32);
+            let (w, h) = vp.resolve_size(window_width as u32, window_height as u32);
+            (x_pos as f32, y_pos as f32, w as f32, h as f32)
+        })
+        .unwrap_or((0.0, 0.0, window_width, window_height));
+
+    let local_x = (position.x - viewport_x).clamp(0.0, viewport_w.max(1.0));
+    let local_y = (position.y - viewport_y).clamp(0.0, viewport_h.max(1.0));
+
+    let ray = screen_ray_from_camera(camera, local_x, local_y, viewport_w, viewport_h)?;
+    let (ray_origin, ray_dir) = ray;
+
+    let transform = model.data.transform;
+    let inv_transform = transform.inverse();
+    let plane_point = transform.transform_point3(glam::Vec3::ZERO);
+    let plane_normal = transform.transform_vector3(glam::Vec3::Z).normalize_or_zero();
+    if plane_normal.length_squared() <= 0.0 {
+        return None;
+    }
+    let denom = plane_normal.dot(ray_dir);
+    if denom.abs() <= 1e-5 {
+        return None;
+    }
+    let t = (plane_point - ray_origin).dot(plane_normal) / denom;
+    if t < 0.0 {
+        return None;
+    }
+    let hit_world = ray_origin + ray_dir * t;
+    let hit_local = inv_transform.transform_point3(hit_world);
+    let size_x = (aabb.max.x - aabb.min.x).abs();
+    let size_y = (aabb.max.y - aabb.min.y).abs();
+    if size_x <= f32::EPSILON || size_y <= f32::EPSILON {
+        return None;
+    }
+
+    let mut u = (hit_local.x - aabb.min.x) / size_x;
+    let mut v = (hit_local.y - aabb.min.y) / size_y;
+    u = u.clamp(0.0, 1.0);
+    v = v.clamp(0.0, 1.0);
+    v = 1.0 - v;
+
+    let width_points = context.screen_rect.w.max(1.0) / pixels_per_point;
+    let height_points = context.screen_rect.h.max(1.0) / pixels_per_point;
+    Some(egui::pos2(u * width_points, v * height_points))
+}
+
+fn screen_ray_from_camera(
+    camera: &crate::core::resources::CameraRecord,
+    local_x: f32,
+    local_y: f32,
+    viewport_w: f32,
+    viewport_h: f32,
+) -> Option<(glam::Vec3, glam::Vec3)> {
+    if viewport_w <= 0.0 || viewport_h <= 0.0 {
+        return None;
+    }
+    let ndc_x = (local_x / viewport_w) * 2.0 - 1.0;
+    let ndc_y = 1.0 - (local_y / viewport_h) * 2.0;
+    let inv_vp = camera.data.view_projection.inverse();
+    let near = inv_vp * glam::Vec4::new(ndc_x, ndc_y, 0.0, 1.0);
+    let far = inv_vp * glam::Vec4::new(ndc_x, ndc_y, 1.0, 1.0);
+    let near_w = near.w.abs().max(1e-5);
+    let far_w = far.w.abs().max(1e-5);
+    let near_pos = (near / near_w).truncate();
+    let far_pos = (far / far_w).truncate();
+    let dir = (far_pos - near_pos).normalize_or_zero();
+    if dir.length_squared() <= 0.0 {
+        return None;
+    }
+    Some((near_pos, dir))
 }
 
 fn to_egui_modifiers(mods: crate::core::input::events::ModifiersState) -> egui::Modifiers {

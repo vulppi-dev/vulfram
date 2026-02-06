@@ -6,6 +6,7 @@ use super::build::build_ui_from_tree;
 use super::egui_renderer::{ScreenDescriptor, UiEguiRenderer};
 use super::state::UiState;
 use super::tree::UiTreeState;
+use super::types::UiRenderTarget;
 use crate::core::ui::animation::update_animations;
 use crate::core::ui::theme::apply_theme;
 
@@ -59,6 +60,7 @@ pub fn render_ui_for_window(
     queue: &wgpu::Queue,
     encoder: &mut wgpu::CommandEncoder,
     time_seconds: f64,
+    filter_target: Option<bool>, // None = all, Some(true) = TextureId only, Some(false) = Screen only
 ) {
     if ui_state.contexts.is_empty() {
         return;
@@ -75,6 +77,13 @@ pub fn render_ui_for_window(
     for (context_id, context) in ui_state.contexts.iter_mut() {
         if context.window_id != window_id {
             continue;
+        }
+        // Filter by target type if specified
+        if let Some(is_texture_id) = filter_target {
+            let context_is_texture_id = matches!(context.target, UiRenderTarget::TextureId(_));
+            if context_is_texture_id != is_texture_id {
+                continue;
+            }
         }
         if let Some(theme_id) = context.theme_id.as_ref() {
             if let Some(theme) = ui_state.themes.get(theme_id) {

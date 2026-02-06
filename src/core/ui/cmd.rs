@@ -5,7 +5,7 @@ use crate::core::render::graph::LogicalId;
 use crate::core::state::EngineState;
 
 use super::animation::{parse_animation_easing, parse_animation_property, UiAnimation};
-use super::state::{UiContextRecord, UiThemeRecord};
+use super::state::{UiContextRecord, UiPanelRecord, UiThemeRecord};
 use super::tree::{UiOp, UiTreeState, apply_ops};
 use super::types::{UiRectPx, UiRenderTarget, UiThemeConfig};
 
@@ -271,9 +271,231 @@ pub fn engine_cmd_ui_context_dispose(
         };
     }
 
+    engine
+        .ui
+        .panels
+        .retain(|_, panel| panel.context_id != args.context_id);
+
     CmdResultUiContextDispose {
         success: true,
         message: "UiContext disposed".into(),
+    }
+}
+
+// MARK: - Panel Create
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CmdUiPanelCreateArgs {
+    pub panel_id: LogicalId,
+    pub context_id: LogicalId,
+    pub model_id: u32,
+    pub camera_id: u32,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+#[serde(default, rename_all = "camelCase")]
+pub struct CmdResultUiPanelCreate {
+    pub success: bool,
+    pub message: String,
+    pub panel_id: Option<LogicalId>,
+}
+
+pub fn engine_cmd_ui_panel_create(
+    engine: &mut EngineState,
+    args: &CmdUiPanelCreateArgs,
+) -> CmdResultUiPanelCreate {
+    if engine.ui.panels.contains_key(&args.panel_id) {
+        return CmdResultUiPanelCreate {
+            success: false,
+            message: format!("UiPanel {} already exists", args.panel_id),
+            panel_id: Some(args.panel_id.clone()),
+        };
+    }
+
+    let context = match engine.ui.contexts.get(&args.context_id) {
+        Some(context) => context,
+        None => {
+            return CmdResultUiPanelCreate {
+                success: false,
+                message: format!("UiContext {} not found", args.context_id),
+                panel_id: Some(args.panel_id.clone()),
+            };
+        }
+    };
+
+    let window_state = match engine.window.states.get(&context.window_id) {
+        Some(state) => state,
+        None => {
+            return CmdResultUiPanelCreate {
+                success: false,
+                message: format!("Window {} not found", context.window_id),
+                panel_id: Some(args.panel_id.clone()),
+            };
+        }
+    };
+
+    if !window_state
+        .render_state
+        .scene
+        .models
+        .contains_key(&args.model_id)
+    {
+        return CmdResultUiPanelCreate {
+            success: false,
+            message: format!("Model {} not found", args.model_id),
+            panel_id: Some(args.panel_id.clone()),
+        };
+    }
+
+    if !window_state
+        .render_state
+        .scene
+        .cameras
+        .contains_key(&args.camera_id)
+    {
+        return CmdResultUiPanelCreate {
+            success: false,
+            message: format!("Camera {} not found", args.camera_id),
+            panel_id: Some(args.panel_id.clone()),
+        };
+    }
+
+    let record = UiPanelRecord {
+        context_id: args.context_id.clone(),
+        model_id: args.model_id,
+        camera_id: args.camera_id,
+        window_id: context.window_id,
+    };
+
+    engine.ui.panels.insert(args.panel_id.clone(), record);
+
+    CmdResultUiPanelCreate {
+        success: true,
+        message: "UiPanel created".into(),
+        panel_id: Some(args.panel_id.clone()),
+    }
+}
+
+// MARK: - Panel Update
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CmdUiPanelUpdateArgs {
+    pub panel_id: LogicalId,
+    pub context_id: Option<LogicalId>,
+    pub model_id: Option<u32>,
+    pub camera_id: Option<u32>,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+#[serde(default, rename_all = "camelCase")]
+pub struct CmdResultUiPanelUpdate {
+    pub success: bool,
+    pub message: String,
+}
+
+pub fn engine_cmd_ui_panel_update(
+    engine: &mut EngineState,
+    args: &CmdUiPanelUpdateArgs,
+) -> CmdResultUiPanelUpdate {
+    let panel = match engine.ui.panels.get_mut(&args.panel_id) {
+        Some(panel) => panel,
+        None => {
+            return CmdResultUiPanelUpdate {
+                success: false,
+                message: format!("UiPanel {} not found", args.panel_id),
+            };
+        }
+    };
+
+    let context_id = args.context_id.as_ref().unwrap_or(&panel.context_id);
+    let context = match engine.ui.contexts.get(context_id) {
+        Some(context) => context,
+        None => {
+            return CmdResultUiPanelUpdate {
+                success: false,
+                message: format!("UiContext {} not found", context_id),
+            };
+        }
+    };
+
+    let window_state = match engine.window.states.get(&context.window_id) {
+        Some(state) => state,
+        None => {
+            return CmdResultUiPanelUpdate {
+                success: false,
+                message: format!("Window {} not found", context.window_id),
+            };
+        }
+    };
+
+    let model_id = args.model_id.unwrap_or(panel.model_id);
+    if !window_state
+        .render_state
+        .scene
+        .models
+        .contains_key(&model_id)
+    {
+        return CmdResultUiPanelUpdate {
+            success: false,
+            message: format!("Model {} not found", model_id),
+        };
+    }
+
+    let camera_id = args.camera_id.unwrap_or(panel.camera_id);
+    if !window_state
+        .render_state
+        .scene
+        .cameras
+        .contains_key(&camera_id)
+    {
+        return CmdResultUiPanelUpdate {
+            success: false,
+            message: format!("Camera {} not found", camera_id),
+        };
+    }
+
+    panel.context_id = context_id.clone();
+    panel.model_id = model_id;
+    panel.camera_id = camera_id;
+    panel.window_id = context.window_id;
+
+    CmdResultUiPanelUpdate {
+        success: true,
+        message: "UiPanel updated".into(),
+    }
+}
+
+// MARK: - Panel Dispose
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CmdUiPanelDisposeArgs {
+    pub panel_id: LogicalId,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+#[serde(default, rename_all = "camelCase")]
+pub struct CmdResultUiPanelDispose {
+    pub success: bool,
+    pub message: String,
+}
+
+pub fn engine_cmd_ui_panel_dispose(
+    engine: &mut EngineState,
+    args: &CmdUiPanelDisposeArgs,
+) -> CmdResultUiPanelDispose {
+    if engine.ui.panels.remove(&args.panel_id).is_none() {
+        return CmdResultUiPanelDispose {
+            success: false,
+            message: format!("UiPanel {} not found", args.panel_id),
+        };
+    }
+
+    CmdResultUiPanelDispose {
+        success: true,
+        message: "UiPanel disposed".into(),
     }
 }
 

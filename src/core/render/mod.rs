@@ -153,6 +153,22 @@ pub fn render_frames(engine_state: &mut EngineState) {
         let mut encoder =
             device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
+        // Render UI contexts with TextureId targets BEFORE 3D graph
+        // (so Panel textures are ready for 3D cameras to use)
+        crate::core::ui::render::render_ui_for_window(
+            &mut engine_state.ui,
+            &mut engine_state.ui_renderer,
+            &mut engine_state.event_queue,
+            *window_id,
+            &mut render_state.scene,
+            window_state.scale_factor.max(0.1),
+            device,
+            queue,
+            &mut encoder,
+            engine_state.time as f64 / 1000.0,
+            Some(true), // TextureId targets only
+        );
+
         let gpu_base = engine_state.gpu_profiler.as_ref().and_then(|gpu_profiler| {
             let base = 2 + (window_index as u32) * 6;
             if gpu_profiler.query_count() >= base + 6 {
@@ -180,6 +196,8 @@ pub fn render_frames(engine_state: &mut EngineState) {
 
         crate::core::render::targets::map_camera_targets(&mut render_state.scene);
 
+        // Render UI contexts with Screen targets AFTER 3D graph
+        // (so viewport textures from cameras are ready to use)
         crate::core::ui::render::render_ui_for_window(
             &mut engine_state.ui,
             &mut engine_state.ui_renderer,
@@ -191,6 +209,7 @@ pub fn render_frames(engine_state: &mut EngineState) {
             queue,
             &mut encoder,
             engine_state.time as f64 / 1000.0,
+            Some(false), // Screen targets only
         );
 
         queue.submit(Some(encoder.finish()));

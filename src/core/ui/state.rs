@@ -38,6 +38,7 @@ pub struct UiContextRecord {
     pub applied_theme_fallback: bool,
     pub debug_map_logged: bool,
     pub debug_draw_logged: bool,
+    pub first_render: bool, // True até o primeiro render, depois vira false
 }
 
 #[derive(Debug, Clone)]

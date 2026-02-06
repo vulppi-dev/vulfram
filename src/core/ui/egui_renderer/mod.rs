@@ -295,8 +295,14 @@ impl UiEguiRenderer {
         target_view: &wgpu::TextureView,
         draw_calls: &[DrawCall],
         screen_descriptor: &ScreenDescriptor,
-        clear_color: wgpu::Color,
+        clear_color: Option<wgpu::Color>, // None = Load, Some = Clear
     ) {
+        let load_op = if let Some(color) = clear_color {
+            wgpu::LoadOp::Clear(color)
+        } else {
+            wgpu::LoadOp::Load
+        };
+
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("egui_render_pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -304,7 +310,7 @@ impl UiEguiRenderer {
                 depth_slice: None,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(clear_color),
+                    load: load_op,
                     store: wgpu::StoreOp::Store,
                 },
             })],

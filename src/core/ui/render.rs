@@ -60,7 +60,6 @@ pub fn render_ui_for_window(
     queue: &wgpu::Queue,
     encoder: &mut wgpu::CommandEncoder,
     time_seconds: f64,
-    filter_target: Option<bool>, // None = all, Some(true) = TextureId only, Some(false) = Screen only
 ) {
     if ui_state.contexts.is_empty() {
         return;
@@ -74,17 +73,21 @@ pub fn render_ui_for_window(
     }
     let renderer = ui_renderer.get_or_insert_with(|| UiEguiRenderer::new(device, target_format));
 
-    for (context_id, context) in ui_state.contexts.iter_mut() {
-        if context.window_id != window_id {
-            continue;
+    // Sort contexts: TextureId first (panels), then Screen (main UI)
+    // This ensures Panel textures are rendered before they're used by viewport cameras or UI
+    let mut sorted_contexts: Vec<_> = ui_state
+        .contexts
+        .iter_mut()
+        .filter(|(_, ctx)| ctx.window_id == window_id)
+        .collect();
+    sorted_contexts.sort_by_key(|(_, ctx)| {
+        match ctx.target {
+            UiRenderTarget::TextureId(_) => 0, // Render TextureId contexts first
+            UiRenderTarget::Screen => 1,       // Render Screen contexts last
         }
-        // Filter by target type if specified
-        if let Some(is_texture_id) = filter_target {
-            let context_is_texture_id = matches!(context.target, UiRenderTarget::TextureId(_));
-            if context_is_texture_id != is_texture_id {
-                continue;
-            }
-        }
+    });
+
+    for (context_id, context) in sorted_contexts {
         if let Some(theme_id) = context.theme_id.as_ref() {
             if let Some(theme) = ui_state.themes.get(theme_id) {
                 if context.applied_theme_id.as_ref() != Some(theme_id)
@@ -115,7 +118,21 @@ pub fn render_ui_for_window(
         let width = context.screen_rect.w.max(1.0).round() as u32;
         let height = context.screen_rect.h.max(1.0).round() as u32;
         let target_view = &target.view;
-        let clear_color = wgpu::Color::TRANSPARENT;
+
+        // Para contextos TextureId (panels):
+        // - Primeiro render: Clear para inicializar a textura
+        // - Renders subsequentes: Load para preservar conteúdo e permitir animações/atualizações parciais
+        // Para contextos Screen: sempre Clear
+        let clear_color = match context.target {
+            UiRenderTarget::TextureId(_) => {
+                if context.first_render {
+                    Some(wgpu::Color::TRANSPARENT)
+                } else {
+                    None
+                }
+            }
+            UiRenderTarget::Screen => Some(wgpu::Color::TRANSPARENT),
+        };
 
         let screen_descriptor = ScreenDescriptor {
             size_in_pixels: [width, height],
@@ -195,6 +212,10 @@ pub fn render_ui_for_window(
             clear_color,
         );
         renderer.prune_external_textures(&used_images);
+
+        if context.first_render {
+            context.first_render = false;
+        }
 
         if !context.debug_draw_logged {
             log::info!(
@@ -442,6 +463,14 @@ fn map_ui_target_to_texture(
             _texture: target._texture.clone(),
             view: target.view.clone(),
         },
+    );
+
+    log::info!(
+        "Mapping UI texture {} ({}x{}, format {:?}) to render_scene",
+        texture_id,
+        size.width,
+        size.height,
+        target.format
     );
 
     invalidate_material_bind_groups(render_scene, texture_id);

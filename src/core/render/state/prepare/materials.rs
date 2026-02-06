@@ -123,11 +123,17 @@ impl RenderState {
                 for slot in 0..STANDARD_TEXTURE_SLOTS {
                     let tex_id = record.texture_ids[slot];
                     let view = if tex_id != STANDARD_INVALID_SLOT {
-                        self.scene
+                        let view_opt = self.scene
                             .textures
                             .get(&tex_id)
-                            .map(|t| &t.view)
-                            .unwrap_or(&library.fallback_view)
+                            .map(|t| &t.view);
+                        if view_opt.is_none() {
+                            log::warn!(
+                                "Material {} slot {} references texture {} not found in scene, using fallback",
+                                id, slot, tex_id
+                            );
+                        }
+                        view_opt.unwrap_or(&library.fallback_view)
                     } else {
                         &library.fallback_view
                     };

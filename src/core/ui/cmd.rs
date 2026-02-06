@@ -126,6 +126,7 @@ pub fn engine_cmd_ui_context_create(
         applied_theme_fallback: false,
         debug_map_logged: false,
         debug_draw_logged: false,
+        first_render: true,
     };
 
     engine.ui.contexts.insert(args.context_id.clone(), record);

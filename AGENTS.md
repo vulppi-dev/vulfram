@@ -20,3 +20,10 @@
 - Propriedades internas em Rust usam `snake_case`; o serde converte para `camelCase` no host.
 - Recursos de áudio devem seguir o mesmo padrão de recursos de textura: IDs lógicos, bind a modelo para emissor/receptor, play com delay opcional e modo (once/loop/reverse/loop-reverse/ping-pong), e bypass de spatialização quando emissor e receptor forem o mesmo modelo.
 - O sistema de áudio deve separar resource de source: source e listener são vinculados a modelos; play recebe resourceId e timelineId (default 0), reinicia se timeline já estiver ativo; stop pode receber timelineId.
+- Arquitetura de render deve introduzir `Realm`, `Surface` e `RealmGraph`: `RenderGraph` fica intra-Realm; `RealmGraph` auto-gerado entre Realms a partir de Connectors e Presents.
+- `CmdRenderGraphSet(windowId, graph)` continua existindo como compat layer e passa a ser alias do RenderGraph do Realm default da window.
+- `Surface` deve ser sempre renderizavel e sampleavel (virtual swapchain), com conversoes automaticas de formato/alpha/size e resolve de MSAA quando necessario.
+- Composicao inter-Realm ocorre via `PlaneConnector` (3D) e `ViewportConnector` (2D/UI), com roteamento de input via hit-test/raycast e foco/capture.
+- `RealmGraph` deve impedir deadlocks: ciclos sao quebrados de forma deterministica com cache `LastGoodSurface` ou `FallbackSurface`; leitura do proprio output corrente e proibida por padrao (permitir apenas `PreviousFrame`).
+- Compartilhamento entre janelas deve permitir compor a mesma `Surface` em multiplas windows via layers/mascaras/zIndex/viewports; a composicao pode ser direta na janela ou via embed viewport em UI.
+- `zIndex`, `layers`, `blendMode` (antes chamado de mascara) e `rect` ficam no nivel de `Connector`; quando varios conectores apontam para a mesma `Surface`, o `zIndex` ordena as layers e o `rect` define o desenho com regras tipo `position: fixed` do CSS.

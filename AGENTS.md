@@ -1,6 +1,8 @@
 # AGENTS.md — Vulfram instructions
 
 - Sempre que o usuário comentar sobre um padrão ou regra de desenvolvimento, adicionar ao `AGENTS.md`.
+- Planejamento deve ocorrer sem alterar arquivos (sem gerar codigo) quando o usuario pedir apenas analise.
+- Em fase experimental, nao precisamos manter retrocompatibilidade; comandos antigos podem ser removidos ao criar novos.
 - Variaveis que seguram ownership e não são mais usadas depois ganham sempre o prefixo `_`.
 - Se variaveis não forem usadas, devem ser removidas.
 - Funções não usadas também são removidas.
@@ -21,7 +23,7 @@
 - Recursos de áudio devem seguir o mesmo padrão de recursos de textura: IDs lógicos, bind a modelo para emissor/receptor, play com delay opcional e modo (once/loop/reverse/loop-reverse/ping-pong), e bypass de spatialização quando emissor e receptor forem o mesmo modelo.
 - O sistema de áudio deve separar resource de source: source e listener são vinculados a modelos; play recebe resourceId e timelineId (default 0), reinicia se timeline já estiver ativo; stop pode receber timelineId.
 - Arquitetura de render deve introduzir `Realm`, `Surface` e `RealmGraph`: `RenderGraph` fica intra-Realm; `RealmGraph` auto-gerado entre Realms a partir de Connectors e Presents.
-- `CmdRenderGraphSet(windowId, graph)` continua existindo como compat layer e passa a ser alias do RenderGraph do Realm default da window.
+- `CmdRenderGraphSet` deve passar a configurar o RenderGraph do Realm 3D; planejar renomear para `CmdRenderGraph3DSet` e futuramente introduzir o comando do Realm 2D.
 - `Surface` deve ser sempre renderizavel e sampleavel (virtual swapchain), com conversoes automaticas de formato/alpha/size e resolve de MSAA quando necessario.
 - Composicao inter-Realm ocorre via `PlaneConnector` (3D) e `ViewportConnector` (2D/UI), com roteamento de input via hit-test/raycast e foco/capture.
 - `RealmGraph` deve impedir deadlocks: ciclos sao quebrados de forma deterministica com cache `LastGoodSurface` ou `FallbackSurface`; leitura do proprio output corrente e proibida por padrao (permitir apenas `PreviousFrame`).

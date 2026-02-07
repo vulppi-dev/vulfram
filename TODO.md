@@ -4,6 +4,7 @@
 
 **Fase 0 — Preparacao e alinhamento tecnico**
 - [ ] Mapear o fluxo atual de render por window e os pontos de acoplamento (`WindowState.render_state`, `render_frames`, `CmdRenderGraphSet`).
+- [ ] Definir a separacao de estados: `EngineState` (global), `WindowState` (janela), `InputsState` (teclado/ponteiro/gamepad), `UniversalState` (tabelas globais), `RealmState` (por realm).
 - [ ] Definir o contrato interno de `Realm`, `Surface`, `Present` e `Connector` (campos minimos, defaults e lifecycle).
 - [ ] Definir como os IDs logicos novos (`RealmId`, `SurfaceId`, `ConnectorId`, `PresentId`) aparecem no core (tabelas + generation).
 - [ ] Definir a politica de buffering do `Surface` (min 2 imagens, prev/current) e como expor `PreviousFrame`.
@@ -12,16 +13,18 @@
 - [ ] Validar o impacto no profiling e GPU timestamps com execucao multi-realm.
 - [ ] Atualizar docs de arquitetura (planejamento) antes de iniciar implementacao pesada.
 
-**Fase A — Infraestrutura base + Compatibilidade (sem mudar o host)**
+**Fase A — Infraestrutura base (sem retrocompatibilidade)**
 - [ ] Criar `RealmTable` com generation e estados essenciais (kind, output_surface, render_graph, flags).
 - [ ] Criar `SurfaceTable` com generation, `kind` (onscreen/offscreen), size/format/alpha/msaa policies e buffering.
 - [ ] Criar `PresentTable` com mapping `windowId -> surfaceId` e defaults.
 - [ ] Criar `ConnectorTable` com campos minimos: `connectorId`, `kind`, `sourceSurfaceId`, `rect`, `zIndex`, `blendMode`, `clip`, `inputFlags`.
+- [ ] Realocar estado do sistema de audio para o `UniversalState` e bindings por `RealmState` (sem mexer em detalhes internos).
+- [ ] Migrar bind de audio para `realmId` em vez de `windowId` (listener e source).
 - [ ] Introduzir `Realm` default por window (criado junto com `CmdWindowCreate`).
 - [ ] Criar `Surface` onscreen por window (virtual swapchain) e registrar em `Present`.
-- [ ] Ajustar `CmdRenderGraphSet(windowId, graph)` para ser alias do `Realm` default da window.
-- [ ] Garantir que o render atual continue funcionando sem host changes.
-- [ ] Atualizar docs de `CmdRenderGraphSet` para mencionar o alias do Realm default.
+- [ ] Substituir `CmdRenderGraphSet` por `CmdRenderGraph3DSet` (remover comando antigo).
+- [ ] Criar o comando de RenderGraph para Realm 2D (par 2D do `CmdRenderGraph3DSet`).
+- [ ] Atualizar docs dos comandos de RenderGraph para refletir a divisao 3D/2D.
 - [ ] Atualizar docs de `RENDER-GRAPH` para esclarecer que e intra-Realm.
 
 **Fase B — RealmGraph minimo (composicao visual basica)**
